@@ -26,6 +26,15 @@ def list_feed(
     )
 
 
+def list_by_author(db: Session, author_id: int) -> list[Post]:
+    return (
+        db.query(Post)
+        .filter(Post.author_id == author_id)
+        .order_by(desc(Post.created_at))
+        .all()
+    )
+
+
 def count_feed(db: Session, neighborhood: str, category: str | None) -> int:
     q = db.query(Post).filter(Post.neighborhood == neighborhood)
     if category and category != "todos":

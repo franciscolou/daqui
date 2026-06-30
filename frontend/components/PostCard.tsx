@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { Post, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/mock';
+import { api } from '../lib/api';
 import { useState } from 'react';
 
 interface PostCardProps {
@@ -13,15 +14,33 @@ interface PostCardProps {
 export default function PostCard({ post, onPress }: PostCardProps) {
   const [liked, setLiked] = useState(post.liked);
   const [likesCount, setLikesCount] = useState(post.likesCount);
+  const [busy, setBusy] = useState(false);
   const catColor = Colors.category[post.category] ?? Colors.primary;
 
-  const toggleLike = () => {
-    setLiked(!liked);
-    setLikesCount(liked ? likesCount - 1 : likesCount + 1);
+  const openPost = () => router.push(`/post/${post.id}` as any);
+
+  const toggleLike = async () => {
+    if (busy) return;
+    // Atualização otimista, com rollback em caso de erro
+    const prevLiked = liked;
+    const prevCount = likesCount;
+    setLiked(!prevLiked);
+    setLikesCount(prevLiked ? prevCount - 1 : prevCount + 1);
+    setBusy(true);
+    try {
+      const updated = await api.toggleLike(post.id);
+      setLiked(updated.liked);
+      setLikesCount(updated.likesCount);
+    } catch {
+      setLiked(prevLiked);
+      setLikesCount(prevCount);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.92}>
+    <TouchableOpacity style={styles.row} onPress={onPress ?? openPost} activeOpacity={0.92}>
       {/* Urgent bar on the left edge */}
       {post.urgent && <View style={styles.urgentBar} />}
 
@@ -47,9 +66,13 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             </TouchableOpacity>
             <Text style={styles.dot}>·</Text>
             <Text style={styles.time}>{post.createdAt}</Text>
-            <Text style={styles.dot}>·</Text>
-            <Ionicons name="navigate-outline" size={11} color={Colors.textTertiary} />
-            <Text style={styles.dist}>{post.distance}</Text>
+            {!!post.distance && (
+              <>
+                <Text style={styles.dot}>·</Text>
+                <Ionicons name="navigate-outline" size={11} color={Colors.textTertiary} />
+                <Text style={styles.dist}>{post.distance}</Text>
+              </>
+            )}
           </View>
           <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
@@ -108,7 +131,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={openPost}>
             <Ionicons name="chatbubble-outline" size={17} color={Colors.textTertiary} />
             <Text style={styles.actionCount}>{post.commentsCount}</Text>
           </TouchableOpacity>

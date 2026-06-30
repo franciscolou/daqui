@@ -4,6 +4,7 @@ Execute: python -m app.seed
 """
 from app.core.security import hash_password
 from app.database import SessionLocal, create_tables
+from app.models.comment import Comment
 from app.models.message import Message
 from app.models.notification import Notification
 from app.models.post import Post
@@ -71,14 +72,36 @@ def seed():
         users.append(user)
     db.flush()
 
+    posts = []
     for p in POSTS:
         author_idx = p.pop("author_idx")
         likes = p.pop("likes_count", 0)
-        comments = p.pop("comments_count", 0)
+        p.pop("comments_count", 0)  # contagem é derivada de comentários reais
         shares = p.pop("shares_count", 0)
         post = Post(**p, author_id=users[author_idx].id,
-                    likes_count=likes, comments_count=comments, shares_count=shares)
+                    likes_count=likes, comments_count=0, shares_count=shares)
         db.add(post)
+        posts.append(post)
+    db.flush()
+
+    # Comentários reais (post_idx, author_idx, content)
+    seed_comments = [
+        (1, 5, "Adoro essa padaria! O pão de fermentação natural também é ótimo 🥖"),
+        (1, 2, "Boa dica! Vou lá essa semana ☕"),
+        (1, 6, "Confirmo, atendimento excelente."),
+        (2, 3, "Compartilhei no grupo do condomínio. Obrigado pelo alerta!"),
+        (2, 0, "Já caíram nesse golpe aqui perto. Fiquem espertos."),
+        (3, 1, "Que coisa! Espero que o Thor apareça logo 🙏"),
+        (3, 4, "Vi um golden parecido perto da praça hoje de manhã."),
+        (4, 2, "Bora! A quadrilha do ano passado foi animadíssima 🎉"),
+    ]
+    for post_idx, author_idx, content in seed_comments:
+        db.add(Comment(post_id=posts[post_idx].id,
+                       author_id=users[author_idx].id, content=content))
+    db.flush()
+
+    for i, post in enumerate(posts):
+        post.comments_count = sum(1 for c in seed_comments if c[0] == i)
     db.flush()
 
     db.add(Message(sender_id=users[1].id, receiver_id=users[0].id,

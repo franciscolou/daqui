@@ -1,11 +1,20 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Colors } from '../constants/Colors';
-import { USERS, CURRENT_USER } from '../data/mock';
+import { User } from '../data/mock';
+import { api } from '../lib/api';
+import { useAuth } from '../lib/auth';
 
 export default function RightSidebar() {
-  const nearbyUsers = USERS.slice(0, 4);
+  const { user } = useAuth();
+  const [nearbyUsers, setNearbyUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    api.getNeighbors().then((n) => setNearbyUsers(n.slice(0, 4))).catch(() => {});
+  }, []);
 
   return (
     <View style={styles.sidebar}>
@@ -22,12 +31,12 @@ export default function RightSidebar() {
           </View>
           <View style={styles.mapBadge}>
             <Ionicons name="location" size={12} color={Colors.primary} />
-            <Text style={styles.mapBadgeText}>{CURRENT_USER.neighborhood}</Text>
+            <Text style={styles.mapBadgeText}>{user?.neighborhood}</Text>
           </View>
         </LinearGradient>
 
         <View style={styles.cardBody}>
-          <Text style={styles.neighborhoodName}>{CURRENT_USER.neighborhood}</Text>
+          <Text style={styles.neighborhoodName}>{user?.neighborhood}</Text>
           <Text style={styles.cityName}>São Paulo, SP</Text>
 
           <View style={styles.statsRow}>
@@ -54,10 +63,10 @@ export default function RightSidebar() {
       {/* Profile quick links */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Image source={{ uri: CURRENT_USER.avatar }} style={styles.profileAvatar} />
+          <Image source={{ uri: user?.avatar }} style={styles.profileAvatar} />
           <View>
-            <Text style={styles.profileGreeting}>Olá, {CURRENT_USER.name.split(' ')[0]}!</Text>
-            <Text style={styles.profileSub}>Líder do bairro</Text>
+            <Text style={styles.profileGreeting}>Olá, {user?.name?.split(' ')[0]}!</Text>
+            <Text style={styles.profileSub}>{user?.neighborhood}</Text>
           </View>
         </View>
         <View style={styles.divider} />
@@ -84,7 +93,12 @@ export default function RightSidebar() {
         </View>
         <View style={styles.neighborsList}>
           {nearbyUsers.map((u) => (
-            <TouchableOpacity key={u.id} style={styles.neighborRow} activeOpacity={0.7}>
+            <TouchableOpacity
+              key={u.id}
+              style={styles.neighborRow}
+              activeOpacity={0.7}
+              onPress={() => router.push(`/usuario/${u.id}` as any)}
+            >
               <View style={styles.neighborAvatarWrapper}>
                 <Image source={{ uri: u.avatar }} style={styles.neighborAvatar} />
                 <View style={styles.onlineDot} />

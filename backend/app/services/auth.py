@@ -2,15 +2,15 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import create_access_token, hash_password, verify_password
-from app.daos import user
+from app.daos import user as user_dao
 from app.schemas.auth import LoginRequest, SignupRequest, TokenResponse
 
 
 def signup(db: Session, payload: SignupRequest) -> TokenResponse:
-    if user.get_by_email(db, payload.email):
+    if user_dao.get_by_email(db, payload.email):
         raise HTTPException(status_code=400, detail="E-mail já cadastrado")
 
-    user = user.create(
+    user = user_dao.create(
         db,
         name=payload.name,
         email=payload.email,
@@ -22,7 +22,7 @@ def signup(db: Session, payload: SignupRequest) -> TokenResponse:
 
 
 def login(db: Session, payload: LoginRequest) -> TokenResponse:
-    user = user.get_by_email(db, payload.email)
+    user = user_dao.get_by_email(db, payload.email)
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

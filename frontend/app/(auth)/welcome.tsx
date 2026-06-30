@@ -7,7 +7,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useRef } from 'react';
+import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { useAuth } from '../../lib/auth';
+import { ApiError } from '../../lib/api';
 
 // ─── Dados estáticos ────────────────────────────────────────────
 const FEATURES = [
@@ -30,6 +33,7 @@ type Panel = 'welcome' | 'login' | 'signup';
 export default function WelcomeScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
+  const { login, signup } = useAuth();
 
   // estado do painel esquerdo (só usado no desktop)
   const [panel, setPanel] = useState<Panel>('welcome');
@@ -42,6 +46,8 @@ export default function WelcomeScreen() {
   const [name, setName] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // ── Animação de deslize ──────────────────────────────────────
   // Duas camadas absolutas: exit (sai) + enter (entra)
@@ -86,11 +92,70 @@ export default function WelcomeScreen() {
       (finished) => { if (finished) runOnJS(finishSlide)(); else { animBusy.current = false; } });
   };
 
-  const goTo   = (next: Panel) => slide(next, 0, 'fwd');
+  const goTo   = (next: Panel) => { setAuthError(null); slide(next, 0, 'fwd'); };
   const nextStep = () => slide(panel, signupStep + 1, 'fwd');
   const goBack = () => {
+    setAuthError(null);
     if (panel === 'signup' && signupStep > 0) slide(panel, signupStep - 1, 'bwd');
     else slide('welcome', 0, 'bwd');
+  };
+
+  // ── Auth real (painel desktop) ───────────────────────────────
+  const handleLogin = async () => {
+    if (submitting) return;
+    setAuthError(null);
+    if (!email.trim() || !password) {
+      setAuthError('Preencha e-mail e senha.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await login(email.trim(), password);
+      router.replace('/(tabs)');
+    } catch (e) {
+      setAuthError(e instanceof ApiError ? e.message : 'Falha ao entrar.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSignupNext = async () => {
+    if (submitting) return;
+    setAuthError(null);
+
+    if (signupStep === 0) {
+      if (!name.trim() || !email.trim() || !password) {
+        setAuthError('Preencha nome, e-mail e senha.');
+        return;
+      }
+      nextStep();
+      return;
+    }
+
+    if (signupStep === 1) {
+      if (!neighborhood.trim()) {
+        setAuthError('Informe seu bairro.');
+        return;
+      }
+      setSubmitting(true);
+      try {
+        await signup({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          neighborhood: neighborhood.trim(),
+          city: city.trim() || 'São Paulo',
+        });
+        nextStep();
+      } catch (e) {
+        setAuthError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    router.replace('/(tabs)');
   };
 
   // ── Painel esquerdo: hero ────────────────────────────────────
@@ -205,13 +270,27 @@ export default function WelcomeScreen() {
         <Text style={styles.forgotText}>Esqueceu a senha?</Text>
       </TouchableOpacity>
 
+      {authError && (
+        <View style={styles.authErrorBox}>
+          <Ionicons name="alert-circle" size={16} color={Colors.error} />
+          <Text style={styles.authErrorText}>{authError}</Text>
+        </View>
+      )}
+
       <TouchableOpacity
-        style={styles.btnPrimary}
-        onPress={() => router.replace('/(tabs)')}
+        style={[styles.btnPrimary, submitting && { opacity: 0.7 }]}
+        onPress={handleLogin}
         activeOpacity={0.88}
+        disabled={submitting}
       >
-        <Text style={styles.btnPrimaryText}>Entrar</Text>
-        <Ionicons name="arrow-forward" size={18} color="#fff" />
+        {submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <Text style={styles.btnPrimaryText}>Entrar</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
+          </>
+        )}
       </TouchableOpacity>
 
       <View style={styles.divider}>
@@ -354,13 +433,27 @@ export default function WelcomeScreen() {
         </View>
       )}
 
+      {authError && step < 2 && (
+        <View style={[styles.authErrorBox, { marginTop: 12 }]}>
+          <Ionicons name="alert-circle" size={16} color={Colors.error} />
+          <Text style={styles.authErrorText}>{authError}</Text>
+        </View>
+      )}
+
       <TouchableOpacity
-        style={[styles.btnPrimary, { marginTop: 16 }]}
-        onPress={() => step < 2 ? nextStep() : router.replace('/(tabs)')}
+        style={[styles.btnPrimary, { marginTop: 16 }, submitting && { opacity: 0.7 }]}
+        onPress={handleSignupNext}
         activeOpacity={0.88}
+        disabled={submitting}
       >
-        <Text style={styles.btnPrimaryText}>{step === 2 ? 'Explorar o bairro' : 'Continuar'}</Text>
-        <Ionicons name={step === 2 ? 'home' : 'arrow-forward'} size={18} color="#fff" />
+        {submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <Text style={styles.btnPrimaryText}>{step === 2 ? 'Explorar o bairro' : 'Continuar'}</Text>
+            <Ionicons name={step === 2 ? 'home' : 'arrow-forward'} size={18} color="#fff" />
+          </>
+        )}
       </TouchableOpacity>
 
       {step === 0 && (
@@ -532,6 +625,8 @@ const styles = StyleSheet.create({
   ctaArea: { gap: 10, marginBottom: 24 },
   btnPrimary: { backgroundColor: Colors.primaryDark, borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...Colors.shadow.md },
   btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  authErrorBox: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: Colors.error + '12', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12 },
+  authErrorText: { flex: 1, fontSize: 13, color: Colors.error, fontWeight: '500' },
   btnSecondary: { borderRadius: 14, paddingVertical: 16, alignItems: 'center', borderWidth: 1.5, borderColor: Colors.border },
   btnSecondaryText: { color: Colors.text, fontSize: 16, fontWeight: '600' },
   terms: { textAlign: 'center', color: Colors.textTertiary, fontSize: 12, lineHeight: 18 },

@@ -9,14 +9,18 @@ import {
   Image,
   useWindowDimensions,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Colors } from '../../constants/Colors';
-import { POSTS, USERS, CATEGORIES, CURRENT_USER, PostCategory } from '../../data/mock';
+import { CATEGORIES, PostCategory, Post, User } from '../../data/mock';
+import { api } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import PostCard from '../../components/PostCard';
 import StoryAvatar from '../../components/StoryAvatar';
 import LeftSidebar from '../../components/LeftSidebar';
@@ -29,11 +33,46 @@ const WIDE = 900;
 export default function FeedScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
+  const { user } = useAuth();
 
   const [activeCategory, setActiveCategory] = useState<FilterKey>('todos');
   const [searchQuery, setSearchQuery] = useState('');
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [neighbors, setNeighbors] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredPosts = POSTS.filter((p) => {
+  const load = useCallback(async () => {
+    try {
+      setError(null);
+      const [feed, nb] = await Promise.all([
+        api.getFeed(),
+        api.getNeighbors().catch(() => [] as User[]),
+      ]);
+      setPosts(feed);
+      setNeighbors(nb);
+    } catch {
+      setError('Não foi possível carregar o feed.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Recarrega ao focar a tela (reflete novos posts, curtidas e comentários)
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
+
+  const filteredPosts = posts.filter((p) => {
     const matchesCategory = activeCategory === 'todos' || p.category === activeCategory;
     const matchesSearch =
       searchQuery === '' ||
@@ -47,9 +86,13 @@ export default function FeedScreen() {
       {/* Compose box */}
       <View style={styles.composeBox}>
         <TouchableOpacity onPress={() => router.push('/(tabs)/perfil')} activeOpacity={0.8}>
-          <Image source={{ uri: CURRENT_USER.avatar }} style={styles.composeAvatar} />
+          <Image source={{ uri: user?.avatar }} style={styles.composeAvatar} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.composeFakeInput} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.composeFakeInput}
+          activeOpacity={0.7}
+          onPress={() => router.push('/(tabs)/publicar')}
+        >
           <Text style={styles.composePlaceholder}>
             Postar uma mensagem, evento, enquete ou aviso urgente
           </Text>
@@ -88,7 +131,7 @@ export default function FeedScreen() {
           <View style={styles.storiesSection}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storiesRow}>
               <StoryAvatar isAdd />
-              {USERS.map((u) => <StoryAvatar key={u.id} user={u} />)}
+              {neighbors.map((u) => <StoryAvatar key={u.id} user={u} />)}
             </ScrollView>
           </View>
           <View style={styles.hairline} />
@@ -125,6 +168,32 @@ export default function FeedScreen() {
       ListHeaderComponent={feedHeader}
       renderItem={({ item }) => <PostCard post={item} />}
       contentContainerStyle={styles.listContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+      }
+      ListEmptyComponent={
+        loading ? (
+          <View style={styles.feedState}>
+            <ActivityIndicator color={Colors.primary} />
+          </View>
+        ) : (
+          <View style={styles.feedState}>
+            <Ionicons
+              name={error ? 'cloud-offline-outline' : 'newspaper-outline'}
+              size={32}
+              color={Colors.textTertiary}
+            />
+            <Text style={styles.feedStateText}>
+              {error ?? 'Nenhuma publicação por aqui ainda.'}
+            </Text>
+            {error && (
+              <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
+                <Text style={styles.retryText}>Tentar novamente</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )
+      }
     />
   );
 
@@ -148,7 +217,7 @@ export default function FeedScreen() {
         {/* Avatar (mobile) */}
         {!isWide && (
           <TouchableOpacity onPress={() => router.push('/(tabs)/perfil')} activeOpacity={0.8}>
-            <Image source={{ uri: CURRENT_USER.avatar }} style={styles.topBarAvatar} />
+            <Image source={{ uri: user?.avatar }} style={styles.topBarAvatar} />
           </TouchableOpacity>
         )}
 
@@ -158,14 +227,16 @@ export default function FeedScreen() {
             <Ionicons name="search-outline" size={15} color={Colors.textTertiary} />
             <TextInput
               style={styles.topBarSearchInput}
-              placeholder="Buscar em Vila Madalena..."
+              placeholder={`Buscar em ${user?.neighborhood ?? 'seu bairro'}...`}
               placeholderTextColor={Colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
           </View>
         ) : (
           <TouchableOpacity style={styles.neighborhoodBtn}>
             <Ionicons name="location" size={13} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.neighborhoodBtnText}>{CURRENT_USER.neighborhood}</Text>
+            <Text style={styles.neighborhoodBtnText}>{user?.neighborhood}</Text>
             <Ionicons name="chevron-down" size={13} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
         )}
@@ -181,7 +252,7 @@ export default function FeedScreen() {
           </TouchableOpacity>
           {isWide && (
             <TouchableOpacity style={styles.avatarBtn} onPress={() => router.push('/(tabs)/perfil')} activeOpacity={0.8}>
-              <Image source={{ uri: CURRENT_USER.avatar }} style={styles.topBarAvatarWide} />
+              <Image source={{ uri: user?.avatar }} style={styles.topBarAvatarWide} />
             </TouchableOpacity>
           )}
         </View>
@@ -446,4 +517,24 @@ const styles = StyleSheet.create({
   } as any,
 
   listContent: { paddingBottom: 24 },
+  feedState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  feedStateText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  retryBtn: {
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    backgroundColor: Colors.primaryFaint,
+  },
+  retryText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
 });

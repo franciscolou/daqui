@@ -1,21 +1,28 @@
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session
 
 from app.models.message import Message
 
 
 def get_last_per_conversation(db: Session, user_id: int) -> list[Message]:
-    subq = (
-        db.query(
-            func.greatest(Message.sender_id, Message.receiver_id).label("user_a"),
-            func.least(Message.sender_id, Message.receiver_id).label("user_b"),
-            func.max(Message.id).label("last_id"),
-        )
+    # Mais recente primeiro; mantém apenas a primeira mensagem vista por
+    # interlocutor. Feito em Python para ser compatível com SQLite
+    # (que não possui as funções greatest/least).
+    rows = (
+        db.query(Message)
         .filter(or_(Message.sender_id == user_id, Message.receiver_id == user_id))
-        .group_by("user_a", "user_b")
-        .subquery()
+        .order_by(desc(Message.id))
+        .all()
     )
-    return db.query(Message).join(subq, Message.id == subq.c.last_id).all()
+    seen: set[int] = set()
+    result: list[Message] = []
+    for msg in rows:
+        other_id = msg.receiver_id if msg.sender_id == user_id else msg.sender_id
+        if other_id in seen:
+            continue
+        seen.add(other_id)
+        result.append(msg)
+    return result
 
 
 def get_thread(db: Session, user_id: int, other_id: int) -> list[Message]:

@@ -11,11 +11,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { CURRENT_USER, POSTS } from '../../data/mock';
-import { router } from 'expo-router';
+import { Post } from '../../data/mock';
+import { api } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import LeftSidebar from '../../components/LeftSidebar';
-
-const MY_POSTS = POSTS.slice(0, 3);
 
 const SETTINGS_GROUPS = [
   {
@@ -49,6 +50,24 @@ const WIDE = 900;
 export default function PerfilScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
+  const { user, logout } = useAuth();
+  const [myPosts, setMyPosts] = useState<Post[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      api.getUserPosts(user.id).then(setMyPosts).catch(() => setMyPosts([]));
+    }, [user]),
+  );
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/(auth)/welcome');
+  };
+
+  const badgeLabel =
+    user?.badge === 'lider' ? 'Líder do Bairro'
+      : user?.badge === 'comerciante' ? 'Comerciante' : 'Morador';
 
   const content = (
     <>
@@ -65,14 +84,14 @@ export default function PerfilScreen() {
 
         <View style={styles.profileCenter}>
           <View style={styles.avatarContainer}>
-            <Image source={{ uri: CURRENT_USER.avatar }} style={styles.avatar} />
+            <Image source={{ uri: user?.avatar }} style={styles.avatar} />
             <TouchableOpacity style={styles.editAvatarBtn}>
               <Ionicons name="camera" size={14} color="#fff" />
             </TouchableOpacity>
           </View>
           <View style={styles.nameBadgeRow}>
-            <Text style={styles.name}>{CURRENT_USER.name}</Text>
-            {CURRENT_USER.verified && (
+            <Text style={styles.name}>{user?.name}</Text>
+            {user?.verified && (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark" size={10} color="#fff" />
               </View>
@@ -80,15 +99,12 @@ export default function PerfilScreen() {
           </View>
           <View style={styles.neighborhoodRow}>
             <Ionicons name="location" size={13} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.neighborhood}>{CURRENT_USER.neighborhood}</Text>
+            <Text style={styles.neighborhood}>{user?.neighborhood}</Text>
           </View>
-          {CURRENT_USER.badge && (
+          {user?.badge && (
             <View style={styles.leaderBadge}>
               <Ionicons name="ribbon" size={13} color={Colors.warning} />
-              <Text style={styles.leaderText}>
-                {CURRENT_USER.badge === 'lider' ? 'Líder do Bairro'
-                  : CURRENT_USER.badge === 'comerciante' ? 'Comerciante' : 'Morador'}
-              </Text>
+              <Text style={styles.leaderText}>{badgeLabel}</Text>
             </View>
           )}
         </View>
@@ -96,12 +112,12 @@ export default function PerfilScreen() {
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statNum}>{CURRENT_USER.postsCount}</Text>
+            <Text style={styles.statNum}>{user?.postsCount ?? 0}</Text>
             <Text style={styles.statLabel}>Posts</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNum}>{CURRENT_USER.helpCount}</Text>
+            <Text style={styles.statNum}>{user?.helpCount ?? 0}</Text>
             <Text style={styles.statLabel}>Ajudas</Text>
           </View>
           <View style={styles.statDivider} />
@@ -139,7 +155,7 @@ export default function PerfilScreen() {
             </View>
           ))}
         </View>
-        <Text style={styles.memberSince}>Membro desde {CURRENT_USER.joinedAt}</Text>
+        <Text style={styles.memberSince}>Membro desde {user?.joinedAt}</Text>
       </View>
 
       {/* My posts */}
@@ -151,10 +167,18 @@ export default function PerfilScreen() {
           </TouchableOpacity>
         </View>
         <View style={styles.myPostsList}>
-          {MY_POSTS.map((post) => {
+          {myPosts.length === 0 && (
+            <Text style={styles.noPostsText}>Você ainda não publicou nada.</Text>
+          )}
+          {myPosts.map((post) => {
             const catColor = Colors.category[post.category];
             return (
-              <TouchableOpacity key={post.id} style={styles.myPostCard} activeOpacity={0.9}>
+              <TouchableOpacity
+                key={post.id}
+                style={styles.myPostCard}
+                activeOpacity={0.9}
+                onPress={() => router.push(`/post/${post.id}` as any)}
+              >
                 {post.images?.[0] ? (
                   <Image source={{ uri: post.images[0] }} style={styles.myPostImage} />
                 ) : (
@@ -207,7 +231,7 @@ export default function PerfilScreen() {
       {/* Logout */}
       <TouchableOpacity
         style={styles.logoutBtn}
-        onPress={() => router.replace('/(auth)/welcome')}
+        onPress={handleLogout}
         activeOpacity={0.85}
       >
         <Ionicons name="log-out-outline" size={18} color={Colors.error} />
@@ -394,6 +418,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, fontWeight: '700', color: Colors.text },
   sectionLink: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
   myPostsList: { paddingHorizontal: 16, gap: 10 },
+  noPostsText: { fontSize: 14, color: Colors.textTertiary, paddingVertical: 8 },
   myPostCard: {
     flexDirection: 'row',
     gap: 12,

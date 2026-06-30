@@ -8,18 +8,22 @@ import {
   Platform,
   ScrollView,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
+import { useAuth } from '../../lib/auth';
+import { ApiError } from '../../lib/api';
 
 const STEPS = ['Conta', 'Bairro', 'Pronto'];
 
 export default function SignupScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
+  const { signup } = useAuth();
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
@@ -27,10 +31,46 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const nextStep = () => {
-    if (step < 2) setStep(step + 1);
-    else router.replace('/(tabs)');
+  const nextStep = async () => {
+    if (submitting) return;
+    setError(null);
+
+    if (step === 0) {
+      if (!name.trim() || !email.trim() || !password) {
+        setError('Preencha nome, e-mail e senha.');
+        return;
+      }
+      setStep(1);
+      return;
+    }
+
+    if (step === 1) {
+      if (!neighborhood.trim()) {
+        setError('Informe seu bairro.');
+        return;
+      }
+      setSubmitting(true);
+      try {
+        await signup({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          neighborhood: neighborhood.trim(),
+          city: city.trim() || 'São Paulo',
+        });
+        setStep(2);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    router.replace('/(tabs)');
   };
 
   return (
@@ -217,17 +257,35 @@ export default function SignupScreen() {
               </View>
             )}
 
-            <TouchableOpacity style={styles.btnPrimary} onPress={nextStep} activeOpacity={0.85}>
+            {error && (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[styles.btnPrimary, submitting && styles.btnDisabled]}
+              onPress={nextStep}
+              activeOpacity={0.85}
+              disabled={submitting}
+            >
               <LinearGradient
                 colors={Colors.gradient.primary}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.btnGradient}
               >
-                <Text style={styles.btnText}>
-                  {step === 2 ? 'Explorar o bairro' : 'Continuar'}
-                </Text>
-                <Ionicons name={step === 2 ? 'home' : 'arrow-forward'} size={18} color="#fff" />
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.btnText}>
+                      {step === 2 ? 'Explorar o bairro' : 'Continuar'}
+                    </Text>
+                    <Ionicons name={step === 2 ? 'home' : 'arrow-forward'} size={18} color="#fff" />
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 
@@ -499,6 +557,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     ...Colors.shadow.md,
   },
+  btnDisabled: { opacity: 0.7 },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: Colors.error + '12',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+  errorText: { flex: 1, fontSize: 13, color: Colors.error, fontWeight: '500' },
   btnGradient: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -12,23 +12,43 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
-import { CATEGORIES, CATEGORY_LABELS, PostCategory, CURRENT_USER } from '../../data/mock';
+import { CATEGORIES, PostCategory } from '../../data/mock';
+import { api, ApiError } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import { router } from 'expo-router';
 
 const CREATE_CATEGORIES = CATEGORIES.filter((c) => c.key !== 'todos');
 
 export default function PublicarScreen() {
+  const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isUrgent, setIsUrgent] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canPublish = selectedCategory && content.trim().length > 10;
+  const canPublish = !!selectedCategory && content.trim().length > 10 && !publishing;
 
-  const handlePublish = () => {
-    router.replace('/(tabs)');
+  const handlePublish = async () => {
+    if (!canPublish || !selectedCategory) return;
+    setError(null);
+    setPublishing(true);
+    try {
+      await api.createPost({
+        category: selectedCategory,
+        title: title.trim() || undefined,
+        content: content.trim(),
+        urgent: isUrgent,
+      });
+      router.replace('/(tabs)');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao publicar.');
+      setPublishing(false);
+    }
   };
 
   return (
@@ -50,9 +70,13 @@ export default function PublicarScreen() {
               disabled={!canPublish}
               activeOpacity={0.85}
             >
-              <Text style={[styles.publishBtnText, !canPublish && styles.publishBtnTextDisabled]}>
-                Publicar
-              </Text>
+              {publishing ? (
+                <ActivityIndicator color={Colors.primaryDark} size="small" />
+              ) : (
+                <Text style={[styles.publishBtnText, !canPublish && styles.publishBtnTextDisabled]}>
+                  Publicar
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </LinearGradient>
@@ -60,12 +84,12 @@ export default function PublicarScreen() {
         <ScrollView style={styles.flex} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* Author preview */}
           <View style={styles.authorRow}>
-            <Image source={{ uri: CURRENT_USER.avatar }} style={styles.authorAvatar} />
+            <Image source={{ uri: user?.avatar }} style={styles.authorAvatar} />
             <View>
-              <Text style={styles.authorName}>{CURRENT_USER.name}</Text>
+              <Text style={styles.authorName}>{user?.name}</Text>
               <View style={styles.authorMeta}>
                 <Ionicons name="location-outline" size={12} color={Colors.primary} />
-                <Text style={styles.authorNeighborhood}>{CURRENT_USER.neighborhood}</Text>
+                <Text style={styles.authorNeighborhood}>{user?.neighborhood}</Text>
                 <View style={styles.audienceChip}>
                   <Ionicons name="people" size={11} color={Colors.primary} />
                   <Text style={styles.audienceText}>Bairro inteiro</Text>
@@ -73,6 +97,13 @@ export default function PublicarScreen() {
               </View>
             </View>
           </View>
+
+          {error && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={16} color={Colors.error} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
           {/* Category selector */}
           <View style={styles.section}>
@@ -397,4 +428,16 @@ const styles = StyleSheet.create({
     borderColor: '#FDE68A',
   },
   tipText: { flex: 1, fontSize: 13, color: '#92400E', lineHeight: 19 },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginHorizontal: 16,
+    marginTop: 14,
+    backgroundColor: Colors.error + '12',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  errorText: { flex: 1, fontSize: 13, color: Colors.error, fontWeight: '500' },
 });

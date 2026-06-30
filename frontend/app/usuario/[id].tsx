@@ -6,27 +6,60 @@ import {
   TouchableOpacity,
   Image,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Colors } from '../../constants/Colors';
-import { CURRENT_USER, USERS, POSTS } from '../../data/mock';
-
-function getUserById(id: string) {
-  if (id === CURRENT_USER.id) return CURRENT_USER;
-  return USERS.find((u) => u.id === id) ?? null;
-}
+import { Post, User } from '../../data/mock';
+import { api } from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 
 export default function UsuarioScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
+  const { user: me } = useAuth();
 
-  const user = getUserById(id);
-  const isMe = id === CURRENT_USER.id;
-  const userPosts = POSTS.filter((p) => p.author.id === id);
+  const [user, setUser] = useState<User | null>(null);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const isMe = !!me && me.id === id;
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const [u, posts] = await Promise.all([
+        api.getUser(id),
+        api.getUserPosts(id).catch(() => [] as Post[]),
+      ]);
+      setUser(u);
+      setUserPosts(posts);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.notFound}>
+          <ActivityIndicator color={Colors.primary} size="large" />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (!user) {
     return (
@@ -163,7 +196,12 @@ export default function UsuarioScreen() {
             {userPosts.map((post) => {
               const catColor = Colors.category[post.category] ?? Colors.primary;
               return (
-                <TouchableOpacity key={post.id} style={styles.postCard} activeOpacity={0.9}>
+                <TouchableOpacity
+                  key={post.id}
+                  style={styles.postCard}
+                  activeOpacity={0.9}
+                  onPress={() => router.push(`/post/${post.id}` as any)}
+                >
                   {post.images?.[0] ? (
                     <Image source={{ uri: post.images[0] }} style={styles.postImage} />
                   ) : (

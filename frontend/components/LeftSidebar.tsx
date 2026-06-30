@@ -3,7 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, usePathname } from 'expo-router';
 import { Colors } from '../constants/Colors';
-import { CURRENT_USER, CATEGORIES, PostCategory } from '../data/mock';
+import { CATEGORIES, PostCategory } from '../data/mock';
+import { useAuth } from '../lib/auth';
 
 interface Props {
   activeCategory?: string;
@@ -25,6 +26,7 @@ const PEOPLE_ITEMS = [
 
 export default function LeftSidebar({ activeCategory, onCategoryChange }: Props) {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   const isTabActive = (key: string) =>
     key === 'index' ? pathname === '/' : pathname === `/${key}`;
@@ -41,12 +43,12 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
 
       {/* User info */}
       <TouchableOpacity style={styles.userRow} onPress={() => router.push('/(tabs)/perfil')}>
-        <Image source={{ uri: CURRENT_USER.avatar }} style={styles.userAvatar} />
+        <Image source={{ uri: user?.avatar }} style={styles.userAvatar} />
         <View style={styles.userInfo}>
-          <Text style={styles.userName} numberOfLines={1}>{CURRENT_USER.name.split(' ')[0]}</Text>
+          <Text style={styles.userName} numberOfLines={1}>{user?.name?.split(' ')[0]}</Text>
           <View style={styles.userNeighborhood}>
             <Ionicons name="location-outline" size={11} color={Colors.primary} />
-            <Text style={styles.userNeighborhoodText}>{CURRENT_USER.neighborhood}</Text>
+            <Text style={styles.userNeighborhoodText}>{user?.neighborhood}</Text>
           </View>
         </View>
       </TouchableOpacity>

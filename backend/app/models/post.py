@@ -27,7 +27,12 @@ class Post(Base):
     )
 
     author: Mapped["User"] = relationship("User", back_populates="posts")  # noqa: F821
-    likes: Mapped[list["PostLike"]] = relationship("PostLike", back_populates="post", lazy="select")
+    likes: Mapped[list["PostLike"]] = relationship(
+        "PostLike", back_populates="post", lazy="select", cascade="all, delete-orphan"
+    )
+    comments: Mapped[list["Comment"]] = relationship(  # noqa: F821
+        "Comment", back_populates="post", lazy="select", cascade="all, delete-orphan"
+    )
 
 
 class PostLike(Base):

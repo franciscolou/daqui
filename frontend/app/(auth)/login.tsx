@@ -8,20 +8,44 @@ import {
   Platform,
   ScrollView,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
+import { useAuth } from '../../lib/auth';
+import { ApiError } from '../../lib/api';
 
 export default function LoginScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
+  const { login } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async () => {
+    if (submitting) return;
+    setError(null);
+    if (!email.trim() || !password) {
+      setError('Preencha e-mail e senha.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await login(email.trim(), password);
+      router.replace('/(tabs)');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Falha ao entrar.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -100,10 +124,18 @@ export default function LoginScreen() {
               <Text style={styles.forgotText}>Esqueceu a senha?</Text>
             </TouchableOpacity>
 
+            {error && (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+
             <TouchableOpacity
-              style={styles.btnPrimary}
-              onPress={() => router.replace('/(tabs)')}
+              style={[styles.btnPrimary, submitting && styles.btnDisabled]}
+              onPress={handleLogin}
               activeOpacity={0.85}
+              disabled={submitting}
             >
               <LinearGradient
                 colors={Colors.gradient.primary}
@@ -111,8 +143,14 @@ export default function LoginScreen() {
                 end={{ x: 1, y: 0 }}
                 style={styles.btnGradient}
               >
-                <Text style={styles.btnText}>Entrar</Text>
-                <Ionicons name="arrow-forward" size={18} color="#fff" />
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.btnText}>Entrar</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#fff" />
+                  </>
+                )}
               </LinearGradient>
             </TouchableOpacity>
 
@@ -280,6 +318,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     ...Colors.shadow.md,
   },
+  btnDisabled: { opacity: 0.7 },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: Colors.error + '12',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 14,
+  },
+  errorText: { flex: 1, fontSize: 13, color: Colors.error, fontWeight: '500' },
   btnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
