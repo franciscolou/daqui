@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
 import { POSTS, USERS, CATEGORIES, CURRENT_USER, PostCategory } from '../../data/mock';
@@ -45,7 +46,9 @@ export default function FeedScreen() {
     <>
       {/* Compose box */}
       <View style={styles.composeBox}>
-        <Image source={{ uri: CURRENT_USER.avatar }} style={styles.composeAvatar} />
+        <TouchableOpacity onPress={() => router.push('/(tabs)/perfil')} activeOpacity={0.8}>
+          <Image source={{ uri: CURRENT_USER.avatar }} style={styles.composeAvatar} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.composeFakeInput} activeOpacity={0.7}>
           <Text style={styles.composePlaceholder}>
             Postar uma mensagem, evento, enquete ou aviso urgente
@@ -144,7 +147,9 @@ export default function FeedScreen() {
 
         {/* Avatar (mobile) */}
         {!isWide && (
-          <Image source={{ uri: CURRENT_USER.avatar }} style={styles.topBarAvatar} />
+          <TouchableOpacity onPress={() => router.push('/(tabs)/perfil')} activeOpacity={0.8}>
+            <Image source={{ uri: CURRENT_USER.avatar }} style={styles.topBarAvatar} />
+          </TouchableOpacity>
         )}
 
         {/* Search (wide) */}
@@ -175,7 +180,7 @@ export default function FeedScreen() {
             <View style={styles.notifDot} />
           </TouchableOpacity>
           {isWide && (
-            <TouchableOpacity style={styles.avatarBtn}>
+            <TouchableOpacity style={styles.avatarBtn} onPress={() => router.push('/(tabs)/perfil')} activeOpacity={0.8}>
               <Image source={{ uri: CURRENT_USER.avatar }} style={styles.topBarAvatarWide} />
             </TouchableOpacity>
           )}
@@ -184,21 +189,21 @@ export default function FeedScreen() {
 
       {/* ─── Body: 3-column on wide, 1-column on mobile ─── */}
       {isWide ? (
-        <View style={styles.wideBody}>
-          {/* Left sidebar — scrollable */}
-          <ScrollView style={styles.leftCol} showsVerticalScrollIndicator={false}>
+        <View style={[styles.wideBody, { paddingHorizontal: Math.max(0, (width - 1140) / 2) }]}>
+          {/* Left sidebar — sticky */}
+          <View style={styles.leftCol}>
             <LeftSidebar
               activeCategory={activeCategory}
               onCategoryChange={(k) => setActiveCategory(k as FilterKey)}
             />
-          </ScrollView>
+          </View>
 
-          {/* Center feed — main scroll */}
+          {/* Center feed */}
           <View style={styles.centerCol}>
             {feed}
           </View>
 
-          {/* Right sidebar — scrollable */}
+          {/* Right sidebar */}
           <ScrollView style={styles.rightCol} showsVerticalScrollIndicator={false}>
             <RightSidebar />
           </ScrollView>
@@ -326,16 +331,17 @@ const styles = StyleSheet.create({
   leftCol: {
     width: 220,
     flexShrink: 0,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: Colors.border,
   },
   centerCol: {
-    flex: 1,
+    width: 640,
+    flexShrink: 1,
+    minWidth: 0,
     backgroundColor: Colors.surface,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: Colors.border,
-    maxWidth: 640,
   },
   rightCol: {
     width: 280,

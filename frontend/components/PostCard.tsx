@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { Post, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/mock';
 import { useState } from 'react';
@@ -25,7 +26,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
       {post.urgent && <View style={styles.urgentBar} />}
 
       {/* Left col: avatar */}
-      <View style={styles.leftCol}>
+      <TouchableOpacity style={styles.leftCol} onPress={() => router.push(`/usuario/${post.author.id}` as any)} activeOpacity={0.8}>
         <View style={styles.avatarWrapper}>
           <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
           {post.author.verified && (
@@ -34,14 +35,16 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             </View>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Right col: everything else */}
       <View style={styles.rightCol}>
         {/* Author + meta row */}
         <View style={styles.topRow}>
           <View style={styles.authorMeta}>
-            <Text style={styles.authorName} numberOfLines={1}>{post.author.name}</Text>
+            <TouchableOpacity onPress={() => router.push(`/usuario/${post.author.id}` as any)} activeOpacity={0.7}>
+              <Text style={styles.authorName} numberOfLines={1}>{post.author.name}</Text>
+            </TouchableOpacity>
             <Text style={styles.dot}>·</Text>
             <Text style={styles.time}>{post.createdAt}</Text>
             <Text style={styles.dot}>·</Text>

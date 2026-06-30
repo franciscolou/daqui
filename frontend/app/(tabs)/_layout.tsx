@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,10 @@ const TAB_ITEMS = [
 ];
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+
+  if (width >= 900) return null;
 
   return (
     <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom || 16 }]}>

@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { CURRENT_USER, POSTS } from '../../data/mock';
 import { router } from 'expo-router';
+import LeftSidebar from '../../components/LeftSidebar';
 
 const MY_POSTS = POSTS.slice(0, 3);
 
@@ -19,212 +21,249 @@ const SETTINGS_GROUPS = [
   {
     title: 'Conta',
     items: [
-      { icon: 'person-outline', label: 'Editar perfil', color: Colors.indigo },
-      { icon: 'lock-closed-outline', label: 'Privacidade e segurança', color: Colors.primary },
-      { icon: 'notifications-outline', label: 'Notificações', color: Colors.accent },
+      { icon: 'person-outline',        label: 'Editar perfil',             color: Colors.indigo },
+      { icon: 'lock-closed-outline',   label: 'Privacidade e segurança',   color: Colors.primary },
+      { icon: 'notifications-outline', label: 'Notificações',              color: Colors.accent },
     ],
   },
   {
     title: 'Bairro',
     items: [
-      { icon: 'location-outline', label: 'Meu endereço', color: Colors.error },
-      { icon: 'people-outline', label: 'Vizinhos que sigo', color: Colors.indigo },
-      { icon: 'business-outline', label: 'Comércios locais', color: Colors.warning },
+      { icon: 'location-outline', label: 'Meu endereço',       color: Colors.error },
+      { icon: 'people-outline',   label: 'Vizinhos que sigo',  color: Colors.indigo },
+      { icon: 'business-outline', label: 'Comércios locais',   color: Colors.warning },
     ],
   },
   {
     title: 'App',
     items: [
-      { icon: 'star-outline', label: 'Avaliar o Daqui', color: Colors.warning },
-      { icon: 'help-circle-outline', label: 'Ajuda e suporte', color: Colors.textSecondary },
-      { icon: 'document-text-outline', label: 'Termos de uso', color: Colors.textSecondary },
+      { icon: 'star-outline',          label: 'Avaliar o Daqui',  color: Colors.warning },
+      { icon: 'help-circle-outline',   label: 'Ajuda e suporte',  color: Colors.textSecondary },
+      { icon: 'document-text-outline', label: 'Termos de uso',    color: Colors.textSecondary },
     ],
   },
 ];
 
-export default function PerfilScreen() {
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero header */}
-        <LinearGradient
-          colors={['#0D2918', '#15803D', '#22C55E']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.hero}
-        >
-          <TouchableOpacity style={styles.settingsBtn}>
-            <Ionicons name="settings-outline" size={22} color="#fff" />
-          </TouchableOpacity>
+const WIDE = 900;
 
-          <View style={styles.profileCenter}>
-            <View style={styles.avatarContainer}>
-              <Image source={{ uri: CURRENT_USER.avatar }} style={styles.avatar} />
-              <TouchableOpacity style={styles.editAvatarBtn}>
-                <Ionicons name="camera" size={14} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.nameBadgeRow}>
-              <Text style={styles.name}>{CURRENT_USER.name}</Text>
-              {CURRENT_USER.verified && (
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark" size={10} color="#fff" />
-                </View>
-              )}
-            </View>
-            <View style={styles.neighborhoodRow}>
-              <Ionicons name="location" size={13} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.neighborhood}>{CURRENT_USER.neighborhood}</Text>
-            </View>
-            {CURRENT_USER.badge && (
-              <View style={styles.leaderBadge}>
-                <Ionicons name="ribbon" size={13} color={Colors.warning} />
-                <Text style={styles.leaderText}>
-                  {CURRENT_USER.badge === 'lider' ? 'Líder do Bairro' : CURRENT_USER.badge === 'comerciante' ? 'Comerciante' : 'Morador'}
-                </Text>
+export default function PerfilScreen() {
+  const { width } = useWindowDimensions();
+  const isWide = width >= WIDE;
+
+  const content = (
+    <>
+      {/* Hero header */}
+      <LinearGradient
+        colors={['#0D2918', '#15803D', '#22C55E']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.hero, isWide && styles.heroWide]}
+      >
+        <TouchableOpacity style={styles.settingsBtn}>
+          <Ionicons name="settings-outline" size={22} color="#fff" />
+        </TouchableOpacity>
+
+        <View style={styles.profileCenter}>
+          <View style={styles.avatarContainer}>
+            <Image source={{ uri: CURRENT_USER.avatar }} style={styles.avatar} />
+            <TouchableOpacity style={styles.editAvatarBtn}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.nameBadgeRow}>
+            <Text style={styles.name}>{CURRENT_USER.name}</Text>
+            {CURRENT_USER.verified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark" size={10} color="#fff" />
               </View>
             )}
           </View>
-
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{CURRENT_USER.postsCount}</Text>
-              <Text style={styles.statLabel}>Posts</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{CURRENT_USER.helpCount}</Text>
-              <Text style={styles.statLabel}>Ajudas</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>238</Text>
-              <Text style={styles.statLabel}>Vizinhos</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>4.9</Text>
-              <Text style={styles.statLabel}>Reputação</Text>
-            </View>
+          <View style={styles.neighborhoodRow}>
+            <Ionicons name="location" size={13} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.neighborhood}>{CURRENT_USER.neighborhood}</Text>
           </View>
-        </LinearGradient>
-
-        {/* Reputation card */}
-        <View style={styles.reputationCard}>
-          <View style={styles.reputationHeader}>
-            <Text style={styles.reputationTitle}>Reputação no bairro</Text>
-            <View style={styles.reputationScore}>
-              <Ionicons name="star" size={14} color={Colors.warning} />
-              <Text style={styles.reputationScoreText}>4.9</Text>
+          {CURRENT_USER.badge && (
+            <View style={styles.leaderBadge}>
+              <Ionicons name="ribbon" size={13} color={Colors.warning} />
+              <Text style={styles.leaderText}>
+                {CURRENT_USER.badge === 'lider' ? 'Líder do Bairro'
+                  : CURRENT_USER.badge === 'comerciante' ? 'Comerciante' : 'Morador'}
+              </Text>
             </View>
+          )}
+        </View>
+
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNum}>{CURRENT_USER.postsCount}</Text>
+            <Text style={styles.statLabel}>Posts</Text>
           </View>
-          <View style={styles.reputationBadges}>
-            {[
-              { icon: 'ribbon', label: 'Líder', color: Colors.warning },
-              { icon: 'shield-checkmark', label: 'Verificado', color: Colors.primary },
-              { icon: 'hand-left', label: '23 ajudas', color: Colors.indigo },
-              { icon: 'star', label: 'Top 5%', color: Colors.accent },
-            ].map((b) => (
-              <View key={b.label} style={[styles.repBadge, { backgroundColor: b.color + '15' }]}>
-                <Ionicons name={b.icon as any} size={14} color={b.color} />
-                <Text style={[styles.repBadgeText, { color: b.color }]}>{b.label}</Text>
-              </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNum}>{CURRENT_USER.helpCount}</Text>
+            <Text style={styles.statLabel}>Ajudas</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNum}>238</Text>
+            <Text style={styles.statLabel}>Vizinhos</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statNum}>4.9</Text>
+            <Text style={styles.statLabel}>Reputação</Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* Reputation card */}
+      <View style={styles.reputationCard}>
+        <View style={styles.reputationHeader}>
+          <Text style={styles.reputationTitle}>Reputação no bairro</Text>
+          <View style={styles.reputationScore}>
+            <Ionicons name="star" size={14} color={Colors.warning} />
+            <Text style={styles.reputationScoreText}>4.9</Text>
+          </View>
+        </View>
+        <View style={styles.reputationBadges}>
+          {[
+            { icon: 'ribbon',          label: 'Líder',       color: Colors.warning },
+            { icon: 'shield-checkmark',label: 'Verificado',  color: Colors.primary },
+            { icon: 'hand-left',       label: '23 ajudas',   color: Colors.indigo },
+            { icon: 'star',            label: 'Top 5%',      color: Colors.accent },
+          ].map((b) => (
+            <View key={b.label} style={[styles.repBadge, { backgroundColor: b.color + '15' }]}>
+              <Ionicons name={b.icon as any} size={14} color={b.color} />
+              <Text style={[styles.repBadgeText, { color: b.color }]}>{b.label}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={styles.memberSince}>Membro desde {CURRENT_USER.joinedAt}</Text>
+      </View>
+
+      {/* My posts */}
+      <View style={styles.myPostsSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Minhas publicações</Text>
+          <TouchableOpacity>
+            <Text style={styles.sectionLink}>Ver todas</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.myPostsList}>
+          {MY_POSTS.map((post) => {
+            const catColor = Colors.category[post.category];
+            return (
+              <TouchableOpacity key={post.id} style={styles.myPostCard} activeOpacity={0.9}>
+                {post.images?.[0] ? (
+                  <Image source={{ uri: post.images[0] }} style={styles.myPostImage} />
+                ) : (
+                  <View style={[styles.myPostImagePlaceholder, { backgroundColor: catColor + '15' }]}>
+                    <Ionicons name="document-text-outline" size={24} color={catColor} />
+                  </View>
+                )}
+                <View style={styles.myPostInfo}>
+                  <Text style={styles.myPostTitle} numberOfLines={2}>
+                    {post.title ?? post.content}
+                  </Text>
+                  <View style={styles.myPostMeta}>
+                    <Ionicons name="heart" size={12} color={Colors.error} />
+                    <Text style={styles.myPostMetaText}>{post.likesCount}</Text>
+                    <Text style={styles.myPostMetaDot}>·</Text>
+                    <Ionicons name="chatbubble" size={11} color={Colors.textTertiary} />
+                    <Text style={styles.myPostMetaText}>{post.commentsCount}</Text>
+                    <Text style={styles.myPostMetaDot}>·</Text>
+                    <Text style={styles.myPostTime}>{post.createdAt}</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Settings */}
+      {SETTINGS_GROUPS.map((group) => (
+        <View key={group.title} style={styles.settingsGroup}>
+          <Text style={styles.settingsGroupTitle}>{group.title}</Text>
+          <View style={styles.settingsCard}>
+            {group.items.map((item, idx) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[styles.settingsItem, idx < group.items.length - 1 && styles.settingsItemBorder]}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.settingsIcon, { backgroundColor: item.color + '15' }]}>
+                  <Ionicons name={item.icon as any} size={18} color={item.color} />
+                </View>
+                <Text style={styles.settingsLabel}>{item.label}</Text>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+              </TouchableOpacity>
             ))}
           </View>
-          <Text style={styles.memberSince}>Membro desde {CURRENT_USER.joinedAt}</Text>
         </View>
+      ))}
 
-        {/* My posts */}
-        <View style={styles.myPostsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Minhas publicações</Text>
-            <TouchableOpacity>
-              <Text style={styles.sectionLink}>Ver todas</Text>
-            </TouchableOpacity>
+      {/* Logout */}
+      <TouchableOpacity
+        style={styles.logoutBtn}
+        onPress={() => router.replace('/(auth)/welcome')}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="log-out-outline" size={18} color={Colors.error} />
+        <Text style={styles.logoutText}>Sair da conta</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.version}>Daqui v1.0.0</Text>
+      <View style={{ height: 20 }} />
+    </>
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {isWide ? (
+        <View style={styles.wideBody}>
+          <View style={styles.spacer} />
+          <LeftSidebar />
+          <View style={[styles.centerArea, { width: Math.min(680, Math.max(0, width - 220)) }]}>
+            <ScrollView
+              style={styles.contentScroll}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {content}
+            </ScrollView>
           </View>
-          <View style={styles.myPostsList}>
-            {MY_POSTS.map((post) => {
-              const catColor = Colors.category[post.category];
-              return (
-                <TouchableOpacity key={post.id} style={styles.myPostCard} activeOpacity={0.9}>
-                  {post.images?.[0] && (
-                    <Image source={{ uri: post.images[0] }} style={styles.myPostImage} />
-                  )}
-                  {!post.images?.[0] && (
-                    <View style={[styles.myPostImagePlaceholder, { backgroundColor: catColor + '15' }]}>
-                      <Ionicons name="document-text-outline" size={24} color={catColor} />
-                    </View>
-                  )}
-                  <View style={styles.myPostInfo}>
-                    <Text style={styles.myPostTitle} numberOfLines={2}>
-                      {post.title ?? post.content}
-                    </Text>
-                    <View style={styles.myPostMeta}>
-                      <Ionicons name="heart" size={12} color={Colors.error} />
-                      <Text style={styles.myPostMetaText}>{post.likesCount}</Text>
-                      <Text style={styles.myPostMetaDot}>·</Text>
-                      <Ionicons name="chatbubble" size={11} color={Colors.textTertiary} />
-                      <Text style={styles.myPostMetaText}>{post.commentsCount}</Text>
-                      <Text style={styles.myPostMetaDot}>·</Text>
-                      <Text style={styles.myPostTime}>{post.createdAt}</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <View style={styles.spacer} />
         </View>
-
-        {/* Settings */}
-        {SETTINGS_GROUPS.map((group) => (
-          <View key={group.title} style={styles.settingsGroup}>
-            <Text style={styles.settingsGroupTitle}>{group.title}</Text>
-            <View style={styles.settingsCard}>
-              {group.items.map((item, idx) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[
-                    styles.settingsItem,
-                    idx < group.items.length - 1 && styles.settingsItemBorder,
-                  ]}
-                  activeOpacity={0.85}
-                >
-                  <View style={[styles.settingsIcon, { backgroundColor: item.color + '15' }]}>
-                    <Ionicons name={item.icon as any} size={18} color={item.color} />
-                  </View>
-                  <Text style={styles.settingsLabel}>{item.label}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        ))}
-
-        {/* Logout */}
-        <TouchableOpacity
-          style={styles.logoutBtn}
-          onPress={() => router.replace('/(auth)/welcome')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="log-out-outline" size={18} color={Colors.error} />
-          <Text style={styles.logoutText}>Sair da conta</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.version}>Daqui v1.0.0</Text>
-
-        <View style={{ height: 20 }} />
-      </ScrollView>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {content}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+
+  /* ── Desktop layout ── */
+  wideBody: { flex: 1, flexDirection: 'row', backgroundColor: Colors.background },
+  spacer: { flex: 1, minWidth: 0 },
+  centerArea: { flexShrink: 0, backgroundColor: Colors.background },
+  contentScroll: { flex: 1 },
+
+  /* ── Hero ── */
   hero: {
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 24,
+  },
+  heroWide: {
+    borderRadius: 20,
+    marginTop: 20,
+    marginHorizontal: 20,
   },
   settingsBtn: {
     alignSelf: 'flex-end',
@@ -304,6 +343,8 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 20, fontWeight: '800', color: '#fff' },
   statLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   statDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center' },
+
+  /* ── Cards ── */
   reputationCard: {
     margin: 16,
     backgroundColor: Colors.surface,
@@ -341,6 +382,8 @@ const styles = StyleSheet.create({
   },
   repBadgeText: { fontSize: 12, fontWeight: '700' },
   memberSince: { fontSize: 12, color: Colors.textTertiary },
+
+  /* ── Posts ── */
   myPostsSection: { paddingBottom: 8 },
   sectionHeader: {
     flexDirection: 'row',
@@ -361,11 +404,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderLight,
     ...Colors.shadow.sm,
   },
-  myPostImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-  },
+  myPostImage: { width: 60, height: 60, borderRadius: 10 },
   myPostImagePlaceholder: {
     width: 60,
     height: 60,
@@ -379,6 +418,8 @@ const styles = StyleSheet.create({
   myPostMetaText: { fontSize: 12, color: Colors.textTertiary },
   myPostMetaDot: { fontSize: 12, color: Colors.textTertiary },
   myPostTime: { fontSize: 12, color: Colors.textTertiary },
+
+  /* ── Settings ── */
   settingsGroup: { paddingHorizontal: 16, paddingTop: 20 },
   settingsGroupTitle: {
     fontSize: 12,
@@ -414,6 +455,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   settingsLabel: { flex: 1, fontSize: 15, color: Colors.text, fontWeight: '500' },
+
+  /* ── Footer ── */
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',

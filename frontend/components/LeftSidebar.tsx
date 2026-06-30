@@ -1,26 +1,34 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router, usePathname } from 'expo-router';
 import { Colors } from '../constants/Colors';
 import { CURRENT_USER, CATEGORIES, PostCategory } from '../data/mock';
 
 interface Props {
-  activeCategory: string;
-  onCategoryChange: (key: string) => void;
+  activeCategory?: string;
+  onCategoryChange?: (key: string) => void;
 }
 
-const NAV_TOP = [
-  { key: 'feed', label: 'Feed', icon: 'home' as const },
-  { key: 'mapa', label: 'Mapa', icon: 'map' as const },
+const NAV_ITEMS = [
+  { key: 'index',     route: '/(tabs)',             label: 'Início',     icon: 'home-outline'         as const, iconActive: 'home'         as const },
+  { key: 'mapa',      route: '/(tabs)/mapa',        label: 'Mapa',       icon: 'map-outline'          as const, iconActive: 'map'          as const },
+  { key: 'mensagens', route: '/(tabs)/mensagens',   label: 'Mensagens',  icon: 'chatbubbles-outline'  as const, iconActive: 'chatbubbles'  as const },
+  { key: 'perfil',    route: '/(tabs)/perfil',      label: 'Perfil',     icon: 'person-outline'       as const, iconActive: 'person'       as const },
 ];
 
 const PEOPLE_ITEMS = [
-  { key: 'vizinhos', label: 'Vizinhos', icon: 'people-outline' as const },
-  { key: 'grupos', label: 'Grupos', icon: 'grid-outline' as const },
-  { key: 'comercios', label: 'Comércios', icon: 'storefront-outline' as const },
+  { key: 'vizinhos',  label: 'Vizinhos',   icon: 'people-outline'     as const },
+  { key: 'grupos',    label: 'Grupos',     icon: 'grid-outline'       as const },
+  { key: 'comercios', label: 'Comércios',  icon: 'storefront-outline' as const },
 ];
 
 export default function LeftSidebar({ activeCategory, onCategoryChange }: Props) {
+  const pathname = usePathname();
+
+  const isTabActive = (key: string) =>
+    key === 'index' ? pathname === '/' : pathname === `/${key}`;
+
   return (
     <View style={styles.sidebar}>
       {/* Brand */}
@@ -32,7 +40,7 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
       </View>
 
       {/* User info */}
-      <TouchableOpacity style={styles.userRow}>
+      <TouchableOpacity style={styles.userRow} onPress={() => router.push('/(tabs)/perfil')}>
         <Image source={{ uri: CURRENT_USER.avatar }} style={styles.userAvatar} />
         <View style={styles.userInfo}>
           <Text style={styles.userName} numberOfLines={1}>{CURRENT_USER.name.split(' ')[0]}</Text>
@@ -43,19 +51,31 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
         </View>
       </TouchableOpacity>
 
-      {/* Top nav */}
+      {/* Publish button */}
+      <TouchableOpacity
+        style={styles.publishBtn}
+        onPress={() => router.push('/(tabs)/publicar')}
+        activeOpacity={0.85}
+      >
+        <LinearGradient colors={Colors.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.publishBtnGrad}>
+          <Ionicons name="add" size={17} color="#fff" />
+          <Text style={styles.publishBtnText}>Nova publicação</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* Main navigation */}
       <View style={styles.group}>
-        {NAV_TOP.map((item) => {
-          const isActive = activeCategory === item.key;
+        {NAV_ITEMS.map((item) => {
+          const isActive = isTabActive(item.key);
           return (
             <TouchableOpacity
               key={item.key}
               style={[styles.navItem, isActive && styles.navItemActive]}
-              onPress={() => onCategoryChange(item.key)}
+              onPress={() => router.push(item.route as any)}
               activeOpacity={0.7}
             >
               <Ionicons
-                name={item.icon}
+                name={isActive ? item.iconActive : item.icon}
                 size={18}
                 color={isActive ? Colors.primary : Colors.textSecondary}
               />
@@ -67,30 +87,33 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
         })}
       </View>
 
-      <View style={styles.divider} />
-
-      {/* Categories */}
-      <Text style={styles.groupTitle}>Categorias</Text>
-      <View style={styles.group}>
-        {CATEGORIES.filter((c) => c.key !== 'todos').map((cat) => {
-          const isActive = activeCategory === cat.key;
-          const color = Colors.category[cat.key as PostCategory] ?? Colors.primary;
-          return (
-            <TouchableOpacity
-              key={cat.key}
-              style={[styles.navItem, isActive && styles.navItemActive]}
-              onPress={() => onCategoryChange(cat.key)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.catDot, { backgroundColor: isActive ? color : color + '40' }]} />
-              <Text style={[styles.navLabel, isActive && { color: Colors.text, fontWeight: '600' }]}>
-                {cat.label}
-              </Text>
-              {isActive && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {/* Categories — only shown on feed */}
+      {onCategoryChange && (
+        <>
+          <View style={styles.divider} />
+          <Text style={styles.groupTitle}>Categorias</Text>
+          <View style={styles.group}>
+            {CATEGORIES.filter((c) => c.key !== 'todos').map((cat) => {
+              const isActive = activeCategory === cat.key;
+              const color = Colors.category[cat.key as PostCategory] ?? Colors.primary;
+              return (
+                <TouchableOpacity
+                  key={cat.key}
+                  style={[styles.navItem, isActive && styles.navItemActive]}
+                  onPress={() => onCategoryChange(cat.key)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.catDot, { backgroundColor: isActive ? color : color + '40' }]} />
+                  <Text style={[styles.navLabel, isActive && { color: Colors.text, fontWeight: '600' }]}>
+                    {cat.label}
+                  </Text>
+                  {isActive && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </>
+      )}
 
       <View style={styles.divider} />
 
@@ -117,7 +140,7 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
 const styles = StyleSheet.create({
   sidebar: {
     width: 220,
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.background,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: Colors.border,
     paddingTop: 20,
@@ -150,7 +173,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 8,
     paddingVertical: 10,
-    marginBottom: 8,
+    marginBottom: 12,
     backgroundColor: Colors.primaryFaint,
     borderRadius: 12,
     borderWidth: 1,
@@ -165,6 +188,26 @@ const styles = StyleSheet.create({
   userName: { fontSize: 13, fontWeight: '700', color: Colors.text },
   userNeighborhood: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 },
   userNeighborhoodText: { fontSize: 11, color: Colors.primary, fontWeight: '500' },
+
+  publishBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  publishBtnGrad: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  publishBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+  },
+
   group: { gap: 1 },
   groupTitle: {
     fontSize: 10,
