@@ -1,9 +1,15 @@
-from fastapi import Depends
+from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.user import UserPublic, UserUpdate
+from app.schemas.user import (
+    AvatarUpdate,
+    NeighborhoodStats,
+    UsernameAvailability,
+    UserPublic,
+    UserUpdate,
+)
 from app.services import user
 
 
@@ -12,6 +18,13 @@ def list_neighbors(
     current_user: User = Depends(get_current_user),
 ) -> list[UserPublic]:
     return user.get_neighbors(db, current_user)
+
+
+def list_popular(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[UserPublic]:
+    return user.get_popular(db, current_user)
 
 
 def get_user(
@@ -28,3 +41,27 @@ def update_me(
     current_user: User = Depends(get_current_user),
 ) -> UserPublic:
     return user.update_me(db, current_user, payload)
+
+
+def check_username(
+    username: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UsernameAvailability:
+    return user.check_username(db, current_user, username)
+
+
+def neighborhood_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> NeighborhoodStats:
+    return user.get_neighborhood_stats(db, current_user)
+
+
+def update_avatar(
+    payload: AvatarUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserPublic:
+    return user.update_avatar(db, current_user, str(request.base_url), payload.image)

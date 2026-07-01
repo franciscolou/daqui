@@ -21,13 +21,16 @@ import { ApiError } from '../../lib/api';
 export default function LoginScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
-  const { login } = useAuth();
+  const { login, verifyLogin2fa } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Quando a conta tem A2F, guardamos o ticket e pedimos o código de 6 dígitos.
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [code, setCode] = useState('');
 
   const handleLogin = async () => {
     if (submitting) return;
@@ -38,13 +41,42 @@ export default function LoginScreen() {
     }
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
-      router.replace('/(tabs)');
+      const result = await login(email.trim(), password);
+      if (result.status === '2fa') {
+        setTicket(result.ticket);
+        setCode('');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao entrar.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleVerify2fa = async () => {
+    if (submitting) return;
+    setError(null);
+    if (code.trim().length < 6) {
+      setError('Digite o código de 6 dígitos do seu app autenticador.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await verifyLogin2fa(ticket!, code.trim());
+      router.replace('/(tabs)');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível verificar o código.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const cancel2fa = () => {
+    setTicket(null);
+    setCode('');
+    setError(null);
   };
 
   return (
@@ -75,12 +107,81 @@ export default function LoginScreen() {
               <Text style={styles.logoText}>daqui</Text>
             </View>
 
-            <Text style={styles.headerTitle}>Bem-vindo de volta</Text>
-            <Text style={styles.headerSubtitle}>Entre na sua conta</Text>
+            <Text style={styles.headerTitle}>
+              {ticket ? 'Verificação em duas etapas' : 'Bem-vindo de volta'}
+            </Text>
+            <Text style={styles.headerSubtitle}>
+              {ticket ? 'Confirme sua identidade' : 'Entre na sua conta'}
+            </Text>
           </LinearGradient>
 
           {/* Formulário */}
           <View style={styles.form}>
+            {ticket ? (
+              <View>
+                <View style={styles.twoFaIntro}>
+                  <Ionicons name="shield-checkmark" size={22} color={Colors.primary} />
+                  <Text style={styles.twoFaText}>
+                    Digite o código de 6 dígitos gerado pelo seu app autenticador
+                    (Google Authenticator, Authy, etc.).
+                  </Text>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Código de verificação</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="000000"
+                      placeholderTextColor={Colors.textTertiary}
+                      value={code}
+                      onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      autoFocus
+                      onSubmitEditing={handleVerify2fa}
+                    />
+                  </View>
+                </View>
+
+                {error && (
+                  <View style={styles.errorBox}>
+                    <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                    <Text style={styles.errorText}>{error}</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.btnPrimary, submitting && styles.btnDisabled]}
+                  onPress={handleVerify2fa}
+                  activeOpacity={0.85}
+                  disabled={submitting}
+                >
+                  <LinearGradient
+                    colors={Colors.gradient.primary}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.btnGradient}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Text style={styles.btnText}>Verificar</Text>
+                        <Ionicons name="arrow-forward" size={18} color="#fff" />
+                      </>
+                    )}
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.altRow} onPress={cancel2fa}>
+                  <Text style={styles.altLink}>Voltar ao login</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+            <>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>E-mail</Text>
               <View style={styles.inputWrapper}>
@@ -177,6 +278,8 @@ export default function LoginScreen() {
                 <Text style={styles.altLink}>Cadastre-se grátis</Text>
               </TouchableOpacity>
             </View>
+            </>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -378,4 +481,15 @@ const styles = StyleSheet.create({
   },
   altText: { fontSize: 14, color: Colors.textSecondary },
   altLink: { fontSize: 14, color: Colors.primaryDark, fontWeight: '700' },
+
+  twoFaIntro: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: Colors.primaryFaint,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+  },
+  twoFaText: { flex: 1, fontSize: 13, color: Colors.primaryDark, lineHeight: 18 },
 });

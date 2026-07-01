@@ -6,3 +6,6 @@ venv/
 *.db
 *.sqlite3
 .env
+
+# Uploads (fotos de perfil etc.)
+uploads/

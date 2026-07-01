@@ -10,6 +10,11 @@ router.get(
     response_model=PostFeed,
 )(post.get_feed)
 
+router.get(
+    "/important",
+    response_model=PostOut | None,
+)(post.get_top_important)
+
 router.post(
     "/",
     response_model=PostOut,

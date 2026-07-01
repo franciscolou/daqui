@@ -6,14 +6,17 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { api, loadToken, setToken } from './api';
+import { api, loadToken, setToken, LoginResult } from './api';
 import { User } from '../data/mock';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
   signedIn: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  // Retorna { status: 'ok' } quando a sessão foi criada, ou { status: '2fa' }
+  // quando ainda falta o código do segundo fator (completar com verifyLogin2fa).
+  login: (email: string, password: string) => Promise<LoginResult>;
+  verifyLogin2fa: (ticket: string, code: string) => Promise<void>;
   signup: (payload: {
     name: string;
     email: string;
@@ -47,7 +50,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const token = await api.login(email, password);
+    const result = await api.login(email, password);
+    if (result.status === 'ok') {
+      await setToken(result.token);
+      setUser(await api.me());
+    }
+    return result;
+  }, []);
+
+  const verifyLogin2fa = useCallback(async (ticket: string, code: string) => {
+    const token = await api.loginVerify2fa(ticket, code);
     await setToken(token);
     setUser(await api.me());
   }, []);
@@ -82,11 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       signedIn: !!user,
       login,
+      verifyLogin2fa,
       signup,
       logout,
       refresh,
     }),
-    [user, loading, login, signup, logout, refresh],
+    [user, loading, login, verifyLogin2fa, signup, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

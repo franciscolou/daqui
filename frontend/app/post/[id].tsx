@@ -14,14 +14,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Colors } from '../../constants/Colors';
+import { Palette } from '../../constants/Colors';
 import { CATEGORY_ICONS, CATEGORY_LABELS, Post } from '../../data/mock';
 import { api, Comment } from '../../lib/api';
+import { formatExactDateTime, formatPostTime } from '../../lib/time';
 import { useAuth } from '../../lib/auth';
+import { useTheme, useThemedStyles } from '../../lib/theme';
+import WideLayout from '../../components/WideLayout';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -88,13 +93,18 @@ export default function PostDetailScreen() {
       <View style={styles.post}>
         <TouchableOpacity
           style={styles.authorRow}
-          onPress={() => router.push(`/usuario/${post.author.id}` as any)}
+          onPress={() => router.push(`/user/${post.author.id}` as any)}
           activeOpacity={0.8}
         >
           <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.authorName}>{post.author.name}</Text>
-            <Text style={styles.time}>{post.createdAt}</Text>
+            <View style={styles.authorNameRow}>
+              <Text style={styles.authorName} numberOfLines={1}>{post.author.name}</Text>
+              {!!post.author.username && (
+                <Text style={styles.authorUsername} numberOfLines={1}>@{post.author.username}</Text>
+              )}
+            </View>
+            <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
           </View>
           <View style={[styles.catTag, { backgroundColor: catColor + '18' }]}>
             <Ionicons name={CATEGORY_ICONS[post.category] as any} size={10} color={catColor} />
@@ -109,6 +119,8 @@ export default function PostDetailScreen() {
         {post.images?.[0] && (
           <Image source={{ uri: post.images[0] }} style={styles.image} resizeMode="cover" />
         )}
+
+        <Text style={styles.exactTime}>{formatExactDateTime(post.createdAt)}</Text>
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionBtn} onPress={toggleLike}>
@@ -134,11 +146,13 @@ export default function PostDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <WideLayout>
+      <View style={styles.column}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Publicação</Text>
+        <Text style={styles.topBarTitle}>Post</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -149,7 +163,7 @@ export default function PostDetailScreen() {
       ) : !post ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
-          <Text style={styles.emptyText}>Publicação não encontrada.</Text>
+          <Text style={styles.emptyText}>Post não encontrado.</Text>
         </View>
       ) : (
         <KeyboardAvoidingView
@@ -167,13 +181,16 @@ export default function PostDetailScreen() {
             }
             renderItem={({ item }) => (
               <View style={styles.comment}>
-                <TouchableOpacity onPress={() => router.push(`/usuario/${item.author.id}` as any)}>
+                <TouchableOpacity onPress={() => router.push(`/user/${item.author.id}` as any)}>
                   <Image source={{ uri: item.author.avatar }} style={styles.commentAvatar} />
                 </TouchableOpacity>
                 <View style={styles.commentBubble}>
                   <View style={styles.commentHead}>
-                    <Text style={styles.commentAuthor}>{item.author.name}</Text>
-                    <Text style={styles.commentTime}>{item.createdAt}</Text>
+                    <Text style={styles.commentAuthor} numberOfLines={1}>{item.author.name}</Text>
+                    {!!item.author.username && (
+                      <Text style={styles.commentUsername} numberOfLines={1}>@{item.author.username}</Text>
+                    )}
+                    <Text style={styles.commentTime}>{formatPostTime(item.createdAt)}</Text>
                   </View>
                   <Text style={styles.commentText}>{item.content}</Text>
                 </View>
@@ -205,12 +222,15 @@ export default function PostDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       )}
+      </View>
+      </WideLayout>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+const makeStyles = (Colors: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.background },
+  column: { flex: 1, backgroundColor: Colors.surface },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   emptyText: { fontSize: 14, color: Colors.textSecondary },
 
@@ -228,7 +248,9 @@ const styles = StyleSheet.create({
   post: { paddingHorizontal: 16, paddingTop: 14 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   avatar: { width: 44, height: 44, borderRadius: 22 },
-  authorName: { fontSize: 15, fontWeight: '700', color: Colors.text },
+  authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  authorName: { fontSize: 15, fontWeight: '700', color: Colors.text, flexShrink: 1 },
+  authorUsername: { fontSize: 13, color: Colors.textTertiary, fontWeight: '500', flexShrink: 1 },
   time: { fontSize: 12, color: Colors.textTertiary, marginTop: 1 },
   catTag: {
     flexDirection: 'row',
@@ -242,6 +264,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 17, fontWeight: '800', color: Colors.text, marginBottom: 6, letterSpacing: -0.2 },
   body: { fontSize: 15, color: Colors.text, lineHeight: 22, marginBottom: 12 },
   image: { width: '100%', height: 220, borderRadius: 14, marginBottom: 12 },
+  exactTime: { fontSize: 12, color: Colors.textTertiary, marginBottom: 12 },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -286,7 +309,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   commentHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  commentAuthor: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  commentAuthor: { fontSize: 13, fontWeight: '700', color: Colors.text, flexShrink: 1 },
+  commentUsername: { fontSize: 12, color: Colors.textTertiary, fontWeight: '500', flexShrink: 1 },
   commentTime: { fontSize: 11, color: Colors.textTertiary },
   commentText: { fontSize: 14, color: Colors.textSecondary, lineHeight: 19 },
 

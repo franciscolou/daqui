@@ -5,32 +5,40 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  useWindowDimensions,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
+import { Palette } from '../../constants/Colors';
+import { useTheme, useThemedStyles } from '../../lib/theme';
 import { POSTS, CATEGORY_LABELS, CATEGORY_ICONS, PostCategory } from '../../data/mock';
+import MobileMenu from '../../components/MobileMenu';
 
 const { width } = Dimensions.get('window');
 
 const MAP_PINS = [
   { id: '1', x: 0.32, y: 0.28, category: 'aviso' as PostCategory, label: 'Obra na Harmonia' },
   { id: '2', x: 0.55, y: 0.42, category: 'evento' as PostCategory, label: 'Festa Junina' },
-  { id: '3', x: 0.72, y: 0.35, category: 'seguranca' as PostCategory, label: 'Golpe do WhatsApp', urgent: true },
+  { id: '3', x: 0.72, y: 0.35, category: 'seguranca' as PostCategory, label: 'Golpe do WhatsApp', important: true },
   { id: '4', x: 0.45, y: 0.62, category: 'recomendacao' as PostCategory, label: 'Padaria Levain' },
-  { id: '5', x: 0.20, y: 0.55, category: 'pets' as PostCategory, label: 'Thor desaparecido', urgent: true },
+  { id: '5', x: 0.20, y: 0.55, category: 'pets' as PostCategory, label: 'Thor desaparecido', important: true },
   { id: '6', x: 0.65, y: 0.7, category: 'venda' as PostCategory, label: 'Sofá R$800' },
 ];
 
 const MAP_HEIGHT = width * 0.9;
 
-export default function MapaScreen() {
+export default function MapScreen() {
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const { width } = useWindowDimensions();
+  const isWide = width >= 900;
   const nearbyPosts = POSTS.slice(0, 3);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {!isWide && <MobileMenu />}
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient
@@ -67,7 +75,7 @@ export default function MapaScreen() {
                   {
                     left: pin.x * (width - 32),
                     top: pin.y * MAP_HEIGHT,
-                    backgroundColor: pin.urgent ? Colors.error : color,
+                    backgroundColor: pin.important ? Colors.error : color,
                   },
                 ]}
                 activeOpacity={0.8}
@@ -77,7 +85,7 @@ export default function MapaScreen() {
                   size={14}
                   color="#fff"
                 />
-                {pin.urgent && <View style={styles.urgentDot} />}
+                {pin.important && <View style={styles.importantDot} />}
               </TouchableOpacity>
             );
           })}
@@ -176,7 +184,7 @@ export default function MapaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: 20,
@@ -222,7 +230,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.6)',
   },
-  urgentDot: {
+  importantDot: {
     position: 'absolute',
     top: -3,
     right: -3,

@@ -8,6 +8,8 @@ export const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ??
   'http://localhost:8000/api/v1';
 
+export type SearchType = 'all' | 'posts' | 'users';
+
 const TOKEN_KEY = 'daqui.token';
 
 let token: string | null = null;
@@ -75,7 +77,9 @@ async function request<T>(
 // ─────────────────────────────────────────────────────────────
 interface BackendUser {
   id: number;
+  username: string;
   name: string;
+  bio: string | null;
   avatar_url: string | null;
   neighborhood: string;
   badge: string | null;
@@ -84,6 +88,7 @@ interface BackendUser {
   help_count: number;
   created_at: string;
   email?: string;
+  two_factor_enabled?: boolean;
 }
 
 interface BackendPost {
@@ -92,11 +97,12 @@ interface BackendPost {
   title: string | null;
   content: string;
   image_url: string | null;
+  details: Record<string, any> | null;
   neighborhood: string;
   likes_count: number;
   comments_count: number;
   shares_count: number;
-  urgent: boolean;
+  important: boolean;
   pinned: boolean;
   created_at: string;
   author: BackendUser;
@@ -117,6 +123,80 @@ export interface Comment {
   content: string;
   createdAt: string;
   author: User;
+}
+
+interface BackendConversation {
+  user: BackendUser;
+  last_message: string;
+  last_message_at: string;
+  unread_count: number;
+}
+
+interface BackendMessage {
+  id: number;
+  content: string;
+  read: boolean;
+  created_at: string;
+  sender: BackendUser;
+}
+
+interface BackendNotification {
+  id: number;
+  type: string;
+  content: string;
+  target_text: string | null;
+  read: boolean;
+  post_id: number | null;
+  created_at: string;
+  actor: BackendUser | null;
+}
+
+export interface Conversation {
+  user: User;
+  lastMessage: string;
+  time: string;
+  unread: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  content: string;
+  read: boolean;
+  createdAt: string;
+  sender: User;
+}
+
+export interface UsernameAvailability {
+  username: string;
+  valid: boolean;
+  available: boolean;
+}
+
+// Resultado de login: token direto, ou pedido de 2º fator (A2F) com um ticket.
+export type LoginResult =
+  | { status: 'ok'; token: string }
+  | { status: '2fa'; ticket: string };
+
+export interface TwoFactorSetup {
+  secret: string;
+  otpauthUrl: string;
+}
+
+export interface NeighborhoodStats {
+  neighborhood: string;
+  neighbors: number;
+  posts: number;
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  content: string;
+  targetText?: string;
+  time: string;
+  read: boolean;
+  postId?: string;
+  actor?: User;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -140,7 +220,9 @@ export function relativeTime(iso: string): string {
 export function mapUser(u: BackendUser): User {
   return {
     id: String(u.id),
+    username: u.username,
     name: u.name,
+    bio: u.bio ?? undefined,
     avatar: u.avatar_url || FALLBACK_AVATAR,
     neighborhood: u.neighborhood,
     badge: (u.badge as User['badge']) ?? undefined,
@@ -151,10 +233,12 @@ export function mapUser(u: BackendUser): User {
     }),
     postsCount: u.posts_count,
     helpCount: u.help_count,
+    twoFactorEnabled: u.two_factor_enabled,
   };
 }
 
 function mapPost(p: BackendPost): Post {
+  const d = p.details ?? {};
   return {
     id: String(p.id),
     author: mapUser(p.author),
@@ -162,7 +246,7 @@ function mapPost(p: BackendPost): Post {
     title: p.title ?? undefined,
     content: p.content,
     images: p.image_url ? [p.image_url] : undefined,
-    createdAt: relativeTime(p.created_at),
+    createdAt: p.created_at, // ISO — formatado na renderização (lib/time)
     likesCount: p.likes_count,
     commentsCount: p.comments_count,
     sharesCount: p.shares_count,
@@ -170,7 +254,15 @@ function mapPost(p: BackendPost): Post {
     distance: '',
     liked: p.liked,
     pinned: p.pinned,
-    urgent: p.urgent,
+    important: p.important,
+    // Campos específicos por categoria (backend snake_case → camelCase)
+    eventDates: Array.isArray(d.event_dates) ? d.event_dates : undefined,
+    allDay: d.all_day ?? undefined,
+    eventTime: d.event_time ?? undefined,
+    placeName: d.place_name ?? undefined,
+    location: d.location ?? undefined,
+    price: typeof d.price === 'number' ? d.price : undefined,
+    priceNegotiable: d.price_negotiable ?? undefined,
   };
 }
 
@@ -179,8 +271,40 @@ function mapComment(c: BackendComment): Comment {
     id: String(c.id),
     postId: String(c.post_id),
     content: c.content,
-    createdAt: relativeTime(c.created_at),
+    createdAt: c.created_at, // ISO — formatado na renderização (lib/time)
     author: mapUser(c.author),
+  };
+}
+
+function mapConversation(c: BackendConversation): Conversation {
+  return {
+    user: mapUser(c.user),
+    lastMessage: c.last_message,
+    time: c.last_message_at, // ISO — formatado na renderização (lib/time)
+    unread: c.unread_count,
+  };
+}
+
+function mapMessage(m: BackendMessage): ChatMessage {
+  return {
+    id: String(m.id),
+    content: m.content,
+    read: m.read,
+    createdAt: m.created_at,
+    sender: mapUser(m.sender),
+  };
+}
+
+function mapNotification(n: BackendNotification): AppNotification {
+  return {
+    id: String(n.id),
+    type: n.type,
+    content: n.content,
+    targetText: n.target_text ?? undefined,
+    time: relativeTime(n.created_at),
+    read: n.read,
+    postId: n.post_id != null ? String(n.post_id) : undefined,
+    actor: n.actor ? mapUser(n.actor) : undefined,
   };
 }
 
@@ -203,17 +327,80 @@ export const api = {
     return r.access_token;
   },
 
-  async login(email: string, password: string): Promise<string> {
-    const r = await request<{ access_token: string }>('/auth/login', {
+  async login(email: string, password: string): Promise<LoginResult> {
+    const r = await request<{
+      requires_2fa: boolean;
+      ticket: string | null;
+      access_token: string | null;
+    }>('/auth/login', {
       method: 'POST',
       body: { email, password },
+      auth: false,
+    });
+    if (r.requires_2fa && r.ticket) return { status: '2fa', ticket: r.ticket };
+    return { status: 'ok', token: r.access_token! };
+  },
+
+  async loginVerify2fa(ticket: string, code: string): Promise<string> {
+    const r = await request<{ access_token: string }>('/auth/login/2fa', {
+      method: 'POST',
+      body: { ticket, code },
       auth: false,
     });
     return r.access_token;
   },
 
+  async start2faSetup(): Promise<TwoFactorSetup> {
+    const r = await request<{ secret: string; otpauth_url: string }>('/auth/2fa/setup', {
+      method: 'POST',
+    });
+    return { secret: r.secret, otpauthUrl: r.otpauth_url };
+  },
+
+  async enable2fa(code: string): Promise<User> {
+    return mapUser(
+      await request<BackendUser>('/auth/2fa/enable', { method: 'POST', body: { code } }),
+    );
+  },
+
+  async disable2fa(code: string): Promise<User> {
+    return mapUser(
+      await request<BackendUser>('/auth/2fa/disable', { method: 'POST', body: { code } }),
+    );
+  },
+
   async me(): Promise<User> {
     return mapUser(await request<BackendUser>('/auth/me'));
+  },
+
+  async updateProfile(payload: {
+    username?: string;
+    name?: string;
+    bio?: string;
+    neighborhood?: string;
+  }): Promise<User> {
+    return mapUser(
+      await request<BackendUser>('/users/me', { method: 'PATCH', body: payload }),
+    );
+  },
+
+  async checkUsername(username: string): Promise<UsernameAvailability> {
+    return request<UsernameAvailability>(
+      `/users/check-username?username=${encodeURIComponent(username)}`,
+    );
+  },
+
+  async updateAvatar(imageDataUrl: string): Promise<User> {
+    return mapUser(
+      await request<BackendUser>('/users/me/avatar', {
+        method: 'POST',
+        body: { image: imageDataUrl },
+      }),
+    );
+  },
+
+  async getNeighborhoodStats(): Promise<NeighborhoodStats> {
+    return request<NeighborhoodStats>('/users/neighborhood-stats');
   },
 
   async getFeed(category?: string): Promise<Post[]> {
@@ -226,6 +413,20 @@ export const api = {
     return mapPost(await request<BackendPost>(`/posts/${id}`));
   },
 
+  async search(
+    query: string,
+    type: SearchType = 'all',
+  ): Promise<{ posts: Post[]; users: User[] }> {
+    const q = `?q=${encodeURIComponent(query)}&type=${type}`;
+    const r = await request<{ posts: BackendPost[]; users: BackendUser[] }>(`/search${q}`);
+    return { posts: r.posts.map(mapPost), users: r.users.map(mapUser) };
+  },
+
+  async getTopImportant(): Promise<Post | null> {
+    const p = await request<BackendPost | null>('/posts/important');
+    return p ? mapPost(p) : null;
+  },
+
   async toggleLike(id: string): Promise<Post> {
     return mapPost(await request<BackendPost>(`/posts/${id}/like`, { method: 'POST' }));
   },
@@ -235,7 +436,9 @@ export const api = {
     title?: string;
     content: string;
     image_url?: string;
-    urgent?: boolean;
+    image?: string; // data URL base64 (ex.: imagem do produto)
+    details?: Record<string, any>;
+    important?: boolean;
   }): Promise<Post> {
     return mapPost(await request<BackendPost>('/posts/', { method: 'POST', body: payload }));
   },
@@ -246,6 +449,11 @@ export const api = {
 
   async getNeighbors(): Promise<User[]> {
     const r = await request<BackendUser[]>('/users/neighbors');
+    return r.map(mapUser);
+  },
+
+  async getPopular(): Promise<User[]> {
+    const r = await request<BackendUser[]>('/users/popular');
     return r.map(mapUser);
   },
 
@@ -270,5 +478,33 @@ export const api = {
         body: { content },
       }),
     );
+  },
+
+  async getConversations(): Promise<Conversation[]> {
+    const r = await request<BackendConversation[]>('/messages/conversations');
+    return r.map(mapConversation);
+  },
+
+  async getThread(userId: string): Promise<ChatMessage[]> {
+    const r = await request<BackendMessage[]>(`/messages/${userId}`);
+    return r.map(mapMessage);
+  },
+
+  async sendMessage(receiverId: string, content: string): Promise<ChatMessage> {
+    return mapMessage(
+      await request<BackendMessage>('/messages/', {
+        method: 'POST',
+        body: { receiver_id: Number(receiverId), content },
+      }),
+    );
+  },
+
+  async getNotifications(): Promise<AppNotification[]> {
+    const r = await request<BackendNotification[]>('/notifications/');
+    return r.map(mapNotification);
+  },
+
+  async markNotificationsRead(): Promise<void> {
+    await request<void>('/notifications/read-all', { method: 'PATCH' });
   },
 };

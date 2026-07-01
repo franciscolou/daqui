@@ -11,7 +11,9 @@ class PostCreate(BaseModel):
     title: Optional[str] = None
     content: str
     image_url: Optional[str] = None
-    urgent: bool = False
+    image: Optional[str] = None  # data URL base64 (ex.: imagem do produto em vendas)
+    details: Optional[dict] = None  # campos específicos da categoria
+    important: bool = False
 
 
 class PostOut(BaseModel):
@@ -20,11 +22,12 @@ class PostOut(BaseModel):
     title: Optional[str]
     content: str
     image_url: Optional[str]
+    details: Optional[dict] = None
     neighborhood: str
     likes_count: int
     comments_count: int
     shares_count: int
-    urgent: bool
+    important: bool
     pinned: bool
     created_at: datetime
     author: UserPublic

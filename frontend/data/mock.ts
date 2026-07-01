@@ -11,7 +11,9 @@ export type PostCategory =
 
 export interface User {
   id: string;
-  name: string;
+  username: string;      // identificador único (sem espaços)
+  name: string;          // nome de exibição livre
+  bio?: string;
   avatar: string;
   neighborhood: string;
   badge?: 'morador' | 'lider' | 'comerciante';
@@ -19,6 +21,7 @@ export interface User {
   joinedAt: string;
   postsCount: number;
   helpCount: number;
+  twoFactorEnabled?: boolean; // só presente em /auth/me (conta do próprio usuário)
 }
 
 export interface Post {
@@ -36,7 +39,15 @@ export interface Post {
   distance: string;
   liked: boolean;
   pinned?: boolean;
-  urgent?: boolean;
+  important?: boolean;
+  // Campos específicos por categoria (vindos de `details` no backend)
+  eventDates?: string[];      // ISO YYYY-MM-DD, um ou mais dias (evento)
+  allDay?: boolean;           // evento o dia inteiro
+  eventTime?: string;         // "HH:MM" quando não é o dia inteiro
+  placeName?: string;         // recomendação: nome do local
+  location?: string;          // texto livre (evento, recomendação, venda, perdidos)
+  price?: number;             // venda: preço em R$
+  priceNegotiable?: boolean;  // venda: "Negociável"
 }
 
 export interface Message {
@@ -60,6 +71,7 @@ export interface Notification {
 
 export const CURRENT_USER: User = {
   id: 'u0',
+  username: 'francisco',
   name: 'Francisco Gardenberg',
   avatar: 'https://i.pravatar.cc/150?img=68',
   neighborhood: 'Vila Madalena',
@@ -73,6 +85,7 @@ export const CURRENT_USER: User = {
 export const USERS: User[] = [
   {
     id: 'u1',
+    username: 'anapaula',
     name: 'Ana Paula Lima',
     avatar: 'https://i.pravatar.cc/150?img=47',
     neighborhood: 'Vila Madalena',
@@ -84,6 +97,7 @@ export const USERS: User[] = [
   },
   {
     id: 'u2',
+    username: 'carlosmendes',
     name: 'Carlos Mendes',
     avatar: 'https://i.pravatar.cc/150?img=52',
     neighborhood: 'Pinheiros',
@@ -95,6 +109,7 @@ export const USERS: User[] = [
   },
   {
     id: 'u3',
+    username: 'beatriz',
     name: 'Beatriz Santos',
     avatar: 'https://i.pravatar.cc/150?img=44',
     neighborhood: 'Vila Madalena',
@@ -106,6 +121,7 @@ export const USERS: User[] = [
   },
   {
     id: 'u4',
+    username: 'roberto',
     name: 'Roberto Alves',
     avatar: 'https://i.pravatar.cc/150?img=57',
     neighborhood: 'Jardins',
@@ -117,6 +133,7 @@ export const USERS: User[] = [
   },
   {
     id: 'u5',
+    username: 'mariana',
     name: 'Mariana Costa',
     avatar: 'https://i.pravatar.cc/150?img=25',
     neighborhood: 'Vila Madalena',
@@ -128,6 +145,7 @@ export const USERS: User[] = [
   },
   {
     id: 'u6',
+    username: 'thiago',
     name: 'Thiago Ferreira',
     avatar: 'https://i.pravatar.cc/150?img=61',
     neighborhood: 'Perdizes',
@@ -155,7 +173,7 @@ export const POSTS: Post[] = [
     distance: '200m',
     liked: false,
     pinned: true,
-    urgent: false,
+    important: false,
   },
   {
     id: 'p2',
@@ -187,7 +205,7 @@ export const POSTS: Post[] = [
     neighborhood: 'Vila Madalena',
     distance: '180m',
     liked: false,
-    urgent: true,
+    important: true,
   },
   {
     id: 'p4',
@@ -204,7 +222,7 @@ export const POSTS: Post[] = [
     neighborhood: 'Pinheiros',
     distance: '1.2km',
     liked: true,
-    urgent: true,
+    important: true,
   },
   {
     id: 'p5',
@@ -370,6 +388,7 @@ export const NOTIFICATIONS: Notification[] = [
 
 export const CATEGORIES = [
   { key: 'todos', label: 'Todos', icon: 'home' },
+  { key: 'geral', label: 'Geral', icon: 'chatbubbles' },
   { key: 'aviso', label: 'Avisos', icon: 'megaphone' },
   { key: 'seguranca', label: 'Segurança', icon: 'shield-checkmark' },
   { key: 'evento', label: 'Eventos', icon: 'calendar' },
@@ -393,7 +412,7 @@ export const CATEGORY_LABELS: Record<PostCategory, string> = {
 };
 
 export const CATEGORY_ICONS: Record<PostCategory, string> = {
-  geral: 'ellipse',
+  geral: 'chatbubbles',
   aviso: 'megaphone',
   seguranca: 'shield-checkmark',
   evento: 'calendar',

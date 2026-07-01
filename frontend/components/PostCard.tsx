@@ -1,10 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Colors } from '../constants/Colors';
+import { Palette } from '../constants/Colors';
 import { Post, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/mock';
 import { api } from '../lib/api';
-import { useState } from 'react';
+import { formatPostTime } from '../lib/time';
+import { useState, type ReactNode } from 'react';
+import { useTheme, useThemedStyles } from '../lib/theme';
 
 interface PostCardProps {
   post: Post;
@@ -12,6 +14,8 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onPress }: PostCardProps) {
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [liked, setLiked] = useState(post.liked);
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [busy, setBusy] = useState(false);
@@ -41,11 +45,11 @@ export default function PostCard({ post, onPress }: PostCardProps) {
 
   return (
     <TouchableOpacity style={styles.row} onPress={onPress ?? openPost} activeOpacity={0.92}>
-      {/* Urgent bar on the left edge */}
-      {post.urgent && <View style={styles.urgentBar} />}
+      {/* Important bar on the left edge */}
+      {post.important && <View style={styles.importantBar} />}
 
       {/* Left col: avatar */}
-      <TouchableOpacity style={styles.leftCol} onPress={() => router.push(`/usuario/${post.author.id}` as any)} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.leftCol} onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.8}>
         <View style={styles.avatarWrapper}>
           <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
           {post.author.verified && (
@@ -61,11 +65,14 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         {/* Author + meta row */}
         <View style={styles.topRow}>
           <View style={styles.authorMeta}>
-            <TouchableOpacity onPress={() => router.push(`/usuario/${post.author.id}` as any)} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.7}>
               <Text style={styles.authorName} numberOfLines={1}>{post.author.name}</Text>
             </TouchableOpacity>
+            {!!post.author.username && (
+              <Text style={styles.authorUsername} numberOfLines={1}>@{post.author.username}</Text>
+            )}
             <Text style={styles.dot}>·</Text>
-            <Text style={styles.time}>{post.createdAt}</Text>
+            <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
             {!!post.distance && (
               <>
                 <Text style={styles.dot}>·</Text>
@@ -87,10 +94,10 @@ export default function PostCard({ post, onPress }: PostCardProps) {
               {CATEGORY_LABELS[post.category]}
             </Text>
           </View>
-          {post.urgent && (
-            <View style={styles.urgentTag}>
+          {post.important && (
+            <View style={styles.importantTag}>
               <Ionicons name="alert-circle" size={10} color={Colors.error} />
-              <Text style={styles.urgentTagText}>Urgente</Text>
+              <Text style={styles.importantTagText}>Importante</Text>
             </View>
           )}
           {post.pinned && (
@@ -108,6 +115,9 @@ export default function PostCard({ post, onPress }: PostCardProps) {
 
         {/* Body */}
         <Text style={styles.body} numberOfLines={4}>{post.content}</Text>
+
+        {/* Campos específicos por categoria */}
+        <PostDetails post={post} styles={styles} Colors={Colors} />
 
         {/* Image */}
         {post.images?.[0] && (
@@ -156,7 +166,84 @@ export default function PostCard({ post, onPress }: PostCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+function formatEventDates(dates: string[]): string {
+  const fmt = (iso: string) => {
+    const [, m, d] = iso.split('-');
+    return `${d}/${m}`;
+  };
+  if (dates.length <= 2) return dates.map(fmt).join(', ');
+  return `${dates.slice(0, 2).map(fmt).join(', ')} +${dates.length - 2}`;
+}
+
+function formatPrice(price: number): string {
+  return `R$ ${price.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function PostDetails({
+  post,
+  styles,
+  Colors,
+}: {
+  post: Post;
+  styles: ReturnType<typeof makeStyles>;
+  Colors: Palette;
+}) {
+  const chips: ReactNode[] = [];
+
+  if (post.category === 'evento' && post.eventDates?.length) {
+    const label =
+      formatEventDates(post.eventDates) +
+      (post.allDay ? ' · Dia inteiro' : post.eventTime ? ` · ${post.eventTime}` : '');
+    chips.push(
+      <View key="date" style={styles.detailChip}>
+        <Ionicons name="calendar-outline" size={12} color={Colors.primary} />
+        <Text style={styles.detailChipText}>{label}</Text>
+      </View>,
+    );
+  }
+
+  if (post.category === 'venda') {
+    const priceLabel = post.priceNegotiable
+      ? 'Negociável'
+      : typeof post.price === 'number'
+      ? formatPrice(post.price)
+      : null;
+    if (priceLabel) {
+      chips.push(
+        <View key="price" style={styles.priceChip}>
+          <Ionicons name="pricetag" size={12} color={Colors.primary} />
+          <Text style={styles.priceChipText}>{priceLabel}</Text>
+        </View>,
+      );
+    }
+  }
+
+  if (post.category === 'recomendacao' && post.placeName) {
+    chips.push(
+      <View key="place" style={styles.detailChip}>
+        <Ionicons name="storefront-outline" size={12} color={Colors.primary} />
+        <Text style={styles.detailChipText}>{post.placeName}</Text>
+      </View>,
+    );
+  }
+
+  if (post.location) {
+    chips.push(
+      <View key="loc" style={styles.detailChip}>
+        <Ionicons name="location-outline" size={12} color={Colors.textTertiary} />
+        <Text style={styles.detailChipText}>{post.location}</Text>
+      </View>,
+    );
+  }
+
+  if (chips.length === 0) return null;
+  return <View style={styles.detailsRow}>{chips}</View>;
+}
+
+const makeStyles = (Colors: Palette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,
@@ -167,7 +254,7 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
     position: 'relative',
   },
-  urgentBar: {
+  importantBar: {
     position: 'absolute',
     left: 0,
     top: 0,
@@ -227,6 +314,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     flexShrink: 1,
   },
+  authorUsername: { fontSize: 13, color: Colors.textTertiary, fontWeight: '500', flexShrink: 1 },
   dot: { fontSize: 13, color: Colors.textTertiary },
   time: { fontSize: 13, color: Colors.textTertiary },
   dist: { fontSize: 13, color: Colors.textTertiary },
@@ -246,7 +334,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   catText: { fontSize: 11, fontWeight: '700' },
-  urgentTag: {
+  importantTag: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
@@ -255,7 +343,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: Colors.error + '15',
   },
-  urgentTagText: { fontSize: 11, fontWeight: '700', color: Colors.error },
+  importantTagText: { fontSize: 11, fontWeight: '700', color: Colors.error },
   pinnedTag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -286,6 +374,44 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 14,
     marginBottom: 10,
+  },
+
+  detailsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  detailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.borderLight,
+    maxWidth: '100%',
+  },
+  detailChipText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  priceChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryFaint,
+  },
+  priceChipText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '800',
   },
 
   actions: {

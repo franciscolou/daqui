@@ -1,12 +1,27 @@
+import re
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
+
+USERNAME_RE = re.compile(r"^[a-z0-9._]{3,18}$")
+
+
+def _validate_username(value: str) -> str:
+    value = value.strip().lower()
+    if not USERNAME_RE.match(value):
+        raise ValueError(
+            "O nome de usuário deve ter de 3 a 18 caracteres, apenas letras "
+            "minúsculas, números, ponto ou sublinhado."
+        )
+    return value
 
 
 class UserPublic(BaseModel):
     id: int
+    username: str
     name: str
+    bio: Optional[str]
     avatar_url: Optional[str]
     neighborhood: str
     badge: Optional[str]
@@ -20,10 +35,35 @@ class UserPublic(BaseModel):
 
 class UserMe(UserPublic):
     email: EmailStr
+    # Lido de User.two_factor_enabled (property → totp_enabled).
+    two_factor_enabled: bool = False
+
+
+class UsernameAvailability(BaseModel):
+    username: str
+    valid: bool
+    available: bool
+
+
+class NeighborhoodStats(BaseModel):
+    neighborhood: str
+    neighbors: int
+    posts: int
+
+
+class AvatarUpdate(BaseModel):
+    image: str  # data URL base64: "data:image/png;base64,...."
 
 
 class UserUpdate(BaseModel):
+    username: Optional[str] = None
     name: Optional[str] = None
+    bio: Optional[str] = None
     neighborhood: Optional[str] = None
     city: Optional[str] = None
     avatar_url: Optional[str] = None
+
+    @field_validator("username")
+    @classmethod
+    def check_username(cls, value: Optional[str]) -> Optional[str]:
+        return _validate_username(value) if value is not None else value

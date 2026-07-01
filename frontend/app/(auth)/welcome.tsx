@@ -33,11 +33,14 @@ type Panel = 'welcome' | 'login' | 'signup';
 export default function WelcomeScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
-  const { login, signup } = useAuth();
+  const { login, verifyLogin2fa, signup } = useAuth();
 
   // estado do painel esquerdo (só usado no desktop)
   const [panel, setPanel] = useState<Panel>('welcome');
   const [signupStep, setSignupStep] = useState(0);
+  // A2F: quando o login pede segundo fator, guardamos o ticket + código.
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [code, setCode] = useState('');
 
   // campos de formulário compartilhados
   const [email, setEmail] = useState('');
@@ -96,8 +99,16 @@ export default function WelcomeScreen() {
   const nextStep = () => slide(panel, signupStep + 1, 'fwd');
   const goBack = () => {
     setAuthError(null);
+    setTicket(null);
+    setCode('');
     if (panel === 'signup' && signupStep > 0) slide(panel, signupStep - 1, 'bwd');
     else slide('welcome', 0, 'bwd');
+  };
+
+  const cancel2fa = () => {
+    setAuthError(null);
+    setTicket(null);
+    setCode('');
   };
 
   // ── Auth real (painel desktop) ───────────────────────────────
@@ -110,10 +121,33 @@ export default function WelcomeScreen() {
     }
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
-      router.replace('/(tabs)');
+      const result = await login(email.trim(), password);
+      if (result.status === '2fa') {
+        setTicket(result.ticket);
+        setCode('');
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (e) {
       setAuthError(e instanceof ApiError ? e.message : 'Falha ao entrar.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVerify2fa = async () => {
+    if (submitting) return;
+    setAuthError(null);
+    if (code.trim().length < 6) {
+      setAuthError('Digite o código de 6 dígitos do seu app autenticador.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await verifyLogin2fa(ticket!, code.trim());
+      router.replace('/(tabs)');
+    } catch (e) {
+      setAuthError(e instanceof ApiError ? e.message : 'Não foi possível verificar o código.');
     } finally {
       setSubmitting(false);
     }
@@ -223,15 +257,64 @@ export default function WelcomeScreen() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <TouchableOpacity style={styles.backBtn} onPress={goBack}>
+      <TouchableOpacity style={styles.backBtn} onPress={ticket ? cancel2fa : goBack}>
         <Ionicons name="arrow-back" size={18} color={Colors.textSecondary} />
       </TouchableOpacity>
 
       <View style={styles.formHeader}>
-        <Text style={styles.formTitle}>Bem-vindo de volta</Text>
-        <Text style={styles.formSubtitle}>Entre na sua conta daqui</Text>
+        <Text style={styles.formTitle}>
+          {ticket ? 'Verificação em duas etapas' : 'Bem-vindo de volta'}
+        </Text>
+        <Text style={styles.formSubtitle}>
+          {ticket ? 'Confirme sua identidade para entrar' : 'Entre na sua conta daqui'}
+        </Text>
       </View>
 
+      {ticket ? (
+        <>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Código de verificação</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="000000"
+                placeholderTextColor={Colors.textTertiary}
+                value={code}
+                onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+                onSubmitEditing={handleVerify2fa}
+              />
+            </View>
+          </View>
+
+          {authError && (
+            <View style={styles.authErrorBox}>
+              <Ionicons name="alert-circle" size={16} color={Colors.error} />
+              <Text style={styles.authErrorText}>{authError}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.btnPrimary, submitting && { opacity: 0.7 }]}
+            onPress={handleVerify2fa}
+            activeOpacity={0.88}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.btnPrimaryText}>Verificar</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+        </>
+      ) : (
+      <>
       <View style={styles.inputGroup}>
         <Text style={styles.label}>E-mail</Text>
         <View style={styles.inputWrapper}>
@@ -316,6 +399,8 @@ export default function WelcomeScreen() {
           <Text style={styles.switchLink}>Cadastre-se grátis</Text>
         </TouchableOpacity>
       </View>
+      </>
+      )}
     </ScrollView>
   );
 

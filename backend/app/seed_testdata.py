@@ -41,20 +41,22 @@ def seed():
     if not lou.avatar_url:
         lou.avatar_url = "https://i.pravatar.cc/150?img=15"
     lou.badge = lou.badge or "morador"
+    if not getattr(lou, "username", None):
+        lou.username = "lou"
     lou_bairro = lou.neighborhood or "Leme"
 
     # ── Vizinhos da lou (mesmo bairro) ───────────────────────────
     neighbors_data = [
-        dict(name="Helena Prado", email=MARKER_EMAIL, neighborhood=lou_bairro,
+        dict(username="helena", name="Helena Prado", email=MARKER_EMAIL, neighborhood=lou_bairro,
              badge="lider", verified=True, avatar_url="https://i.pravatar.cc/150?img=31",
              help_count=64),
-        dict(name="Bruno Tavares", email="bruno.leme@daqui.com", neighborhood=lou_bairro,
+        dict(username="bruno", name="Bruno Tavares", email="bruno.leme@daqui.com", neighborhood=lou_bairro,
              badge="morador", verified=True, avatar_url="https://i.pravatar.cc/150?img=12",
              help_count=21),
-        dict(name="Sofia Andrade", email="sofia.leme@daqui.com", neighborhood=lou_bairro,
+        dict(username="sofia", name="Sofia Andrade", email="sofia.leme@daqui.com", neighborhood=lou_bairro,
              badge="comerciante", verified=True, avatar_url="https://i.pravatar.cc/150?img=24",
              help_count=38),
-        dict(name="Diego Martins", email="diego.leme@daqui.com", neighborhood=lou_bairro,
+        dict(username="diego", name="Diego Martins", email="diego.leme@daqui.com", neighborhood=lou_bairro,
              badge="morador", verified=False, avatar_url="https://i.pravatar.cc/150?img=8",
              help_count=9),
     ]
@@ -80,7 +82,7 @@ def seed():
     mariana = by_email("mariana@daqui.com")
 
     # ── Posts ────────────────────────────────────────────────────
-    # (chave, autor, bairro, categoria, título, conteúdo, image_url, urgent, pinned, min_atrás)
+    # (chave, autor, bairro, categoria, título, conteúdo, image_url, important, pinned, min_atrás)
     posts_spec = [
         # Bairro da lou (Leme) — para o feed da lou ter conteúdo
         ("leme_welcome", helena, lou_bairro, "aviso", "Bem-vindos ao grupo do Leme! 🌊",
@@ -124,11 +126,11 @@ def seed():
     ]
 
     posts = {}
-    for key, author, bairro, cat, title, content, img, urgent, pinned, mins in posts_spec:
+    for key, author, bairro, cat, title, content, img, important, pinned, mins in posts_spec:
         p = Post(
             author_id=author.id, neighborhood=bairro, category=cat,
             title=title, content=content, image_url=img,
-            urgent=urgent, pinned=pinned, created_at=ago(mins),
+            important=important, pinned=pinned, created_at=ago(mins),
         )
         db.add(p)
         posts[key] = p

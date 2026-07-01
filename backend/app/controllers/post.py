@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
@@ -27,6 +27,13 @@ def list_by_author(
     return post.list_by_author(db, user_id, current_user)
 
 
+def get_top_important(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Optional[PostOut]:
+    return post.get_top_important(db, current_user)
+
+
 def get_post(
     post_id: int,
     db: Session = Depends(get_db),
@@ -37,10 +44,11 @@ def get_post(
 
 def create_post(
     payload: PostCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PostOut:
-    return post.create_post(db, current_user, payload)
+    return post.create_post(db, current_user, payload, str(request.base_url))
 
 
 def toggle_like(

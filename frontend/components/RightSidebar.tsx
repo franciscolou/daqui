@@ -1,19 +1,28 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Colors } from '../constants/Colors';
-import { User } from '../data/mock';
-import { api } from '../lib/api';
+import { Palette } from '../constants/Colors';
+import { Post, User } from '../data/mock';
+import { api, NeighborhoodStats } from '../lib/api';
+import { formatPostTime } from '../lib/time';
 import { useAuth } from '../lib/auth';
+import { useTheme, useThemedStyles } from '../lib/theme';
 
 export default function RightSidebar() {
   const { user } = useAuth();
-  const [nearbyUsers, setNearbyUsers] = useState<User[]>([]);
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const [popularUsers, setPopularUsers] = useState<User[]>([]);
+  const [importantPost, setImportantPost] = useState<Post | null>(null);
+  const [stats, setStats] = useState<NeighborhoodStats | null>(null);
+  const [alertHovered, setAlertHovered] = useState(false);
 
   useEffect(() => {
-    api.getNeighbors().then((n) => setNearbyUsers(n.slice(0, 4))).catch(() => {});
+    api.getPopular().then((n) => setPopularUsers(n.slice(0, 4))).catch(() => {});
+    api.getTopImportant().then(setImportantPost).catch(() => {});
+    api.getNeighborhoodStats().then(setStats).catch(() => {});
   }, []);
 
   return (
@@ -41,98 +50,82 @@ export default function RightSidebar() {
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statNum}>238</Text>
+              <Text style={styles.statNum}>{stats?.neighbors ?? '—'}</Text>
               <Text style={styles.statLabel}>vizinhos</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNum}>80%</Text>
-              <Text style={styles.statLabel}>cadastrados</Text>
+              <Text style={styles.statNum}>{stats?.posts ?? '—'}</Text>
+              <Text style={styles.statLabel}>posts</Text>
             </View>
           </View>
-
-          <View style={styles.statSubRow}>
-            <Ionicons name="people-outline" size={13} color={Colors.textTertiary} />
-            <Text style={styles.statSubText}>
-              1.421 vizinhos em 12 bairros próximos
-            </Text>
-          </View>
         </View>
       </View>
 
-      {/* Profile quick links */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Image source={{ uri: user?.avatar }} style={styles.profileAvatar} />
-          <View>
-            <Text style={styles.profileGreeting}>Olá, {user?.name?.split(' ')[0]}!</Text>
-            <Text style={styles.profileSub}>{user?.neighborhood}</Text>
-          </View>
-        </View>
-        <View style={styles.divider} />
-        {[
-          { icon: 'person-outline', label: 'Seu perfil' },
-          { icon: 'bookmark-outline', label: 'Salvos' },
-          { icon: 'star-outline', label: 'Reputação' },
-          { icon: 'hand-left-outline', label: 'Ajudas dadas' },
-        ].map((item) => (
-          <TouchableOpacity key={item.label} style={styles.profileLink} activeOpacity={0.7}>
-            <Ionicons name={item.icon as any} size={15} color={Colors.primary} />
-            <Text style={styles.profileLinkText}>{item.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Active neighbors */}
+      {/* Popular neighbors — sugeridos por engajamento */}
       <View style={styles.card}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Vizinhos ativos</Text>
-          <TouchableOpacity>
-            <Text style={styles.sectionLink}>Ver todos</Text>
-          </TouchableOpacity>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="trending-up" size={15} color={Colors.primary} />
+            <Text style={styles.sectionTitle}>Vizinhos em destaque</Text>
+          </View>
         </View>
         <View style={styles.neighborsList}>
-          {nearbyUsers.map((u) => (
+          {popularUsers.map((u) => (
             <TouchableOpacity
               key={u.id}
               style={styles.neighborRow}
               activeOpacity={0.7}
-              onPress={() => router.push(`/usuario/${u.id}` as any)}
+              onPress={() => router.push(`/user/${u.id}` as any)}
             >
-              <View style={styles.neighborAvatarWrapper}>
-                <Image source={{ uri: u.avatar }} style={styles.neighborAvatar} />
-                <View style={styles.onlineDot} />
-              </View>
+              <Image source={{ uri: u.avatar }} style={styles.neighborAvatar} />
               <View style={styles.neighborInfo}>
-                <Text style={styles.neighborName} numberOfLines={1}>{u.name.split(' ')[0]}{' '}{u.name.split(' ')[1]?.[0]}.</Text>
-                <Text style={styles.neighborDist}>{u.neighborhood}</Text>
+                <Text style={styles.neighborName} numberOfLines={1}>{u.name.split(' ')[0]}{' '}{u.name.split(' ')[1]?.[0] ? `${u.name.split(' ')[1][0]}.` : ''}</Text>
+                <Text style={styles.neighborDist} numberOfLines={1}>
+                  {u.postsCount} posts · {u.helpCount} ajudas
+                </Text>
               </View>
-              <TouchableOpacity style={styles.followBtn}>
-                <Text style={styles.followBtnText}>Seguir</Text>
-              </TouchableOpacity>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      {/* Urgent alert */}
-      <TouchableOpacity style={styles.alertCard} activeOpacity={0.9}>
-        <View style={styles.alertTop}>
-          <View style={styles.alertIconBox}>
-            <Ionicons name="shield-checkmark" size={18} color={Colors.error} />
+      {/* Important alert — post importante com mais interações */}
+      {importantPost && (
+        <Pressable
+          style={[styles.alertCard, alertHovered && styles.alertCardHovered]}
+          onHoverIn={() => setAlertHovered(true)}
+          onHoverOut={() => setAlertHovered(false)}
+          onPress={() => router.push(`/post/${importantPost.id}` as any)}
+        >
+          <View style={styles.alertBadge}>
+            <Ionicons name="alert-circle" size={12} color="#fff" />
+            <Text style={styles.alertBadgeText}>Importante</Text>
           </View>
-          <Text style={styles.alertTitle}>Alerta de segurança</Text>
-        </View>
-        <Text style={styles.alertBody}>
-          Golpe do WhatsApp circulando no bairro. Não forneça dados bancários.
-        </Text>
-        <Text style={styles.alertLink}>Ver mais →</Text>
-      </TouchableOpacity>
+          <View style={styles.alertTop}>
+            <View style={styles.alertIconBox}>
+              <Ionicons name="shield-checkmark" size={18} color={Colors.error} />
+            </View>
+            <Text style={styles.alertTitle}>{importantPost.title || 'Alerta de segurança'}</Text>
+          </View>
+          <Text style={styles.alertBody} numberOfLines={3}>
+            {importantPost.content}
+          </Text>
+          <View style={styles.alertAuthor}>
+            <Image source={{ uri: importantPost.author.avatar }} style={styles.alertAuthorAvatar} />
+            <Text style={styles.alertAuthorName} numberOfLines={1}>
+              {importantPost.author.name}
+            </Text>
+            <Text style={styles.alertAuthorTime}>· {formatPostTime(importantPost.createdAt)}</Text>
+          </View>
+        </Pressable>
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) => StyleSheet.create({
   sidebar: {
     width: 268,
     paddingHorizontal: 12,
@@ -170,7 +163,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
-  mapBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.text },
+  mapBadgeText: { fontSize: 11, fontWeight: '700', color: '#0F172A' },
   cardBody: { padding: 14 },
   neighborhoodName: { fontSize: 16, fontWeight: '800', color: Colors.text, letterSpacing: -0.3 },
   cityName: { fontSize: 12, color: Colors.textTertiary, marginBottom: 10 },
@@ -186,31 +179,6 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 16, fontWeight: '800', color: Colors.primary },
   statLabel: { fontSize: 10, color: Colors.textTertiary, marginTop: 1 },
   statDivider: { width: 1, height: 24, backgroundColor: Colors.border },
-  statSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  statSubText: { fontSize: 12, color: Colors.textTertiary, flex: 1 },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    padding: 14,
-    paddingBottom: 10,
-  },
-  profileAvatar: { width: 40, height: 40, borderRadius: 12 },
-  profileGreeting: { fontSize: 14, fontWeight: '700', color: Colors.text },
-  profileSub: { fontSize: 11, color: Colors.primary, fontWeight: '600', marginTop: 1 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border, marginHorizontal: 14 },
-  profileLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  profileLinkText: { fontSize: 13, color: Colors.text, fontWeight: '500' },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -218,45 +186,48 @@ const styles = StyleSheet.create({
     padding: 14,
     paddingBottom: 8,
   },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
-  sectionLink: { fontSize: 12, color: Colors.primary, fontWeight: '600' },
   neighborsList: { paddingHorizontal: 14, paddingBottom: 12, gap: 10 },
   neighborRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  neighborAvatarWrapper: { position: 'relative' },
   neighborAvatar: { width: 36, height: 36, borderRadius: 11 },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.success,
-    borderWidth: 1.5,
-    borderColor: Colors.surface,
-  },
   neighborInfo: { flex: 1, minWidth: 0 },
   neighborName: { fontSize: 13, fontWeight: '600', color: Colors.text },
   neighborDist: { fontSize: 11, color: Colors.textTertiary, marginTop: 1 },
-  followBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: Colors.primaryFaint,
-    borderWidth: 1,
-    borderColor: Colors.primaryLight,
-  },
-  followBtnText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   alertCard: {
-    backgroundColor: '#FFF1F0',
+    backgroundColor: Colors.dangerSurface,
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: Colors.dangerBorder,
+    transitionDuration: '150ms',
+  } as any,
+  alertCardHovered: {
+    backgroundColor: Colors.dangerSurfaceStrong,
+    borderColor: Colors.dangerBorderStrong,
+    ...Colors.shadow.md,
+  },
+  alertBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.error,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginBottom: 8,
+  },
+  alertBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   alertTop: {
     flexDirection: 'row',
@@ -268,11 +239,18 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.dangerIconBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  alertTitle: { fontSize: 13, fontWeight: '700', color: '#B91C1C' },
-  alertBody: { fontSize: 12, color: '#7F1D1D', lineHeight: 17, marginBottom: 6 },
-  alertLink: { fontSize: 12, fontWeight: '700', color: Colors.error },
+  alertTitle: { fontSize: 13, fontWeight: '700', color: Colors.dangerTitle },
+  alertBody: { fontSize: 12, color: Colors.dangerBody, lineHeight: 17, marginBottom: 10 },
+  alertAuthor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  alertAuthorAvatar: { width: 22, height: 22, borderRadius: 7 },
+  alertAuthorName: { fontSize: 12, fontWeight: '700', color: Colors.dangerBody, flexShrink: 1 },
+  alertAuthorTime: { fontSize: 11, color: Colors.dangerTitle },
 });
