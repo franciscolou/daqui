@@ -1,10 +1,11 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Colors } from '../constants/Colors';
+import { Palette } from '../constants/Colors';
 import { Post, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/mock';
 import { api } from '../lib/api';
 import { useState } from 'react';
+import { useTheme, useThemedStyles } from '../lib/theme';
 
 interface PostCardProps {
   post: Post;
@@ -12,6 +13,8 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onPress }: PostCardProps) {
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [liked, setLiked] = useState(post.liked);
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [busy, setBusy] = useState(false);
@@ -156,7 +159,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     backgroundColor: Colors.surface,

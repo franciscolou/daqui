@@ -9,6 +9,7 @@ class NotificationOut(BaseModel):
     id: int
     type: str
     content: str
+    target_text: str | None
     read: bool
     post_id: int | None
     created_at: datetime

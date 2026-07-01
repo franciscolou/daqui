@@ -10,6 +10,10 @@ def get_neighbors(db: Session, user: User) -> list[User]:
     return user_dao.get_neighbors(db, user.neighborhood, exclude_id=user.id)
 
 
+def get_popular(db: Session, user: User) -> list[User]:
+    return user_dao.get_popular(db, exclude_id=user.id)
+
+
 def get_by_id(db: Session, user_id: int) -> User:
     user = user_dao.get_by_id(db, user_id)
     if not user:

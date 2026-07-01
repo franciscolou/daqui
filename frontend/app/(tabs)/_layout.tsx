@@ -3,45 +3,52 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform, useWindowDimensions
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../../constants/Colors';
+import { Palette } from '../../constants/Colors';
+import { useTheme, useThemedStyles } from '../../lib/theme';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
+// Ordem da barra inferior (mobile), da esquerda para a direita.
+// 'perfil' fica de fora de propósito — é acessível pelo avatar/menu.
 const TAB_ITEMS = [
-  { name: 'index', label: 'Início', icon: 'home', iconActive: 'home' },
+  { name: 'index', label: 'Início', icon: 'home-outline', iconActive: 'home' },
+  { name: 'busca', label: 'Buscar', icon: 'search-outline', iconActive: 'search' },
+  { name: 'publish', label: '', icon: 'add', iconActive: 'add' },
   { name: 'mapa', label: 'Mapa', icon: 'map-outline', iconActive: 'map' },
-  { name: 'publicar', label: '', icon: 'add', iconActive: 'add' },
   { name: 'mensagens', label: 'Mensagens', icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
-  { name: 'perfil', label: 'Perfil', icon: 'person-outline', iconActive: 'person' },
 ];
 
-function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   if (width >= 900) return null;
+
+  const activeName = state.routes[state.index]?.name;
+
+  const go = (name: string) => {
+    const route = state.routes.find((r: { name: string; key: string }) => r.name === name);
+    if (!route) return;
+    const event = navigation.emit({
+      type: 'tabPress',
+      target: route.key,
+      canPreventDefault: true,
+    });
+    if (activeName !== name && !event.defaultPrevented) {
+      navigation.navigate(name);
+    }
+  };
 
   return (
     <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom || 16 }]}>
       <View style={styles.tabBar}>
-        {state.routes.map((route, index) => {
-          const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
-          const tabItem = TAB_ITEMS[index];
+        {TAB_ITEMS.map((tabItem) => {
+          const isFocused = activeName === tabItem.name;
 
-          const onPress = () => {
-            const event = navigation.emit({
-              type: 'tabPress',
-              target: route.key,
-              canPreventDefault: true,
-            });
-            if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
-            }
-          };
-
-          if (tabItem.name === 'publicar') {
+          if (tabItem.name === 'publish') {
             return (
-              <TouchableOpacity key={route.key} onPress={onPress} style={styles.publishBtnWrapper} activeOpacity={0.85}>
+              <TouchableOpacity key={tabItem.name} onPress={() => go('publish')} style={styles.publishBtnWrapper} activeOpacity={0.85}>
                 <LinearGradient
                   colors={Colors.gradient.primary}
                   style={styles.publishBtn}
@@ -56,8 +63,8 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
           return (
             <TouchableOpacity
-              key={route.key}
-              onPress={onPress}
+              key={tabItem.name}
+              onPress={() => go(tabItem.name)}
               style={styles.tabItem}
               activeOpacity={0.7}
             >
@@ -86,15 +93,16 @@ export default function TabsLayout() {
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="index" />
+      <Tabs.Screen name="busca" />
+      <Tabs.Screen name="publish" />
       <Tabs.Screen name="mapa" />
-      <Tabs.Screen name="publicar" />
       <Tabs.Screen name="mensagens" />
-      <Tabs.Screen name="perfil" />
+      <Tabs.Screen name="perfil" options={{ href: null }} />
     </Tabs>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) => StyleSheet.create({
   tabBarContainer: {
     backgroundColor: Colors.surface,
     borderTopWidth: 1,

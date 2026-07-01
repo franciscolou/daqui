@@ -14,6 +14,13 @@ def list_neighbors(
     return user.get_neighbors(db, current_user)
 
 
+def list_popular(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[UserPublic]:
+    return user.get_popular(db, current_user)
+
+
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),

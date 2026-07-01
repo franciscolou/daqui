@@ -14,14 +14,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Colors } from '../../constants/Colors';
+import { Palette } from '../../constants/Colors';
 import { CATEGORY_ICONS, CATEGORY_LABELS, Post } from '../../data/mock';
 import { api, Comment } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { useTheme, useThemedStyles } from '../../lib/theme';
+import WideLayout from '../../components/WideLayout';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
 
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -134,11 +138,13 @@ export default function PostDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <WideLayout>
+      <View style={styles.column}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Publicação</Text>
+        <Text style={styles.topBarTitle}>Post</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -149,7 +155,7 @@ export default function PostDetailScreen() {
       ) : !post ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
-          <Text style={styles.emptyText}>Publicação não encontrada.</Text>
+          <Text style={styles.emptyText}>Post não encontrado.</Text>
         </View>
       ) : (
         <KeyboardAvoidingView
@@ -205,12 +211,15 @@ export default function PostDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       )}
+      </View>
+      </WideLayout>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.surface },
+const makeStyles = (Colors: Palette) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.background },
+  column: { flex: 1, backgroundColor: Colors.surface },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   emptyText: { fontSize: 14, color: Colors.textSecondary },
 

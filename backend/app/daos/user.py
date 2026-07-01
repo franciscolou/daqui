@@ -1,3 +1,4 @@
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -49,6 +50,27 @@ def get_neighbors(
     return (
         db.query(User)
         .filter(User.neighborhood == neighborhood, User.id != exclude_id)
+        .limit(limit)
+        .all()
+    )
+
+
+def search(db: Session, query: str, exclude_id: int, limit: int = 30) -> list[User]:
+    return (
+        db.query(User)
+        .filter(User.name.ilike(f"%{query}%"), User.id != exclude_id)
+        .order_by(desc(User.posts_count + User.help_count))
+        .limit(limit)
+        .all()
+    )
+
+
+def get_popular(db: Session, exclude_id: int, limit: int = 10) -> list[User]:
+    # Popularidade = engajamento do vizinho (posts + ajudas dadas).
+    return (
+        db.query(User)
+        .filter(User.id != exclude_id)
+        .order_by(desc(User.posts_count + User.help_count), desc(User.verified))
         .limit(limit)
         .all()
     )

@@ -14,16 +14,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator } from 'react-native';
 import { useState } from 'react';
-import { Colors } from '../../constants/Colors';
+import { Palette } from '../../constants/Colors';
 import { CATEGORIES, PostCategory } from '../../data/mock';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { useTheme, useThemedStyles } from '../../lib/theme';
+import WideLayout from '../../components/WideLayout';
 import { router } from 'expo-router';
 
 const CREATE_CATEGORIES = CATEGORIES.filter((c) => c.key !== 'todos');
 
-export default function PublicarScreen() {
+export default function PublishScreen() {
   const { user } = useAuth();
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -53,8 +57,9 @@ export default function PublicarScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <WideLayout>
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={[styles.flex, styles.column]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header */}
@@ -63,7 +68,7 @@ export default function PublicarScreen() {
             <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
               <Ionicons name="close" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Nova publicação</Text>
+            <Text style={styles.headerTitle}>Novo post</Text>
             <TouchableOpacity
               style={[styles.publishBtn, !canPublish && styles.publishBtnDisabled]}
               onPress={handlePublish}
@@ -189,7 +194,7 @@ export default function PublicarScreen() {
 
           {/* Attachments */}
           <View style={[styles.section, { paddingBottom: 8 }]}>
-            <Text style={styles.sectionLabel}>Adicionar à publicação</Text>
+            <Text style={styles.sectionLabel}>Adicionar ao post</Text>
             <View style={styles.attachRow}>
               <TouchableOpacity style={styles.attachBtn}>
                 <View style={[styles.attachIcon, { backgroundColor: Colors.indigo + '15' }]}>
@@ -239,13 +244,15 @@ export default function PublicarScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+      </WideLayout>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) => StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1, backgroundColor: Colors.background },
+  column: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: 16,
     paddingTop: 8,

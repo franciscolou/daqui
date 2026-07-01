@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '../constants/Colors';
+import { Palette } from '../constants/Colors';
 import { User } from '../data/mock';
+import { useTheme, useThemedStyles } from '../lib/theme';
 
 interface StoryAvatarProps {
   user?: User;
@@ -11,6 +12,9 @@ interface StoryAvatarProps {
 }
 
 export default function StoryAvatar({ user, isAdd, onPress }: StoryAvatarProps) {
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+
   if (isAdd) {
     return (
       <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
@@ -43,7 +47,7 @@ export default function StoryAvatar({ user, isAdd, onPress }: StoryAvatarProps) 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) => StyleSheet.create({
   container: {
     alignItems: 'center',
     width: 68,

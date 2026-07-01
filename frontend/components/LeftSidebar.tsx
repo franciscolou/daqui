@@ -1,18 +1,22 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, usePathname } from 'expo-router';
-import { Colors } from '../constants/Colors';
+import { Palette } from '../constants/Colors';
 import { CATEGORIES, PostCategory } from '../data/mock';
 import { useAuth } from '../lib/auth';
+import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
 
 interface Props {
   activeCategory?: string;
   onCategoryChange?: (key: string) => void;
+  onNavigate?: () => void; // chamado ao tocar em um item (ex.: fechar o drawer no mobile)
 }
 
 const NAV_ITEMS = [
   { key: 'index',     route: '/(tabs)',             label: 'Início',     icon: 'home-outline'         as const, iconActive: 'home'         as const },
+  { key: 'busca',     route: '/busca',              label: 'Buscar',     icon: 'search-outline'       as const, iconActive: 'search'       as const },
+  { key: 'novidades', route: '/novidades',          label: 'Novidades',  icon: 'notifications-outline' as const, iconActive: 'notifications' as const },
   { key: 'mapa',      route: '/(tabs)/mapa',        label: 'Mapa',       icon: 'map-outline'          as const, iconActive: 'map'          as const },
   { key: 'mensagens', route: '/(tabs)/mensagens',   label: 'Mensagens',  icon: 'chatbubbles-outline'  as const, iconActive: 'chatbubbles'  as const },
   { key: 'perfil',    route: '/(tabs)/perfil',      label: 'Perfil',     icon: 'person-outline'       as const, iconActive: 'person'       as const },
@@ -21,15 +25,36 @@ const NAV_ITEMS = [
 const PEOPLE_ITEMS = [
   { key: 'vizinhos',  label: 'Vizinhos',   icon: 'people-outline'     as const },
   { key: 'grupos',    label: 'Grupos',     icon: 'grid-outline'       as const },
-  { key: 'comercios', label: 'Comércios',  icon: 'storefront-outline' as const },
 ];
 
-export default function LeftSidebar({ activeCategory, onCategoryChange }: Props) {
+const SETTINGS_ITEMS = [
+  { key: 'editar-perfil', label: 'Editar perfil',           icon: 'person-outline'       as const },
+  { key: 'privacidade',   label: 'Privacidade e segurança', icon: 'lock-closed-outline'  as const },
+  { key: 'notificacoes',  label: 'Notificações',            icon: 'notifications-outline' as const },
+  { key: 'endereco',      label: 'Meu endereço',            icon: 'location-outline'     as const },
+  { key: 'comercios-loc', label: 'Comércios locais',        icon: 'business-outline'     as const },
+];
+
+const APP_ITEMS = [
+  { key: 'avaliar', label: 'Avaliar o Daqui', icon: 'star-outline'          as const },
+  { key: 'ajuda',   label: 'Ajuda e suporte', icon: 'help-circle-outline'   as const },
+  { key: 'termos',  label: 'Termos de uso',   icon: 'document-text-outline' as const },
+];
+
+export default function LeftSidebar({ activeCategory, onCategoryChange, onNavigate }: Props) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const { mode, toggle } = useThemeMode();
 
   const isTabActive = (key: string) =>
     key === 'index' ? pathname === '/' : pathname === `/${key}`;
+
+  const navigate = (route: string) => {
+    router.push(route as any);
+    onNavigate?.();
+  };
 
   return (
     <View style={styles.sidebar}>
@@ -42,7 +67,7 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
       </View>
 
       {/* User info */}
-      <TouchableOpacity style={styles.userRow} onPress={() => router.push('/(tabs)/perfil')}>
+      <TouchableOpacity style={styles.userRow} onPress={() => navigate('/(tabs)/perfil')}>
         <Image source={{ uri: user?.avatar }} style={styles.userAvatar} />
         <View style={styles.userInfo}>
           <Text style={styles.userName} numberOfLines={1}>{user?.name?.split(' ')[0]}</Text>
@@ -56,12 +81,12 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
       {/* Publish button */}
       <TouchableOpacity
         style={styles.publishBtn}
-        onPress={() => router.push('/(tabs)/publicar')}
+        onPress={() => navigate('/(tabs)/publish')}
         activeOpacity={0.85}
       >
         <LinearGradient colors={Colors.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.publishBtnGrad}>
           <Ionicons name="add" size={17} color="#fff" />
-          <Text style={styles.publishBtnText}>Nova publicação</Text>
+          <Text style={styles.publishBtnText}>Novo post</Text>
         </LinearGradient>
       </TouchableOpacity>
 
@@ -73,7 +98,7 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
             <TouchableOpacity
               key={item.key}
               style={[styles.navItem, isActive && styles.navItemActive]}
-              onPress={() => router.push(item.route as any)}
+              onPress={() => navigate(item.route)}
               activeOpacity={0.7}
             >
               <Ionicons
@@ -102,7 +127,7 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
                 <TouchableOpacity
                   key={cat.key}
                   style={[styles.navItem, isActive && styles.navItemActive]}
-                  onPress={() => onCategoryChange(cat.key)}
+                  onPress={() => { onCategoryChange(cat.key); onNavigate?.(); }}
                   activeOpacity={0.7}
                 >
                   <View style={[styles.catDot, { backgroundColor: isActive ? color : color + '40' }]} />
@@ -123,11 +148,52 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
       <Text style={styles.groupTitle}>Pessoas</Text>
       <View style={styles.group}>
         {PEOPLE_ITEMS.map((item) => (
-          <TouchableOpacity key={item.key} style={styles.navItem} activeOpacity={0.7}>
+          <TouchableOpacity key={item.key} style={styles.navItem} activeOpacity={0.7} onPress={() => onNavigate?.()}>
             <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
             <Text style={styles.navLabel}>{item.label}</Text>
           </TouchableOpacity>
         ))}
+      </View>
+
+      <View style={styles.divider} />
+
+      {/* Settings */}
+      <Text style={styles.groupTitle}>Configurações</Text>
+      <View style={styles.group}>
+        {SETTINGS_ITEMS.map((item) => (
+          <TouchableOpacity key={item.key} style={styles.navItem} activeOpacity={0.7} onPress={() => onNavigate?.()}>
+            <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
+            <Text style={styles.navLabel}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.divider} />
+
+      {/* App */}
+      <Text style={styles.groupTitle}>App</Text>
+      <View style={styles.group}>
+        {APP_ITEMS.map((item) => (
+          <TouchableOpacity key={item.key} style={styles.navItem} activeOpacity={0.7} onPress={() => onNavigate?.()}>
+            <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
+            <Text style={styles.navLabel}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.divider} />
+
+      {/* Appearance */}
+      <Text style={styles.groupTitle}>Aparência</Text>
+      <View style={[styles.navItem, styles.themeRow]}>
+        <Ionicons name={mode === 'dark' ? 'moon' : 'moon-outline'} size={17} color={Colors.textSecondary} />
+        <Text style={styles.navLabel}>Modo escuro</Text>
+        <Switch
+          value={mode === 'dark'}
+          onValueChange={toggle}
+          trackColor={{ false: Colors.border, true: Colors.primary }}
+          thumbColor="#fff"
+        />
       </View>
 
       {/* Footer */}
@@ -139,7 +205,8 @@ export default function LeftSidebar({ activeCategory, onCategoryChange }: Props)
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) => StyleSheet.create({
+  themeRow: { justifyContent: 'space-between', paddingVertical: 4 },
   sidebar: {
     width: 220,
     backgroundColor: Colors.background,

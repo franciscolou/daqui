@@ -1,7 +1,8 @@
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session
 
 from app.models.post import Post, PostLike
+from app.models.user import User
 
 
 def get_by_id(db: Session, post_id: int) -> Post | None:
@@ -21,6 +22,40 @@ def list_feed(
     return (
         q.order_by(desc(Post.pinned), desc(Post.created_at))
         .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+
+def top_urgent(db: Session, neighborhood: str) -> Post | None:
+    return (
+        db.query(Post)
+        .filter(Post.neighborhood == neighborhood, Post.urgent.is_(True))
+        .order_by(
+            desc(Post.likes_count + Post.comments_count + Post.shares_count),
+            desc(Post.created_at),
+        )
+        .first()
+    )
+
+
+def search(db: Session, neighborhood: str, query: str, limit: int = 30) -> list[Post]:
+    like = f"%{query}%"
+    return (
+        db.query(Post)
+        .join(User, Post.author_id == User.id)
+        .filter(
+            Post.neighborhood == neighborhood,
+            or_(
+                Post.title.ilike(like),
+                Post.content.ilike(like),
+                User.name.ilike(like),
+            ),
+        )
+        .order_by(
+            desc(Post.likes_count + Post.comments_count + Post.shares_count),
+            desc(Post.created_at),
+        )
         .limit(limit)
         .all()
     )

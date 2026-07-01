@@ -46,6 +46,13 @@ def get_feed(
     )
 
 
+def get_top_urgent(db: Session, viewer: User) -> PostOut | None:
+    post = post_dao.top_urgent(db, viewer.neighborhood)
+    if not post:
+        return None
+    return _to_schema(post, viewer, db)
+
+
 def list_by_author(db: Session, author_id: int, viewer: User) -> list[PostOut]:
     posts = post_dao.list_by_author(db, author_id)
     return [_to_schema(p, viewer, db) for p in posts]

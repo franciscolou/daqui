@@ -10,6 +10,11 @@ router.get(
     response_model=PostFeed,
 )(post.get_feed)
 
+router.get(
+    "/urgent",
+    response_model=PostOut | None,
+)(post.get_top_urgent)
+
 router.post(
     "/",
     response_model=PostOut,

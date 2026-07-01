@@ -27,6 +27,13 @@ def list_by_author(
     return post.list_by_author(db, user_id, current_user)
 
 
+def get_top_urgent(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Optional[PostOut]:
+    return post.get_top_urgent(db, current_user)
+
+
 def get_post(
     post_id: int,
     db: Session = Depends(get_db),

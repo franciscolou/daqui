@@ -8,6 +8,8 @@ export const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ??
   'http://localhost:8000/api/v1';
 
+export type SearchType = 'all' | 'posts' | 'users';
+
 const TOKEN_KEY = 'daqui.token';
 
 let token: string | null = null;
@@ -119,6 +121,58 @@ export interface Comment {
   author: User;
 }
 
+interface BackendConversation {
+  user: BackendUser;
+  last_message: string;
+  last_message_at: string;
+  unread_count: number;
+}
+
+interface BackendMessage {
+  id: number;
+  content: string;
+  read: boolean;
+  created_at: string;
+  sender: BackendUser;
+}
+
+interface BackendNotification {
+  id: number;
+  type: string;
+  content: string;
+  target_text: string | null;
+  read: boolean;
+  post_id: number | null;
+  created_at: string;
+  actor: BackendUser | null;
+}
+
+export interface Conversation {
+  user: User;
+  lastMessage: string;
+  time: string;
+  unread: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  content: string;
+  read: boolean;
+  createdAt: string;
+  sender: User;
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  content: string;
+  targetText?: string;
+  time: string;
+  read: boolean;
+  postId?: string;
+  actor?: User;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Adaptadores backend → modelos do app (camelCase)
 // ─────────────────────────────────────────────────────────────
@@ -184,6 +238,38 @@ function mapComment(c: BackendComment): Comment {
   };
 }
 
+function mapConversation(c: BackendConversation): Conversation {
+  return {
+    user: mapUser(c.user),
+    lastMessage: c.last_message,
+    time: relativeTime(c.last_message_at),
+    unread: c.unread_count,
+  };
+}
+
+function mapMessage(m: BackendMessage): ChatMessage {
+  return {
+    id: String(m.id),
+    content: m.content,
+    read: m.read,
+    createdAt: m.created_at,
+    sender: mapUser(m.sender),
+  };
+}
+
+function mapNotification(n: BackendNotification): AppNotification {
+  return {
+    id: String(n.id),
+    type: n.type,
+    content: n.content,
+    targetText: n.target_text ?? undefined,
+    time: relativeTime(n.created_at),
+    read: n.read,
+    postId: n.post_id != null ? String(n.post_id) : undefined,
+    actor: n.actor ? mapUser(n.actor) : undefined,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────
 // Endpoints
 // ─────────────────────────────────────────────────────────────
@@ -226,6 +312,20 @@ export const api = {
     return mapPost(await request<BackendPost>(`/posts/${id}`));
   },
 
+  async search(
+    query: string,
+    type: SearchType = 'all',
+  ): Promise<{ posts: Post[]; users: User[] }> {
+    const q = `?q=${encodeURIComponent(query)}&type=${type}`;
+    const r = await request<{ posts: BackendPost[]; users: BackendUser[] }>(`/search${q}`);
+    return { posts: r.posts.map(mapPost), users: r.users.map(mapUser) };
+  },
+
+  async getTopUrgent(): Promise<Post | null> {
+    const p = await request<BackendPost | null>('/posts/urgent');
+    return p ? mapPost(p) : null;
+  },
+
   async toggleLike(id: string): Promise<Post> {
     return mapPost(await request<BackendPost>(`/posts/${id}/like`, { method: 'POST' }));
   },
@@ -246,6 +346,11 @@ export const api = {
 
   async getNeighbors(): Promise<User[]> {
     const r = await request<BackendUser[]>('/users/neighbors');
+    return r.map(mapUser);
+  },
+
+  async getPopular(): Promise<User[]> {
+    const r = await request<BackendUser[]>('/users/popular');
     return r.map(mapUser);
   },
 
@@ -270,5 +375,33 @@ export const api = {
         body: { content },
       }),
     );
+  },
+
+  async getConversations(): Promise<Conversation[]> {
+    const r = await request<BackendConversation[]>('/messages/conversations');
+    return r.map(mapConversation);
+  },
+
+  async getThread(userId: string): Promise<ChatMessage[]> {
+    const r = await request<BackendMessage[]>(`/messages/${userId}`);
+    return r.map(mapMessage);
+  },
+
+  async sendMessage(receiverId: string, content: string): Promise<ChatMessage> {
+    return mapMessage(
+      await request<BackendMessage>('/messages/', {
+        method: 'POST',
+        body: { receiver_id: Number(receiverId), content },
+      }),
+    );
+  },
+
+  async getNotifications(): Promise<AppNotification[]> {
+    const r = await request<BackendNotification[]>('/notifications/');
+    return r.map(mapNotification);
+  },
+
+  async markNotificationsRead(): Promise<void> {
+    await request<void>('/notifications/read-all', { method: 'PATCH' });
   },
 };

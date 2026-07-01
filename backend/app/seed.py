@@ -109,12 +109,21 @@ def seed():
     db.add(Message(sender_id=users[6].id, receiver_id=users[0].id,
                    content="Você tem interesse na escada? Posso trazer hoje à tarde"))
 
-    db.add(Notification(user_id=users[0].id, actor_id=users[1].id, type="like",
-                        content="Ana Paula Lima curtiu sua postagem sobre a festa junina"))
+    festa = posts[4]       # Festa Junina — post do Francisco (users[0])
+    seguranca = posts[2]   # Golpe do WhatsApp — Francisco comentou neste post
+    db.add(Notification(user_id=users[0].id, actor_id=users[1].id, type="like_post",
+                        post_id=festa.id, target_text=festa.title,
+                        content=f"{users[1].name} curtiu seu post"))
     db.add(Notification(user_id=users[0].id, actor_id=users[2].id, type="comment",
-                        content='Carlos Mendes comentou: "Boa dica! Vou lá essa semana"'))
-    db.add(Notification(user_id=users[0].id, type="alert",
-                        content="Novo aviso de segurança na sua vizinhança"))
+                        post_id=festa.id,
+                        target_text="Vai ter forró ao vivo? Não perco por nada!",
+                        content=f"{users[2].name} comentou no seu post"))
+    db.add(Notification(user_id=users[0].id, actor_id=users[3].id, type="like_comment",
+                        post_id=seguranca.id,
+                        target_text="Já caíram nesse golpe aqui perto. Fiquem espertos.",
+                        content=f"{users[3].name} curtiu seu comentário"))
+    db.add(Notification(user_id=users[0].id, actor_id=users[5].id, type="follow",
+                        content=f"{users[5].name} começou a seguir você"))
 
     db.commit()
     db.close()

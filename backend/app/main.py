@@ -4,7 +4,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import create_tables
-from app.routers import auth, comments, messages, notifications, posts, users
+from app.routers import (
+    auth,
+    comments,
+    messages,
+    notifications,
+    posts,
+    search,
+    users,
+)
 
 
 @asynccontextmanager
@@ -34,6 +42,7 @@ app.include_router(users.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
+app.include_router(search.router, prefix="/api/v1")
 
 
 @app.get("/")

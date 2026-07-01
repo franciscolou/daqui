@@ -5,13 +5,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  useWindowDimensions,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
+import { Palette } from '../../constants/Colors';
+import { useTheme, useThemedStyles } from '../../lib/theme';
 import { POSTS, CATEGORY_LABELS, CATEGORY_ICONS, PostCategory } from '../../data/mock';
+import MobileMenu from '../../components/MobileMenu';
 
 const { width } = Dimensions.get('window');
 
@@ -27,10 +30,15 @@ const MAP_PINS = [
 const MAP_HEIGHT = width * 0.9;
 
 export default function MapaScreen() {
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const { width } = useWindowDimensions();
+  const isWide = width >= 900;
   const nearbyPosts = POSTS.slice(0, 3);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {!isWide && <MobileMenu />}
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <LinearGradient
@@ -176,7 +184,7 @@ export default function MapaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (Colors: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: 20,
