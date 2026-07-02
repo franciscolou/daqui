@@ -63,7 +63,10 @@ export default function ProfileScreen() {
           {user?.username && <Text style={styles.username}>@{user.username}</Text>}
           <View style={styles.neighborhoodRow}>
             <Ionicons name="location" size={13} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.neighborhood}>{user?.neighborhood}</Text>
+            <Text style={styles.neighborhood}>
+              {[user?.neighborhood, user?.city].filter(Boolean).join(', ')}
+              {user?.state ? ` - ${user.state}` : ''}
+            </Text>
           </View>
         </View>
 
