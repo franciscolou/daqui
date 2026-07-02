@@ -25,6 +25,21 @@ def get_last_per_conversation(db: Session, user_id: int) -> list[Message]:
     return result
 
 
+def search(db: Session, user_id: int, query: str, limit: int = 30) -> list[Message]:
+    # Mensagens (enviadas ou recebidas pelo usuário) cujo conteúdo casa com a busca.
+    like = f"%{query}%"
+    return (
+        db.query(Message)
+        .filter(
+            or_(Message.sender_id == user_id, Message.receiver_id == user_id),
+            Message.content.ilike(like),
+        )
+        .order_by(desc(Message.created_at))
+        .limit(limit)
+        .all()
+    )
+
+
 def get_thread(db: Session, user_id: int, other_id: int) -> list[Message]:
     return (
         db.query(Message)

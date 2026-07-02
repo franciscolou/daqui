@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { User } from '../../data/mock';
 import { api, ChatMessage } from '../../lib/api';
@@ -24,7 +24,7 @@ import FeedLayout from '../../components/FeedLayout';
 type ChatItem = { type: 'msg'; msg: ChatMessage } | { type: 'divider'; id: string; label: string };
 
 export default function ChatScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, messageId } = useLocalSearchParams<{ id: string; messageId?: string }>();
   const { user: me } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -34,6 +34,10 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(messageId ?? null);
+
+  const listRef = useRef<FlatList<ChatItem>>(null);
+  const didScrollRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -85,6 +89,35 @@ export default function ChatScreen() {
     return items.reverse();
   }, [messages]);
 
+  // Índice (na lista invertida) da mensagem alvo vinda da busca.
+  const targetIndex = useMemo(
+    () => (messageId ? data.findIndex((it) => it.type === 'msg' && it.msg.id === messageId) : -1),
+    [data, messageId],
+  );
+
+  // Ao navegar para outra mensagem, reinicia destaque e rolagem.
+  useEffect(() => {
+    setHighlightId(messageId ?? null);
+    didScrollRef.current = false;
+  }, [messageId]);
+
+  // Rola até a mensagem específica, centralizando-a verticalmente.
+  useEffect(() => {
+    if (loading || didScrollRef.current || targetIndex < 0) return;
+    didScrollRef.current = true;
+    const t = setTimeout(() => {
+      listRef.current?.scrollToIndex({ index: targetIndex, viewPosition: 0.5, animated: true });
+    }, 250);
+    return () => clearTimeout(t);
+  }, [loading, targetIndex]);
+
+  // Remove o destaque após alguns segundos.
+  useEffect(() => {
+    if (!highlightId) return;
+    const t = setTimeout(() => setHighlightId(null), 2800);
+    return () => clearTimeout(t);
+  }, [highlightId]);
+
   return (
     <FeedLayout>
       <View style={styles.flex}>
@@ -121,11 +154,21 @@ export default function ChatScreen() {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
           >
             <FlatList
+              ref={listRef}
               data={data}
               inverted
               keyExtractor={(item) => (item.type === 'divider' ? item.id : item.msg.id)}
               contentContainerStyle={styles.list}
               showsVerticalScrollIndicator={false}
+              onScrollToIndexFailed={(info) => {
+                setTimeout(() => {
+                  listRef.current?.scrollToIndex({
+                    index: info.index,
+                    viewPosition: 0.5,
+                    animated: true,
+                  });
+                }, 300);
+              }}
               renderItem={({ item }) => {
                 if (item.type === 'divider') {
                   return (
@@ -136,9 +179,16 @@ export default function ChatScreen() {
                 }
                 const msg = item.msg;
                 const mine = !!me && msg.sender.id === me.id;
+                const highlighted = msg.id === highlightId;
                 return (
                   <View style={[styles.bubbleRow, mine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}>
-                    <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+                    <View
+                      style={[
+                        styles.bubble,
+                        mine ? styles.bubbleMine : styles.bubbleTheirs,
+                        highlighted && styles.bubbleHighlight,
+                      ]}
+                    >
                       <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
                         {msg.content}
                       </Text>
@@ -237,6 +287,11 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: Colors.borderLight,
+  },
+  bubbleHighlight: {
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    ...Colors.shadow.md,
   },
   bubbleText: { fontSize: 14, color: Colors.text, lineHeight: 19 },
   bubbleTextMine: { color: '#fff' },

@@ -27,6 +27,14 @@ class ConversationOut(BaseModel):
     unread_count: int
 
 
+class MessageSearchOut(BaseModel):
+    id: int
+    content: str
+    created_at: datetime
+    from_me: bool
+    conversation_user: UserPublic  # o outro participante da conversa
+
+
 class NotificationOut(BaseModel):
     id: int
     type: str

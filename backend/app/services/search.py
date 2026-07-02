@@ -21,6 +21,6 @@ def search(db: Session, user: User, query: str, type_: str) -> SearchResults:
             found = post_dao.search(db, user.neighborhood, query)
             posts = [_to_schema(p, user, db) for p in found]
         if type_ in ("all", "users"):
-            users = user_dao.search(db, query, user.id)
+            users = user_dao.search(db, query)
 
     return SearchResults(posts=posts, users=users)

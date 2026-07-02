@@ -5,7 +5,7 @@ from app.daos import message as message_dao
 from app.daos import user as user_dao
 from app.models.message import Message
 from app.models.user import User
-from app.schemas.message import ConversationOut, MessageCreate
+from app.schemas.message import ConversationOut, MessageCreate, MessageSearchOut
 from app.schemas.user import UserPublic
 
 
@@ -27,6 +27,29 @@ def list_conversations(db: Session, user: User) -> list[ConversationOut]:
             )
         )
     return result
+
+
+def search_messages(db: Session, user: User, query: str) -> list[MessageSearchOut]:
+    query = query.strip()
+    if not query:
+        return []
+    results = []
+    for m in message_dao.search(db, user.id, query):
+        from_me = m.sender_id == user.id
+        other_id = m.receiver_id if from_me else m.sender_id
+        other = user_dao.get_by_id(db, other_id)
+        if not other:
+            continue
+        results.append(
+            MessageSearchOut(
+                id=m.id,
+                content=m.content,
+                created_at=m.created_at,
+                from_me=from_me,
+                conversation_user=UserPublic.model_validate(other),
+            )
+        )
+    return results
 
 
 def get_thread(db: Session, user: User, other_id: int) -> list[Message]:

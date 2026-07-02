@@ -1,10 +1,14 @@
-from fastapi import Depends
+from fastapi import Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
-from app.models.message import Message
 from app.models.user import User
-from app.schemas.message import ConversationOut, MessageCreate, MessageOut
+from app.schemas.message import (
+    ConversationOut,
+    MessageCreate,
+    MessageOut,
+    MessageSearchOut,
+)
 from app.services import message
 
 
@@ -13,6 +17,14 @@ def list_conversations(
     current_user: User = Depends(get_current_user),
 ) -> list[ConversationOut]:
     return message.list_conversations(db, current_user)
+
+
+def search_messages(
+    q: str = Query("", description="Termo de busca"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[MessageSearchOut]:
+    return message.search_messages(db, current_user, q)
 
 
 def get_thread(

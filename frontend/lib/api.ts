@@ -140,6 +140,14 @@ interface BackendMessage {
   sender: BackendUser;
 }
 
+interface BackendMessageResult {
+  id: number;
+  content: string;
+  created_at: string;
+  from_me: boolean;
+  conversation_user: BackendUser;
+}
+
 interface BackendNotification {
   id: number;
   type: string;
@@ -164,6 +172,14 @@ export interface ChatMessage {
   read: boolean;
   createdAt: string;
   sender: User;
+}
+
+export interface MessageResult {
+  id: string;
+  content: string;
+  createdAt: string;
+  fromMe: boolean;
+  user: User; // o outro participante da conversa
 }
 
 export interface UsernameAvailability {
@@ -292,6 +308,16 @@ function mapMessage(m: BackendMessage): ChatMessage {
     read: m.read,
     createdAt: m.created_at,
     sender: mapUser(m.sender),
+  };
+}
+
+function mapMessageResult(m: BackendMessageResult): MessageResult {
+  return {
+    id: String(m.id),
+    content: m.content,
+    createdAt: m.created_at,
+    fromMe: m.from_me,
+    user: mapUser(m.conversation_user),
   };
 }
 
@@ -483,6 +509,13 @@ export const api = {
   async getConversations(): Promise<Conversation[]> {
     const r = await request<BackendConversation[]>('/messages/conversations');
     return r.map(mapConversation);
+  },
+
+  async searchMessages(query: string): Promise<MessageResult[]> {
+    const r = await request<BackendMessageResult[]>(
+      `/messages/search?q=${encodeURIComponent(query)}`,
+    );
+    return r.map(mapMessageResult);
   },
 
   async getThread(userId: string): Promise<ChatMessage[]> {

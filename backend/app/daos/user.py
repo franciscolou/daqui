@@ -1,4 +1,4 @@
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -65,10 +65,11 @@ def get_neighbors(
     )
 
 
-def search(db: Session, query: str, exclude_id: int, limit: int = 30) -> list[User]:
+def search(db: Session, query: str, limit: int = 30) -> list[User]:
+    like = f"%{query}%"
     return (
         db.query(User)
-        .filter(User.name.ilike(f"%{query}%"), User.id != exclude_id)
+        .filter(or_(User.name.ilike(like), User.username.ilike(like)))
         .order_by(desc(User.posts_count + User.help_count))
         .limit(limit)
         .all()
