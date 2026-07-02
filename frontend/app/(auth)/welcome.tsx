@@ -10,7 +10,10 @@ import { useState, useRef } from 'react';
 import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../lib/auth';
-import { ApiError } from '../../lib/api';
+import { api, ApiError, NeighborhoodStats } from '../../lib/api';
+import { getDeviceCoords, LocationError } from '../../lib/location';
+
+type GeoStatus = 'idle' | 'locating' | 'resolved' | 'error';
 
 // ─── Dados estáticos ────────────────────────────────────────────
 const FEATURES = [
@@ -47,8 +50,13 @@ export default function WelcomeScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
+  // Bairro designado pela localização do dispositivo (não digitado).
   const [neighborhood, setNeighborhood] = useState('');
-  const [city, setCity] = useState('');
+  const [city, setCity] = useState('São Paulo');
+  const [uf, setUf] = useState('SP');
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [geoStatus, setGeoStatus] = useState<GeoStatus>('idle');
+  const [stats, setStats] = useState<NeighborhoodStats | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -153,6 +161,58 @@ export default function WelcomeScreen() {
     }
   };
 
+  // Descobre o bairro a partir das coordenadas do aparelho.
+  const detectLocation = async () => {
+    setAuthError(null);
+    setGeoStatus('locating');
+    try {
+      const c = await getDeviceCoords();
+      const res = await api.resolveNeighborhood(c.latitude, c.longitude);
+      setNeighborhood(res.neighborhood);
+      setCity(res.city);
+      setUf(res.state);
+      setCoords({ latitude: res.latitude, longitude: res.longitude });
+      setGeoStatus('resolved');
+    } catch (e) {
+      setGeoStatus('error');
+      if (e instanceof LocationError) {
+        setAuthError(
+          e.reason === 'denied'
+            ? 'Permita o acesso à localização para descobrirmos seu bairro.'
+            : 'Não conseguimos obter sua localização. Tente novamente.',
+        );
+      } else if (e instanceof ApiError) {
+        setAuthError(e.message);
+      } else {
+        setAuthError('Não foi possível identificar seu bairro.');
+      }
+    }
+  };
+
+  const acceptNeighborhood = async () => {
+    if (submitting || !coords) return;
+    setAuthError(null);
+    setSubmitting(true);
+    try {
+      await signup({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        neighborhood,
+        city,
+        state: uf,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      });
+      api.getNeighborhoodStats().then(setStats).catch(() => {});
+      nextStep();
+    } catch (e) {
+      setAuthError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSignupNext = async () => {
     if (submitting) return;
     setAuthError(null);
@@ -163,29 +223,13 @@ export default function WelcomeScreen() {
         return;
       }
       nextStep();
+      detectLocation();
       return;
     }
 
     if (signupStep === 1) {
-      if (!neighborhood.trim()) {
-        setAuthError('Informe seu bairro.');
-        return;
-      }
-      setSubmitting(true);
-      try {
-        await signup({
-          name: name.trim(),
-          email: email.trim(),
-          password,
-          neighborhood: neighborhood.trim(),
-          city: city.trim() || 'São Paulo',
-        });
-        nextStep();
-      } catch (e) {
-        setAuthError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
-      } finally {
-        setSubmitting(false);
-      }
+      if (geoStatus === 'resolved') await acceptNeighborhood();
+      else detectLocation(); // tentar novamente
       return;
     }
 
@@ -472,30 +516,49 @@ export default function WelcomeScreen() {
       )}
 
       {step === 1 && (
-        <>
-          <View style={styles.infoBox}>
-            <View style={styles.infoIcon}><Ionicons name="location" size={20} color={Colors.primaryDark} /></View>
-            <Text style={styles.infoText}>Verificamos seu endereço para garantir que você mora no bairro. Sua localização exata é privada.</Text>
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bairro</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="home-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Ex: Vila Madalena" placeholderTextColor={Colors.textTertiary} value={neighborhood} onChangeText={setNeighborhood} autoCapitalize="words" />
-            </View>
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Cidade</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons name="business-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Ex: São Paulo" placeholderTextColor={Colors.textTertiary} value={city} onChangeText={setCity} autoCapitalize="words" />
-            </View>
-          </View>
-          <TouchableOpacity style={styles.locationBtn}>
-            <Ionicons name="navigate" size={15} color={Colors.primaryDark} />
-            <Text style={styles.locationBtnText}>Usar minha localização atual</Text>
-          </TouchableOpacity>
-        </>
+        <View style={styles.geoArea}>
+          {geoStatus === 'locating' && (
+            <>
+              <View style={styles.geoSpinnerWrap}>
+                <ActivityIndicator color={Colors.primary} size="large" />
+              </View>
+              <Text style={styles.geoTitle}>Descobrindo seu bairro…</Text>
+              <Text style={styles.geoDesc}>
+                Estamos usando a localização do seu aparelho para encontrar sua comunidade.
+              </Text>
+            </>
+          )}
+
+          {geoStatus === 'resolved' && (
+            <>
+              <LinearGradient colors={Colors.gradient.primary} style={styles.geoEmblem}>
+                <Ionicons name="location" size={38} color="#fff" />
+              </LinearGradient>
+              <Text style={styles.geoEyebrow}>Você está em</Text>
+              <Text style={styles.geoNeighborhood}>{neighborhood}</Text>
+              <Text style={styles.geoCity}>{city}{uf ? ` - ${uf}` : ''}</Text>
+              <View style={styles.geoHint}>
+                <Ionicons name="information-circle" size={18} color={Colors.primaryDark} />
+                <Text style={styles.geoHintText}>
+                  Sua comunidade é definida por onde você está agora. Se você não está no seu
+                  bairro neste momento, é melhor se cadastrar quando estiver lá.
+                </Text>
+              </View>
+            </>
+          )}
+
+          {geoStatus === 'error' && (
+            <>
+              <View style={styles.geoErrorIcon}>
+                <Ionicons name="location-outline" size={32} color={Colors.error} />
+              </View>
+              <Text style={styles.geoTitle}>Não encontramos seu bairro</Text>
+              <Text style={styles.geoDesc}>
+                {authError ?? 'Verifique a permissão de localização e tente novamente.'}
+              </Text>
+            </>
+          )}
+        </View>
       )}
 
       {step === 2 && (
@@ -505,10 +568,13 @@ export default function WelcomeScreen() {
           </LinearGradient>
           <Text style={styles.successDesc}>
             Você agora faz parte da comunidade da{' '}
-            <Text style={{ color: Colors.primaryDark, fontWeight: '700' }}>{neighborhood || 'Vila Madalena'}</Text>.
+            <Text style={{ color: Colors.primaryDark, fontWeight: '700' }}>{neighborhood}</Text>.
           </Text>
           <View style={styles.statsRow}>
-            {[{ n: '238', l: 'vizinhos' }, { n: '47', l: 'posts hoje' }, { n: '3', l: 'eventos' }].map((s, i, a) => (
+            {[
+              { n: stats ? String(stats.neighbors) : '—', l: 'vizinhos' },
+              { n: stats ? String(stats.posts) : '—', l: 'posts' },
+            ].map((s, i, a) => (
               <View key={s.l} style={{ flex: 1, flexDirection: 'row' }}>
                 <View style={styles.stat}><Text style={styles.statNum}>{s.n}</Text><Text style={styles.statLabel}>{s.l}</Text></View>
                 {i < a.length - 1 && <View style={styles.statDivider} />}
@@ -518,28 +584,43 @@ export default function WelcomeScreen() {
         </View>
       )}
 
-      {authError && step < 2 && (
+      {authError && step === 0 && (
         <View style={[styles.authErrorBox, { marginTop: 12 }]}>
           <Ionicons name="alert-circle" size={16} color={Colors.error} />
           <Text style={styles.authErrorText}>{authError}</Text>
         </View>
       )}
 
-      <TouchableOpacity
-        style={[styles.btnPrimary, { marginTop: 16 }, submitting && { opacity: 0.7 }]}
-        onPress={handleSignupNext}
-        activeOpacity={0.88}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <>
-            <Text style={styles.btnPrimaryText}>{step === 2 ? 'Explorar o bairro' : 'Continuar'}</Text>
-            <Ionicons name={step === 2 ? 'home' : 'arrow-forward'} size={18} color="#fff" />
-          </>
-        )}
-      </TouchableOpacity>
+      {(() => {
+        const busy = submitting || (step === 1 && geoStatus === 'locating');
+        const label =
+          step === 0
+            ? 'Continuar'
+            : step === 1
+            ? geoStatus === 'resolved'
+              ? 'Sim, é aqui que eu moro'
+              : 'Tentar novamente'
+            : 'Explorar o bairro';
+        const icon =
+          step === 1 && geoStatus === 'resolved' ? 'checkmark' : step === 2 ? 'home' : 'arrow-forward';
+        return (
+          <TouchableOpacity
+            style={[styles.btnPrimary, { marginTop: 16 }, busy && { opacity: 0.7 }]}
+            onPress={handleSignupNext}
+            activeOpacity={0.88}
+            disabled={busy}
+          >
+            {busy ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.btnPrimaryText}>{label}</Text>
+                <Ionicons name={icon} size={18} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+        );
+      })()}
 
       {step === 0 && (
         <View style={styles.switchRow}>
@@ -624,7 +705,7 @@ export default function WelcomeScreen() {
               ))}
               <View style={styles.mobileBadge}><Text style={styles.mobileBadgeText}>+238</Text></View>
             </View>
-            <Text style={styles.mobileAvatarLabel}>vizinhos na Vila Madalena</Text>
+            <Text style={styles.mobileAvatarLabel}>vizinhos perto de você</Text>
           </View>
           <View style={styles.mobileFeaturesArea}>
             {FEATURES.map((f) => (
@@ -768,6 +849,19 @@ const styles = StyleSheet.create({
   statNum: { fontSize: 20, fontWeight: '800', color: Colors.primaryDark },
   statLabel: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
   statDivider: { width: 1, backgroundColor: Colors.border },
+
+  // Geolocalização (signup step 1)
+  geoArea: { alignItems: 'center', paddingVertical: 8 },
+  geoSpinnerWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.primaryFaint, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  geoTitle: { fontSize: 18, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+  geoDesc: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 21, marginTop: 8, paddingHorizontal: 8 },
+  geoEmblem: { width: 88, height: 88, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 16, ...Colors.shadow.lg },
+  geoEyebrow: { fontSize: 12, fontWeight: '700', color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1 },
+  geoNeighborhood: { fontSize: 28, fontWeight: '800', color: Colors.primaryDark, letterSpacing: -0.5, textAlign: 'center', marginTop: 4 },
+  geoCity: { fontSize: 14, color: Colors.textSecondary, marginTop: 2, marginBottom: 18 },
+  geoHint: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: Colors.primaryFaint, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.primaryLight },
+  geoHintText: { flex: 1, fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
+  geoErrorIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.error + '15', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
 
   // Painel direito (arte)
   rightPanel: { flex: 7, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
