@@ -36,7 +36,7 @@ const APP_ITEMS = [
 
 export default function LeftSidebar({ activeCategory, onCategoryChange, onNavigate }: Props) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { mode, toggle } = useThemeMode();
@@ -47,6 +47,12 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
   const navigate = (route: string) => {
     router.push(route as any);
     onNavigate?.();
+  };
+
+  const handleLogout = async () => {
+    onNavigate?.();
+    await logout();
+    router.replace('/(auth)/welcome');
   };
 
   return (
@@ -176,6 +182,14 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
         />
       </View>
 
+      <View style={styles.divider} />
+
+      {/* Logout */}
+      <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={handleLogout}>
+        <Ionicons name="log-out-outline" size={17} color={Colors.error} />
+        <Text style={[styles.navLabel, styles.logoutLabel]}>Sair</Text>
+      </TouchableOpacity>
+
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>Sobre · Privacidade · Termos</Text>
@@ -289,6 +303,10 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   navLabelActive: {
     color: Colors.primary,
     fontWeight: '700',
+  },
+  logoutLabel: {
+    color: Colors.error,
+    fontWeight: '600',
   },
   catDot: {
     width: 8,

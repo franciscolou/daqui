@@ -14,7 +14,7 @@ import { Post } from '../../data/mock';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import FeedLayout from '../../components/FeedLayout';
 import PostCard from '../../components/PostCard';
@@ -24,7 +24,7 @@ const WIDE = 900;
 export default function ProfileScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [myPosts, setMyPosts] = useState<Post[]>([]);
@@ -35,11 +35,6 @@ export default function ProfileScreen() {
       api.getUserPosts(user.id).then(setMyPosts).catch(() => setMyPosts([]));
     }, [user]),
   );
-
-  const handleLogout = async () => {
-    await logout();
-    router.replace('/(auth)/welcome');
-  };
 
   const content = (
     <>
@@ -106,16 +101,6 @@ export default function ProfileScreen() {
           myPosts.map((post) => <PostCard key={post.id} post={post} />)
         )}
       </View>
-
-      {/* Logout */}
-      <TouchableOpacity
-        style={styles.logoutBtn}
-        onPress={handleLogout}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="log-out-outline" size={18} color={Colors.error} />
-        <Text style={styles.logoutText}>Sair da conta</Text>
-      </TouchableOpacity>
 
       <Text style={styles.version}>Daqui v1.0.0</Text>
       <View style={{ height: 20 }} />
@@ -214,20 +199,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   noPostsText: { fontSize: 14, color: Colors.textTertiary },
 
   /* ── Footer ── */
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 20,
-    paddingVertical: 15,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-  },
-  logoutText: { fontSize: 15, color: Colors.error, fontWeight: '700' },
   version: {
     textAlign: 'center',
     fontSize: 12,
