@@ -121,6 +121,32 @@ export default function PostDetailScreen() {
           <Image source={{ uri: post.images[0] }} style={styles.image} resizeMode="cover" />
         )}
 
+        {(() => {
+          const hasCoords = post.latitude != null && post.longitude != null;
+          const label =
+            [post.placeName, post.location].filter(Boolean).join(' · ') ||
+            (hasCoords ? post.neighborhood : null);
+          if (!label) return null;
+          return (
+            <TouchableOpacity
+              style={styles.locationRow}
+              activeOpacity={hasCoords ? 0.7 : 1}
+              disabled={!hasCoords}
+              onPress={() =>
+                router.push(
+                  `/(tabs)/map?focus=${post.id}&lat=${post.latitude}&lng=${post.longitude}` as any,
+                )
+              }
+            >
+              <Ionicons name="location" size={15} color={Colors.primary} />
+              <Text style={styles.locationText} numberOfLines={2}>{label}</Text>
+              {hasCoords && (
+                <Ionicons name="chevron-forward" size={15} color={Colors.textTertiary} />
+              )}
+            </TouchableOpacity>
+          );
+        })()}
+
         <Text style={styles.exactTime}>{formatExactDateTime(post.createdAt)}</Text>
 
         <View style={styles.actions}>
@@ -266,6 +292,19 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   title: { fontSize: 17, fontWeight: '800', color: Colors.text, marginBottom: 6, letterSpacing: -0.2 },
   body: { fontSize: 15, color: Colors.text, lineHeight: 22, marginBottom: 12 },
   image: { width: '100%', height: 220, borderRadius: 14, marginBottom: 12 },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: Colors.primaryFaint,
+    marginBottom: 12,
+  },
+  locationText: { fontSize: 13, color: Colors.primary, fontWeight: '600', flexShrink: 1 },
   exactTime: { fontSize: 12, color: Colors.textTertiary, marginBottom: 12 },
   actions: {
     flexDirection: 'row',

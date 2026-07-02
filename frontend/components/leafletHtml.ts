@@ -19,18 +19,20 @@ export interface LeafletHtmlOptions {
   zoom?: number;
   markers?: MapMarker[];
   interactive?: boolean;
+  focusId?: string; // abre o tooltip do marcador com este id ao carregar o mapa
 }
 
 // Mensagem enviada do mapa para o app quando um pin é selecionado (clique).
 export const MAP_MESSAGE_TYPE = 'daqui-map';
 
 export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
-  const { center, zoom = 15, markers = [], interactive = true } = opts;
+  const { center, zoom = 15, markers = [], interactive = true, focusId = null } = opts;
   const data = JSON.stringify({
     center: [center.latitude, center.longitude],
     zoom,
     markers,
     interactive,
+    focusId,
   });
 
   return `<!DOCTYPE html>
@@ -147,6 +149,10 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
       direction: 'right', opacity: 1, sticky: false, className: 'daqui-tip',
     });
     mk.on('click', function () { send(m.id); });
+    if (CFG.focusId && String(m.id) === String(CFG.focusId)) {
+      map.setView([m.latitude, m.longitude], CFG.zoom);
+      mk.openTooltip();
+    }
   });
 </script>
 </body>

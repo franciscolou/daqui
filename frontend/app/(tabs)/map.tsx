@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -28,6 +28,17 @@ export default function MapScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { user } = useAuth();
+  const params = useLocalSearchParams<{ focus?: string; lat?: string; lng?: string }>();
+
+  // Coordenadas para focar, vindas de outra tela (ex.: um post) via query params.
+  const focusCoords = useMemo(() => {
+    const lat = Number(params.lat);
+    const lng = Number(params.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { latitude: lat, longitude: lng };
+    }
+    return null;
+  }, [params.lat, params.lng]);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [stats, setStats] = useState<NeighborhoodStats | null>(null);
@@ -57,6 +68,7 @@ export default function MapScreen() {
   );
 
   const center = useMemo(() => {
+    if (focusCoords) return focusCoords;
     if (userCoords) return userCoords;
     if (located.length) {
       const lat = located.reduce((s, p) => s + (p.latitude ?? 0), 0) / located.length;
@@ -64,7 +76,7 @@ export default function MapScreen() {
       return { latitude: lat, longitude: lon };
     }
     return FALLBACK_CENTER;
-  }, [userCoords, located]);
+  }, [focusCoords, userCoords, located]);
 
   const markers = useMemo(
     () =>
@@ -114,8 +126,9 @@ export default function MapScreen() {
           ) : (
             <LeafletMap
               center={center}
-              zoom={15}
+              zoom={focusCoords ? 17 : 15}
               markers={markers}
+              focusId={params.focus}
               onSelectMarker={(id) => router.push(`/post/${id}` as any)}
               style={styles.map}
             />

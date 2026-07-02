@@ -22,6 +22,7 @@ export default function LeafletMap({
     options.center.longitude,
     options.zoom,
     options.interactive,
+    options.focusId,
     JSON.stringify(options.markers),
   ]);
 
