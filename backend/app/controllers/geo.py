@@ -6,6 +6,8 @@ from app.models.user import User
 from app.schemas.geo import (
     GeocodeRequest,
     GeocodeResult,
+    NearbyNeighborhood,
+    NearbyNeighborhoodsRequest,
     NeighborhoodResolution,
     ResolveNeighborhoodRequest,
 )
@@ -15,6 +17,11 @@ from app.services import geo
 def resolve_neighborhood(payload: ResolveNeighborhoodRequest) -> NeighborhoodResolution:
     # Público: usado no cadastro, antes de existir conta/token.
     return geo.resolve_neighborhood(payload.latitude, payload.longitude)
+
+
+def nearby_neighborhoods(payload: NearbyNeighborhoodsRequest) -> list[NearbyNeighborhood]:
+    # Público: usado no cadastro para escolher um bairro vizinho.
+    return geo.nearby_neighborhoods(payload.latitude, payload.longitude)
 
 
 def geocode(

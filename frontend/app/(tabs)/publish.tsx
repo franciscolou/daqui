@@ -230,7 +230,7 @@ export default function PublishScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <WideLayout>
+      <WideLayout showMobileMenu={false}>
       <KeyboardAvoidingView
         style={[styles.flex, styles.column]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

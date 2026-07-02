@@ -1,20 +1,12 @@
-import re
 from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-USERNAME_RE = re.compile(r"^[a-z0-9._]{3,18}$")
+# Regra única de username (compartilhada com o cadastro).
+from app.core.username import USERNAME_RE, validate as _validate_username
 
-
-def _validate_username(value: str) -> str:
-    value = value.strip().lower()
-    if not USERNAME_RE.match(value):
-        raise ValueError(
-            "O nome de usuário deve ter de 3 a 18 caracteres, apenas letras "
-            "minúsculas, números, ponto ou sublinhado."
-        )
-    return value
+__all__ = ["USERNAME_RE"]  # re-exportado para quem importa daqui
 
 
 class UserPublic(BaseModel):

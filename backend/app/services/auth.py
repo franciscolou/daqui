@@ -1,10 +1,9 @@
-import re
-
+from email_validator import EmailNotValidError, validate_email
 from fastapi import HTTPException, status
 from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.core import totp
+from app.core import totp, username as username_lib
 from app.core.security import (
     create_2fa_ticket,
     create_access_token,
@@ -15,6 +14,7 @@ from app.core.security import (
 from app.daos import user as user_dao
 from app.models.user import User
 from app.schemas.auth import (
+    AvailabilityResponse,
     LoginRequest,
     LoginResponse,
     SignupRequest,
@@ -23,27 +23,44 @@ from app.schemas.auth import (
     TwoFactorSetupResponse,
 )
 
+_USERNAME_TAKEN = "Este nome de usuário já está em uso."
+_EMAIL_TAKEN = "Este e-mail já está cadastrado."
 
-def _generate_username(db: Session, email: str, name: str) -> str:
-    base = re.sub(r"[^a-z0-9._]", "", (email.split("@")[0] or name).lower()) or "user"
-    base = base[:26]
-    if len(base) < 3:
-        base = f"{base}user"[:26]
-    candidate = base
-    suffix = 1
-    while user_dao.get_by_username(db, candidate):
-        candidate = f"{base}{suffix}"
-        suffix += 1
-    return candidate
+
+def check_username(db: Session, value: str) -> AvailabilityResponse:
+    error = username_lib.validation_error(value)
+    if error:
+        return AvailabilityResponse(available=False, error=error)
+    if user_dao.get_by_username(db, username_lib.normalize(value)):
+        return AvailabilityResponse(available=False, error=_USERNAME_TAKEN)
+    return AvailabilityResponse(available=True)
+
+
+def check_email(db: Session, value: str) -> AvailabilityResponse:
+    raw = (value or "").strip()
+    try:
+        validate_email(raw, check_deliverability=False)
+    except EmailNotValidError:
+        return AvailabilityResponse(available=False, error="E-mail inválido.")
+    if user_dao.get_by_email(db, raw):
+        return AvailabilityResponse(available=False, error=_EMAIL_TAKEN)
+    return AvailabilityResponse(available=True)
 
 
 def signup(db: Session, payload: SignupRequest) -> TokenResponse:
     if user_dao.get_by_email(db, payload.email):
-        raise HTTPException(status_code=400, detail="E-mail já cadastrado")
+        raise HTTPException(status_code=400, detail=_EMAIL_TAKEN)
+
+    uname = username_lib.normalize(payload.username)
+    error = username_lib.validation_error(uname)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    if user_dao.get_by_username(db, uname):
+        raise HTTPException(status_code=400, detail=_USERNAME_TAKEN)
 
     user = user_dao.create(
         db,
-        username=_generate_username(db, payload.email, payload.name),
+        username=uname,
         name=payload.name,
         email=payload.email,
         hashed_password=hash_password(payload.password),

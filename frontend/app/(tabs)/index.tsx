@@ -180,10 +180,13 @@ export default function FeedScreen() {
         </View>
       ) : (
         <View style={styles.mobileBody}>
+          <View style={styles.mobileTopBar}>
+            <Text style={styles.mobileBrand}>daqui</Text>
+            <MobileMenu inline />
+          </View>
           {feed}
         </View>
       )}
-      {!isWide && <MobileMenu />}
     </SafeAreaView>
   );
 }
@@ -225,6 +228,23 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   mobileBody: {
     flex: 1,
     backgroundColor: Colors.surface,
+  },
+  mobileTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 6,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  mobileBrand: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.primaryDark,
+    letterSpacing: -0.5,
   },
 
   /* ── Feed header pieces ── */

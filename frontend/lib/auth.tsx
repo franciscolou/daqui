@@ -19,6 +19,7 @@ interface AuthState {
   verifyLogin2fa: (ticket: string, code: string) => Promise<void>;
   signup: (payload: {
     name: string;
+    username: string;
     email: string;
     password: string;
     neighborhood: string;
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = useCallback(
     async (payload: {
       name: string;
+      username: string;
       email: string;
       password: string;
       neighborhood: string;

@@ -15,6 +15,17 @@ class NeighborhoodResolution(BaseModel):
     longitude: float
 
 
+class NearbyNeighborhoodsRequest(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class NearbyNeighborhood(BaseModel):
+    neighborhood: str
+    latitude: float
+    longitude: float
+
+
 class GeocodeRequest(BaseModel):
     address: str
 

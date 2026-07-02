@@ -2,7 +2,7 @@ from fastapi import HTTPException
 
 from app.core import geocoding
 from app.core.geocoding import GeoResult
-from app.schemas.geo import GeocodeResult, NeighborhoodResolution
+from app.schemas.geo import GeocodeResult, NearbyNeighborhood, NeighborhoodResolution
 
 
 def _norm(value: str) -> str:
@@ -25,6 +25,13 @@ def resolve_neighborhood(latitude: float, longitude: float) -> NeighborhoodResol
         latitude=result["latitude"],
         longitude=result["longitude"],
     )
+
+
+def nearby_neighborhoods(latitude: float, longitude: float) -> list[NearbyNeighborhood]:
+    """Bairros nas redondezas do ponto (fronteiriços), para o usuário escolher
+    quando o bairro detectado não for o dele."""
+    places = geocoding.nearby(latitude, longitude)
+    return [NearbyNeighborhood(**place) for place in places]
 
 
 def geocode_within(address: str, neighborhood: str) -> GeoResult:

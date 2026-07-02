@@ -11,7 +11,7 @@ import LeftSidebar from './LeftSidebar';
  * dá acesso ao que no desktop fica sempre visível (Novidades, Configurações,
  * App, modo escuro, etc.).
  */
-export default function MobileMenu() {
+export default function MobileMenu({ inline = false }: { inline?: boolean }) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const Colors = useTheme();
@@ -20,7 +20,7 @@ export default function MobileMenu() {
   return (
     <>
       <TouchableOpacity
-        style={[styles.fab, { top: insets.top + 6 }]}
+        style={inline ? styles.trigger : [styles.fab, { top: insets.top + 6 }]}
         onPress={() => setOpen(true)}
         activeOpacity={0.85}
       >
@@ -54,6 +54,14 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     ...Colors.shadow.md,
+  },
+  // Variante inline: botão comum, para colocar dentro de um header/top bar.
+  trigger: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   overlay: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.45)' },
   panel: {

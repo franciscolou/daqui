@@ -16,13 +16,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../lib/auth';
-import { api, ApiError, NeighborhoodStats } from '../../lib/api';
+import { api, ApiError, NeighborhoodStats, NearbyNeighborhood } from '../../lib/api';
 import { getDeviceCoords, LocationError } from '../../lib/location';
 import { submitOnEnter } from '../../lib/keyboard';
+import { useAvailability, AvailabilityState } from '../../lib/useAvailability';
 
 const STEPS = ['Conta', 'Bairro', 'Pronto'];
 
+const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
+
 type GeoStatus = 'idle' | 'locating' | 'resolved' | 'error';
+
+// Indicador de status de disponibilidade (dentro do input).
+function AvailabilityIcon({ state }: { state: AvailabilityState }) {
+  if (state.status === 'checking') return <ActivityIndicator size="small" color={Colors.textTertiary} />;
+  if (state.status === 'ok') return <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />;
+  if (state.status === 'error') return <Ionicons name="close-circle" size={18} color={Colors.error} />;
+  return null;
+}
 
 export default function SignupScreen() {
   const { width } = useWindowDimensions();
@@ -31,8 +42,14 @@ export default function SignupScreen() {
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Validação em tempo real (formato + disponibilidade) de username e e-mail.
+  const usernameCheck = useAvailability(username, api.checkSignupUsername, {
+    ready: (v) => v.length >= 3,
+  });
+  const emailCheck = useAvailability(email, api.checkSignupEmail, { ready: emailLooksReady });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,11 +60,46 @@ export default function SignupScreen() {
   const [uf, setUf] = useState('SP');
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [stats, setStats] = useState<NeighborhoodStats | null>(null);
+  // Bairros vizinhos (quando o detectado não é o do usuário).
+  // `nearby` guarda o resultado da busca (cache); null = ainda não buscado.
+  // A busca é feita UMA vez, ancorada na localização detectada — reabrir o
+  // picker reusa o cache, então não dá pra "pular" de bairro em bairro.
+  const [nearby, setNearby] = useState<NearbyNeighborhood[] | null>(null);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyOpen, setNearbyOpen] = useState(false);
+
+  // Abre a lista de bairros vizinhos. Só busca na primeira vez (uma chamada de
+  // API, ancorada na localização detectada); depois reusa o cache.
+  const openNearby = async () => {
+    if (!coords) return;
+    setNearbyOpen(true);
+    if (nearby !== null || nearbyLoading) return;
+    setNearbyLoading(true);
+    try {
+      const list = await api.nearbyNeighborhoods(coords.latitude, coords.longitude);
+      setNearby(list);
+    } catch {
+      setNearby([]);
+    } finally {
+      setNearbyLoading(false);
+    }
+  };
+
+  // Usuário escolheu um bairro vizinho: passa a valer como o bairro dele.
+  // Não refaz a busca — o cache continua ancorado na localização original.
+  const chooseNearby = (n: NearbyNeighborhood) => {
+    setNeighborhood(n.neighborhood);
+    setCoords({ latitude: n.latitude, longitude: n.longitude });
+    setNearbyOpen(false);
+  };
 
   // Descobre o bairro a partir das coordenadas do aparelho.
   const detectLocation = async () => {
     setError(null);
     setGeoStatus('locating');
+    setNearby(null);
+    setNearbyLoading(false);
+    setNearbyOpen(false);
     try {
       const c = await getDeviceCoords();
       const res = await api.resolveNeighborhood(c.latitude, c.longitude);
@@ -75,8 +127,20 @@ export default function SignupScreen() {
   // Step 0 → valida a conta e já dispara a detecção do bairro.
   const goToLocation = () => {
     setError(null);
-    if (!name.trim() || !email.trim() || !password) {
-      setError('Preencha nome, e-mail e senha.');
+    if (!name.trim() || !username.trim() || !email.trim() || !password) {
+      setError('Preencha nome, usuário, e-mail e senha.');
+      return;
+    }
+    if (usernameCheck.status === 'checking' || emailCheck.status === 'checking') {
+      setError('Aguarde a verificação do usuário e do e-mail.');
+      return;
+    }
+    if (usernameCheck.status !== 'ok') {
+      setError(usernameCheck.error ?? 'Escolha um nome de usuário válido e disponível.');
+      return;
+    }
+    if (emailCheck.status !== 'ok') {
+      setError(emailCheck.error ?? 'Informe um e-mail válido e disponível.');
       return;
     }
     setStep(1);
@@ -91,6 +155,7 @@ export default function SignupScreen() {
     try {
       await signup({
         name: name.trim(),
+        username: username.trim(),
         email: email.trim(),
         password,
         neighborhood,
@@ -188,6 +253,28 @@ export default function SignupScreen() {
                   </View>
                 </View>
                 <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Nome de usuário</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="at-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="seu.usuario"
+                      placeholderTextColor={Colors.textTertiary}
+                      value={username}
+                      onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      maxLength={18}
+                      onKeyPress={submitOnEnter(goToLocation)}
+                      onSubmitEditing={goToLocation}
+                    />
+                    <AvailabilityIcon state={usernameCheck} />
+                  </View>
+                  {usernameCheck.status === 'error' && !!usernameCheck.error && (
+                    <Text style={styles.fieldError}>{usernameCheck.error}</Text>
+                  )}
+                </View>
+                <View style={styles.inputGroup}>
                   <Text style={styles.label}>E-mail</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
@@ -202,7 +289,11 @@ export default function SignupScreen() {
                       onKeyPress={submitOnEnter(goToLocation)}
                       onSubmitEditing={goToLocation}
                     />
+                    <AvailabilityIcon state={emailCheck} />
                   </View>
+                  {emailCheck.status === 'error' && !!emailCheck.error && (
+                    <Text style={styles.fieldError}>{emailCheck.error}</Text>
+                  )}
                 </View>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Senha</Text>
@@ -368,6 +459,57 @@ export default function SignupScreen() {
               </TouchableOpacity>
             )}
 
+            {step === 1 && geoStatus === 'resolved' && (
+              <View style={styles.nearbyArea}>
+                {nearbyLoading ? (
+                  <View style={styles.nearbyLoading}>
+                    <ActivityIndicator color={Colors.primary} size="small" />
+                    <Text style={styles.nearbyLoadingText}>Buscando bairros vizinhos…</Text>
+                  </View>
+                ) : nearbyOpen && nearby !== null ? (
+                  <>
+                    <View style={styles.nearbyHeader}>
+                      <Text style={styles.nearbyTitle}>Bairros nas redondezas</Text>
+                      <TouchableOpacity onPress={() => setNearbyOpen(false)} hitSlop={8}>
+                        <Text style={styles.nearbyCancel}>Cancelar</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {(() => {
+                      const options = nearby.filter(
+                        (n) => n.neighborhood.toLowerCase() !== neighborhood.toLowerCase(),
+                      );
+                      return options.length === 0 ? (
+                        <Text style={styles.nearbyEmpty}>
+                          Não encontramos bairros vizinhos por aqui.
+                        </Text>
+                      ) : (
+                        <View style={styles.nearbyChips}>
+                          {options.map((n) => (
+                            <TouchableOpacity
+                              key={n.neighborhood}
+                              style={styles.nearbyChip}
+                              onPress={() => chooseNearby(n)}
+                              activeOpacity={0.8}
+                            >
+                              <Ionicons name="location-outline" size={14} color={Colors.primaryDark} />
+                              <Text style={styles.nearbyChipText}>{n.neighborhood}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      );
+                    })()}
+                  </>
+                ) : (
+                  <TouchableOpacity style={styles.nearbyToggle} onPress={openNearby} activeOpacity={0.7}>
+                    <Ionicons name="navigate-outline" size={15} color={Colors.primaryDark} />
+                    <Text style={styles.nearbyToggleText}>
+                      Não é seu bairro? Informe-nos um bairro nas redondezas
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
             {step === 0 && (
               <View style={styles.altRow}>
                 <Text style={styles.altText}>Já tem conta? </Text>
@@ -502,6 +644,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 7,
   },
+  fieldError: { fontSize: 12, color: Colors.error, marginTop: 6, fontWeight: '500' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,6 +759,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 20,
   },
+
+  // Bairros vizinhos (escolha manual)
+  nearbyArea: { marginTop: 4, marginBottom: 8 },
+  nearbyToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 8 },
+  nearbyToggleText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '600', textAlign: 'center' },
+  nearbyLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10 },
+  nearbyLoadingText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  nearbyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  nearbyTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  nearbyCancel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
+  nearbyEmpty: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
+  nearbyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  nearbyChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.primaryFaint, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.primaryLight },
+  nearbyChipText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '600' },
 
   // Sucesso (step 2)
   successArea: {

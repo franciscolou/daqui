@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.auth import (
+    AvailabilityResponse,
     LoginRequest,
     LoginResponse,
     SignupRequest,
@@ -18,6 +19,16 @@ from app.services import auth
 
 def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> TokenResponse:
     return auth.signup(db, payload)
+
+
+def check_username(username: str, db: Session = Depends(get_db)) -> AvailabilityResponse:
+    # Público: checagem em tempo real no cadastro.
+    return auth.check_username(db, username)
+
+
+def check_email(email: str, db: Session = Depends(get_db)) -> AvailabilityResponse:
+    # Público: checagem em tempo real no cadastro.
+    return auth.check_email(db, email)
 
 
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse:

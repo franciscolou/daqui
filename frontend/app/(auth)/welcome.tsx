@@ -15,8 +15,11 @@ import { submitOnEnter } from '../../lib/keyboard';
 import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../lib/auth';
-import { api, ApiError, NeighborhoodStats } from '../../lib/api';
+import { api, ApiError, NeighborhoodStats, NearbyNeighborhood } from '../../lib/api';
 import { getDeviceCoords, LocationError } from '../../lib/location';
+import { useAvailability, AvailabilityState } from '../../lib/useAvailability';
+
+const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
 
 type GeoStatus = 'idle' | 'locating' | 'resolved' | 'error';
 
@@ -72,6 +75,14 @@ function FloatingBlob({
   return <Animated.View pointerEvents="none" style={[style, animStyle]} />;
 }
 
+// Indicador de status de disponibilidade (dentro do input).
+function AvailabilityIcon({ state }: { state: AvailabilityState }) {
+  if (state.status === 'checking') return <ActivityIndicator size="small" color={Colors.textTertiary} />;
+  if (state.status === 'ok') return <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />;
+  if (state.status === 'error') return <Ionicons name="close-circle" size={18} color={Colors.error} />;
+  return null;
+}
+
 // ─── Tipo de view ────────────────────────────────────────────────
 type Panel = 'welcome' | 'login' | 'signup';
 
@@ -93,12 +104,25 @@ export default function WelcomeScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  // Validação em tempo real (formato + disponibilidade) de username e e-mail.
+  const usernameCheck = useAvailability(username, api.checkSignupUsername, {
+    ready: (v) => v.length >= 3,
+  });
+  const emailCheck = useAvailability(email, api.checkSignupEmail, { ready: emailLooksReady });
   // Bairro designado pela localização do dispositivo (não digitado).
   const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('São Paulo');
   const [uf, setUf] = useState('SP');
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [geoStatus, setGeoStatus] = useState<GeoStatus>('idle');
+  // Bairros vizinhos (quando o detectado não é o do usuário).
+  // `nearby` guarda o resultado da busca (cache); null = ainda não buscado.
+  // A busca é feita UMA vez, ancorada na localização detectada — reabrir o
+  // picker reusa o cache, então não dá pra "pular" de bairro em bairro.
+  const [nearby, setNearby] = useState<NearbyNeighborhood[] | null>(null);
+  const [nearbyLoading, setNearbyLoading] = useState(false);
+  const [nearbyOpen, setNearbyOpen] = useState(false);
   const [stats, setStats] = useState<NeighborhoodStats | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -223,9 +247,37 @@ export default function WelcomeScreen() {
   };
 
   // Descobre o bairro a partir das coordenadas do aparelho.
+  // Abre a lista de bairros vizinhos. Só busca na primeira vez (uma chamada de
+  // API, ancorada na localização detectada); depois reusa o cache.
+  const openNearby = async () => {
+    if (!coords) return;
+    setNearbyOpen(true);
+    if (nearby !== null || nearbyLoading) return;
+    setNearbyLoading(true);
+    try {
+      const list = await api.nearbyNeighborhoods(coords.latitude, coords.longitude);
+      setNearby(list);
+    } catch {
+      setNearby([]);
+    } finally {
+      setNearbyLoading(false);
+    }
+  };
+
+  // Usuário escolheu um bairro vizinho: passa a valer como o bairro dele.
+  // Não refaz a busca — o cache continua ancorado na localização original.
+  const chooseNearby = (n: NearbyNeighborhood) => {
+    setNeighborhood(n.neighborhood);
+    setCoords({ latitude: n.latitude, longitude: n.longitude });
+    setNearbyOpen(false);
+  };
+
   const detectLocation = async () => {
     setAuthError(null);
     setGeoStatus('locating');
+    setNearby(null);
+    setNearbyLoading(false);
+    setNearbyOpen(false);
     try {
       const c = await getDeviceCoords();
       const res = await api.resolveNeighborhood(c.latitude, c.longitude);
@@ -257,6 +309,7 @@ export default function WelcomeScreen() {
     try {
       await signup({
         name: name.trim(),
+        username: username.trim(),
         email: email.trim(),
         password,
         neighborhood,
@@ -279,8 +332,20 @@ export default function WelcomeScreen() {
     setAuthError(null);
 
     if (signupStep === 0) {
-      if (!name.trim() || !email.trim() || !password) {
-        setAuthError('Preencha nome, e-mail e senha.');
+      if (!name.trim() || !username.trim() || !email.trim() || !password) {
+        setAuthError('Preencha nome, usuário, e-mail e senha.');
+        return;
+      }
+      if (usernameCheck.status === 'checking' || emailCheck.status === 'checking') {
+        setAuthError('Aguarde a verificação do usuário e do e-mail.');
+        return;
+      }
+      if (usernameCheck.status !== 'ok') {
+        setAuthError(usernameCheck.error ?? 'Escolha um nome de usuário válido e disponível.');
+        return;
+      }
+      if (emailCheck.status !== 'ok') {
+        setAuthError(emailCheck.error ?? 'Informe um e-mail válido e disponível.');
         return;
       }
       nextStep();
@@ -565,11 +630,26 @@ export default function WelcomeScreen() {
             </View>
           </View>
           <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nome de usuário</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="at-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="seu.usuario" placeholderTextColor={Colors.textTertiary} value={username} onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))} autoCapitalize="none" autoCorrect={false} maxLength={18} onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
+              <AvailabilityIcon state={usernameCheck} />
+            </View>
+            {usernameCheck.status === 'error' && !!usernameCheck.error && (
+              <Text style={styles.fieldError}>{usernameCheck.error}</Text>
+            )}
+          </View>
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>E-mail</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
               <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
+              <AvailabilityIcon state={emailCheck} />
             </View>
+            {emailCheck.status === 'error' && !!emailCheck.error && (
+              <Text style={styles.fieldError}>{emailCheck.error}</Text>
+            )}
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Senha</Text>
@@ -687,6 +767,57 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
         );
       })()}
+
+      {step === 1 && geoStatus === 'resolved' && (
+        <View style={styles.nearbyArea}>
+          {nearbyLoading ? (
+            <View style={styles.nearbyLoading}>
+              <ActivityIndicator color={Colors.primary} size="small" />
+              <Text style={styles.nearbyLoadingText}>Buscando bairros vizinhos…</Text>
+            </View>
+          ) : nearbyOpen && nearby !== null ? (
+            <>
+              <View style={styles.nearbyHeader}>
+                <Text style={styles.nearbyTitle}>Bairros nas redondezas</Text>
+                <TouchableOpacity onPress={() => setNearbyOpen(false)} hitSlop={8}>
+                  <Text style={styles.nearbyCancel}>Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+              {(() => {
+                const options = nearby.filter(
+                  (n) => n.neighborhood.toLowerCase() !== neighborhood.toLowerCase(),
+                );
+                return options.length === 0 ? (
+                  <Text style={styles.nearbyEmpty}>
+                    Não encontramos bairros vizinhos por aqui.
+                  </Text>
+                ) : (
+                  <View style={styles.nearbyChips}>
+                    {options.map((n) => (
+                      <TouchableOpacity
+                        key={n.neighborhood}
+                        style={styles.nearbyChip}
+                        onPress={() => chooseNearby(n)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="location-outline" size={14} color={Colors.primaryDark} />
+                        <Text style={styles.nearbyChipText}>{n.neighborhood}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                );
+              })()}
+            </>
+          ) : (
+            <TouchableOpacity style={styles.nearbyToggle} onPress={openNearby} activeOpacity={0.7}>
+              <Ionicons name="navigate-outline" size={15} color={Colors.primaryDark} />
+              <Text style={styles.nearbyToggleText}>
+                Não é seu bairro? Informe-nos um bairro nas redondezas
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {step === 0 && (
         <View style={styles.switchRow}>
@@ -876,6 +1007,7 @@ const styles = StyleSheet.create({
   formSubtitle: { fontSize: 14, color: Colors.textSecondary },
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 7 },
+  fieldError: { fontSize: 12, color: Colors.error, marginTop: 6, fontWeight: '500' },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.border, paddingHorizontal: 13, height: 50 },
   inputIcon: { marginRight: 9 },
   input: { flex: 1, fontSize: 15, color: Colors.text },
@@ -933,6 +1065,20 @@ const styles = StyleSheet.create({
   geoHint: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: Colors.primaryFaint, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.primaryLight },
   geoHintText: { flex: 1, fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
   geoErrorIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.error + '15', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+
+  // Bairros vizinhos (escolha manual)
+  nearbyArea: { marginTop: 14 },
+  nearbyToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 8 },
+  nearbyToggleText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '600', textAlign: 'center' },
+  nearbyLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10 },
+  nearbyLoadingText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
+  nearbyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  nearbyTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  nearbyCancel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
+  nearbyEmpty: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
+  nearbyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  nearbyChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.primaryFaint, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.primaryLight },
+  nearbyChipText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '600' },
 
   // Painel direito (arte)
   rightPanel: { flex: 7, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },

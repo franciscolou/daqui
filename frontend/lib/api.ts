@@ -221,6 +221,17 @@ export interface NeighborhoodResolution {
   longitude: number;
 }
 
+export interface Availability {
+  available: boolean;
+  error: string | null;
+}
+
+export interface NearbyNeighborhood {
+  neighborhood: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface GeocodeResult {
   latitude: number;
   longitude: number;
@@ -370,6 +381,7 @@ function mapNotification(n: BackendNotification): AppNotification {
 export const api = {
   async signup(payload: {
     name: string;
+    username: string;
     email: string;
     password: string;
     neighborhood: string;
@@ -384,6 +396,21 @@ export const api = {
       auth: false,
     });
     return r.access_token;
+  },
+
+  // Checagens públicas de disponibilidade no cadastro (formato + já em uso).
+  async checkSignupUsername(username: string): Promise<Availability> {
+    return request<Availability>(
+      `/auth/check-username?username=${encodeURIComponent(username)}`,
+      { auth: false },
+    );
+  },
+
+  async checkSignupEmail(email: string): Promise<Availability> {
+    return request<Availability>(
+      `/auth/check-email?email=${encodeURIComponent(email)}`,
+      { auth: false },
+    );
   },
 
   async login(email: string, password: string): Promise<LoginResult> {
@@ -516,6 +543,23 @@ export const api = {
       latitude: r.latitude,
       longitude: r.longitude,
     };
+  },
+
+  // Público: bairros vizinhos ao ponto, para escolher quando o detectado não for o certo.
+  async nearbyNeighborhoods(
+    latitude: number,
+    longitude: number,
+  ): Promise<NearbyNeighborhood[]> {
+    const r = await request<NearbyNeighborhood[]>('/geo/nearby', {
+      method: 'POST',
+      body: { latitude, longitude },
+      auth: false,
+    });
+    return r.map((n) => ({
+      neighborhood: n.neighborhood,
+      latitude: n.latitude,
+      longitude: n.longitude,
+    }));
   },
 
   // Valida um endereço contra o bairro do usuário logado (ao publicar).

@@ -7,13 +7,17 @@ deixando a decisão de negócio para a camada de service.
 """
 from __future__ import annotations
 
+import math
 from typing import Optional, TypedDict
 
 import httpx
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org"
+OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "Daqui/1.0 (rede social de bairro)"
 TIMEOUT = 8.0
+# Overpass costuma ser mais lento; damos uma folga maior no timeout.
+OVERPASS_TIMEOUT = 25.0
 
 # Chaves do `address` do Nominatim que, em ordem, representam o "bairro".
 NEIGHBORHOOD_KEYS = ("suburb", "neighbourhood", "city_district", "quarter", "borough")
@@ -103,3 +107,70 @@ def forward(query: str) -> Optional[GeoResult]:
     if not isinstance(data, list) or not data:
         return None
     return _to_result(data[0])
+
+
+class NearbyPlace(TypedDict):
+    neighborhood: str
+    latitude: float
+    longitude: float
+
+
+def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distância aproximada em metros entre dois pontos."""
+    r = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+# Tipos de `place` no OSM que representam um bairro/vizinhança.
+PLACE_KINDS = "suburb|neighbourhood|quarter|city_district|borough"
+
+
+def nearby(lat: float, lon: float, radius: int = 3000, limit: int = 12) -> list[NearbyPlace]:
+    """Bairros vizinhos ao ponto, via Overpass (OSM).
+
+    Busca, numa única requisição, os nós de bairro num raio ao redor das
+    coordenadas e devolve os mais próximos (distintos por nome), ordenados por
+    distância. Tolerante a falha: devolve [] se o Overpass não responder.
+    """
+    query = (
+        f"[out:json][timeout:20];"
+        f'node(around:{radius},{lat},{lon})["place"~"^({PLACE_KINDS})$"]["name"];'
+        f"out body;"
+    )
+    try:
+        resp = httpx.post(
+            OVERPASS_URL,
+            data={"data": query},
+            headers={"User-Agent": USER_AGENT},
+            timeout=OVERPASS_TIMEOUT,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (httpx.HTTPError, ValueError):
+        return []
+
+    scored: list[tuple[float, NearbyPlace]] = []
+    seen: set[str] = set()
+    for el in data.get("elements", []) if isinstance(data, dict) else []:
+        name = (el.get("tags") or {}).get("name")
+        if not name:
+            continue
+        key = str(name).strip().lower()
+        if key in seen:
+            continue
+        try:
+            elat = float(el["lat"])
+            elon = float(el["lon"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        seen.add(key)
+        scored.append(
+            (_haversine(lat, lon, elat, elon), NearbyPlace(neighborhood=str(name), latitude=elat, longitude=elon))
+        )
+
+    scored.sort(key=lambda t: t[0])
+    return [place for _, place in scored[:limit]]

@@ -12,7 +12,15 @@ const WIDE = 900;
  * (navegação) e a direita (widgets), centralizado — igual ao feed.
  * Em telas estreitas, renderiza apenas o conteúdo.
  */
-export default function WideLayout({ children }: { children: React.ReactNode }) {
+export default function WideLayout({
+  children,
+  showMobileMenu = true,
+}: {
+  children: React.ReactNode;
+  // Telas que já têm ações no topo (ex.: o form de publicar) podem esconder o
+  // FAB do menu para ele não colidir com seus próprios botões.
+  showMobileMenu?: boolean;
+}) {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
   const styles = useThemedStyles(makeStyles);
@@ -21,7 +29,7 @@ export default function WideLayout({ children }: { children: React.ReactNode }) 
     return (
       <>
         {children}
-        <MobileMenu />
+        {showMobileMenu && <MobileMenu />}
       </>
     );
   }

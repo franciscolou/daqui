@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr
 
 class SignupRequest(BaseModel):
     name: str
+    username: str
     email: EmailStr
     password: str
     neighborhood: str = ""
@@ -12,6 +13,13 @@ class SignupRequest(BaseModel):
     state: str = "SP"
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+
+
+class AvailabilityResponse(BaseModel):
+    # available=True quando o valor é válido E está livre.
+    # error traz a mensagem (formato inválido ou já em uso) quando available=False.
+    available: bool
+    error: str | None = None
 
 
 class LoginRequest(BaseModel):
