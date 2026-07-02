@@ -9,7 +9,10 @@
     "scheme": "daqui",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.daqui.app"
+      "bundleIdentifier": "com.daqui.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "O Daqui usa sua localização para descobrir e confirmar o seu bairro."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +28,12 @@
     },
     "plugins": [
       "expo-router",
-      "expo-location"
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Daqui usa sua localização para descobrir e confirmar o seu bairro."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

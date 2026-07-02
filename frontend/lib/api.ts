@@ -82,11 +82,16 @@ interface BackendUser {
   bio: string | null;
   avatar_url: string | null;
   neighborhood: string;
+  city?: string | null;
+  state?: string | null;
   badge: string | null;
   verified: boolean;
   posts_count: number;
   help_count: number;
   created_at: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  locked?: boolean;
   email?: string;
   two_factor_enabled?: boolean;
 }
@@ -99,6 +104,9 @@ interface BackendPost {
   image_url: string | null;
   details: Record<string, any> | null;
   neighborhood: string;
+  location: string | null;
+  latitude: number | null;
+  longitude: number | null;
   likes_count: number;
   comments_count: number;
   shares_count: number;
@@ -204,6 +212,21 @@ export interface NeighborhoodStats {
   posts: number;
 }
 
+export interface NeighborhoodResolution {
+  neighborhood: string;
+  city: string;
+  state: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface GeocodeResult {
+  latitude: number;
+  longitude: number;
+  label: string;
+}
+
 export interface AppNotification {
   id: string;
   type: string;
@@ -241,6 +264,8 @@ export function mapUser(u: BackendUser): User {
     bio: u.bio ?? undefined,
     avatar: u.avatar_url || FALLBACK_AVATAR,
     neighborhood: u.neighborhood,
+    city: u.city ?? undefined,
+    state: u.state ?? undefined,
     badge: (u.badge as User['badge']) ?? undefined,
     verified: u.verified,
     joinedAt: new Date(u.created_at).toLocaleDateString('pt-BR', {
@@ -249,6 +274,9 @@ export function mapUser(u: BackendUser): User {
     }),
     postsCount: u.posts_count,
     helpCount: u.help_count,
+    latitude: u.latitude ?? undefined,
+    longitude: u.longitude ?? undefined,
+    locked: u.locked ?? false,
     twoFactorEnabled: u.two_factor_enabled,
   };
 }
@@ -268,6 +296,8 @@ function mapPost(p: BackendPost): Post {
     sharesCount: p.shares_count,
     neighborhood: p.neighborhood,
     distance: '',
+    latitude: p.latitude ?? undefined,
+    longitude: p.longitude ?? undefined,
     liked: p.liked,
     pinned: p.pinned,
     important: p.important,
@@ -276,7 +306,7 @@ function mapPost(p: BackendPost): Post {
     allDay: d.all_day ?? undefined,
     eventTime: d.event_time ?? undefined,
     placeName: d.place_name ?? undefined,
-    location: d.location ?? undefined,
+    location: p.location ?? d.location ?? undefined,
     price: typeof d.price === 'number' ? d.price : undefined,
     priceNegotiable: d.price_negotiable ?? undefined,
   };
@@ -344,6 +374,9 @@ export const api = {
     password: string;
     neighborhood: string;
     city: string;
+    state?: string;
+    latitude?: number;
+    longitude?: number;
   }): Promise<string> {
     const r = await request<{ access_token: string }>('/auth/signup', {
       method: 'POST',
@@ -451,6 +484,46 @@ export const api = {
   async getTopImportant(): Promise<Post | null> {
     const p = await request<BackendPost | null>('/posts/important');
     return p ? mapPost(p) : null;
+  },
+
+  async getMapPosts(): Promise<Post[]> {
+    const r = await request<BackendPost[]>('/posts/map');
+    return r.map(mapPost);
+  },
+
+  // Público: descobre o bairro a partir das coordenadas do dispositivo (no cadastro).
+  async resolveNeighborhood(
+    latitude: number,
+    longitude: number,
+  ): Promise<NeighborhoodResolution> {
+    const r = await request<{
+      neighborhood: string;
+      city: string;
+      state: string;
+      display_name: string;
+      latitude: number;
+      longitude: number;
+    }>('/geo/resolve', {
+      method: 'POST',
+      body: { latitude, longitude },
+      auth: false,
+    });
+    return {
+      neighborhood: r.neighborhood,
+      city: r.city,
+      state: r.state,
+      displayName: r.display_name,
+      latitude: r.latitude,
+      longitude: r.longitude,
+    };
+  },
+
+  // Valida um endereço contra o bairro do usuário logado (ao publicar).
+  async geocode(address: string): Promise<GeocodeResult> {
+    return request<GeocodeResult>('/geo/geocode', {
+      method: 'POST',
+      body: { address },
+    });
   },
 
   async toggleLike(id: string): Promise<Post> {

@@ -2,6 +2,9 @@
 Popula o banco com dados iniciais para desenvolvimento.
 Execute: python -m app.seed
 """
+import time
+
+from app.core import geocoding
 from app.core.security import hash_password
 from app.database import SessionLocal, create_tables
 from app.models.comment import Comment
@@ -10,48 +13,58 @@ from app.models.notification import Notification
 from app.models.post import Post
 from app.models.user import User
 
+# Bairro do usuário de teste (francisco) = Leme (Rio). Coordenadas reais na orla,
+# para o mapa ter pins de verdade. Carlos (Pinheiros) e Roberto (Jardins) ficam de
+# fora do Leme de propósito: demonstram isolamento por bairro e perfil bloqueado.
 USERS = [
     dict(username="francisco", name="Francisco Gardenberg", email="francisco@daqui.com", password="senha123",
-         neighborhood="Vila Madalena", badge="lider", verified=True,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="lider", verified=True, latitude=-22.9631, longitude=-43.1665,
          avatar_url="https://i.pravatar.cc/150?img=68", posts_count=47, help_count=23),
     dict(username="anapaula", name="Ana Paula Lima", email="ana@daqui.com", password="senha123",
-         neighborhood="Vila Madalena", badge="lider", verified=True,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="lider", verified=True, latitude=-22.9622, longitude=-43.1658,
          avatar_url="https://i.pravatar.cc/150?img=47", posts_count=134, help_count=89),
     dict(username="carlosmendes", name="Carlos Mendes", email="carlos@daqui.com", password="senha123",
-         neighborhood="Pinheiros", badge="morador", verified=True,
+         neighborhood="Pinheiros", badge="morador", verified=True, latitude=-23.5665, longitude=-46.7010,
          avatar_url="https://i.pravatar.cc/150?img=52", posts_count=28, help_count=14),
     dict(username="beatriz", name="Beatriz Santos", email="beatriz@daqui.com", password="senha123",
-         neighborhood="Vila Madalena", badge="comerciante", verified=True,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="comerciante", verified=True, latitude=-22.9640, longitude=-43.1668,
          avatar_url="https://i.pravatar.cc/150?img=44", posts_count=256, help_count=41),
     dict(username="roberto", name="Roberto Alves", email="roberto@daqui.com", password="senha123",
-         neighborhood="Jardins", badge="morador", verified=False,
+         neighborhood="Jardins", badge="morador", verified=False, latitude=-23.5710, longitude=-46.6680,
          avatar_url="https://i.pravatar.cc/150?img=57", posts_count=12, help_count=7),
     dict(username="mariana", name="Mariana Costa", email="mariana@daqui.com", password="senha123",
-         neighborhood="Vila Madalena", badge="morador", verified=True,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9648, longitude=-43.1662,
          avatar_url="https://i.pravatar.cc/150?img=25", posts_count=8, help_count=3),
     dict(username="thiago", name="Thiago Ferreira", email="thiago@daqui.com", password="senha123",
-         neighborhood="Perdizes", badge="morador", verified=True,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9618, longitude=-43.1650,
          avatar_url="https://i.pravatar.cc/150?img=61", posts_count=55, help_count=32),
 ]
 
 POSTS = [
-    dict(author_idx=1, category="aviso", title="Atenção: Obra na Rua Harmonia",
-         content="Pessoal, a prefeitura vai iniciar obras na Rua Harmonia amanhã às 8h. Previsão de 15 dias. Trânsito será desviado pela Aspicuelta.", neighborhood="Vila Madalena", pinned=True),
-    dict(author_idx=3, category="recomendacao", title="Padaria incrível na Vila Madalena!",
-         content="Descobri a Padaria Levain na Rua Fradique Coutinho. O croissant de manteiga é de outro nível 🥐 Recomendo demais!",
-         image_url="https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600", neighborhood="Vila Madalena", likes_count=89, comments_count=23),
+    dict(author_idx=1, category="aviso", title="Atenção: Obra na Rua Gustavo Sampaio",
+         content="Pessoal, a prefeitura vai iniciar obras na Rua Gustavo Sampaio amanhã às 8h. Previsão de 15 dias. Trânsito será desviado pela Av. Prefeito Mendes de Morais.",
+         neighborhood="Leme", location="Rua Gustavo Sampaio, Leme", latitude=-22.9625, longitude=-43.1668, pinned=True),
+    dict(author_idx=3, category="recomendacao", title="Padaria incrível no Leme!",
+         content="Descobri uma padaria na Rua General Ribeiro da Costa. O croissant de manteiga é de outro nível 🥐 Recomendo demais!",
+         image_url="https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600",
+         neighborhood="Leme", location="Rua General Ribeiro da Costa, Leme", latitude=-22.9640, longitude=-43.1672, likes_count=89, comments_count=23),
     dict(author_idx=1, category="seguranca", title="Cuidado com golpe do WhatsApp",
-         content="ATENÇÃO: Estão circulando mensagens se passando pela síndica do Cond. Vista Verde pedindo dados bancários. Não responda!", neighborhood="Vila Madalena", important=True, likes_count=156, shares_count=67),
-    dict(author_idx=5, category="pets", title="Cachorro desaparecido 😢",
+         content="ATENÇÃO: Estão circulando mensagens se passando pela síndica do Cond. Vista Mar pedindo dados bancários. Não responda!",
+         neighborhood="Leme", location="Praça Almirante Júlio de Noronha, Leme", latitude=-22.9635, longitude=-43.1660, important=True, likes_count=156, shares_count=67),
+    dict(author_idx=2, category="pets", title="Cachorro desaparecido 😢",
          content="Meu Golden Retriever, Thor, desapareceu ontem perto do Parque Villa-Lobos. Ele usa coleira azul. Recompensa de R$500 💛",
-         image_url="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600", neighborhood="Pinheiros", important=True, likes_count=203, comments_count=41),
-    dict(author_idx=0, category="evento", title="Festa Junina da Rua Wisard",
-         content="Convite para nossa tradicional Festa Junina! 📅 Sábado, 15/06 a partir das 16h 📍 Rua Wisard, 305. Forró ao vivo, comidas típicas, quadrilha!", neighborhood="Vila Madalena", likes_count=312, comments_count=87),
+         image_url="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600",
+         neighborhood="Pinheiros", location="Parque Villa-Lobos, Pinheiros", latitude=-23.5470, longitude=-46.7220, important=True, likes_count=203, comments_count=41),
+    dict(author_idx=0, category="evento", title="Festa Junina da orla do Leme",
+         content="Convite para nossa tradicional Festa Junina! 📅 Sábado, 15/06 a partir das 16h 📍 Rua Gustavo Sampaio, 305. Forró ao vivo, comidas típicas, quadrilha!",
+         neighborhood="Leme", location="Rua Gustavo Sampaio, 305, Leme", latitude=-22.9628, longitude=-43.1670, likes_count=312, comments_count=87),
     dict(author_idx=4, category="venda", title="Sofá 3 lugares — R$ 800",
          content="Vendo sofá 3 lugares, cor cinza, em ótimo estado. Só saio por mudança. Mede 2,10m.",
-         image_url="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600", neighborhood="Jardins", likes_count=28, comments_count=9),
+         image_url="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600",
+         neighborhood="Jardins", location="Rua Oscar Freire, Jardins", latitude=-23.5620, longitude=-46.6720, likes_count=28, comments_count=9),
     dict(author_idx=1, category="ajuda", title="Alguém tem escada de 3 metros?",
-         content="Oi vizinhos! Preciso trocar uma lâmpada no teto de 3 metros de altura e não tenho escada. Alguém pode emprestar por 30 minutos?", neighborhood="Vila Madalena", likes_count=15),
+         content="Oi vizinhos! Preciso trocar uma lâmpada no teto de 3 metros de altura e não tenho escada. Alguém pode emprestar por 30 minutos?",
+         neighborhood="Leme", likes_count=15),
 ]
 
 
@@ -78,6 +91,13 @@ def seed():
         likes = p.pop("likes_count", 0)
         p.pop("comments_count", 0)  # contagem é derivada de comentários reais
         shares = p.pop("shares_count", 0)
+        # Coordenadas precisas: geocodifica o endereço (fallback p/ o valor fixo se offline).
+        if p.get("location"):
+            res = geocoding.forward(p["location"])
+            if res:
+                p["latitude"] = res["latitude"]
+                p["longitude"] = res["longitude"]
+            time.sleep(1.1)  # respeita o limite do Nominatim (~1 req/s)
         post = Post(**p, author_id=users[author_idx].id,
                     likes_count=likes, comments_count=0, shares_count=shares)
         db.add(post)

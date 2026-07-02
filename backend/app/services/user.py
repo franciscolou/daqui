@@ -9,8 +9,37 @@ from app.schemas.user import (
     USERNAME_RE,
     NeighborhoodStats,
     UsernameAvailability,
+    UserPublic,
     UserUpdate,
 )
+
+
+def public_view(viewer: User, target: User) -> UserPublic:
+    """Serializa um usuário respeitando o isolamento por bairro.
+
+    Perfis de outro bairro vêm "bloqueados": só nome popular, @username, foto e
+    quantidade de posts. O resto é ocultado.
+    """
+    if target.neighborhood == viewer.neighborhood:
+        return UserPublic.model_validate(target)
+    return UserPublic(
+        id=target.id,
+        username=target.username,
+        name=target.name,
+        bio=None,
+        avatar_url=target.avatar_url,
+        neighborhood="",
+        city=None,
+        state=None,
+        badge=None,
+        verified=False,
+        posts_count=target.posts_count,
+        help_count=0,
+        created_at=target.created_at,
+        latitude=None,
+        longitude=None,
+        locked=True,
+    )
 
 
 def get_neighbors(db: Session, user: User) -> list[User]:
@@ -18,14 +47,15 @@ def get_neighbors(db: Session, user: User) -> list[User]:
 
 
 def get_popular(db: Session, user: User) -> list[User]:
-    return user_dao.get_popular(db, exclude_id=user.id)
+    # Restrito ao bairro do usuário (widget "Vizinhos em destaque").
+    return user_dao.get_popular(db, neighborhood=user.neighborhood, exclude_id=user.id)
 
 
-def get_by_id(db: Session, user_id: int) -> User:
+def get_by_id(db: Session, viewer: User, user_id: int) -> UserPublic:
     user = user_dao.get_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    return user
+    return public_view(viewer, user)
 
 
 def check_username(db: Session, user: User, username: str) -> UsernameAvailability:

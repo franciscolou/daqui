@@ -16,11 +16,16 @@ export interface User {
   bio?: string;
   avatar: string;
   neighborhood: string;
+  city?: string;
+  state?: string;
   badge?: 'morador' | 'lider' | 'comerciante';
   verified: boolean;
   joinedAt: string;
   postsCount: number;
   helpCount: number;
+  latitude?: number;          // coordenadas do usuário (só /auth/me e vizinhos do bairro)
+  longitude?: number;
+  locked?: boolean;           // perfil de outro bairro: só nome, @username, foto e nº de posts
   twoFactorEnabled?: boolean; // só presente em /auth/me (conta do próprio usuário)
 }
 
@@ -37,6 +42,8 @@ export interface Post {
   sharesCount: number;
   neighborhood: string;
   distance: string;
+  latitude?: number;          // coordenadas do local do post (quando validado no bairro)
+  longitude?: number;
   liked: boolean;
   pinned?: boolean;
   important?: boolean;

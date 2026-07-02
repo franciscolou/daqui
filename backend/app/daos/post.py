@@ -61,6 +61,17 @@ def search(db: Session, neighborhood: str, query: str, limit: int = 30) -> list[
     )
 
 
+def list_map(db: Session, neighborhood: str, limit: int = 200) -> list[Post]:
+    # Posts do bairro com coordenadas — viram pins no mapa.
+    return (
+        db.query(Post)
+        .filter(Post.neighborhood == neighborhood, Post.latitude.isnot(None))
+        .order_by(desc(Post.created_at))
+        .limit(limit)
+        .all()
+    )
+
+
 def list_by_author(db: Session, author_id: int) -> list[Post]:
     return (
         db.query(Post)
@@ -88,6 +99,9 @@ def create(
     details: dict | None,
     important: bool,
     neighborhood: str,
+    location: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> Post:
     post = Post(
         author_id=author_id,
@@ -98,6 +112,9 @@ def create(
         details=details,
         important=important,
         neighborhood=neighborhood,
+        location=location,
+        latitude=latitude,
+        longitude=longitude,
     )
     db.add(post)
     db.commit()

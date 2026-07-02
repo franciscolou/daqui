@@ -24,11 +24,17 @@ class UserPublic(BaseModel):
     bio: Optional[str]
     avatar_url: Optional[str]
     neighborhood: str
+    city: Optional[str] = None
+    state: Optional[str] = None
     badge: Optional[str]
     verified: bool
     posts_count: int
     help_count: int
     created_at: datetime
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    # True quando o perfil é de outro bairro: só nome, @username, foto e nº de posts.
+    locked: bool = False
 
     model_config = {"from_attributes": True}
 

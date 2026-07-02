@@ -8,16 +8,21 @@ from app.models.user import User
 from app.schemas.comment import CommentCreate
 
 
-def list_for_post(db: Session, post_id: int) -> list[Comment]:
-    if not post_dao.get_by_id(db, post_id):
+def _visible_post_or_404(db: Session, post_id: int, viewer: User):
+    post = post_dao.get_by_id(db, post_id)
+    # Isolamento por bairro: post de outro bairro é como se não existisse.
+    if not post or post.neighborhood != viewer.neighborhood:
         raise HTTPException(status_code=404, detail="Post não encontrado")
+    return post
+
+
+def list_for_post(db: Session, post_id: int, viewer: User) -> list[Comment]:
+    _visible_post_or_404(db, post_id, viewer)
     return comment_dao.list_for_post(db, post_id)
 
 
 def create(db: Session, post_id: int, user: User, payload: CommentCreate) -> Comment:
-    post = post_dao.get_by_id(db, post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post não encontrado")
+    post = _visible_post_or_404(db, post_id, user)
 
     content = payload.content.strip()
     if not content:

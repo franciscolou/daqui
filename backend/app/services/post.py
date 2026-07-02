@@ -9,6 +9,7 @@ from app.daos import user as user_dao
 from app.models.post import Post
 from app.models.user import User
 from app.schemas.post import PostCreate, PostFeed, PostOut
+from app.services import geo
 
 
 def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
@@ -21,6 +22,9 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
         image_url=post.image_url,
         details=post.details,
         neighborhood=post.neighborhood,
+        location=post.location,
+        latitude=post.latitude,
+        longitude=post.longitude,
         likes_count=post.likes_count,
         comments_count=post.comments_count,
         shares_count=post.shares_count,
@@ -58,13 +62,23 @@ def get_top_important(db: Session, viewer: User) -> PostOut | None:
 
 
 def list_by_author(db: Session, author_id: int, viewer: User) -> list[PostOut]:
+    author = user_dao.get_by_id(db, author_id)
+    # Perfis de outro bairro são bloqueados: não expõem os posts.
+    if not author or author.neighborhood != viewer.neighborhood:
+        return []
     posts = post_dao.list_by_author(db, author_id)
+    return [_to_schema(p, viewer, db) for p in posts]
+
+
+def get_map_posts(db: Session, viewer: User) -> list[PostOut]:
+    posts = post_dao.list_map(db, viewer.neighborhood)
     return [_to_schema(p, viewer, db) for p in posts]
 
 
 def get_post(db: Session, post_id: int, viewer: User) -> PostOut:
     post = post_dao.get_by_id(db, post_id)
-    if not post:
+    # Isolamento: só é possível ver posts do próprio bairro (404 não vaza a existência).
+    if not post or post.neighborhood != viewer.neighborhood:
         raise HTTPException(status_code=404, detail="Post não encontrado")
     return _to_schema(post, viewer, db)
 
@@ -143,6 +157,14 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
     if payload.image:
         image_url = save_data_url_image(base_url, payload.image, prefix="post")
 
+    # Local: quando informado, precisa ser um endereço válido dentro do bairro.
+    location = (details or {}).get("location") if details else None
+    latitude = longitude = None
+    if location:
+        geo_result = geo.geocode_within(location, user.neighborhood)
+        latitude = geo_result["latitude"]
+        longitude = geo_result["longitude"]
+
     post = post_dao.create(
         db,
         author_id=user.id,
@@ -153,6 +175,9 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         details=details,
         important=payload.important,
         neighborhood=user.neighborhood,
+        location=location,
+        latitude=latitude,
+        longitude=longitude,
     )
     user_dao.update(db, user, {"posts_count": user.posts_count + 1})
     return _to_schema(post, user, db)

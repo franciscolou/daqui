@@ -4,8 +4,10 @@ Idempotente: se já foi rodado (detecta usuário marcador), não duplica.
 
 Execute: python -m app.seed_testdata
 """
+import time
 from datetime import datetime, timedelta, timezone
 
+from app.core import geocoding
 from app.core.security import hash_password
 from app.database import SessionLocal, create_tables
 from app.models.comment import Comment
@@ -44,21 +46,26 @@ def seed():
     if not getattr(lou, "username", None):
         lou.username = "lou"
     lou_bairro = lou.neighborhood or "Leme"
+    if lou.latitude is None:
+        lou.latitude, lou.longitude = -22.9631, -43.1665  # centro do Leme
+    if lou_bairro == "Leme":
+        lou.city = "Rio de Janeiro"
+        lou.state = "RJ"
 
     # ── Vizinhos da lou (mesmo bairro) ───────────────────────────
     neighbors_data = [
-        dict(username="helena", name="Helena Prado", email=MARKER_EMAIL, neighborhood=lou_bairro,
+        dict(username="helena", name="Helena Prado", email=MARKER_EMAIL, neighborhood=lou_bairro, city="Rio de Janeiro", state="RJ",
              badge="lider", verified=True, avatar_url="https://i.pravatar.cc/150?img=31",
-             help_count=64),
-        dict(username="bruno", name="Bruno Tavares", email="bruno.leme@daqui.com", neighborhood=lou_bairro,
+             help_count=64, latitude=-22.9622, longitude=-43.1658),
+        dict(username="bruno", name="Bruno Tavares", email="bruno.leme@daqui.com", neighborhood=lou_bairro, city="Rio de Janeiro", state="RJ",
              badge="morador", verified=True, avatar_url="https://i.pravatar.cc/150?img=12",
-             help_count=21),
-        dict(username="sofia", name="Sofia Andrade", email="sofia.leme@daqui.com", neighborhood=lou_bairro,
+             help_count=21, latitude=-22.9640, longitude=-43.1668),
+        dict(username="sofia", name="Sofia Andrade", email="sofia.leme@daqui.com", neighborhood=lou_bairro, city="Rio de Janeiro", state="RJ",
              badge="comerciante", verified=True, avatar_url="https://i.pravatar.cc/150?img=24",
-             help_count=38),
-        dict(username="diego", name="Diego Martins", email="diego.leme@daqui.com", neighborhood=lou_bairro,
+             help_count=38, latitude=-22.9648, longitude=-43.1662),
+        dict(username="diego", name="Diego Martins", email="diego.leme@daqui.com", neighborhood=lou_bairro, city="Rio de Janeiro", state="RJ",
              badge="morador", verified=False, avatar_url="https://i.pravatar.cc/150?img=8",
-             help_count=9),
+             help_count=9, latitude=-22.9618, longitude=-43.1650),
     ]
     neighbors = {}
     for d in neighbors_data:
@@ -113,24 +120,46 @@ def seed():
          "Domingo às 7h vamos fazer um mutirão de limpeza na praia do Leme. Levem luvas e sacos. Café da manhã por conta da associação!",
          None, False, False, 420),
 
-        # Vila Madalena — enriquece o feed do Francisco
-        ("vm_extra1", ana, "Vila Madalena", "evento", "Sarau na Praça Benedito Calixto",
+        # Mais conteúdo do Leme (autores que também moram no bairro)
+        ("vm_extra1", ana, lou_bairro, "evento", "Sarau na Praça Almirante Júlio de Noronha",
          "Sábado tem sarau de poesia e música na praça! A partir das 17h. Tragam uma cadeira e boa energia. 🎶",
          None, False, False, 90),
-        ("vm_extra2", beatriz, "Vila Madalena", "recomendacao", "Novo café com wi-fi excelente ☕",
-         "Abriu um café na Aspicuelta perfeito pra trabalhar: tomadas em todas as mesas, wi-fi rápido e café ótimo. Recomendo!",
+        ("vm_extra2", beatriz, lou_bairro, "recomendacao", "Novo café com wi-fi excelente ☕",
+         "Abriu um café na Rua Gustavo Sampaio perfeito pra trabalhar: tomadas em todas as mesas, wi-fi rápido e café ótimo. Recomendo!",
          "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600", False, False, 200),
-        ("vm_extra3", mariana, "Vila Madalena", "ajuda", "Doação de roupas de inverno 🧥",
+        ("vm_extra3", mariana, lou_bairro, "ajuda", "Doação de roupas de inverno 🧥",
          "Estou organizando uma doação de agasalhos. Quem tiver roupas de frio em bom estado, deixa comigo até sexta. Vamos aquecer alguém!",
          None, False, False, 350),
     ]
 
+    # Coordenadas na orla do Leme, atribuídas em rodízio aos posts com bairro = Leme.
+    LEME_COORDS = [
+        ("Rua Gustavo Sampaio, Leme", -22.9625, -43.1668),
+        ("Av. Atlântica, Leme", -22.9612, -43.1655),
+        ("Rua General Ribeiro da Costa, Leme", -22.9640, -43.1672),
+        ("Praça Almirante Júlio de Noronha, Leme", -22.9635, -43.1660),
+        ("Rua Anchieta, Leme", -22.9648, -43.1665),
+        ("Av. Atlântica, Posto 2, Leme", -22.9620, -43.1648),
+        ("Ladeira do Leme, Leme", -22.9655, -43.1670),
+    ]
+
     posts = {}
+    coord_i = 0
     for key, author, bairro, cat, title, content, img, important, pinned, mins in posts_spec:
+        location = lat = lon = None
+        if bairro == lou_bairro:
+            location, lat, lon = LEME_COORDS[coord_i % len(LEME_COORDS)]
+            coord_i += 1
+            # Coordenadas precisas via geocoding (fallback p/ o valor fixo se offline).
+            res = geocoding.forward(location)
+            if res:
+                lat, lon = res["latitude"], res["longitude"]
+            time.sleep(1.1)
         p = Post(
             author_id=author.id, neighborhood=bairro, category=cat,
             title=title, content=content, image_url=img,
             important=important, pinned=pinned, created_at=ago(mins),
+            location=location, latitude=lat, longitude=lon,
         )
         db.add(p)
         posts[key] = p

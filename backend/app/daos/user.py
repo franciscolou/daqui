@@ -25,6 +25,9 @@ def create(
     hashed_password: str,
     neighborhood: str,
     city: str,
+    state: str = "SP",
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> User:
     user = User(
         username=username,
@@ -33,6 +36,9 @@ def create(
         hashed_password=hashed_password,
         neighborhood=neighborhood,
         city=city,
+        state=state,
+        latitude=latitude,
+        longitude=longitude,
         badge="morador",
         verified=False,
     )
@@ -76,11 +82,13 @@ def search(db: Session, query: str, limit: int = 30) -> list[User]:
     )
 
 
-def get_popular(db: Session, exclude_id: int, limit: int = 10) -> list[User]:
-    # Popularidade = engajamento do vizinho (posts + ajudas dadas).
+def get_popular(
+    db: Session, neighborhood: str, exclude_id: int, limit: int = 10
+) -> list[User]:
+    # Popularidade = engajamento do vizinho (posts + ajudas dadas), dentro do bairro.
     return (
         db.query(User)
-        .filter(User.id != exclude_id)
+        .filter(User.neighborhood == neighborhood, User.id != exclude_id)
         .order_by(desc(User.posts_count + User.help_count), desc(User.verified))
         .limit(limit)
         .all()

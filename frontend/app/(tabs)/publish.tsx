@@ -71,7 +71,10 @@ export default function PublishScreen() {
   const [error, setError] = useState<string | null>(null);
 
   // Campos específicos por categoria
-  const [location, setLocation] = useState('');
+  const [location, setLocationRaw] = useState('');
+  // Validação do endereço contra o bairro (via API de endereços).
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+  const [locationMsg, setLocationMsg] = useState<string | null>(null);
   const [placeName, setPlaceName] = useState('');
   const [eventDates, setEventDates] = useState<string[]>([]);
   const [allDay, setAllDay] = useState(true);
@@ -79,6 +82,32 @@ export default function PublishScreen() {
   const [price, setPrice] = useState('');
   const [priceNegotiable, setPriceNegotiable] = useState(false);
   const [productImage, setProductImage] = useState<string | null>(null); // data URL
+
+  // Ao editar o endereço, o status de validação anterior deixa de valer.
+  const setLocation = (v: string) => {
+    setLocationRaw(v);
+    setLocationStatus('idle');
+    setLocationMsg(null);
+  };
+
+  // Confere se o endereço existe e fica dentro do bairro (API de endereços).
+  const validateLocation = async () => {
+    const addr = location.trim();
+    if (!addr) {
+      setLocationStatus('idle');
+      setLocationMsg(null);
+      return;
+    }
+    setLocationStatus('checking');
+    setLocationMsg(null);
+    try {
+      await api.geocode(addr);
+      setLocationStatus('valid');
+    } catch (e) {
+      setLocationStatus('invalid');
+      setLocationMsg(e instanceof ApiError ? e.message : 'Não foi possível validar o endereço.');
+    }
+  };
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -114,7 +143,8 @@ export default function PublishScreen() {
   const contentValid = selectedCategory === 'evento' || content.trim().length > 0;
 
   const canPublish =
-    !!selectedCategory && titleValid && contentValid && categoryValid && !publishing;
+    !!selectedCategory && titleValid && contentValid && categoryValid &&
+    locationStatus !== 'invalid' && locationStatus !== 'checking' && !publishing;
 
   // Mensagem explicando por que o botão está desabilitado (ajuda o usuário).
   const disabledReason = (() => {
@@ -125,6 +155,7 @@ export default function PublishScreen() {
     if (selectedCategory === 'venda' && !priceValid)
       return 'Informe o preço ou marque "Negociável"';
     if (!contentValid) return 'Escreva uma mensagem';
+    if (locationStatus === 'invalid') return locationMsg ?? 'Endereço fora do bairro';
     return null;
   })();
 
@@ -437,7 +468,15 @@ export default function PublishScreen() {
 
           {/* Campos específicos por categoria */}
           {selectedCategory === 'evento' && (
-            <LocationField styles={styles} Colors={Colors} value={location} onChange={setLocation} />
+            <LocationField
+              styles={styles}
+              Colors={Colors}
+              value={location}
+              onChange={setLocation}
+              onBlur={validateLocation}
+              status={locationStatus}
+              message={locationMsg}
+            />
           )}
 
           {selectedCategory === 'recomendacao' && (
@@ -464,11 +503,13 @@ export default function PublishScreen() {
                       placeholderTextColor={Colors.textTertiary}
                       value={location}
                       onChangeText={setLocation}
+                      onBlur={validateLocation}
                       maxLength={120}
                     />
                   </View>
                 </View>
               </View>
+              <LocationStatusRow styles={styles} Colors={Colors} status={locationStatus} message={locationMsg} />
             </View>
           )}
 
@@ -502,12 +543,28 @@ export default function PublishScreen() {
                 </View>
               </View>
 
-              <LocationField styles={styles} Colors={Colors} value={location} onChange={setLocation} />
+              <LocationField
+              styles={styles}
+              Colors={Colors}
+              value={location}
+              onChange={setLocation}
+              onBlur={validateLocation}
+              status={locationStatus}
+              message={locationMsg}
+            />
             </>
           )}
 
           {selectedCategory === 'perdidos' && (
-            <LocationField styles={styles} Colors={Colors} value={location} onChange={setLocation} />
+            <LocationField
+              styles={styles}
+              Colors={Colors}
+              value={location}
+              onChange={setLocation}
+              onBlur={validateLocation}
+              status={locationStatus}
+              message={locationMsg}
+            />
           )}
 
           {/* Dica do que falta preencher para habilitar o botão */}
@@ -565,16 +622,50 @@ function FieldLabel({
   );
 }
 
+type LocationStatus = 'idle' | 'checking' | 'valid' | 'invalid';
+
+// Linha de feedback da validação do endereço (dentro do bairro?).
+function LocationStatusRow({
+  styles,
+  Colors,
+  status,
+  message,
+}: {
+  styles: ReturnType<typeof makeStyles>;
+  Colors: Palette;
+  status: LocationStatus;
+  message: string | null;
+}) {
+  if (status === 'idle') return null;
+  const map = {
+    checking: { icon: 'sync', color: Colors.textTertiary, text: 'Verificando endereço…' },
+    valid: { icon: 'checkmark-circle', color: Colors.primary, text: 'Endereço confirmado no seu bairro' },
+    invalid: { icon: 'alert-circle', color: Colors.error, text: message ?? 'Endereço fora do bairro' },
+  }[status];
+  return (
+    <View style={styles.locStatusRow}>
+      <Ionicons name={map.icon as any} size={14} color={map.color} />
+      <Text style={[styles.locStatusText, { color: map.color }]}>{map.text}</Text>
+    </View>
+  );
+}
+
 function LocationField({
   styles,
   Colors,
   value,
   onChange,
+  onBlur,
+  status,
+  message,
 }: {
   styles: ReturnType<typeof makeStyles>;
   Colors: Palette;
   value: string;
   onChange: (v: string) => void;
+  onBlur: () => void;
+  status: LocationStatus;
+  message: string | null;
 }) {
   return (
     <View style={styles.section}>
@@ -583,13 +674,15 @@ function LocationField({
         <Ionicons name="location-outline" size={18} color={Colors.textTertiary} />
         <TextInput
           style={styles.fieldInputFlex}
-          placeholder="Ex.: Praça da Sé, Rua das Flores 123..."
+          placeholder="Ex.: Rua das Flores 123, Praça..."
           placeholderTextColor={Colors.textTertiary}
           value={value}
           onChangeText={onChange}
+          onBlur={onBlur}
           maxLength={120}
         />
       </View>
+      <LocationStatusRow styles={styles} Colors={Colors} status={status} message={message} />
     </View>
   );
 }
@@ -820,6 +913,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.text,
   },
   helperText: { fontSize: 12, color: Colors.textSecondary, marginTop: 8, fontWeight: '600' },
+  locStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+  locStatusText: { fontSize: 12, fontWeight: '600' },
   calendarWrap: {
     borderRadius: 14,
     borderWidth: 1.5,

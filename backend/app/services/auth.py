@@ -49,6 +49,9 @@ def signup(db: Session, payload: SignupRequest) -> TokenResponse:
         hashed_password=hash_password(payload.password),
         neighborhood=payload.neighborhood,
         city=payload.city,
+        state=payload.state,
+        latitude=payload.latitude,
+        longitude=payload.longitude,
     )
     return TokenResponse(access_token=create_access_token(user.id))
 

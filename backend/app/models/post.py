@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -18,6 +18,10 @@ class Post(Base):
     image_url: Mapped[Optional[str]] = mapped_column(String(500))
     details: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     neighborhood: Mapped[str] = mapped_column(String(120), default="")
+    # Local do post (endereço validado no bairro) + coordenadas p/ o mapa.
+    location: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     likes_count: Mapped[int] = mapped_column(Integer, default=0)
     comments_count: Mapped[int] = mapped_column(Integer, default=0)
     shares_count: Mapped[int] = mapped_column(Integer, default=0)

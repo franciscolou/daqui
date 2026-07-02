@@ -10,9 +10,9 @@ from app.services import comment
 def list_comments(
     post_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> list[CommentOut]:
-    return comment.list_for_post(db, post_id)
+    return comment.list_for_post(db, post_id, current_user)
 
 
 def create_comment(

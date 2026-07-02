@@ -101,8 +101,21 @@ export default function UserScreen() {
           </View>
           {user.username && <Text style={styles.username}>@{user.username}</Text>}
           <View style={styles.neighborhoodRow}>
-            <Ionicons name="location" size={13} color="rgba(255,255,255,0.8)" />
-            <Text style={styles.neighborhood}>{user.neighborhood}</Text>
+            <Ionicons
+              name={user.locked ? 'lock-closed' : 'location'}
+              size={13}
+              color="rgba(255,255,255,0.8)"
+            />
+            <Text style={styles.neighborhood}>
+              {user.locked
+                ? 'Vizinho de outro bairro'
+                : [
+                    user.neighborhood,
+                    [user.city, user.state].filter(Boolean).join(' - '),
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+            </Text>
           </View>
         </View>
 
@@ -112,69 +125,79 @@ export default function UserScreen() {
             <Text style={styles.statNum}>{user.postsCount}</Text>
             <Text style={styles.statLabel}>Posts</Text>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>{user.helpCount}</Text>
-            <Text style={styles.statLabel}>Ajudas</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>238</Text>
-            <Text style={styles.statLabel}>Vizinhos</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>4.9</Text>
-            <Text style={styles.statLabel}>Reputação</Text>
-          </View>
+          {!user.locked && (
+            <>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNum}>{user.helpCount}</Text>
+                <Text style={styles.statLabel}>Ajudas</Text>
+              </View>
+            </>
+          )}
         </View>
       </LinearGradient>
 
-      {/* Action buttons */}
-      <View style={styles.actionRow}>
-        {isMe ? (
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnPrimary]}
-            onPress={() => router.push('/(tabs)/profile')}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="settings-outline" size={16} color="#fff" />
-            <Text style={styles.actionBtnPrimaryText}>Editar perfil</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnPrimary]}
-            activeOpacity={0.85}
-            onPress={() => router.push(`/messages/${user.id}` as any)}
-          >
-            <Ionicons name="chatbubble-outline" size={16} color="#fff" />
-            <Text style={styles.actionBtnPrimaryText}>Mensagem</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Info card */}
-      <View style={styles.infoCard}>
-        <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={15} color={Colors.textTertiary} />
-          <Text style={styles.infoText}>Membro desde {user.joinedAt}</Text>
-        </View>
-      </View>
-
-      {/* Posts — timeline */}
-      <View style={styles.timelineSection}>
-        <Text style={styles.timelineTitle}>
-          {isMe ? 'Meus posts' : 'Posts'}
-        </Text>
-        {userPosts.length === 0 ? (
-          <View style={styles.noPosts}>
-            <Ionicons name="document-text-outline" size={32} color={Colors.textTertiary} />
-            <Text style={styles.noPostsText}>Nenhum post ainda</Text>
+      {user.locked ? (
+        /* Perfil bloqueado: de outro bairro. Só nome, @username, foto e nº de posts. */
+        <View style={styles.lockedCard}>
+          <View style={styles.lockedIcon}>
+            <Ionicons name="lock-closed" size={24} color={Colors.textSecondary} />
           </View>
-        ) : (
-          userPosts.map((post) => <PostCard key={post.id} post={post} />)
-        )}
-      </View>
+          <Text style={styles.lockedTitle}>Perfil de outro bairro</Text>
+          <Text style={styles.lockedDesc}>
+            No Daqui você se conecta com o seu bairro. O perfil completo e os posts deste
+            vizinho só ficam visíveis para a comunidade dele.
+          </Text>
+        </View>
+      ) : (
+        <>
+          {/* Action buttons */}
+          <View style={styles.actionRow}>
+            {isMe ? (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnPrimary]}
+                onPress={() => router.push('/(tabs)/profile')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="settings-outline" size={16} color="#fff" />
+                <Text style={styles.actionBtnPrimaryText}>Editar perfil</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnPrimary]}
+                activeOpacity={0.85}
+                onPress={() => router.push(`/messages/${user.id}` as any)}
+              >
+                <Ionicons name="chatbubble-outline" size={16} color="#fff" />
+                <Text style={styles.actionBtnPrimaryText}>Mensagem</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Info card */}
+          <View style={styles.infoCard}>
+            <View style={styles.infoRow}>
+              <Ionicons name="calendar-outline" size={15} color={Colors.textTertiary} />
+              <Text style={styles.infoText}>Membro desde {user.joinedAt}</Text>
+            </View>
+          </View>
+
+          {/* Posts — timeline */}
+          <View style={styles.timelineSection}>
+            <Text style={styles.timelineTitle}>
+              {isMe ? 'Meus posts' : 'Posts'}
+            </Text>
+            {userPosts.length === 0 ? (
+              <View style={styles.noPosts}>
+                <Ionicons name="document-text-outline" size={32} color={Colors.textTertiary} />
+                <Text style={styles.noPostsText}>Nenhum post ainda</Text>
+              </View>
+            ) : (
+              userPosts.map((post) => <PostCard key={post.id} post={post} />)
+            )}
+          </View>
+        </>
+      )}
 
       <View style={{ height: 24 }} />
     </>
@@ -312,4 +335,33 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   noPosts: { alignItems: 'center', gap: 8, paddingVertical: 32 },
   noPostsText: { fontSize: 14, color: Colors.textTertiary },
+
+  lockedCard: {
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    ...Colors.shadow.sm,
+  },
+  lockedIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  lockedTitle: { fontSize: 17, fontWeight: '800', color: Colors.text, marginBottom: 6 },
+  lockedDesc: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 21,
+  },
 });

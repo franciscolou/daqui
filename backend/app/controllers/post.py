@@ -34,6 +34,13 @@ def get_top_important(
     return post.get_top_important(db, current_user)
 
 
+def get_map_posts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[PostOut]:
+    return post.get_map_posts(db, current_user)
+
+
 def get_post(
     post_id: int,
     db: Session = Depends(get_db),

@@ -15,6 +15,11 @@ router.get(
     response_model=PostOut | None,
 )(post.get_top_important)
 
+router.get(
+    "/map",
+    response_model=list[PostOut],
+)(post.get_map_posts)
+
 router.post(
     "/",
     response_model=PostOut,

@@ -30,9 +30,9 @@ def list_popular(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> UserPublic:
-    return user.get_by_id(db, user_id)
+    return user.get_by_id(db, current_user, user_id)
 
 
 def update_me(

@@ -24,6 +24,9 @@ class PostOut(BaseModel):
     image_url: Optional[str]
     details: Optional[dict] = None
     neighborhood: str
+    location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     likes_count: int
     comments_count: int
     shares_count: int

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -20,6 +20,10 @@ class User(Base):
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500))
     neighborhood: Mapped[str] = mapped_column(String(120), default="")
     city: Mapped[str] = mapped_column(String(120), default="São Paulo")
+    state: Mapped[str] = mapped_column(String(2), default="SP")  # UF
+    # Coordenadas capturadas no cadastro (usadas p/ centralizar o mapa do bairro).
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     badge: Mapped[Optional[str]] = mapped_column(String(30))  # lider | comerciante | morador
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
     # A2F (TOTP): segredo base32; totp_enabled só vira True após confirmar um código.

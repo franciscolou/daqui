@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, EmailStr
 
 
@@ -7,6 +9,9 @@ class SignupRequest(BaseModel):
     password: str
     neighborhood: str = ""
     city: str = "São Paulo"
+    state: str = "SP"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class LoginRequest(BaseModel):

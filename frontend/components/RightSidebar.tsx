@@ -9,6 +9,7 @@ import { api, NeighborhoodStats } from '../lib/api';
 import { formatPostTime } from '../lib/time';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import LeafletMap from './LeafletMap';
 
 export default function RightSidebar() {
   const { user } = useAuth();
@@ -29,24 +30,46 @@ export default function RightSidebar() {
     <View style={styles.sidebar}>
       {/* Neighborhood card */}
       <View style={styles.card}>
-        <LinearGradient
-          colors={['#0D2918', '#16A34A']}
+        <Pressable
           style={styles.mapPlaceholder}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          onPress={() => router.push('/(tabs)/map' as any)}
         >
-          <View style={styles.mapOverlay}>
-            <Ionicons name="map" size={28} color="rgba(255,255,255,0.3)" />
-          </View>
+          {user?.latitude != null && user?.longitude != null ? (
+            // Miniatura não-interativa: o toque leva ao mapa (pointerEvents none no mapa).
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <LeafletMap
+                interactive={false}
+                center={{ latitude: user.latitude, longitude: user.longitude }}
+                zoom={15}
+                style={StyleSheet.absoluteFill}
+              />
+            </View>
+          ) : (
+            <LinearGradient
+              colors={['#0D2918', '#16A34A']}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.mapOverlay}>
+                <Ionicons name="map" size={28} color="rgba(255,255,255,0.3)" />
+              </View>
+            </LinearGradient>
+          )}
           <View style={styles.mapBadge}>
             <Ionicons name="location" size={12} color={Colors.primary} />
             <Text style={styles.mapBadgeText}>{user?.neighborhood}</Text>
           </View>
-        </LinearGradient>
+          <View style={styles.mapExpand}>
+            <Ionicons name="expand" size={13} color="#fff" />
+          </View>
+        </Pressable>
 
         <View style={styles.cardBody}>
           <Text style={styles.neighborhoodName}>{user?.neighborhood}</Text>
-          <Text style={styles.cityName}>São Paulo, SP</Text>
+          <Text style={styles.cityName}>
+            {user?.city ?? 'São Paulo'}{user?.state ? `, ${user.state}` : ''}
+          </Text>
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
@@ -144,8 +167,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   mapPlaceholder: {
     height: 90,
     position: 'relative',
-    justifyContent: 'flex-end',
-    padding: 10,
+    overflow: 'hidden',
   },
   mapOverlay: {
     position: 'absolute',
@@ -154,6 +176,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
   } as any,
   mapBadge: {
+    position: 'absolute',
+    left: 10,
+    bottom: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -161,9 +186,19 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    alignSelf: 'flex-start',
   },
   mapBadgeText: { fontSize: 11, fontWeight: '700', color: '#0F172A' },
+  mapExpand: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cardBody: { padding: 14 },
   neighborhoodName: { fontSize: 16, fontWeight: '800', color: Colors.text, letterSpacing: -0.3 },
   cityName: { fontSize: 12, color: Colors.textTertiary, marginBottom: 10 },
