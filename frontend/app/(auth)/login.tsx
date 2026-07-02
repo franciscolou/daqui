@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../lib/auth';
 import { ApiError } from '../../lib/api';
+import { submitOnEnter } from '../../lib/keyboard';
 
 export default function LoginScreen() {
   const { width } = useWindowDimensions();
@@ -140,6 +141,7 @@ export default function LoginScreen() {
                       keyboardType="number-pad"
                       maxLength={6}
                       autoFocus
+                      onKeyPress={submitOnEnter(handleVerify2fa)}
                       onSubmitEditing={handleVerify2fa}
                     />
                   </View>
@@ -195,6 +197,8 @@ export default function LoginScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
+                  onKeyPress={submitOnEnter(handleLogin)}
+                  onSubmitEditing={handleLogin}
                 />
               </View>
             </View>
@@ -210,6 +214,8 @@ export default function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
+                  onKeyPress={submitOnEnter(handleLogin)}
+                  onSubmitEditing={handleLogin}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
                   <Ionicons

@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../lib/auth';
 import { ThemeProvider, useThemeMode } from '../lib/theme';
+import '../lib/globalStyles';
 
 function ThemedStatusBar() {
   const { mode } = useThemeMode();

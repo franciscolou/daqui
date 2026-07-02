@@ -19,6 +19,7 @@ import { api, ChatMessage } from '../../lib/api';
 import { formatDayDivider, formatMessageTime } from '../../lib/time';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { submitOnEnter } from '../../lib/keyboard';
 import FeedLayout from '../../components/FeedLayout';
 
 type ChatItem = { type: 'msg'; msg: ChatMessage } | { type: 'divider'; id: string; label: string };
@@ -218,6 +219,7 @@ export default function ChatScreen() {
                 value={input}
                 onChangeText={setInput}
                 multiline
+                onKeyPress={submitOnEnter(send)}
                 onSubmitEditing={send}
               />
               <TouchableOpacity

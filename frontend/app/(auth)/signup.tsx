@@ -18,6 +18,7 @@ import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../lib/auth';
 import { api, ApiError, NeighborhoodStats } from '../../lib/api';
 import { getDeviceCoords, LocationError } from '../../lib/location';
+import { submitOnEnter } from '../../lib/keyboard';
 
 const STEPS = ['Conta', 'Bairro', 'Pronto'];
 
@@ -181,6 +182,8 @@ export default function SignupScreen() {
                       value={name}
                       onChangeText={setName}
                       autoCapitalize="words"
+                      onKeyPress={submitOnEnter(goToLocation)}
+                      onSubmitEditing={goToLocation}
                     />
                   </View>
                 </View>
@@ -196,6 +199,8 @@ export default function SignupScreen() {
                       onChangeText={setEmail}
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      onKeyPress={submitOnEnter(goToLocation)}
+                      onSubmitEditing={goToLocation}
                     />
                   </View>
                 </View>
@@ -210,6 +215,8 @@ export default function SignupScreen() {
                       value={password}
                       onChangeText={setPassword}
                       secureTextEntry
+                      onKeyPress={submitOnEnter(goToLocation)}
+                      onSubmitEditing={goToLocation}
                     />
                   </View>
                 </View>

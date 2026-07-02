@@ -20,6 +20,7 @@ import { api, Comment } from '../../lib/api';
 import { formatExactDateTime, formatPostTime } from '../../lib/time';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { submitOnEnter } from '../../lib/keyboard';
 import WideLayout from '../../components/WideLayout';
 
 export default function PostDetailScreen() {
@@ -207,6 +208,7 @@ export default function PostDetailScreen() {
               value={text}
               onChangeText={setText}
               multiline
+              onKeyPress={submitOnEnter(submit)}
             />
             <TouchableOpacity
               onPress={submit}

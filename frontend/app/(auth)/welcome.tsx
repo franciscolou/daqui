@@ -1,12 +1,17 @@
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   Image, ScrollView, useWindowDimensions, KeyboardAvoidingView, Platform,
+  StyleProp, ViewStyle,
 } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming, withRepeat, withDelay, withSpring,
+  runOnJS, Easing, SharedValue,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { submitOnEnter } from '../../lib/keyboard';
 import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../lib/auth';
@@ -28,6 +33,44 @@ const POSTS = [
   { color: '#EC4899', label: 'Pets',  text: 'Gatinha encontrada perto do…' },
 ];
 const SIGNUP_STEPS = ['Conta', 'Bairro', 'Pronto'];
+
+// ─── Bolha decorativa animada ────────────────────────────────────
+// Flutua sozinha (drift suave em X/Y, com fases próprias) e reage ao mouse
+// via parallax: `depth` controla o quanto acompanha o cursor (px normalizado
+// -1..1), dando sensação de camadas. Só-decorativa, não captura toques.
+function FloatingBlob({
+  style, px, py, depth, driftX = 16, driftY = 20, durX = 7000, durY = 8000, delay = 0,
+}: {
+  style: StyleProp<ViewStyle>;
+  px: SharedValue<number>;
+  py: SharedValue<number>;
+  depth: number;
+  driftX?: number;
+  driftY?: number;
+  durX?: number;
+  durY?: number;
+  delay?: number;
+}) {
+  const fx = useSharedValue(0);
+  const fy = useSharedValue(0);
+
+  useEffect(() => {
+    fx.value = withDelay(delay, withRepeat(withTiming(1, { duration: durX, easing: Easing.inOut(Easing.quad) }), -1, true));
+    fy.value = withDelay(delay + 400, withRepeat(withTiming(1, { duration: durY, easing: Easing.inOut(Easing.quad) }), -1, true));
+    // Anima só na montagem; os parâmetros são estáveis por bolha.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      // Parallax invertido: as bolhas se afastam do cursor (sinal negativo).
+      { translateX: (fx.value * 2 - 1) * driftX - px.value * depth },
+      { translateY: (fy.value * 2 - 1) * driftY - py.value * depth },
+    ],
+  }));
+
+  return <Animated.View pointerEvents="none" style={[style, animStyle]} />;
+}
 
 // ─── Tipo de view ────────────────────────────────────────────────
 type Panel = 'welcome' | 'login' | 'signup';
@@ -72,6 +115,24 @@ export default function WelcomeScreen() {
 
   const exitStyle  = useAnimatedStyle(() => ({ transform: [{ translateX: exitX.value }] }));
   const enterStyle = useAnimatedStyle(() => ({ transform: [{ translateX: enterX.value }] }));
+
+  // ── Parallax do mouse (só na web) ────────────────────────────
+  // Posição do cursor normalizada em -1..1 relativa ao centro da janela.
+  // As bolhas leem esses valores; o withSpring dá um leve atraso natural.
+  const pointerX = useSharedValue(0);
+  const pointerY = useSharedValue(0);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onMove = (e: MouseEvent) => {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1;
+      const ny = (e.clientY / window.innerHeight) * 2 - 1;
+      pointerX.value = withSpring(nx, { damping: 22, stiffness: 80, mass: 0.6 });
+      pointerY.value = withSpring(ny, { damping: 22, stiffness: 80, mass: 0.6 });
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const finishSlide = () => {
     setShowExit(false);
@@ -329,6 +390,7 @@ export default function WelcomeScreen() {
                 keyboardType="number-pad"
                 maxLength={6}
                 autoFocus
+                onKeyPress={submitOnEnter(handleVerify2fa)}
                 onSubmitEditing={handleVerify2fa}
               />
             </View>
@@ -371,6 +433,8 @@ export default function WelcomeScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            onKeyPress={submitOnEnter(handleLogin)}
+            onSubmitEditing={handleLogin}
           />
         </View>
       </View>
@@ -386,6 +450,8 @@ export default function WelcomeScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
+            onKeyPress={submitOnEnter(handleLogin)}
+            onSubmitEditing={handleLogin}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
             <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
@@ -495,21 +561,21 @@ export default function WelcomeScreen() {
             <Text style={styles.label}>Nome completo</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="person-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Seu nome" placeholderTextColor={Colors.textTertiary} value={name} onChangeText={setName} autoCapitalize="words" />
+              <TextInput style={styles.input} placeholder="Seu nome" placeholderTextColor={Colors.textTertiary} value={name} onChangeText={setName} autoCapitalize="words" onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
             </View>
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>E-mail</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
             </View>
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Senha</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry />
+              <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
             </View>
           </View>
         </>
@@ -642,9 +708,12 @@ export default function WelcomeScreen() {
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[styles.blob, { width: 520, height: 520, top: -140, right: -140, opacity: 0.12 }]} />
-      <View style={[styles.blob, { width: 320, height: 320, bottom: -80, left: -80,  opacity: 0.10 }]} />
-      <View style={[styles.blob, { width: 200, height: 200, top: '40%', left: '20%', opacity: 0.07 }]} />
+      <FloatingBlob px={pointerX} py={pointerY} depth={16} driftX={16} driftY={22} durX={7600} durY={9000}
+        style={[styles.blob, { width: 520, height: 520, top: -140, right: -140, opacity: 0.12 }]} />
+      <FloatingBlob px={pointerX} py={pointerY} depth={32} driftX={22} driftY={16} durX={6400} durY={7600} delay={600}
+        style={[styles.blob, { width: 320, height: 320, bottom: -80, left: -80,  opacity: 0.10 }]} />
+      <FloatingBlob px={pointerX} py={pointerY} depth={48} driftX={14} driftY={24} durX={5200} durY={6200} delay={1200}
+        style={[styles.blob, { width: 200, height: 200, top: '40%', left: '20%', opacity: 0.07 }]} />
 
       <View style={styles.ringOuter}>
         <View style={styles.ringInner}>
@@ -687,8 +756,10 @@ export default function WelcomeScreen() {
   if (!isWide) {
     return (
       <LinearGradient colors={['#0D2918', '#15803D', '#22C55E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.mobileRoot}>
-        <View style={[styles.blob, { width: 340, height: 340, top: -100, right: -100, opacity: 0.1 }]} />
-        <View style={[styles.blob, { width: 240, height: 240, bottom: -60, left: -60, opacity: 0.08 }]} />
+        <FloatingBlob px={pointerX} py={pointerY} depth={20} driftX={18} driftY={24} durX={7200} durY={8400}
+          style={[styles.blob, { width: 340, height: 340, top: -100, right: -100, opacity: 0.1 }]} />
+        <FloatingBlob px={pointerX} py={pointerY} depth={34} driftX={22} driftY={18} durX={6000} durY={7000} delay={700}
+          style={[styles.blob, { width: 240, height: 240, bottom: -60, left: -60, opacity: 0.08 }]} />
         <ScrollView contentContainerStyle={styles.mobileContent} showsVerticalScrollIndicator={false}>
           <View style={styles.mobileLogo}>
             <View style={styles.mobileLogoIcon}>
