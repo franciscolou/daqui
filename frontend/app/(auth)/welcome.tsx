@@ -160,7 +160,10 @@ export default function WelcomeScreen() {
 
   const finishSlide = () => {
     setShowExit(false);
-    exitX.value  = 0;
+    // A camada que entra fica no centro (já está em 0). NÃO reposicionamos a
+    // camada que sai: ela permanece fora da tela até desmontar. Movê-la ao
+    // centro aqui faria o conteúdo anterior "piscar" por 1 frame, porque o
+    // desmonte (setShowExit) só acontece no próximo render do React.
     enterX.value = 0;
     animBusy.current = false;
   };
