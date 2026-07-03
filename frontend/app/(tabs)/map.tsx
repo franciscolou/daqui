@@ -108,14 +108,14 @@ export default function MapScreen() {
   return (
     <FeedLayout>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <LinearGradient colors={['#0D2918', '#15803D']} style={styles.header}>
+        {/* Header — padrão claro, uniforme com as demais telas (mobile e desktop) */}
+        <View style={styles.header}>
           <Text style={styles.headerTitle}>Mapa do Bairro</Text>
           <View style={styles.headerSub}>
-            <Ionicons name="location" size={14} color="rgba(255,255,255,0.85)" />
+            <Ionicons name="location" size={14} color={Colors.primary} />
             <Text style={styles.headerSubText}>{user?.neighborhood ?? 'Seu bairro'}</Text>
           </View>
-        </LinearGradient>
+        </View>
 
         {/* Map area */}
         <View style={styles.mapWrapper}>
@@ -222,25 +222,28 @@ export default function MapScreen() {
 
 const makeStyles = (Colors: Palette) => StyleSheet.create({
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '800',
-    color: '#fff',
+    color: Colors.text,
     letterSpacing: -0.5,
   },
   headerSub: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
+    marginTop: 2,
   },
   headerSubText: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
+    color: Colors.textSecondary,
   },
   mapWrapper: {
     margin: 16,
