@@ -25,6 +25,10 @@ export default function RootLayout() {
             <Stack.Screen name="user/[id]" />
             <Stack.Screen name="post/[id]" />
             <Stack.Screen name="messages/[id]" />
+            <Stack.Screen name="groups/index" />
+            <Stack.Screen name="groups/new" />
+            <Stack.Screen name="groups/[id]/index" />
+            <Stack.Screen name="groups/[id]/info" />
             <Stack.Screen name="forward/[postId]" />
             <Stack.Screen name="news" />
             <Stack.Screen name="settings" />

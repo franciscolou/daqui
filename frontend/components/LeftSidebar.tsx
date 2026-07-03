@@ -24,9 +24,14 @@ const NAV_ITEMS = [
   { key: 'settings', route: '/settings',  label: 'Configurações', icon: 'settings-outline'  as const, iconActive: 'settings'     as const },
 ];
 
-const PEOPLE_ITEMS = [
-  { key: 'neighbors',  label: 'Vizinhos',   icon: 'people-outline'     as const },
-  { key: 'groups',    label: 'Grupos',     icon: 'grid-outline'       as const },
+const PEOPLE_ITEMS: {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route?: string;
+}[] = [
+  { key: 'neighbors', label: 'Vizinhos', icon: 'people-outline' },
+  { key: 'groups', label: 'Grupos', icon: 'grid-outline', route: '/groups' },
 ];
 
 const APP_ITEMS = [
@@ -148,7 +153,12 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
       <Text style={styles.groupTitle}>Pessoas</Text>
       <View style={styles.group}>
         {PEOPLE_ITEMS.map((item) => (
-          <TouchableOpacity key={item.key} style={styles.navItem} activeOpacity={0.7} onPress={() => onNavigate?.()}>
+          <TouchableOpacity
+            key={item.key}
+            style={styles.navItem}
+            activeOpacity={0.7}
+            onPress={() => (item.route ? navigate(item.route) : onNavigate?.())}
+          >
             <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
             <Text style={styles.navLabel}>{item.label}</Text>
           </TouchableOpacity>

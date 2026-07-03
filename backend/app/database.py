@@ -14,7 +14,14 @@ class Base(DeclarativeBase):
 
 
 def create_tables():
-    from app.models import user, post, comment, message, notification  # noqa: F401
+    from app.models import (  # noqa: F401
+        comment,
+        group,
+        message,
+        notification,
+        post,
+        user,
+    )
     Base.metadata.create_all(bind=engine)
     _ensure_columns()
 

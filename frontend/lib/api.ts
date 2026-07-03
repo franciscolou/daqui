@@ -167,6 +167,43 @@ interface BackendMessageResult {
   conversation_user: BackendUser;
 }
 
+interface BackendGroup {
+  id: number;
+  name: string;
+  description: string;
+  avatar_url: string | null;
+  is_open: boolean;
+  owner_id: number;
+  neighborhood: string;
+  members_count: number;
+  created_at: string;
+  my_role: string | null;
+}
+
+interface BackendGroupMember {
+  user: BackendUser;
+  role: string;
+  joined_at: string;
+}
+
+interface BackendGroupDetail extends BackendGroup {
+  members: BackendGroupMember[];
+}
+
+interface BackendGroupConversation {
+  group: BackendGroup;
+  last_message: string;
+  last_message_at: string;
+  unread_count: number;
+}
+
+interface BackendGroupMessage {
+  id: number;
+  content: string;
+  created_at: string;
+  sender: BackendUser;
+}
+
 interface BackendNotification {
   id: number;
   type: string;
@@ -259,6 +296,38 @@ export interface GeocodeResult {
   latitude: number;
   longitude: number;
   label: string;
+}
+
+export type GroupRole = 'owner' | 'admin' | 'member';
+
+export interface Group {
+  id: string;
+  name: string;
+  description: string;
+  avatar?: string;
+  isOpen: boolean;
+  ownerId: string;
+  neighborhood: string;
+  membersCount: number;
+  createdAt: string;
+  myRole: GroupRole | null; // papel do usuário logado (null se não for membro)
+}
+
+export interface GroupMember {
+  user: User;
+  role: GroupRole;
+  joinedAt: string;
+}
+
+export interface GroupDetail extends Group {
+  members: GroupMember[];
+}
+
+export interface GroupConversation {
+  group: Group;
+  lastMessage: string;
+  time: string;
+  unread: number;
 }
 
 export interface AppNotification {
@@ -395,6 +464,48 @@ function mapMessageResult(m: BackendMessageResult): MessageResult {
     createdAt: m.created_at,
     fromMe: m.from_me,
     user: mapUser(m.conversation_user),
+  };
+}
+
+function mapGroup(g: BackendGroup): Group {
+  return {
+    id: String(g.id),
+    name: g.name,
+    description: g.description,
+    avatar: g.avatar_url ?? undefined,
+    isOpen: g.is_open,
+    ownerId: String(g.owner_id),
+    neighborhood: g.neighborhood,
+    membersCount: g.members_count,
+    createdAt: g.created_at,
+    myRole: (g.my_role as GroupRole | null) ?? null,
+  };
+}
+
+function mapGroupMember(m: BackendGroupMember): GroupMember {
+  return { user: mapUser(m.user), role: m.role as GroupRole, joinedAt: m.joined_at };
+}
+
+function mapGroupDetail(g: BackendGroupDetail): GroupDetail {
+  return { ...mapGroup(g), members: (g.members ?? []).map(mapGroupMember) };
+}
+
+function mapGroupConversation(c: BackendGroupConversation): GroupConversation {
+  return {
+    group: mapGroup(c.group),
+    lastMessage: c.last_message,
+    time: c.last_message_at, // ISO — formatado na renderização (lib/time)
+    unread: c.unread_count,
+  };
+}
+
+function mapGroupMessage(m: BackendGroupMessage): ChatMessage {
+  return {
+    id: String(m.id),
+    content: m.content,
+    read: true,
+    createdAt: m.created_at,
+    sender: mapUser(m.sender),
   };
 }
 
@@ -689,6 +800,111 @@ export const api = {
           content,
           shared_post_id: sharedPostId ? Number(sharedPostId) : undefined,
         },
+      }),
+    );
+  },
+
+  // ── Grupos ────────────────────────────────────────────────
+  async createGroup(payload: {
+    name: string;
+    description?: string;
+    isOpen: boolean;
+    memberIds?: string[];
+  }): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>('/groups/', {
+        method: 'POST',
+        body: {
+          name: payload.name,
+          description: payload.description ?? '',
+          is_open: payload.isOpen,
+          member_ids: (payload.memberIds ?? []).map(Number),
+        },
+      }),
+    );
+  },
+
+  async getGroupConversations(): Promise<GroupConversation[]> {
+    const r = await request<BackendGroupConversation[]>('/groups/conversations');
+    return r.map(mapGroupConversation);
+  },
+
+  async discoverGroups(query: string): Promise<Group[]> {
+    const r = await request<BackendGroup[]>(
+      `/groups/discover?q=${encodeURIComponent(query)}`,
+    );
+    return r.map(mapGroup);
+  },
+
+  async getGroup(id: string): Promise<GroupDetail> {
+    return mapGroupDetail(await request<BackendGroupDetail>(`/groups/${id}`));
+  },
+
+  async updateGroup(
+    id: string,
+    payload: { name?: string; description?: string; isOpen?: boolean },
+  ): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/${id}`, {
+        method: 'PATCH',
+        body: {
+          name: payload.name,
+          description: payload.description,
+          is_open: payload.isOpen,
+        },
+      }),
+    );
+  },
+
+  async deleteGroup(id: string): Promise<void> {
+    await request<void>(`/groups/${id}`, { method: 'DELETE' });
+  },
+
+  async joinGroup(id: string): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/${id}/join`, { method: 'POST' }),
+    );
+  },
+
+  async leaveGroup(id: string): Promise<void> {
+    await request<void>(`/groups/${id}/leave`, { method: 'POST' });
+  },
+
+  async addGroupMember(id: string, userId: string): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/${id}/members`, {
+        method: 'POST',
+        body: { user_id: Number(userId) },
+      }),
+    );
+  },
+
+  async removeGroupMember(id: string, userId: string): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/${id}/members/${userId}`, {
+        method: 'DELETE',
+      }),
+    );
+  },
+
+  async setGroupAdmin(id: string, userId: string, makeAdmin: boolean): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/${id}/members/${userId}/admin`, {
+        method: makeAdmin ? 'POST' : 'DELETE',
+      }),
+    );
+  },
+
+  async getGroupThread(id: string): Promise<ChatMessage[]> {
+    const r = await request<BackendGroupMessage[]>(`/groups/${id}/messages`);
+    return r.map(mapGroupMessage);
+  },
+
+  async sendGroupMessage(id: string, content: string): Promise<ChatMessage> {
+    return mapGroupMessage(
+      await request<BackendGroupMessage>(`/groups/${id}/messages`, {
+        method: 'POST',
+        body: { content },
       }),
     );
   },

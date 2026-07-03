@@ -13,7 +13,15 @@ const WIDE = 900;
  * central é ladeado pela barra esquerda (navegação) e pela direita (widgets),
  * centralizado. Em telas estreitas, só o conteúdo.
  */
-export default function FeedLayout({ children }: { children: React.ReactNode }) {
+export default function FeedLayout({
+  children,
+  showMobileMenu = true,
+}: {
+  children: React.ReactNode;
+  // Telas que já têm ações no topo (ex.: um botão de criar) podem esconder o
+  // FAB do menu para ele não colidir com seus próprios botões.
+  showMobileMenu?: boolean;
+}) {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
   const styles = useThemedStyles(makeStyles);
@@ -33,7 +41,7 @@ export default function FeedLayout({ children }: { children: React.ReactNode }) 
       ) : (
         <View style={styles.mobileBody}>{children}</View>
       )}
-      {!isWide && <MobileMenu />}
+      {!isWide && showMobileMenu && <MobileMenu />}
     </SafeAreaView>
   );
 }

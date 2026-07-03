@@ -10,6 +10,7 @@ from app.routers import (
     auth,
     comments,
     geo,
+    groups,
     messages,
     notifications,
     posts,
@@ -43,6 +44,7 @@ app.include_router(auth.router, prefix="/api/v1")
 app.include_router(posts.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")
+app.include_router(groups.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
