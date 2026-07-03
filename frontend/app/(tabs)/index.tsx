@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Palette } from '../../constants/Colors';
+import { BRAND_FONT } from '../../constants/BrandFont';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { CATEGORIES, PostCategory, Post } from '../../data/mock';
 import { api } from '../../lib/api';
@@ -245,6 +246,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     fontWeight: '800',
     color: Colors.primaryDark,
     letterSpacing: -0.5,
+    fontFamily: BRAND_FONT,
   },
 
   /* ── Feed header pieces ── */

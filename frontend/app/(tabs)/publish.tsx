@@ -693,8 +693,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   column: { flex: 1, backgroundColor: Colors.background },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
+    // Padding vertical simétrico: centraliza os botões da barra superior
+    // (como acontece na barra inferior no mobile).
+    paddingVertical: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -731,6 +732,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   publishBtnTextDisabled: { color: 'rgba(255,255,255,0.5)' },
   headerSpacer: { width: 38, height: 38 },
   bottomPublishBtn: {
+    // No desktop o botão fica compacto e alinhado à direita, não ocupando a
+    // largura toda.
+    alignSelf: 'flex-end',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -738,6 +742,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 14,
     paddingVertical: 15,
+    paddingHorizontal: 32,
     ...Colors.shadow.sm,
   },
   bottomPublishBtnDisabled: { backgroundColor: Colors.border },

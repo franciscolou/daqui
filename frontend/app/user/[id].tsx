@@ -138,7 +138,8 @@ export default function UserScreen() {
       </LinearGradient>
 
       {user.locked ? (
-        /* Perfil bloqueado: de outro bairro. Só nome, @username, foto e nº de posts. */
+        /* Perfil bloqueado: de outro bairro. Só nome, @username, foto e nº de
+           posts — mas ainda é possível iniciar uma conversa. */
         <View style={styles.lockedCard}>
           <View style={styles.lockedIcon}>
             <Ionicons name="lock-closed" size={24} color={Colors.textSecondary} />
@@ -146,8 +147,20 @@ export default function UserScreen() {
           <Text style={styles.lockedTitle}>Perfil de outro bairro</Text>
           <Text style={styles.lockedDesc}>
             No Daqui você se conecta com o seu bairro. O perfil completo e os posts deste
-            vizinho só ficam visíveis para a comunidade dele.
+            vizinho só ficam visíveis para a comunidade dele, mas você ainda pode enviar
+            uma mensagem.
           </Text>
+          <br/>
+          {!isMe && (
+            <TouchableOpacity
+              style={styles.lockedMessageBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push(`/messages/${user.id}` as any)}
+            >
+              <Ionicons name="chatbubble-outline" size={16} color="#fff" />
+              <Text style={styles.lockedMessageBtnText}>Enviar mensagem</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <>
@@ -364,4 +377,18 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     textAlign: 'center',
     lineHeight: 21,
   },
+  lockedMessageBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    alignSelf: 'stretch',
+    margin: "auto",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    backgroundColor: Colors.primary,
+    width: '35%'
+  },
+  lockedMessageBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });

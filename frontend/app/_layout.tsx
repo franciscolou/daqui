@@ -5,6 +5,7 @@ import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../lib/auth';
 import { ThemeProvider, useThemeMode } from '../lib/theme';
 import '../lib/globalStyles';
+import '../constants/BrandFont'; // preview: aplica a fonte-marca como fonte padrão de todo Text
 
 function ThemedStatusBar() {
   const { mode } = useThemeMode();

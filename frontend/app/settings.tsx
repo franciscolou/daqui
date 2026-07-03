@@ -886,9 +886,12 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
 
   saveBtn: {
     marginTop: 20,
+    // Compacto e alinhado à direita, em vez de ocupar a largura toda.
+    alignSelf: 'flex-end',
     backgroundColor: Colors.primary,
     borderRadius: 12,
     paddingVertical: 14,
+    paddingHorizontal: 28,
     alignItems: 'center',
   },
   saveBtnDisabled: { opacity: 0.6 },

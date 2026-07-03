@@ -14,6 +14,7 @@ import { useState, useRef, useEffect } from 'react';
 import { submitOnEnter } from '../../lib/keyboard';
 import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
+import { BRAND_FONT } from '../../constants/BrandFont';
 import { useAuth } from '../../lib/auth';
 import { api, ApiError, NeighborhoodStats, NearbyNeighborhood } from '../../lib/api';
 import { getDeviceCoords, LocationError } from '../../lib/location';
@@ -984,7 +985,7 @@ const styles = StyleSheet.create({
   // Hero
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 48 },
   logoIcon: { width: 38, height: 38, borderRadius: 11, backgroundColor: Colors.primaryDark, alignItems: 'center', justifyContent: 'center' },
-  logoText: { fontSize: 22, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
+  logoText: { fontSize: 22, fontWeight: '800', color: Colors.text, letterSpacing: -0.5, fontFamily: BRAND_FONT },
   headline: { fontSize: 42, fontWeight: '800', color: Colors.text, letterSpacing: -1.5, lineHeight: 50, marginBottom: 16 },
   subline: { fontSize: 16, color: Colors.textSecondary, lineHeight: 26, marginBottom: 36 },
   featuresArea: { gap: 12, marginBottom: 40 },
@@ -1107,7 +1108,7 @@ const styles = StyleSheet.create({
   mobileContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 60 },
   mobileLogo: { alignItems: 'center', marginBottom: 32 },
   mobileLogoIcon: { width: 68, height: 68, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  mobileAppName: { fontSize: 44, fontWeight: '800', color: '#fff', letterSpacing: -2 },
+  mobileAppName: { fontSize: 44, fontWeight: '800', color: '#fff', letterSpacing: -2, fontFamily: BRAND_FONT },
   mobileTagline: { fontSize: 15, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
   mobileAvatarCard: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 18, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', marginBottom: 28 },
   mobileAvatar: { width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: '#fff' },

@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, usePathname } from 'expo-router';
 import { Palette } from '../constants/Colors';
+import { BRAND_FONT } from '../constants/BrandFont';
 import { CATEGORIES, PostCategory } from '../data/mock';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
@@ -229,6 +230,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     fontWeight: '800',
     color: Colors.text,
     letterSpacing: -1,
+    fontFamily: BRAND_FONT,
   },
   userRow: {
     flexDirection: 'row',
