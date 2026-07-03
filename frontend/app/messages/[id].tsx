@@ -21,6 +21,7 @@ import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { submitOnEnter } from '../../lib/keyboard';
 import FeedLayout from '../../components/FeedLayout';
+import SharedPostPreview from '../../components/SharedPostPreview';
 
 type ChatItem = { type: 'msg'; msg: ChatMessage } | { type: 'divider'; id: string; label: string };
 
@@ -187,13 +188,27 @@ export default function ChatScreen() {
                       style={[
                         styles.bubble,
                         mine ? styles.bubbleMine : styles.bubbleTheirs,
+                        !!msg.sharedPost && styles.bubbleShared,
                         highlighted && styles.bubbleHighlight,
                       ]}
                     >
-                      <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>
-                        {msg.content}
-                      </Text>
-                      <Text style={[styles.bubbleTime, mine && styles.bubbleTimeMine]}>
+                      {!!msg.sharedPost && (
+                        <View style={styles.sharedWrap}>
+                          <SharedPostPreview post={msg.sharedPost} />
+                        </View>
+                      )}
+                      {!!msg.content && (
+                        <Text style={[styles.bubbleText, mine && !msg.sharedPost && styles.bubbleTextMine]}>
+                          {msg.content}
+                        </Text>
+                      )}
+                      <Text
+                        style={[
+                          styles.bubbleTime,
+                          mine && !msg.sharedPost && styles.bubbleTimeMine,
+                          !!msg.sharedPost && styles.bubbleTimeShared,
+                        ]}
+                      >
                         {formatMessageTime(msg.createdAt)}
                       </Text>
                     </View>
@@ -283,6 +298,17 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  // Post encaminhado: sem balão colorido — só o contorno fino do card.
+  bubbleShared: {
+    maxWidth: '86%',
+    minWidth: 240,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    borderWidth: 0,
+  },
+  sharedWrap: { marginBottom: 2 },
+  bubbleTimeShared: { color: Colors.textTertiary, marginRight: 2 },
   bubbleMine: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
   bubbleTheirs: {
     backgroundColor: Colors.surface,

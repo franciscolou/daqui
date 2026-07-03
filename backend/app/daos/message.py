@@ -75,9 +75,18 @@ def count_unread(db: Session, from_user_id: int, to_user_id: int) -> int:
 
 
 def create(
-    db: Session, sender_id: int, receiver_id: int, content: str
+    db: Session,
+    sender_id: int,
+    receiver_id: int,
+    content: str,
+    shared_post_id: int | None = None,
 ) -> Message:
-    msg = Message(sender_id=sender_id, receiver_id=receiver_id, content=content)
+    msg = Message(
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+        content=content,
+        shared_post_id=shared_post_id,
+    )
     db.add(msg)
     db.commit()
     db.refresh(msg)

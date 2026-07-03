@@ -140,12 +140,23 @@ interface BackendConversation {
   unread_count: number;
 }
 
+interface BackendSharedPost {
+  id: number;
+  category: string;
+  title: string | null;
+  content: string;
+  image_url: string | null;
+  created_at: string;
+  author: BackendUser;
+}
+
 interface BackendMessage {
   id: number;
   content: string;
   read: boolean;
   created_at: string;
   sender: BackendUser;
+  shared_post: BackendSharedPost | null;
 }
 
 interface BackendMessageResult {
@@ -174,12 +185,24 @@ export interface Conversation {
   unread: number;
 }
 
+// Prévia de um post encaminhado dentro de uma mensagem (estilo Twitter).
+export interface SharedPost {
+  id: string;
+  category: PostCategory;
+  title?: string;
+  content: string;
+  image?: string;
+  createdAt: string;
+  author: User;
+}
+
 export interface ChatMessage {
   id: string;
   content: string;
   read: boolean;
   createdAt: string;
   sender: User;
+  sharedPost?: SharedPost;
 }
 
 export interface MessageResult {
@@ -342,6 +365,18 @@ function mapConversation(c: BackendConversation): Conversation {
   };
 }
 
+function mapSharedPost(p: BackendSharedPost): SharedPost {
+  return {
+    id: String(p.id),
+    category: p.category as PostCategory,
+    title: p.title ?? undefined,
+    content: p.content,
+    image: p.image_url ?? undefined,
+    createdAt: p.created_at,
+    author: mapUser(p.author),
+  };
+}
+
 function mapMessage(m: BackendMessage): ChatMessage {
   return {
     id: String(m.id),
@@ -349,6 +384,7 @@ function mapMessage(m: BackendMessage): ChatMessage {
     read: m.read,
     createdAt: m.created_at,
     sender: mapUser(m.sender),
+    sharedPost: m.shared_post ? mapSharedPost(m.shared_post) : undefined,
   };
 }
 
@@ -640,11 +676,19 @@ export const api = {
     return r.map(mapMessage);
   },
 
-  async sendMessage(receiverId: string, content: string): Promise<ChatMessage> {
+  async sendMessage(
+    receiverId: string,
+    content: string,
+    sharedPostId?: string,
+  ): Promise<ChatMessage> {
     return mapMessage(
       await request<BackendMessage>('/messages/', {
         method: 'POST',
-        body: { receiver_id: Number(receiverId), content },
+        body: {
+          receiver_id: Number(receiverId),
+          content,
+          shared_post_id: sharedPostId ? Number(sharedPostId) : undefined,
+        },
       }),
     );
   },

@@ -39,3 +39,9 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE users ADD COLUMN totp_secret VARCHAR(64)"))
             if "totp_enabled" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0 NOT NULL"))
+
+    if "messages" in tables:
+        columns = {c["name"] for c in inspector.get_columns("messages")}
+        if "shared_post_id" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE messages ADD COLUMN shared_post_id INTEGER REFERENCES posts(id)"))

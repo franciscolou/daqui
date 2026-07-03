@@ -2,11 +2,22 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.daos import message as message_dao
+from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.message import Message
 from app.models.user import User
 from app.schemas.message import ConversationOut, MessageCreate, MessageSearchOut
 from app.schemas.user import UserPublic
+
+
+def _preview_text(msg: Message) -> str:
+    """Texto da prévia na lista de conversas/busca (mensagem só com post vira rótulo)."""
+    if msg.content:
+        return msg.content
+    if msg.shared_post_id is not None:
+        title = getattr(msg.shared_post, "title", None)
+        return f"📎 {title}" if title else "📎 Post compartilhado"
+    return ""
 
 
 def list_conversations(db: Session, user: User) -> list[ConversationOut]:
@@ -21,7 +32,7 @@ def list_conversations(db: Session, user: User) -> list[ConversationOut]:
         result.append(
             ConversationOut(
                 user=UserPublic.model_validate(other),
-                last_message=msg.content,
+                last_message=_preview_text(msg),
                 last_message_at=msg.created_at,
                 unread_count=unread,
             )
@@ -43,7 +54,7 @@ def search_messages(db: Session, user: User, query: str) -> list[MessageSearchOu
         results.append(
             MessageSearchOut(
                 id=m.id,
-                content=m.content,
+                content=_preview_text(m),
                 created_at=m.created_at,
                 from_me=from_me,
                 conversation_user=UserPublic.model_validate(other),
@@ -61,4 +72,14 @@ def get_thread(db: Session, user: User, other_id: int) -> list[Message]:
 def send(db: Session, user: User, payload: MessageCreate) -> Message:
     if not user_dao.get_by_id(db, payload.receiver_id):
         raise HTTPException(status_code=404, detail="Destinatário não encontrado")
-    return message_dao.create(db, user.id, payload.receiver_id, payload.content)
+
+    content = payload.content.strip()
+    if not content and payload.shared_post_id is None:
+        raise HTTPException(status_code=400, detail="Mensagem vazia")
+
+    if payload.shared_post_id is not None and not post_dao.get_by_id(db, payload.shared_post_id):
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+
+    return message_dao.create(
+        db, user.id, payload.receiver_id, content, payload.shared_post_id
+    )

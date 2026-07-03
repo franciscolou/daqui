@@ -162,6 +162,13 @@ export default function PostDetailScreen() {
             <Ionicons name="chatbubble-outline" size={18} color={Colors.textTertiary} />
             <Text style={styles.actionCount}>{comments.length}</Text>
           </View>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push(`/forward/${post.id}` as any)}
+          >
+            <Ionicons name="arrow-redo-outline" size={18} color={Colors.textTertiary} />
+            <Text style={styles.actionCount}></Text>
+          </TouchableOpacity>
         </View>
       </View>
 

@@ -151,8 +151,11 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             <Text style={styles.actionCount}>{post.sharesCount}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn}>
-            <Ionicons name="share-outline" size={18} color={Colors.textTertiary} />
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push(`/forward/${post.id}` as any)}
+          >
+            <Ionicons name="arrow-redo-outline" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
 
           <View style={{ flex: 1 }} />
