@@ -125,6 +125,25 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
           <View style={styles.divider} />
           <Text style={styles.groupTitle}>Categorias</Text>
           <View style={styles.group}>
+            {/* "Todas": remove o filtro e mostra todas as publicações de uma vez */}
+            <TouchableOpacity
+              style={[styles.navItem, activeCategory === 'todos' && styles.navItemActive]}
+              onPress={() => { onCategoryChange('todos'); onNavigate?.(); }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="apps"
+                size={14}
+                color={activeCategory === 'todos' ? Colors.primary : Colors.textTertiary}
+                style={styles.catAllIcon}
+              />
+              <Text style={[styles.navLabel, activeCategory === 'todos' && { color: Colors.text, fontWeight: '600' }]}>
+                Todas
+              </Text>
+              {activeCategory === 'todos' && (
+                <View style={[styles.activeIndicator, { backgroundColor: Colors.primary }]} />
+              )}
+            </TouchableOpacity>
             {CATEGORIES.filter((c) => c.key !== 'todos').map((cat) => {
               const isActive = activeCategory === cat.key;
               const color = Colors.category[cat.key as PostCategory] ?? Colors.primary;
@@ -325,6 +344,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
+  // Ícone de "Todas" ocupando ~8px (como os pontos das categorias) p/ alinhar os rótulos.
+  catAllIcon: { marginLeft: -3, marginRight: -3 },
   activeIndicator: {
     position: 'absolute',
     left: 0,
