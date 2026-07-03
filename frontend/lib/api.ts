@@ -1,5 +1,5 @@
 import { getItem, removeItem, setItem } from './storage';
-import { Post, PostCategory, User } from '../data/mock';
+import { Poll, Post, PostCategory, User } from '../data/mock';
 
 // ─────────────────────────────────────────────────────────────
 // Configuração
@@ -96,6 +96,21 @@ interface BackendUser {
   two_factor_enabled?: boolean;
 }
 
+interface BackendPollOption {
+  id: number;
+  text: string;
+  votes_count: number;
+}
+
+interface BackendPoll {
+  multiple: boolean;
+  closes_at: string;
+  closed: boolean;
+  total_votes: number;
+  options: BackendPollOption[];
+  my_votes: number[];
+}
+
 interface BackendPost {
   id: number;
   category: string;
@@ -115,6 +130,7 @@ interface BackendPost {
   created_at: string;
   author: BackendUser;
   liked: boolean;
+  poll: BackendPoll | null;
 }
 
 interface BackendComment {
@@ -384,6 +400,21 @@ export function mapUser(u: BackendUser): User {
   };
 }
 
+function mapPoll(p: BackendPoll): Poll {
+  return {
+    multiple: p.multiple,
+    closesAt: p.closes_at,
+    closed: p.closed,
+    totalVotes: p.total_votes,
+    options: p.options.map((o) => ({
+      id: String(o.id),
+      text: o.text,
+      votesCount: o.votes_count,
+    })),
+    myVotes: p.my_votes.map(String),
+  };
+}
+
 function mapPost(p: BackendPost): Post {
   const d = p.details ?? {};
   return {
@@ -412,6 +443,7 @@ function mapPost(p: BackendPost): Post {
     location: p.location ?? d.location ?? undefined,
     price: typeof d.price === 'number' ? d.price : undefined,
     priceNegotiable: d.price_negotiable ?? undefined,
+    poll: p.poll ? mapPoll(p.poll) : undefined,
   };
 }
 
@@ -729,8 +761,45 @@ export const api = {
     image?: string; // data URL base64 (ex.: imagem do produto)
     details?: Record<string, any>;
     important?: boolean;
+    poll?: { options: string[]; multiple: boolean; closes_at: string };
   }): Promise<Post> {
     return mapPost(await request<BackendPost>('/posts/', { method: 'POST', body: payload }));
+  },
+
+  // Edita post (usado para enquetes: opções, múltiplo e prazo — sempre para o futuro).
+  async updatePost(
+    id: string,
+    payload: {
+      title?: string;
+      content?: string;
+      poll?: {
+        options: { id?: string; text: string }[];
+        multiple: boolean;
+        closes_at: string;
+      };
+    },
+  ): Promise<Post> {
+    const body: any = { title: payload.title, content: payload.content };
+    if (payload.poll) {
+      body.poll = {
+        multiple: payload.poll.multiple,
+        closes_at: payload.poll.closes_at,
+        options: payload.poll.options.map((o) => ({
+          id: o.id != null ? Number(o.id) : undefined,
+          text: o.text,
+        })),
+      };
+    }
+    return mapPost(await request<BackendPost>(`/posts/${id}`, { method: 'PATCH', body }));
+  },
+
+  async votePoll(id: string, optionIds: string[]): Promise<Post> {
+    return mapPost(
+      await request<BackendPost>(`/posts/${id}/vote`, {
+        method: 'POST',
+        body: { option_ids: optionIds.map(Number) },
+      }),
+    );
   },
 
   async deletePost(id: string): Promise<void> {

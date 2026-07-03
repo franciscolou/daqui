@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.post import PostCreate, PostFeed, PostOut
+from app.schemas.post import PollVoteIn, PostCreate, PostFeed, PostOut, PostUpdate
 from app.services import post
 
 
@@ -56,6 +56,24 @@ def create_post(
     current_user: User = Depends(get_current_user),
 ) -> PostOut:
     return post.create_post(db, current_user, payload, str(request.base_url))
+
+
+def update_post(
+    post_id: int,
+    payload: PostUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PostOut:
+    return post.update_post(db, post_id, current_user, payload)
+
+
+def vote_poll(
+    post_id: int,
+    payload: PollVoteIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PostOut:
+    return post.vote_poll(db, post_id, current_user, payload.option_ids)
 
 
 def toggle_like(

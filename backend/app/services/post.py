@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -8,8 +8,41 @@ from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.post import Post
 from app.models.user import User
-from app.schemas.post import PostCreate, PostFeed, PostOut
+from app.schemas.post import (
+    PollCreate,
+    PollOptionOut,
+    PollOut,
+    PollUpdate,
+    PostCreate,
+    PostFeed,
+    PostOut,
+    PostUpdate,
+)
 from app.services import geo
+
+
+def _aware(dt: datetime) -> datetime:
+    """Garante datetime tz-aware (SQLite pode devolver naive)."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
+def _poll_schema(post: Post, viewer: User, db: Session) -> PollOut | None:
+    if post.category != "enquete" or post.poll_closes_at is None:
+        return None
+    my_votes = post_dao.get_user_votes(db, post.id, viewer.id)
+    options = [
+        PollOptionOut(id=o.id, text=o.text, votes_count=o.votes_count)
+        for o in post.poll_options
+    ]
+    closes_at = _aware(post.poll_closes_at)
+    return PollOut(
+        multiple=bool(post.poll_multiple),
+        closes_at=closes_at,
+        closed=datetime.now(timezone.utc) >= closes_at,
+        total_votes=sum(o.votes_count for o in options),
+        options=options,
+        my_votes=my_votes,
+    )
 
 
 def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
@@ -33,6 +66,7 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
         created_at=post.created_at,
         author=post.author,
         liked=liked,
+        poll=_poll_schema(post, viewer, db),
     )
 
 
@@ -150,8 +184,47 @@ def _build_details(category: str, raw: dict | None) -> dict | None:
     return None
 
 
+def _clean_options(options: list[str]) -> list[str]:
+    """Normaliza e valida as opções da enquete (≥ 2, não vazias, sem duplicatas)."""
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for opt in options:
+        text = (opt or "").strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(text[:200])
+    if len(cleaned) < 2:
+        raise HTTPException(status_code=400, detail="A enquete precisa de ao menos 2 opções")
+    if len(cleaned) > 10:
+        raise HTTPException(status_code=400, detail="A enquete pode ter no máximo 10 opções")
+    return cleaned
+
+
+def _validate_closes_at(closes_at: datetime) -> datetime:
+    closes_at = _aware(closes_at)
+    if closes_at <= datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=400, detail="O prazo de encerramento deve estar no futuro"
+        )
+    return closes_at
+
+
 def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> PostOut:
-    details = _build_details(payload.category, payload.details)
+    is_poll = payload.category == "enquete"
+    if is_poll and payload.poll is None:
+        raise HTTPException(status_code=400, detail="Configure a enquete")
+
+    poll_options = poll_closes_at = poll_multiple = None
+    if is_poll:
+        poll_options = _clean_options(payload.poll.options)
+        poll_closes_at = _validate_closes_at(payload.poll.closes_at)
+        poll_multiple = bool(payload.poll.multiple)
+
+    details = None if is_poll else _build_details(payload.category, payload.details)
 
     image_url = payload.image_url
     if payload.image:
@@ -179,7 +252,111 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         latitude=latitude,
         longitude=longitude,
     )
+
+    if is_poll:
+        post.poll_multiple = poll_multiple
+        post.poll_closes_at = poll_closes_at
+        for i, text in enumerate(poll_options):
+            post_dao.add_poll_option(db, post.id, text, i)
+        db.commit()
+        db.refresh(post)
+
     user_dao.update(db, user, {"posts_count": user.posts_count + 1})
+    return _to_schema(post, user, db)
+
+
+def update_post(db: Session, post_id: int, user: User, payload: PostUpdate) -> PostOut:
+    post = post_dao.get_by_id(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+    if post.author_id != user.id:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+
+    if payload.title is not None:
+        post.title = payload.title.strip() or None
+    if payload.content is not None:
+        content = payload.content.strip()
+        if not content:
+            raise HTTPException(status_code=400, detail="A mensagem não pode ficar vazia")
+        post.content = content
+
+    if payload.poll is not None:
+        if post.category != "enquete":
+            raise HTTPException(status_code=400, detail="Este post não é uma enquete")
+        _apply_poll_update(db, post, payload.poll)
+
+    db.commit()
+    db.refresh(post)
+    return _to_schema(post, user, db)
+
+
+def _apply_poll_update(db: Session, post: Post, poll: PollUpdate) -> None:
+    # Prazo sempre para o futuro; múltiplos votos configurável.
+    post.poll_closes_at = _validate_closes_at(poll.closes_at)
+    post.poll_multiple = bool(poll.multiple)
+
+    # Normaliza opções: mantém as com id (preservando votos), cria novas, remove ausentes.
+    existing = {o.id: o for o in post.poll_options}
+    kept_ids: set[int] = set()
+    normalized: list[tuple[int | None, str]] = []
+    seen: set[str] = set()
+    for item in poll.options:
+        text = (item.text or "").strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append((item.id, text[:200]))
+    if len(normalized) < 2:
+        raise HTTPException(status_code=400, detail="A enquete precisa de ao menos 2 opções")
+    if len(normalized) > 10:
+        raise HTTPException(status_code=400, detail="A enquete pode ter no máximo 10 opções")
+
+    for position, (opt_id, text) in enumerate(normalized):
+        if opt_id is not None and opt_id in existing:
+            opt = existing[opt_id]
+            opt.text = text
+            opt.position = position
+            kept_ids.add(opt_id)
+        else:
+            post_dao.add_poll_option(db, post.id, text, position)
+
+    # Remove opções que saíram (e seus votos, via cascade).
+    for opt in list(post.poll_options):
+        if opt.id not in kept_ids and opt.id in existing:
+            post_dao.delete_poll_option(db, opt)
+
+    db.flush()
+    db.refresh(post)
+    post_dao.recount_options(db, post)
+
+
+def vote_poll(db: Session, post_id: int, user: User, option_ids: list[int]) -> PostOut:
+    post = post_dao.get_by_id(db, post_id)
+    if not post or post.neighborhood != user.neighborhood:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+    if post.category != "enquete" or post.poll_closes_at is None:
+        raise HTTPException(status_code=400, detail="Este post não é uma enquete")
+    if datetime.now(timezone.utc) >= _aware(post.poll_closes_at):
+        raise HTTPException(status_code=400, detail="Esta enquete já encerrou")
+
+    valid_ids = {o.id for o in post.poll_options}
+    chosen = [oid for oid in dict.fromkeys(option_ids) if oid in valid_ids]
+    if not chosen:
+        raise HTTPException(status_code=400, detail="Selecione uma opção válida")
+    if not post.poll_multiple and len(chosen) > 1:
+        raise HTTPException(status_code=400, detail="Esta enquete permite apenas um voto")
+
+    # Substitui os votos do usuário pelo novo conjunto e recalcula os totais.
+    post_dao.clear_user_votes(db, post.id, user.id)
+    for oid in chosen:
+        post_dao.add_vote(db, post.id, oid, user.id)
+    db.flush()
+    post_dao.recount_options(db, post)
+    db.commit()
+    db.refresh(post)
     return _to_schema(post, user, db)
 
 

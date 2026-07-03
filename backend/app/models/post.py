@@ -27,6 +27,11 @@ class Post(Base):
     shares_count: Mapped[int] = mapped_column(Integer, default=0)
     important: Mapped[bool] = mapped_column(Boolean, default=False)
     pinned: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Enquete (category == "enquete"): se permite votos múltiplos e o prazo de encerramento.
+    poll_multiple: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    poll_closes_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -37,6 +42,13 @@ class Post(Base):
     )
     comments: Mapped[list["Comment"]] = relationship(  # noqa: F821
         "Comment", back_populates="post", lazy="select", cascade="all, delete-orphan"
+    )
+    poll_options: Mapped[list["PollOption"]] = relationship(
+        "PollOption",
+        back_populates="post",
+        lazy="select",
+        cascade="all, delete-orphan",
+        order_by="PollOption.position",
     )
 
 
@@ -51,3 +63,34 @@ class PostLike(Base):
     )
 
     post: Mapped["Post"] = relationship("Post", back_populates="likes")
+
+
+class PollOption(Base):
+    __tablename__ = "poll_options"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), nullable=False, index=True)
+    text: Mapped[str] = mapped_column(String(200), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, default=0)
+    votes_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    post: Mapped["Post"] = relationship("Post", back_populates="poll_options")
+    votes: Mapped[list["PollVote"]] = relationship(
+        "PollVote", back_populates="option", cascade="all, delete-orphan"
+    )
+
+
+class PollVote(Base):
+    __tablename__ = "poll_votes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), nullable=False, index=True)
+    option_id: Mapped[int] = mapped_column(
+        ForeignKey("poll_options.id"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    option: Mapped["PollOption"] = relationship("PollOption", back_populates="votes")

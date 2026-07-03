@@ -7,6 +7,7 @@ import { api } from '../lib/api';
 import { formatPostTime } from '../lib/time';
 import { useState, type ReactNode } from 'react';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import PollBlock from './PollBlock';
 
 interface PostCardProps {
   post: Post;
@@ -115,6 +116,9 @@ export default function PostCard({ post, onPress }: PostCardProps) {
 
         {/* Body */}
         <Text style={styles.body} numberOfLines={4}>{post.content}</Text>
+
+        {/* Enquete */}
+        {post.poll && <PollBlock poll={post.poll} postId={post.id} />}
 
         {/* Campos específicos por categoria */}
         <PostDetails post={post} styles={styles} Colors={Colors} />

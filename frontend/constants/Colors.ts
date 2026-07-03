@@ -30,6 +30,7 @@ const brand = {
     pets: '#EC4899',
     ajuda: '#3B82F6',
     perdidos: '#14B8A6',
+    enquete: '#0EA5E9',
   },
 };
 

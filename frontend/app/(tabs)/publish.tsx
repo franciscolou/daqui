@@ -23,6 +23,13 @@ import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
+import PollEditor, {
+  PollDraft,
+  emptyPollDraft,
+  pollDraftValid,
+  cleanPollOptions,
+  buildClosesAt,
+} from '../../components/PollEditor';
 import { router } from 'expo-router';
 
 // Calendário em português
@@ -82,6 +89,7 @@ export default function PublishScreen() {
   const [price, setPrice] = useState('');
   const [priceNegotiable, setPriceNegotiable] = useState(false);
   const [productImage, setProductImage] = useState<string | null>(null); // data URL
+  const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
 
   // Ao editar o endereço, o status de validação anterior deixa de valer.
   const setLocation = (v: string) => {
@@ -135,6 +143,8 @@ export default function PublishScreen() {
       ? priceValid
       : selectedCategory === 'evento'
       ? eventDates.length > 0
+      : selectedCategory === 'enquete'
+      ? pollDraftValid(pollDraft)
       : true;
 
   // Título é obrigatório apenas em Eventos.
@@ -154,6 +164,8 @@ export default function PublishScreen() {
       return 'Selecione ao menos uma data para o evento';
     if (selectedCategory === 'venda' && !priceValid)
       return 'Informe o preço ou marque "Negociável"';
+    if (selectedCategory === 'enquete' && !pollDraftValid(pollDraft))
+      return 'Preencha ao menos 2 opções e um prazo futuro';
     if (!contentValid) return 'Escreva uma mensagem';
     if (locationStatus === 'invalid') return locationMsg ?? 'Endereço fora do bairro';
     return null;
@@ -220,6 +232,14 @@ export default function PublishScreen() {
         image: productImage ?? undefined,
         details: buildDetails(),
         important: isImportant,
+        poll:
+          selectedCategory === 'enquete'
+            ? {
+                options: cleanPollOptions(pollDraft).map((o) => o.text),
+                multiple: pollDraft.multiple,
+                closes_at: buildClosesAt(pollDraft.date, pollDraft.time)!,
+              }
+            : undefined,
       });
       router.replace('/(tabs)');
     } catch (e) {
@@ -427,25 +447,40 @@ export default function PublishScreen() {
             </View>
           )}
 
-          {/* Content */}
+          {/* Content / Pergunta da enquete */}
           <View style={styles.section}>
-            <FieldLabel styles={styles}>Mensagem</FieldLabel>
+            <FieldLabel styles={styles}>
+              {selectedCategory === 'enquete' ? 'Pergunta' : 'Mensagem'}
+            </FieldLabel>
             <TextInput
-              style={styles.contentInput}
-              placeholder="O que você quer compartilhar com o bairro?"
+              style={selectedCategory === 'enquete' ? styles.titleInput : styles.contentInput}
+              placeholder={
+                selectedCategory === 'enquete'
+                  ? 'O que você quer perguntar ao bairro?'
+                  : 'O que você quer compartilhar com o bairro?'
+              }
               placeholderTextColor={Colors.textTertiary}
               value={content}
               onChangeText={setContent}
-              multiline
-              numberOfLines={6}
+              multiline={selectedCategory !== 'enquete'}
+              numberOfLines={selectedCategory === 'enquete' ? 1 : 6}
               textAlignVertical="top"
-              maxLength={2000}
+              maxLength={selectedCategory === 'enquete' ? 200 : 2000}
             />
-            <Text style={styles.charCount}>{content.length}/2000</Text>
+            {selectedCategory !== 'enquete' && (
+              <Text style={styles.charCount}>{content.length}/2000</Text>
+            )}
           </View>
 
-          {/* Imagem (opcional em todas as categorias) */}
-          {!!selectedCategory && (
+          {/* Editor da enquete */}
+          {selectedCategory === 'enquete' && (
+            <View style={styles.section}>
+              <PollEditor value={pollDraft} onChange={setPollDraft} />
+            </View>
+          )}
+
+          {/* Imagem (opcional; não se aplica a enquetes) */}
+          {!!selectedCategory && selectedCategory !== 'enquete' && (
             <View style={styles.section}>
               <FieldLabel styles={styles} optional>
                 {selectedCategory === 'venda' ? 'Imagem do produto' : 'Imagem'}

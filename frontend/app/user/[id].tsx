@@ -117,6 +117,9 @@ export default function UserScreen() {
                     .join(', ')}
             </Text>
           </View>
+          {!user.locked && !!user.joinedAt && (
+            <Text style={styles.joinedText}>Membro desde {user.joinedAt}</Text>
+          )}
         </View>
 
         {/* Stats */}
@@ -185,14 +188,6 @@ export default function UserScreen() {
                 <Text style={styles.actionBtnPrimaryText}>Mensagem</Text>
               </TouchableOpacity>
             )}
-          </View>
-
-          {/* Info card */}
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Ionicons name="calendar-outline" size={15} color={Colors.textTertiary} />
-              <Text style={styles.infoText}>Membro desde {user.joinedAt}</Text>
-            </View>
           </View>
 
           {/* Posts — timeline */}
@@ -285,6 +280,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     marginBottom: 10,
   },
   neighborhood: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
+  joinedText: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '500', marginBottom: 10 },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.12)',
@@ -319,19 +315,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   actionBtnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
-  infoCard: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    padding: 14,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    ...Colors.shadow.sm,
-  },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  infoText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
 
   timelineSection: {
     marginTop: 20,

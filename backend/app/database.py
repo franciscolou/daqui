@@ -52,3 +52,11 @@ def _ensure_columns():
         if "shared_post_id" not in columns:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE messages ADD COLUMN shared_post_id INTEGER REFERENCES posts(id)"))
+
+    if "posts" in tables:
+        columns = {c["name"] for c in inspector.get_columns("posts")}
+        with engine.begin() as conn:
+            if "poll_multiple" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN poll_multiple BOOLEAN"))
+            if "poll_closes_at" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN poll_closes_at DATETIME"))

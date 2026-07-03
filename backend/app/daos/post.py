@@ -1,7 +1,7 @@
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
-from app.models.post import Post, PostLike
+from app.models.post import PollOption, PollVote, Post, PostLike
 from app.models.user import User
 
 
@@ -141,3 +141,50 @@ def add_like(db: Session, post_id: int, user_id: int) -> None:
 
 def remove_like(db: Session, like: PostLike) -> None:
     db.delete(like)
+
+
+# ── Enquete ───────────────────────────────────────────────────────────
+def add_poll_option(db: Session, post_id: int, text: str, position: int) -> PollOption:
+    option = PollOption(post_id=post_id, text=text, position=position, votes_count=0)
+    db.add(option)
+    return option
+
+
+def get_option(db: Session, option_id: int) -> PollOption | None:
+    return db.get(PollOption, option_id)
+
+
+def delete_poll_option(db: Session, option: PollOption) -> None:
+    # Remove também os votos ligados a essa opção (cascade da relação).
+    db.delete(option)
+
+
+def get_user_votes(db: Session, post_id: int, user_id: int) -> list[int]:
+    rows = (
+        db.query(PollVote.option_id)
+        .filter(PollVote.post_id == post_id, PollVote.user_id == user_id)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def clear_user_votes(db: Session, post_id: int, user_id: int) -> None:
+    db.query(PollVote).filter(
+        PollVote.post_id == post_id, PollVote.user_id == user_id
+    ).delete()
+
+
+def add_vote(db: Session, post_id: int, option_id: int, user_id: int) -> None:
+    db.add(PollVote(post_id=post_id, option_id=option_id, user_id=user_id))
+
+
+def recount_options(db: Session, post: Post) -> None:
+    """Recalcula votes_count de cada opção a partir da tabela de votos."""
+    counts = dict(
+        db.query(PollVote.option_id, func.count(PollVote.id))
+        .filter(PollVote.post_id == post.id)
+        .group_by(PollVote.option_id)
+        .all()
+    )
+    for opt in post.poll_options:
+        opt.votes_count = counts.get(opt.id, 0)

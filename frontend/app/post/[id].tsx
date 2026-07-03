@@ -22,6 +22,7 @@ import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { submitOnEnter } from '../../lib/keyboard';
 import WideLayout from '../../components/WideLayout';
+import PollBlock from '../../components/PollBlock';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -117,6 +118,13 @@ export default function PostDetailScreen() {
 
         {post.title && <Text style={styles.title}>{post.title}</Text>}
         <Text style={styles.body}>{post.content}</Text>
+        {post.poll && (
+          <PollBlock
+            poll={post.poll}
+            postId={post.id}
+            onChange={(poll) => setPost((p) => (p ? { ...p, poll } : p))}
+          />
+        )}
         {post.images?.[0] && (
           <Image source={{ uri: post.images[0] }} style={styles.image} resizeMode="cover" />
         )}
@@ -180,14 +188,20 @@ export default function PostDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <WideLayout>
+      <WideLayout showMobileMenu={false}>
       <View style={styles.column}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Post</Text>
-        <View style={{ width: 22 }} />
+        <Text style={styles.topBarTitle}>{post?.poll ? 'Enquete' : 'Post'}</Text>
+        {post?.poll && post.author.id === user?.id ? (
+          <TouchableOpacity onPress={() => router.push(`/poll/${post.id}` as any)} hitSlop={10}>
+            <Ionicons name="create-outline" size={22} color={Colors.primary} />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 22 }} />
+        )}
       </View>
 
       {loading ? (

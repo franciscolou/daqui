@@ -31,6 +31,16 @@ router.get(
     response_model=PostOut,
 )(post.get_post)
 
+router.patch(
+    "/{post_id}",
+    response_model=PostOut,
+)(post.update_post)
+
+router.post(
+    "/{post_id}/vote",
+    response_model=PostOut,
+)(post.vote_poll)
+
 router.post(
     "/{post_id}/like",
     response_model=PostOut,

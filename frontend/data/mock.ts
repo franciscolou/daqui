@@ -7,7 +7,23 @@ export type PostCategory =
   | 'venda'
   | 'pets'
   | 'ajuda'
-  | 'perdidos';
+  | 'perdidos'
+  | 'enquete';
+
+export interface PollOption {
+  id: string;
+  text: string;
+  votesCount: number;
+}
+
+export interface Poll {
+  multiple: boolean;
+  closesAt: string; // ISO
+  closed: boolean;
+  totalVotes: number;
+  options: PollOption[];
+  myVotes: string[]; // ids das opções em que o usuário votou
+}
 
 export interface User {
   id: string;
@@ -55,6 +71,7 @@ export interface Post {
   location?: string;          // texto livre (evento, recomendação, venda, perdidos)
   price?: number;             // venda: preço em R$
   priceNegotiable?: boolean;  // venda: "Negociável"
+  poll?: Poll;                // enquete
 }
 
 export interface Message {
@@ -404,6 +421,7 @@ export const CATEGORIES = [
   { key: 'pets', label: 'Pets', icon: 'paw' },
   { key: 'ajuda', label: 'Ajuda', icon: 'hand-left' },
   { key: 'perdidos', label: 'Perdidos', icon: 'search' },
+  { key: 'enquete', label: 'Enquetes', icon: 'stats-chart' },
 ] as const;
 
 export const CATEGORY_LABELS: Record<PostCategory, string> = {
@@ -416,6 +434,7 @@ export const CATEGORY_LABELS: Record<PostCategory, string> = {
   pets: 'Pets',
   ajuda: 'Ajuda',
   perdidos: 'Perdidos',
+  enquete: 'Enquete',
 };
 
 export const CATEGORY_ICONS: Record<PostCategory, string> = {
@@ -428,4 +447,5 @@ export const CATEGORY_ICONS: Record<PostCategory, string> = {
   pets: 'paw',
   ajuda: 'hand-left',
   perdidos: 'search',
+  enquete: 'stats-chart',
 };
