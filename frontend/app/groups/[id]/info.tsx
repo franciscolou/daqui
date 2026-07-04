@@ -12,6 +12,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../../constants/Colors';
@@ -38,6 +39,7 @@ export default function GroupInfoScreen() {
 
   const [busyId, setBusyId] = useState<string | null>(null); // membro em ação
   const [adding, setAdding] = useState(false); // painel de adicionar aberto
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<GroupMember | null>(null); // membro a confirmar remoção
@@ -85,6 +87,29 @@ export default function GroupInfoScreen() {
       // mantém edição
     } finally {
       setSaving(false);
+    }
+  };
+
+  const pickGroupAvatar = async () => {
+    if (!group) return;
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+        base64: true,
+      });
+      const asset = res.assets?.[0];
+      if (res.canceled || !asset?.base64) return;
+      setAvatarBusy(true);
+      apply(await api.updateGroupAvatar(group.id, `data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`));
+    } catch {
+      // ignora
+    } finally {
+      setAvatarBusy(false);
     }
   };
 
@@ -187,13 +212,29 @@ export default function GroupInfoScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
           {/* Cartão do grupo */}
           <View style={styles.hero}>
-            {group.avatar ? (
-              <Image source={{ uri: group.avatar }} style={styles.heroAvatar} />
-            ) : (
-              <View style={[styles.heroAvatar, styles.heroAvatarGroup]}>
-                <Ionicons name="people" size={40} color={Colors.primary} />
-              </View>
-            )}
+            <View style={styles.heroAvatarWrap}>
+              {group.avatar ? (
+                <Image source={{ uri: group.avatar }} style={styles.heroAvatar} />
+              ) : (
+                <View style={[styles.heroAvatar, styles.heroAvatarGroup]}>
+                  <Ionicons name="people" size={40} color={Colors.primary} />
+                </View>
+              )}
+              {canManage && (
+                <TouchableOpacity
+                  style={styles.editAvatarBtn}
+                  activeOpacity={0.85}
+                  onPress={pickGroupAvatar}
+                  disabled={avatarBusy}
+                >
+                  {avatarBusy ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Ionicons name="camera" size={16} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
             <View style={styles.privacyPill}>
               <Ionicons
                 name={group.isOpen ? 'earth' : 'lock-closed'}
@@ -472,6 +513,20 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: Colors.text },
   body: { padding: 16, paddingBottom: 48 },
   hero: { alignItems: 'center', gap: 8, paddingVertical: 8 },
+  heroAvatarWrap: { position: 'relative' },
+  editAvatarBtn: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Colors.surface,
+  },
   heroAvatar: { width: 88, height: 88, borderRadius: 28, backgroundColor: Colors.border },
   heroAvatarGroup: {
     backgroundColor: Colors.primaryLight,

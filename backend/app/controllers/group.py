@@ -1,9 +1,10 @@
-from fastapi import Depends, Query
+from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.group import (
+    GroupAvatarUpdate,
     GroupConversationOut,
     GroupCreate,
     GroupDetailOut,
@@ -54,6 +55,18 @@ def update_group(
     current_user: User = Depends(get_current_user),
 ) -> GroupDetailOut:
     return group_service.update_group(db, current_user, group_id, payload)
+
+
+def set_group_avatar(
+    group_id: int,
+    payload: GroupAvatarUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> GroupDetailOut:
+    return group_service.set_avatar(
+        db, current_user, group_id, str(request.base_url), payload.image
+    )
 
 
 def delete_group(

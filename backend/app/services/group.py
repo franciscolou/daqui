@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.uploads import save_data_url_image
 from app.daos import group as group_dao
 from app.daos import user as user_dao
 from app.models.group import (
@@ -130,6 +131,16 @@ def update_group(
 
     if data:
         group = group_dao.update_group(db, group, data)
+    return _detail_out(db, group, member.role)
+
+
+def set_avatar(
+    db: Session, user: User, group_id: int, base_url: str, image: str
+) -> GroupDetailOut:
+    group = _require_group(db, group_id)
+    member = _require_manager(db, group, user)  # dono ou admin
+    avatar_url = save_data_url_image(base_url, image, prefix=f"group{group.id}")
+    group = group_dao.update_group(db, group, {"avatar_url": avatar_url})
     return _detail_out(db, group, member.role)
 
 

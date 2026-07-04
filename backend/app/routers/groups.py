@@ -17,6 +17,7 @@ router.get("/discover", response_model=list[GroupOut])(group.discover)
 
 router.get("/{group_id}", response_model=GroupDetailOut)(group.get_group)
 router.patch("/{group_id}", response_model=GroupDetailOut)(group.update_group)
+router.post("/{group_id}/avatar", response_model=GroupDetailOut)(group.set_group_avatar)
 router.delete("/{group_id}", status_code=204)(group.delete_group)
 
 router.post("/{group_id}/join", response_model=GroupDetailOut)(group.join_group)

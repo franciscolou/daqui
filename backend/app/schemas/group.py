@@ -60,6 +60,10 @@ class GroupMemberAdd(BaseModel):
     user_id: int
 
 
+class GroupAvatarUpdate(BaseModel):
+    image: str  # data URL base64: "data:image/png;base64,...."
+
+
 class GroupMessageCreate(BaseModel):
     content: str = ""
 

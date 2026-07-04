@@ -934,6 +934,16 @@ export const api = {
     await request<void>(`/groups/${id}`, { method: 'DELETE' });
   },
 
+  // Troca a foto do grupo (dono/admin). imageDataUrl: "data:image/...;base64,...".
+  async updateGroupAvatar(id: string, imageDataUrl: string): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/${id}/avatar`, {
+        method: 'POST',
+        body: { image: imageDataUrl },
+      }),
+    );
+  },
+
   async joinGroup(id: string): Promise<GroupDetail> {
     return mapGroupDetail(
       await request<BackendGroupDetail>(`/groups/${id}/join`, { method: 'POST' }),
