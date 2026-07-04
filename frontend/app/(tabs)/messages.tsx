@@ -31,12 +31,12 @@ import { formatConversationTime, formatPostTime } from '../../lib/time';
 import LeftSidebar from '../../components/LeftSidebar';
 import MobileMenu from '../../components/MobileMenu';
 import ChatView, { ChatTarget } from '../../components/ChatView';
+import { CONTENT_MAX_W } from '../../components/WideLayout';
 
 const WIDE = 900;
 const LEFT_W = 220;
 const MIDDLE_W = 360;
 const DETAIL_W = 640;
-const CONTENT_W = LEFT_W + MIDDLE_W + DETAIL_W;
 
 type Selected = ChatTarget & { messageId?: string };
 
@@ -287,7 +287,7 @@ export default function MessagesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {isWide ? (
-        <View style={[styles.wideBody, { paddingHorizontal: Math.max(0, (width - CONTENT_W) / 2) }]}>
+        <View style={[styles.wideBody, { paddingLeft: Math.max(0, (width - CONTENT_MAX_W) / 2) }]}>
           <ScrollView style={styles.leftCol} showsVerticalScrollIndicator={false}>
             <LeftSidebar />
           </ScrollView>
@@ -529,6 +529,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   wideBody: { flex: 1, flexDirection: 'row', backgroundColor: Colors.background },
   leftCol: {
     width: LEFT_W,
+    flexGrow: 0,
     flexShrink: 0,
     backgroundColor: Colors.background,
     borderRightWidth: StyleSheet.hairlineWidth,

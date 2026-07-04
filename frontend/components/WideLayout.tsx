@@ -6,6 +6,11 @@ import RightSidebar from './RightSidebar';
 import MobileMenu from './MobileMenu';
 
 const WIDE = 900;
+// Largura de referência do bloco central (sidebar + conteúdo + widgets) usada
+// para calcular o recuo esquerdo — precisa bater com a mesma constante usada
+// em telas com colunas próprias (mensagens, configurações) para a barra
+// lateral não pular de posição ao trocar de tela.
+export const CONTENT_MAX_W = 1140;
 
 /**
  * Em telas largas, envolve o conteúdo central com a barra lateral esquerda
@@ -35,7 +40,7 @@ export default function WideLayout({
   }
 
   return (
-    <View style={[styles.body, { paddingHorizontal: Math.max(0, (width - 1140) / 2) }]}>
+    <View style={[styles.body, { paddingHorizontal: Math.max(0, (width - CONTENT_MAX_W) / 2) }]}>
       {/* Barra lateral esquerda — rolável */}
       <ScrollView style={styles.leftCol} showsVerticalScrollIndicator={false}>
         <LeftSidebar />
@@ -60,6 +65,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   leftCol: {
     width: 220,
+    flexGrow: 0,
     flexShrink: 0,
     backgroundColor: Colors.background,
     borderRightWidth: StyleSheet.hairlineWidth,

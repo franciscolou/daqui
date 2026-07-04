@@ -22,13 +22,13 @@ import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
 import LeftSidebar from '../components/LeftSidebar';
 import MobileMenu from '../components/MobileMenu';
+import { CONTENT_MAX_W } from '../components/WideLayout';
 
 const WIDE = 900;
 // Larguras fixas das colunas (mesmo modelo do FeedLayout, centralizado).
 const LEFT_W = 220;
 const MIDDLE_W = 300;
 const DETAIL_W = 640;
-const CONTENT_W = LEFT_W + MIDDLE_W + DETAIL_W;
 
 type TopicKey = 'edit-profile' | 'privacy' | 'notifications' | 'address' | 'appearance';
 
@@ -113,7 +113,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {isWide ? (
-        <View style={[styles.wideBody, { paddingHorizontal: Math.max(0, (width - CONTENT_W) / 2) }]}>
+        <View style={[styles.wideBody, { paddingLeft: Math.max(0, (width - CONTENT_MAX_W) / 2) }]}>
           <ScrollView style={styles.leftCol} showsVerticalScrollIndicator={false}>
             <LeftSidebar />
           </ScrollView>
@@ -738,6 +738,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   wideBody: { flex: 1, flexDirection: 'row', backgroundColor: Colors.background },
   leftCol: {
     width: LEFT_W,
+    flexGrow: 0,
     flexShrink: 0,
     backgroundColor: Colors.background,
     borderRightWidth: StyleSheet.hairlineWidth,
