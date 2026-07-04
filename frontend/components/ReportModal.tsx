@@ -37,6 +37,7 @@ const REASONS: Record<ReportTargetType, { value: string; label: string }[]> = {
   ],
   user: [
     { value: 'fake', label: 'É uma conta falsa/fake' },
+    { value: 'nao_vizinho', label: 'Essa pessoa não é moradora desse bairro' },
     { value: 'nocivo_pessoa', label: 'Essa pessoa é nociva para a comunidade' },
   ],
 };
