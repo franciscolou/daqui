@@ -32,9 +32,9 @@ const FEATURES = [
 ];
 const AVATARS = ['47', '52', '44', '57', '25'];
 const POSTS = [
-  { color: '#EF4444', label: 'Aviso', text: 'Obra na Rua Aspicuelta fecha…' },
-  { color: '#F59E0B', label: 'Dica',  text: 'Padaria nova na Harmonia 🥐' },
-  { color: '#EC4899', label: 'Pets',  text: 'Gatinha encontrada perto do…' },
+  { color: '#EF4444', label: 'Aviso', text: 'Obra na esquina com a...' },
+  { color: '#F59E0B', label: 'Recomendação',  text: 'Padaria nova na Harmonia 🥐' },
+  { color: '#EC4899', label: 'Pets',  text: 'Gatinha encontrada aqui no…' },
 ];
 const SIGNUP_STEPS = ['Conta', 'Bairro', 'Pronto'];
 

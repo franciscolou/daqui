@@ -1,4 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, Image, Switch } from 'react-native';
+import { useState } from 'react';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming, Easing,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, usePathname } from 'expo-router';
@@ -51,6 +55,49 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { mode, toggle } = useThemeMode();
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
+
+  // Colapso fluido das categorias: anima altura (medida) + opacidade da lista extra
+  // e a rotação da setinha. Usamos shared values explícitos (padrão do welcome.tsx),
+  // que funcionam bem na web — não entering/exiting.
+  const progress = useSharedValue(0); // 0 = colapsado, 1 = expandido
+  const contentHeight = useSharedValue(0);
+
+  const toggleCategories = () => {
+    const next = !categoriesExpanded;
+    setCategoriesExpanded(next);
+    progress.value = withTiming(next ? 1 : 0, {
+      duration: 280,
+      easing: Easing.inOut(Easing.cubic),
+    });
+  };
+
+  const extraCatsStyle = useAnimatedStyle(() => ({
+    height: contentHeight.value * progress.value,
+    opacity: progress.value,
+  }));
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${progress.value * 180}deg` }],
+  }));
+
+  const renderCategory = (cat: (typeof CATEGORIES)[number]) => {
+    const isActive = activeCategory === cat.key;
+    const color = Colors.category[cat.key as PostCategory] ?? Colors.primary;
+    return (
+      <TouchableOpacity
+        key={cat.key}
+        style={[styles.navItem, isActive && styles.navItemActive]}
+        onPress={() => { onCategoryChange?.(cat.key); onNavigate?.(); }}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.catDot, { backgroundColor: isActive ? color : color + '40' }]} />
+        <Text style={[styles.navLabel, isActive && { color: Colors.text, fontWeight: '600' }]}>
+          {cat.label}
+        </Text>
+        {isActive && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
+      </TouchableOpacity>
+    );
+  };
 
   const isTabActive = (key: string) =>
     key === 'index' ? pathname === '/' : pathname === `/${key}`;
@@ -128,7 +175,16 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
       {onCategoryChange && (
         <>
           <View style={styles.divider} />
-          <Text style={styles.groupTitle}>Categorias</Text>
+          <TouchableOpacity
+            style={styles.categoriesHeader}
+            onPress={toggleCategories}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.groupTitle}>Categorias</Text>
+            <Animated.View style={chevronStyle}>
+              <Ionicons name="chevron-down" size={14} color={Colors.textTertiary} />
+            </Animated.View>
+          </TouchableOpacity>
           <View style={styles.group}>
             {/* "Todas": remove o filtro e mostra todas as publicações de uma vez */}
             <TouchableOpacity
@@ -149,24 +205,16 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
                 <View style={[styles.activeIndicator, { backgroundColor: Colors.primary }]} />
               )}
             </TouchableOpacity>
-            {CATEGORIES.filter((c) => c.key !== 'todos').map((cat) => {
-              const isActive = activeCategory === cat.key;
-              const color = Colors.category[cat.key as PostCategory] ?? Colors.primary;
-              return (
-                <TouchableOpacity
-                  key={cat.key}
-                  style={[styles.navItem, isActive && styles.navItemActive]}
-                  onPress={() => { onCategoryChange(cat.key); onNavigate?.(); }}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.catDot, { backgroundColor: isActive ? color : color + '40' }]} />
-                  <Text style={[styles.navLabel, isActive && { color: Colors.text, fontWeight: '600' }]}>
-                    {cat.label}
-                  </Text>
-                  {isActive && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
-                </TouchableOpacity>
-              );
-            })}
+            {/* "Geral" fica sempre visível; o resto entra na lista colapsável */}
+            {renderCategory(CATEGORIES.find((c) => c.key === 'geral')!)}
+            <Animated.View style={[styles.extraCats, extraCatsStyle]}>
+              <View
+                style={styles.extraCatsInner}
+                onLayout={(e) => { contentHeight.value = e.nativeEvent.layout.height; }}
+              >
+                {CATEGORIES.filter((c) => c.key !== 'todos' && c.key !== 'geral').map(renderCategory)}
+              </View>
+            </Animated.View>
           </View>
         </>
       )}
@@ -313,6 +361,14 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
 
   group: { gap: 1 },
+  extraCats: { overflow: 'hidden' },
+  extraCatsInner: { gap: 1, paddingTop: 1 },
+  categoriesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 8,
+  },
   groupTitle: {
     fontSize: 10,
     fontWeight: '800',

@@ -13,6 +13,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing,
+} from 'react-native-reanimated';
 import { Palette } from '../constants/Colors';
 import { User } from '../data/mock';
 import { api, ChatMessage, GroupDetail } from '../lib/api';
@@ -25,6 +28,83 @@ import SharedPostPreview from './SharedPostPreview';
 export type ChatTarget = { kind: 'dm' | 'group'; id: string };
 
 type ChatItem = { type: 'msg'; msg: ChatMessage } | { type: 'divider'; id: string; label: string };
+
+// Balão de mensagem. Definido no módulo (não dentro de ChatView) para não remontar
+// a cada render — assim a animação de entrada roda só uma vez, na mensagem recém-enviada.
+function MessageBubble({
+  msg,
+  mine,
+  showSender,
+  highlighted,
+  animateIn,
+  styles,
+}: {
+  msg: ChatMessage;
+  mine: boolean;
+  showSender: boolean;
+  highlighted: boolean;
+  animateIn: boolean;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  const ty = useSharedValue(animateIn ? 16 : 0);
+  const op = useSharedValue(animateIn ? 0 : 1);
+
+  useEffect(() => {
+    if (!animateIn) return;
+    // sobe rápido e "assenta" com um leve spring; opacidade acompanha
+    ty.value = withSpring(0, { damping: 15, stiffness: 200, mass: 0.6 });
+    op.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: ty.value }],
+    opacity: op.value,
+  }));
+
+  return (
+    <Animated.View style={animStyle}>
+      <View style={[styles.bubbleRow, mine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}>
+        {showSender && (
+          <TouchableOpacity onPress={() => router.push(`/user/${msg.sender.id}` as any)}>
+            <Image source={{ uri: msg.sender.avatar }} style={styles.senderAvatar} />
+          </TouchableOpacity>
+        )}
+        <View
+          style={[
+            styles.bubble,
+            mine ? styles.bubbleMine : styles.bubbleTheirs,
+            !!msg.sharedPost && styles.bubbleShared,
+            highlighted && styles.bubbleHighlight,
+          ]}
+        >
+          {showSender && (
+            <Text style={styles.senderName} numberOfLines={1}>{msg.sender.name}</Text>
+          )}
+          {!!msg.sharedPost && (
+            <View style={styles.sharedWrap}>
+              <SharedPostPreview post={msg.sharedPost} />
+            </View>
+          )}
+          {!!msg.content && (
+            <Text style={[styles.bubbleText, mine && !msg.sharedPost && styles.bubbleTextMine]}>
+              {msg.content}
+            </Text>
+          )}
+          <Text
+            style={[
+              styles.bubbleTime,
+              mine && !msg.sharedPost && styles.bubbleTimeMine,
+              !!msg.sharedPost && styles.bubbleTimeShared,
+            ]}
+          >
+            {formatMessageTime(msg.createdAt)}
+          </Text>
+        </View>
+      </View>
+    </Animated.View>
+  );
+}
 
 export default function ChatView({
   target,
@@ -49,6 +129,8 @@ export default function ChatView({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(messageId ?? null);
+  // id da mensagem recém-enviada por mim — dispara a animação de entrada só nela
+  const [sentId, setSentId] = useState<string | null>(null);
 
   const listRef = useRef<FlatList<ChatItem>>(null);
   const didScrollRef = useRef(false);
@@ -95,6 +177,7 @@ export default function ChatView({
           ? await api.sendMessage(id, content)
           : await api.sendGroupMessage(id, content);
       setMessages((prev) => [...prev, msg]);
+      setSentId(msg.id);
       onActivity?.();
     } catch {
       setInput(content);
@@ -142,6 +225,13 @@ export default function ChatView({
     const t = setTimeout(() => setHighlightId(null), 2800);
     return () => clearTimeout(t);
   }, [highlightId]);
+
+  // limpa o marcador após a animação para não reanimar ao reciclar a linha na FlatList
+  useEffect(() => {
+    if (!sentId) return;
+    const t = setTimeout(() => setSentId(null), 600);
+    return () => clearTimeout(t);
+  }, [sentId]);
 
   const openInfo = () => {
     if (kind === 'dm' && other) router.push(`/user/${other.id}` as any);
@@ -220,49 +310,15 @@ export default function ChatView({
                   </View>
                 );
               }
-              const msg = item.msg;
-              const mine = !!me && msg.sender.id === me.id;
-              const highlighted = msg.id === highlightId;
-              const showSender = kind === 'group' && !mine;
               return (
-                <View style={[styles.bubbleRow, mine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}>
-                  {showSender && (
-                    <TouchableOpacity onPress={() => router.push(`/user/${msg.sender.id}` as any)}>
-                      <Image source={{ uri: msg.sender.avatar }} style={styles.senderAvatar} />
-                    </TouchableOpacity>
-                  )}
-                  <View
-                    style={[
-                      styles.bubble,
-                      mine ? styles.bubbleMine : styles.bubbleTheirs,
-                      !!msg.sharedPost && styles.bubbleShared,
-                      highlighted && styles.bubbleHighlight,
-                    ]}
-                  >
-                    {showSender && (
-                      <Text style={styles.senderName} numberOfLines={1}>{msg.sender.name}</Text>
-                    )}
-                    {!!msg.sharedPost && (
-                      <View style={styles.sharedWrap}>
-                        <SharedPostPreview post={msg.sharedPost} />
-                      </View>
-                    )}
-                    {!!msg.content && (
-                      <Text style={[styles.bubbleText, mine && !msg.sharedPost && styles.bubbleTextMine]}>
-                        {msg.content}
-                      </Text>
-                    )}
-                    <Text
-                      style={[
-                        styles.bubbleTime,
-                        mine && !msg.sharedPost && styles.bubbleTimeMine,
-                        !!msg.sharedPost && styles.bubbleTimeShared,
-                      ]}
-                    >
-                      {formatMessageTime(msg.createdAt)}
-                    </Text>
-                  </View>
-                </View>
+                <MessageBubble
+                  msg={item.msg}
+                  mine={!!me && item.msg.sender.id === me.id}
+                  showSender={kind === 'group' && !(!!me && item.msg.sender.id === me.id)}
+                  highlighted={item.msg.id === highlightId}
+                  animateIn={item.msg.id === sentId}
+                  styles={styles}
+                />
               );
             }}
             ListEmptyComponent={
