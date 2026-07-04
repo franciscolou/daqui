@@ -346,6 +346,15 @@ export interface GroupConversation {
   unread: number;
 }
 
+export interface AppReview {
+  id: string;
+  rating: number;
+  comment: string;
+  status: string; // pending | approved | rejected
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppNotification {
   id: string;
   type: string;
@@ -991,6 +1000,31 @@ export const api = {
         body: { content },
       }),
     );
+  },
+
+  // ── Avaliação do app ──────────────────────────────────────
+  async getMyReview(): Promise<AppReview | null> {
+    const r = await request<{
+      id: number;
+      rating: number;
+      comment: string;
+      status: string;
+      created_at: string;
+      updated_at: string;
+    } | null>('/reviews/me');
+    if (!r) return null;
+    return {
+      id: String(r.id),
+      rating: r.rating,
+      comment: r.comment,
+      status: r.status,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    };
+  },
+
+  async submitReview(rating: number, comment: string): Promise<void> {
+    await request<unknown>('/reviews/', { method: 'POST', body: { rating, comment } });
   },
 
   async getNotifications(): Promise<AppNotification[]> {

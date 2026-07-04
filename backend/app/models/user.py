@@ -26,6 +26,8 @@ class User(Base):
     longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     badge: Mapped[Optional[str]] = mapped_column(String(30))  # lider | comerciante | morador
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Moderador: acessa o app de moderação (analisa as avaliações do Daqui).
+    is_moderator: Mapped[bool] = mapped_column(Boolean, default=False)
     # A2F (TOTP): segredo base32; totp_enabled só vira True após confirmar um código.
     totp_secret: Mapped[Optional[str]] = mapped_column(String(64))
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Daqui · Moderação</title>
+  <style>
+    :root {
+      --primary: #22C55E; --primary-dark: #16A34A; --gold: #F59E0B;
+      --bg: #F8FAFC; --surface: #FFFFFF; --border: #E2E8F0; --border-light: #F1F5F9;
+      --text: #0F172A; --text-2: #64748B; --text-3: #94A3B8;
+      --danger: #EF4444; --danger-bg: #FEF2F2;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
+    a { color: inherit; }
+    .hidden { display: none !important; }
+
+    /* Login */
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .brand .dot { width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; }
+    .brand h1 { font-size: 22px; margin: 0; letter-spacing: -0.5px; }
+    .muted { color: var(--text-3); font-size: 13px; }
+    label { display:block; font-size: 13px; font-weight: 600; color: var(--text-2); margin: 16px 0 6px; }
+    input, select { width: 100%; padding: 11px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); }
+    input:focus, select:focus { outline: none; border-color: var(--primary); }
+    button { cursor: pointer; font-family: inherit; }
+    .btn { width: 100%; margin-top: 18px; padding: 12px; font-size: 15px; font-weight: 700; color: #fff; background: var(--primary); border: none; border-radius: 12px; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .err { color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 12px; min-height: 16px; }
+
+    /* App */
+    .topbar { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar h1 { font-size: 17px; margin: 0; }
+    .topbar .who { font-size: 12px; color: var(--text-3); }
+    .linkbtn { background: none; border: none; color: var(--text-2); font-size: 13px; font-weight: 600; }
+    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+    .stat { background: var(--surface); border: 1px solid var(--border-light); border-radius: 14px; padding: 14px 16px; }
+    .stat .n { font-size: 24px; font-weight: 800; }
+    .stat .l { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-2); }
+    .tab.active { background: #DCFCE7; border-color: #DCFCE7; color: var(--primary-dark); }
+
+    .card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .card .head { display: flex; align-items: center; gap: 12px; }
+    .avatar { width: 44px; height: 44px; border-radius: 14px; object-fit: cover; background: var(--border); }
+    .head .name { font-weight: 700; font-size: 15px; }
+    .head .sub { font-size: 12px; color: var(--text-3); }
+    .head .when { margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+    .rating-row { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; }
+    .stars { position: relative; display: inline-block; font-size: 20px; line-height: 1; letter-spacing: 2px; }
+    .stars .base { color: #D1D5DB; }
+    .stars .fill { color: var(--gold); position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; }
+    .rating-num { font-weight: 800; font-size: 14px; }
+    .comment { font-size: 14px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
+    .comment.empty { color: var(--text-3); font-style: italic; }
+    .badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: .4px; }
+    .b-pending { background: #FEF3C7; color: #92400E; }
+    .b-approved { background: #DCFCE7; color: var(--primary-dark); }
+    .b-rejected { background: var(--danger-bg); color: var(--danger); }
+    .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+    .act { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 700; }
+    .act.approve { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .act.reject { background: var(--surface); border-color: var(--gold); color: #B45309; }
+    .act.del { margin-left: auto; background: none; border: none; color: var(--danger); }
+    .empty-state { text-align: center; color: var(--text-3); padding: 60px 20px; }
+    @media (max-width: 560px) { .stats { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <!-- Login -->
+  <div id="login" class="login-wrap">
+    <div class="login-card">
+      <div class="brand"><div class="dot">d</div><h1>Moderação Daqui</h1></div>
+      <p class="muted">Acesso restrito a moderadores.</p>
+      <label>Servidor da API</label>
+      <input id="api" value="http://localhost:8000/api/v1" />
+      <label>E-mail</label>
+      <input id="email" type="email" placeholder="moderador@daqui.com" autocomplete="username" />
+      <label>Senha</label>
+      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <button id="loginBtn" class="btn">Entrar</button>
+      <div id="loginErr" class="err"></div>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="hidden">
+    <div class="topbar">
+      <div>
+        <h1>Avaliações do Daqui</h1>
+        <div class="who" id="who"></div>
+      </div>
+      <button class="linkbtn" id="logoutBtn">Sair</button>
+    </div>
+    <div class="container">
+      <div class="stats" id="stats"></div>
+      <div class="tabs" id="tabs"></div>
+      <div id="list"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let API = '';
+    let token = '';
+    let filter = ''; // '', 'pending', 'approved', 'rejected'
+
+    const FILTERS = [
+      { key: '', label: 'Todas' },
+      { key: 'pending', label: 'Pendentes' },
+      { key: 'approved', label: 'Aprovadas' },
+      { key: 'rejected', label: 'Rejeitadas' },
+    ];
+    const STATUS_LABEL = { pending: 'Pendente', approved: 'Aprovada', rejected: 'Rejeitada' };
+
+    async function apiFetch(path, opts = {}) {
+      const res = await fetch(API + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts.headers || {}) },
+      });
+      if (res.status === 204) return null;
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      if (!res.ok) throw new Error((data && data.detail) || ('Erro ' + res.status));
+      return data;
+    }
+
+    // ── Login ──
+    $('loginBtn').addEventListener('click', login);
+    $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+
+    async function login() {
+      $('loginErr').textContent = '';
+      $('loginBtn').disabled = true;
+      API = $('api').value.trim().replace(/\/$/, '');
+      try {
+        const r = await fetch(API + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: $('email').value.trim(), password: $('password').value }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Falha no login');
+        if (!data.access_token) throw new Error('Esta conta exige 2FA (não suportado aqui).');
+        token = data.access_token;
+        // Confirma que é moderador buscando as estatísticas (403 se não for).
+        await apiFetch('/admin/reviews/stats');
+        $('who').textContent = $('email').value.trim();
+        $('login').classList.add('hidden');
+        $('app').classList.remove('hidden');
+        renderTabs();
+        await refresh();
+      } catch (e) {
+        $('loginErr').textContent = e.message.includes('restrito') ? 'Esta conta não é moderadora.' : e.message;
+      } finally {
+        $('loginBtn').disabled = false;
+      }
+    }
+
+    $('logoutBtn').addEventListener('click', () => {
+      token = ''; $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+    });
+
+    // ── Dashboard ──
+    function renderTabs() {
+      $('tabs').innerHTML = '';
+      for (const f of FILTERS) {
+        const b = document.createElement('button');
+        b.className = 'tab' + (f.key === filter ? ' active' : '');
+        b.textContent = f.label;
+        b.onclick = () => { filter = f.key; renderTabs(); refresh(); };
+        $('tabs').appendChild(b);
+      }
+    }
+
+    function stars(rating) {
+      const pct = (rating / 5) * 100;
+      return `<span class="stars"><span class="base">★★★★★</span><span class="fill" style="width:${pct}%">★★★★★</span></span>`;
+    }
+
+    function fmtDate(iso) {
+      try { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+      catch { return iso; }
+    }
+
+    async function refresh() {
+      try {
+        const [stats, list] = await Promise.all([
+          apiFetch('/admin/reviews/stats'),
+          apiFetch('/admin/reviews' + (filter ? '?status=' + filter : '')),
+        ]);
+        renderStats(stats);
+        renderList(list);
+      } catch (e) {
+        $('list').innerHTML = `<div class="empty-state">${e.message}</div>`;
+      }
+    }
+
+    function renderStats(s) {
+      $('stats').innerHTML = `
+        <div class="stat"><div class="n">${s.total}</div><div class="l">avaliações</div></div>
+        <div class="stat"><div class="n">${s.average != null ? s.average.toFixed(2).replace('.', ',') + ' ★' : '—'}</div><div class="l">nota média</div></div>
+        <div class="stat"><div class="n">${s.pending}</div><div class="l">pendentes</div></div>`;
+    }
+
+    function renderList(list) {
+      if (!list.length) { $('list').innerHTML = `<div class="empty-state">Nenhuma avaliação${filter ? ' com esse status' : ''}.</div>`; return; }
+      $('list').innerHTML = '';
+      for (const r of list) {
+        const a = r.author;
+        const card = document.createElement('div');
+        card.className = 'card';
+        const avatar = a.avatar_url || 'https://i.pravatar.cc/150?img=12';
+        const comment = r.comment
+          ? `<div class="comment">${escapeHtml(r.comment)}</div>`
+          : `<div class="comment empty">— sem comentário —</div>`;
+        card.innerHTML = `
+          <div class="head">
+            <img class="avatar" src="${avatar}" alt="" />
+            <div>
+              <div class="name">${escapeHtml(a.name)}</div>
+              <div class="sub">@${escapeHtml(a.username)} · ${escapeHtml(a.neighborhood || '')}</div>
+            </div>
+            <div class="when">${fmtDate(r.updated_at)}</div>
+          </div>
+          <div class="rating-row">${stars(r.rating)}<span class="rating-num">${r.rating.toString().replace('.', ',')}</span>
+            <span class="badge b-${r.status}">${STATUS_LABEL[r.status] || r.status}</span></div>
+          ${comment}
+          <div class="actions">
+            <button class="act approve">Aprovar</button>
+            <button class="act reject">Rejeitar</button>
+            <button class="act del">Excluir</button>
+          </div>`;
+        card.querySelector('.approve').onclick = () => setStatus(r.id, 'approved');
+        card.querySelector('.reject').onclick = () => setStatus(r.id, 'rejected');
+        card.querySelector('.del').onclick = () => del(r.id, a.name);
+        $('list').appendChild(card);
+      }
+    }
+
+    async function setStatus(id, status) {
+      try { await apiFetch('/admin/reviews/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); await refresh(); }
+      catch (e) { alert(e.message); }
+    }
+    async function del(id, name) {
+      if (!confirm('Excluir a avaliação de ' + name + '? Esta ação não pode ser desfeita.')) return;
+      try { await apiFetch('/admin/reviews/' + id, { method: 'DELETE' }); await refresh(); }
+      catch (e) { alert(e.message); }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+  </script>
+</body>
+</html>

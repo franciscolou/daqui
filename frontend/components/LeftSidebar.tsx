@@ -30,14 +30,19 @@ const PEOPLE_ITEMS: {
   icon: keyof typeof Ionicons.glyphMap;
   route?: string;
 }[] = [
-  { key: 'neighbors', label: 'Vizinhos', icon: 'people-outline' },
+  { key: 'neighbors', label: 'Vizinhos', icon: 'people-outline', route: '/neighbors' },
   { key: 'groups', label: 'Grupos', icon: 'grid-outline', route: '/groups' },
 ];
 
-const APP_ITEMS = [
-  { key: 'rate', label: 'Avaliar o Daqui', icon: 'star-outline'          as const },
-  { key: 'help',   label: 'Ajuda e suporte', icon: 'help-circle-outline'   as const },
-  { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline' as const },
+const APP_ITEMS: {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route?: string;
+}[] = [
+  { key: 'rate', label: 'Avaliar o Daqui', icon: 'star-outline', route: '/rate' },
+  { key: 'help',   label: 'Ajuda e suporte', icon: 'help-circle-outline' },
+  { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline' },
 ];
 
 export default function LeftSidebar({ activeCategory, onCategoryChange, onNavigate }: Props) {
@@ -190,7 +195,12 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
       <Text style={styles.groupTitle}>Sobre</Text>
       <View style={styles.group}>
         {APP_ITEMS.map((item) => (
-          <TouchableOpacity key={item.key} style={styles.navItem} activeOpacity={0.7} onPress={() => onNavigate?.()}>
+          <TouchableOpacity
+            key={item.key}
+            style={styles.navItem}
+            activeOpacity={0.7}
+            onPress={() => (item.route ? navigate(item.route) : onNavigate?.())}
+          >
             <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
             <Text style={styles.navLabel}>{item.label}</Text>
           </TouchableOpacity>

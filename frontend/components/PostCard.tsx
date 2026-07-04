@@ -53,11 +53,6 @@ export default function PostCard({ post, onPress }: PostCardProps) {
       <TouchableOpacity style={styles.leftCol} onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.8}>
         <View style={styles.avatarWrapper}>
           <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
-          {post.author.verified && (
-            <View style={styles.verifiedDot}>
-              <Ionicons name="checkmark" size={7} color="#fff" />
-            </View>
-          )}
         </View>
       </TouchableOpacity>
 
@@ -283,19 +278,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-  },
-  verifiedDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 15,
-    height: 15,
-    borderRadius: 8,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: Colors.surface,
   },
 
   /* Right column */

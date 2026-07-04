@@ -20,6 +20,7 @@ def create_tables():
         message,
         notification,
         post,
+        review,
         user,
     )
     Base.metadata.create_all(bind=engine)
@@ -46,6 +47,8 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE users ADD COLUMN totp_secret VARCHAR(64)"))
             if "totp_enabled" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0 NOT NULL"))
+            if "is_moderator" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_moderator BOOLEAN DEFAULT 0 NOT NULL"))
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}
