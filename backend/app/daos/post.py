@@ -81,6 +81,10 @@ def list_by_author(db: Session, author_id: int) -> list[Post]:
     )
 
 
+def count_by_author(db: Session, author_id: int) -> int:
+    return db.query(Post).filter(Post.author_id == author_id).count()
+
+
 def count_feed(db: Session, neighborhood: str, category: str | None) -> int:
     q = db.query(Post).filter(Post.neighborhood == neighborhood)
     if category and category != "todos":

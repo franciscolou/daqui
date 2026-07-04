@@ -56,16 +56,16 @@ def seed():
     neighbors_data = [
         dict(username="helena", name="Helena Prado", email=MARKER_EMAIL, neighborhood=lou_bairro, city="Rio de Janeiro", state="RJ",
              badge="lider", verified=True, avatar_url="https://i.pravatar.cc/150?img=31",
-             help_count=64, latitude=-22.9622, longitude=-43.1658),
+             latitude=-22.9622, longitude=-43.1658),
         dict(username="bruno", name="Bruno Tavares", email="bruno.leme@daqui.com", neighborhood=lou_bairro, city="Rio de Janeiro", state="RJ",
              badge="morador", verified=True, avatar_url="https://i.pravatar.cc/150?img=12",
-             help_count=21, latitude=-22.9640, longitude=-43.1668),
+             latitude=-22.9640, longitude=-43.1668),
         dict(username="sofia", name="Sofia Andrade", email="sofia.leme@daqui.com", neighborhood=lou_bairro, city="Rio de Janeiro", state="RJ",
              badge="comerciante", verified=True, avatar_url="https://i.pravatar.cc/150?img=24",
-             help_count=38, latitude=-22.9648, longitude=-43.1662),
+             latitude=-22.9648, longitude=-43.1662),
         dict(username="diego", name="Diego Martins", email="diego.leme@daqui.com", neighborhood=lou_bairro, city="Rio de Janeiro", state="RJ",
              badge="morador", verified=False, avatar_url="https://i.pravatar.cc/150?img=8",
-             help_count=9, latitude=-22.9618, longitude=-43.1650),
+             latitude=-22.9618, longitude=-43.1650),
     ]
     neighbors = {}
     for d in neighbors_data:
@@ -255,6 +255,7 @@ def seed():
 
     for u in db.query(User).all():
         u.posts_count = db.query(Post).filter(Post.author_id == u.id).count()
+        u.comments_count = db.query(Comment).filter(Comment.author_id == u.id).count()
 
     db.commit()
 

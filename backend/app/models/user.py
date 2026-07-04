@@ -32,7 +32,7 @@ class User(Base):
     totp_secret: Mapped[Optional[str]] = mapped_column(String(64))
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     posts_count: Mapped[int] = mapped_column(Integer, default=0)
-    help_count: Mapped[int] = mapped_column(Integer, default=0)
+    comments_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -41,6 +41,11 @@ class User(Base):
     def two_factor_enabled(self) -> bool:
         """Nome exposto na API para o estado da A2F (ver schema UserMe)."""
         return bool(self.totp_enabled)
+
+    @property
+    def interactions_count(self) -> int:
+        """Engajamento do vizinho: posts + comentários feitos."""
+        return self.posts_count + self.comments_count
 
     posts: Mapped[list["Post"]] = relationship("Post", back_populates="author", lazy="select")  # noqa: F821
     sent_messages: Mapped[list["Message"]] = relationship(  # noqa: F821

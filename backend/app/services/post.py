@@ -263,7 +263,7 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         db.commit()
         db.refresh(post)
 
-    user_dao.update(db, user, {"posts_count": user.posts_count + 1})
+    user_dao.update(db, user, {"posts_count": post_dao.count_by_author(db, user.id)})
     return _to_schema(post, user, db)
 
 
@@ -406,7 +406,7 @@ def delete_post(db: Session, post_id: int, user: User) -> None:
         raise HTTPException(status_code=403, detail="Sem permissão")
 
     post_dao.delete(db, post)
-    user_dao.update(db, user, {"posts_count": max(0, user.posts_count - 1)})
+    user_dao.update(db, user, {"posts_count": post_dao.count_by_author(db, user.id)})
 
 
 # ── Moderação ─────────────────────────────────────────────────────────
@@ -423,4 +423,4 @@ def admin_delete_post(db: Session, post_id: int) -> None:
     author = user_dao.get_by_id(db, post.author_id)
     post_dao.delete(db, post)
     if author:
-        user_dao.update(db, author, {"posts_count": max(0, author.posts_count - 1)})
+        user_dao.update(db, author, {"posts_count": post_dao.count_by_author(db, author.id)})

@@ -41,3 +41,7 @@ def delete(db: Session, comment: Comment) -> None:
 
 def count_for_post(db: Session, post_id: int) -> int:
     return db.query(Comment).filter(Comment.post_id == post_id).count()
+
+
+def count_by_author(db: Session, author_id: int) -> int:
+    return db.query(Comment).filter(Comment.author_id == author_id).count()

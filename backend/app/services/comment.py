@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.daos import comment as comment_dao
 from app.daos import post as post_dao
+from app.daos import user as user_dao
 from app.models.comment import Comment
 from app.models.user import User
 from app.schemas.comment import CommentCreate
@@ -33,6 +34,7 @@ def create(db: Session, post_id: int, user: User, payload: CommentCreate) -> Com
         db, post_id=post_id, author_id=user.id, content=content
     )
     post.comments_count = comment_dao.count_for_post(db, post_id)
+    user.comments_count = comment_dao.count_by_author(db, user.id)
     db.commit()
     return comment
 
@@ -50,7 +52,8 @@ def delete(db: Session, comment_id: int, user: User) -> None:
     post = post_dao.get_by_id(db, post_id)
     if post:
         post.comments_count = comment_dao.count_for_post(db, post_id)
-        db.commit()
+    user.comments_count = comment_dao.count_by_author(db, user.id)
+    db.commit()
 
 
 # ── Moderação ─────────────────────────────────────────────────────────
@@ -64,9 +67,13 @@ def admin_delete(db: Session, comment_id: int) -> None:
         raise HTTPException(status_code=404, detail="Comentário não encontrado")
 
     post_id = comment.post_id
+    author_id = comment.author_id
     comment_dao.delete(db, comment)
 
     post = post_dao.get_by_id(db, post_id)
     if post:
         post.comments_count = comment_dao.count_for_post(db, post_id)
-        db.commit()
+    author = user_dao.get_by_id(db, author_id)
+    if author:
+        author.comments_count = comment_dao.count_by_author(db, author_id)
+    db.commit()

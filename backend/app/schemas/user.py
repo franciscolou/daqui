@@ -21,7 +21,7 @@ class UserPublic(BaseModel):
     badge: Optional[str]
     verified: bool
     posts_count: int
-    help_count: int
+    interactions_count: int
     created_at: datetime
     latitude: Optional[float] = None
     longitude: Optional[float] = None

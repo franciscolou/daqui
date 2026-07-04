@@ -112,7 +112,7 @@ interface BackendUser {
   badge: string | null;
   verified: boolean;
   posts_count: number;
-  help_count: number;
+  interactions_count: number;
   created_at: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -428,7 +428,7 @@ export function mapUser(u: BackendUser): User {
       year: 'numeric',
     }),
     postsCount: u.posts_count,
-    helpCount: u.help_count,
+    interactionsCount: u.interactions_count,
     latitude: u.latitude ?? undefined,
     longitude: u.longitude ?? undefined,
     locked: u.locked ?? false,

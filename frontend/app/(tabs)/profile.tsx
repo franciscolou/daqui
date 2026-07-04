@@ -73,8 +73,8 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNum}>{user?.helpCount ?? 0}</Text>
-            <Text style={styles.statLabel}>Ajudas</Text>
+            <Text style={styles.statNum}>{user?.interactionsCount ?? 0}</Text>
+            <Text style={styles.statLabel}>Interações</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>

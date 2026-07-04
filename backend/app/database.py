@@ -49,6 +49,10 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0 NOT NULL"))
             if "is_moderator" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN is_moderator BOOLEAN DEFAULT 0 NOT NULL"))
+            if "comments_count" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN comments_count INTEGER DEFAULT 0 NOT NULL"))
+            if "help_count" in columns:
+                conn.execute(text("ALTER TABLE users DROP COLUMN help_count"))
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}

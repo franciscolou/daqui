@@ -143,8 +143,8 @@ export default function UserScreen() {
             <>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNum}>{user.helpCount}</Text>
-                <Text style={styles.statLabel}>Ajudas</Text>
+                <Text style={styles.statNum}>{user.interactionsCount}</Text>
+                <Text style={styles.statLabel}>Interações</Text>
               </View>
             </>
           )}

@@ -19,25 +19,25 @@ from app.models.user import User
 USERS = [
     dict(username="francisco", name="Francisco Gardenberg", email="francisco@daqui.com", password="senha123",
          neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="lider", verified=True, latitude=-22.9631, longitude=-43.1665,
-         avatar_url="https://i.pravatar.cc/150?img=68", posts_count=47, help_count=23),
+         avatar_url="https://i.pravatar.cc/150?img=68"),
     dict(username="anapaula", name="Ana Paula Lima", email="ana@daqui.com", password="senha123",
          neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="lider", verified=True, latitude=-22.9622, longitude=-43.1658,
-         avatar_url="https://i.pravatar.cc/150?img=47", posts_count=134, help_count=89),
+         avatar_url="https://i.pravatar.cc/150?img=47"),
     dict(username="carlosmendes", name="Carlos Mendes", email="carlos@daqui.com", password="senha123",
          neighborhood="Pinheiros", badge="morador", verified=True, latitude=-23.5665, longitude=-46.7010,
-         avatar_url="https://i.pravatar.cc/150?img=52", posts_count=28, help_count=14),
+         avatar_url="https://i.pravatar.cc/150?img=52"),
     dict(username="beatriz", name="Beatriz Santos", email="beatriz@daqui.com", password="senha123",
          neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="comerciante", verified=True, latitude=-22.9640, longitude=-43.1668,
-         avatar_url="https://i.pravatar.cc/150?img=44", posts_count=256, help_count=41),
+         avatar_url="https://i.pravatar.cc/150?img=44"),
     dict(username="roberto", name="Roberto Alves", email="roberto@daqui.com", password="senha123",
          neighborhood="Jardins", badge="morador", verified=False, latitude=-23.5710, longitude=-46.6680,
-         avatar_url="https://i.pravatar.cc/150?img=57", posts_count=12, help_count=7),
+         avatar_url="https://i.pravatar.cc/150?img=57"),
     dict(username="mariana", name="Mariana Costa", email="mariana@daqui.com", password="senha123",
          neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9648, longitude=-43.1662,
-         avatar_url="https://i.pravatar.cc/150?img=25", posts_count=8, help_count=3),
+         avatar_url="https://i.pravatar.cc/150?img=25"),
     dict(username="thiago", name="Thiago Ferreira", email="thiago@daqui.com", password="senha123",
          neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9618, longitude=-43.1650,
-         avatar_url="https://i.pravatar.cc/150?img=61", posts_count=55, help_count=32),
+         avatar_url="https://i.pravatar.cc/150?img=61"),
 ]
 
 POSTS = [
@@ -122,6 +122,11 @@ def seed():
 
     for i, post in enumerate(posts):
         post.comments_count = sum(1 for c in seed_comments if c[0] == i)
+
+    # posts_count/comments_count são derivados dos registros reais, não hardcoded.
+    for user in users:
+        user.posts_count = sum(1 for p in posts if p.author_id == user.id)
+        user.comments_count = sum(1 for _, author_idx, _ in seed_comments if users[author_idx].id == user.id)
     db.flush()
 
     db.add(Message(sender_id=users[1].id, receiver_id=users[0].id,

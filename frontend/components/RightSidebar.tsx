@@ -105,7 +105,7 @@ export default function RightSidebar() {
               <View style={styles.neighborInfo}>
                 <Text style={styles.neighborName} numberOfLines={1}>{u.name.split(' ')[0]}{' '}{u.name.split(' ')[1]?.[0] ? `${u.name.split(' ')[1][0]}.` : ''}</Text>
                 <Text style={styles.neighborDist} numberOfLines={1}>
-                  {u.postsCount} posts · {u.helpCount} ajudas
+                  {u.postsCount} posts · {u.interactionsCount} interações
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />

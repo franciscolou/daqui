@@ -35,7 +35,7 @@ def public_view(viewer: User, target: User) -> UserPublic:
         badge=None,
         verified=False,
         posts_count=target.posts_count,
-        help_count=0,
+        interactions_count=target.interactions_count,
         created_at=target.created_at,
         latitude=None,
         longitude=None,

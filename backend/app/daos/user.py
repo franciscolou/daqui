@@ -76,7 +76,7 @@ def search(db: Session, query: str, limit: int = 30) -> list[User]:
     return (
         db.query(User)
         .filter(or_(User.name.ilike(like), User.username.ilike(like)))
-        .order_by(desc(User.posts_count + User.help_count))
+        .order_by(desc(User.posts_count + User.comments_count))
         .limit(limit)
         .all()
     )
@@ -85,11 +85,11 @@ def search(db: Session, query: str, limit: int = 30) -> list[User]:
 def get_popular(
     db: Session, neighborhood: str, exclude_id: int, limit: int = 10
 ) -> list[User]:
-    # Popularidade = engajamento do vizinho (posts + ajudas dadas), dentro do bairro.
+    # Popularidade = engajamento do vizinho (posts + comentários), dentro do bairro.
     return (
         db.query(User)
         .filter(User.neighborhood == neighborhood, User.id != exclude_id)
-        .order_by(desc(User.posts_count + User.help_count), desc(User.verified))
+        .order_by(desc(User.posts_count + User.comments_count), desc(User.verified))
         .limit(limit)
         .all()
     )

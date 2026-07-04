@@ -38,7 +38,7 @@ export interface User {
   verified: boolean;
   joinedAt: string;
   postsCount: number;
-  helpCount: number;
+  interactionsCount: number;
   latitude?: number;          // coordenadas do usuário (só /auth/me e vizinhos do bairro)
   longitude?: number;
   locked?: boolean;           // perfil de outro bairro: só nome, @username, foto e nº de posts
@@ -103,7 +103,7 @@ export const CURRENT_USER: User = {
   verified: true,
   joinedAt: 'Março 2024',
   postsCount: 47,
-  helpCount: 23,
+  interactionsCount: 23,
 };
 
 export const USERS: User[] = [
@@ -117,7 +117,7 @@ export const USERS: User[] = [
     verified: true,
     joinedAt: 'Jan 2023',
     postsCount: 134,
-    helpCount: 89,
+    interactionsCount: 89,
   },
   {
     id: 'u2',
@@ -129,7 +129,7 @@ export const USERS: User[] = [
     verified: true,
     joinedAt: 'Mar 2023',
     postsCount: 28,
-    helpCount: 14,
+    interactionsCount: 14,
   },
   {
     id: 'u3',
@@ -141,7 +141,7 @@ export const USERS: User[] = [
     verified: true,
     joinedAt: 'Jun 2022',
     postsCount: 256,
-    helpCount: 41,
+    interactionsCount: 41,
   },
   {
     id: 'u4',
@@ -153,7 +153,7 @@ export const USERS: User[] = [
     verified: false,
     joinedAt: 'Ago 2023',
     postsCount: 12,
-    helpCount: 7,
+    interactionsCount: 7,
   },
   {
     id: 'u5',
@@ -165,7 +165,7 @@ export const USERS: User[] = [
     verified: true,
     joinedAt: 'Fev 2024',
     postsCount: 8,
-    helpCount: 3,
+    interactionsCount: 3,
   },
   {
     id: 'u6',
@@ -177,7 +177,7 @@ export const USERS: User[] = [
     verified: true,
     joinedAt: 'Nov 2022',
     postsCount: 55,
-    helpCount: 32,
+    interactionsCount: 32,
   },
 ];
 
