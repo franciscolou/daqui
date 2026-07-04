@@ -41,6 +41,11 @@ router.post(
     response_model=PostOut,
 )(post.vote_poll)
 
+router.delete(
+    "/{post_id}/vote",
+    response_model=PostOut,
+)(post.unvote_poll)
+
 router.post(
     "/{post_id}/like",
     response_model=PostOut,

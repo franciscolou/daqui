@@ -79,6 +79,24 @@ export default function PollBlock({
     setMode('vote');
   };
 
+  const unvote = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const updated = await api.unvotePoll(postId);
+      if (updated.poll) {
+        setPoll(updated.poll);
+        onChange?.(updated.poll);
+        setSelected(new Set());
+        setMode('vote');
+      }
+    } catch {
+      // ignora
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <View style={styles.wrap}>
       {mode === 'vote' ? (
@@ -148,11 +166,18 @@ export default function PollBlock({
           {formatCloses(poll.closesAt, poll.closed)}
         </Text>
         {mode === 'results' && !poll.closed && (
-          <TouchableOpacity onPress={startEdit} hitSlop={8}>
-            <Text style={[styles.changeVote, { color: accent }]}>
-              {poll.myVotes.length > 0 ? 'Alterar voto' : 'Votar'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.footerActions}>
+            {poll.myVotes.length > 0 && (
+              <TouchableOpacity onPress={unvote} hitSlop={8} disabled={busy}>
+                <Text style={[styles.changeVote, { color: Colors.textTertiary }]}>Remover voto</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={startEdit} hitSlop={8}>
+              <Text style={[styles.changeVote, { color: accent }]}>
+                {poll.myVotes.length > 0 ? 'Alterar voto' : 'Votar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </View>
@@ -229,5 +254,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     marginTop: 2,
   },
   footerText: { fontSize: 12, color: Colors.textTertiary, fontWeight: '500' },
+  footerActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   changeVote: { fontSize: 12, fontWeight: '800' },
 });

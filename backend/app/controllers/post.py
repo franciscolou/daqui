@@ -76,6 +76,14 @@ def vote_poll(
     return post.vote_poll(db, post_id, current_user, payload.option_ids)
 
 
+def unvote_poll(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PostOut:
+    return post.unvote_poll(db, post_id, current_user)
+
+
 def toggle_like(
     post_id: int,
     db: Session = Depends(get_db),

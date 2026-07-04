@@ -360,6 +360,24 @@ def vote_poll(db: Session, post_id: int, user: User, option_ids: list[int]) -> P
     return _to_schema(post, user, db)
 
 
+def unvote_poll(db: Session, post_id: int, user: User) -> PostOut:
+    """Remove o(s) voto(s) do usuário na enquete (desvotar)."""
+    post = post_dao.get_by_id(db, post_id)
+    if not post or post.neighborhood != user.neighborhood:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+    if post.category != "enquete" or post.poll_closes_at is None:
+        raise HTTPException(status_code=400, detail="Este post não é uma enquete")
+    if datetime.now(timezone.utc) >= _aware(post.poll_closes_at):
+        raise HTTPException(status_code=400, detail="Esta enquete já encerrou")
+
+    post_dao.clear_user_votes(db, post.id, user.id)
+    db.flush()
+    post_dao.recount_options(db, post)
+    db.commit()
+    db.refresh(post)
+    return _to_schema(post, user, db)
+
+
 def toggle_like(db: Session, post_id: int, user: User) -> PostOut:
     post = post_dao.get_by_id(db, post_id)
     if not post:

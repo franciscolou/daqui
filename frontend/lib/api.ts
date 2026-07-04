@@ -802,6 +802,11 @@ export const api = {
     );
   },
 
+  // Remove o voto do usuário (desvotar).
+  async unvotePoll(id: string): Promise<Post> {
+    return mapPost(await request<BackendPost>(`/posts/${id}/vote`, { method: 'DELETE' }));
+  },
+
   async deletePost(id: string): Promise<void> {
     await request<void>(`/posts/${id}`, { method: 'DELETE' });
   },
