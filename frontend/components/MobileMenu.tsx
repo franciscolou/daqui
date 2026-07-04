@@ -11,7 +11,24 @@ import LeftSidebar from './LeftSidebar';
  * dá acesso ao que no desktop fica sempre visível (Novidades, Configurações,
  * App, modo escuro, etc.).
  */
-export default function MobileMenu({ inline = false }: { inline?: boolean }) {
+interface Props {
+  inline?: boolean;
+  // Repassados ao LeftSidebar interno — usado pelo feed para dar acesso, no
+  // drawer mobile, ao filtro de categorias e ao checkbox "Somente importantes"
+  // (no desktop eles ficam sempre visíveis na sidebar fixa).
+  activeCategory?: string;
+  onCategoryChange?: (key: string) => void;
+  importantOnly?: boolean;
+  onImportantChange?: (value: boolean) => void;
+}
+
+export default function MobileMenu({
+  inline = false,
+  activeCategory,
+  onCategoryChange,
+  importantOnly,
+  onImportantChange,
+}: Props) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
   const Colors = useTheme();
@@ -31,7 +48,13 @@ export default function MobileMenu({ inline = false }: { inline?: boolean }) {
         <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
           <Pressable style={[styles.panel, { paddingTop: insets.top }]} onPress={() => {}}>
             <ScrollView showsVerticalScrollIndicator={false}>
-              <LeftSidebar onNavigate={() => setOpen(false)} />
+              <LeftSidebar
+                onNavigate={() => setOpen(false)}
+                activeCategory={activeCategory}
+                onCategoryChange={onCategoryChange}
+                importantOnly={importantOnly}
+                onImportantChange={onImportantChange}
+              />
             </ScrollView>
           </Pressable>
         </Pressable>

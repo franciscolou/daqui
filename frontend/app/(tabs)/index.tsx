@@ -37,6 +37,7 @@ export default function FeedScreen() {
   const styles = useThemedStyles(makeStyles);
 
   const [activeCategory, setActiveCategory] = useState<FilterKey>('todos');
+  const [importantOnly, setImportantOnly] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,7 +69,9 @@ export default function FeedScreen() {
   }, [load]);
 
   const filteredPosts = posts.filter(
-    (p) => activeCategory === 'todos' || p.category === activeCategory,
+    (p) =>
+      (activeCategory === 'todos' || p.category === activeCategory) &&
+      (!importantOnly || p.important),
   );
 
   const feedHeader = (
@@ -166,6 +169,8 @@ export default function FeedScreen() {
             <LeftSidebar
               activeCategory={activeCategory}
               onCategoryChange={(k) => setActiveCategory(k as FilterKey)}
+              importantOnly={importantOnly}
+              onImportantChange={setImportantOnly}
             />
           </ScrollView>
 
@@ -183,7 +188,13 @@ export default function FeedScreen() {
         <View style={styles.mobileBody}>
           <View style={styles.mobileTopBar}>
             <Text style={styles.mobileBrand}>daqui</Text>
-            <MobileMenu inline />
+            <MobileMenu
+              inline
+              activeCategory={activeCategory}
+              onCategoryChange={(k) => setActiveCategory(k as FilterKey)}
+              importantOnly={importantOnly}
+              onImportantChange={setImportantOnly}
+            />
           </View>
           {feed}
         </View>

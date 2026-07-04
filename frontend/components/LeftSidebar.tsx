@@ -19,6 +19,8 @@ const WIDE = 900;
 interface Props {
   activeCategory?: string;
   onCategoryChange?: (key: string) => void;
+  importantOnly?: boolean;
+  onImportantChange?: (value: boolean) => void;
   onNavigate?: () => void; // chamado ao tocar em um item (ex.: fechar o drawer no mobile)
 }
 
@@ -53,7 +55,13 @@ const APP_ITEMS: {
   { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline' },
 ];
 
-export default function LeftSidebar({ activeCategory, onCategoryChange, onNavigate }: Props) {
+export default function LeftSidebar({
+  activeCategory,
+  onCategoryChange,
+  importantOnly,
+  onImportantChange,
+  onNavigate,
+}: Props) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { unreadMessages, unreadNotifications } = useRealtime();
@@ -189,6 +197,7 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
       {onCategoryChange && (
         <>
           <View style={styles.divider} />
+
           <TouchableOpacity
             style={styles.categoriesHeader}
             onPress={toggleCategories}
@@ -229,6 +238,16 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
                 {CATEGORIES.filter((c) => c.key !== 'todos' && c.key !== 'geral').map(renderCategory)}
               </View>
             </Animated.View>
+            <TouchableOpacity
+              style={styles.importantRow}
+              onPress={() => onImportantChange?.(!importantOnly)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, importantOnly && styles.checkboxChecked]}>
+                {importantOnly && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </View>
+              <Text style={styles.importantLabel}>Somente importantes</Text>
+            </TouchableOpacity>
           </View>
         </>
       )}
@@ -392,6 +411,25 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
 
   group: { gap: 1 },
+  importantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  importantLabel: { fontSize: 13, fontWeight: '500', color: Colors.textSecondary },
   extraCats: { overflow: 'hidden' },
   extraCatsInner: { gap: 1, paddingTop: 1 },
   categoriesHeader: {

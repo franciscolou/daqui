@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -18,10 +19,14 @@ import { api, AppNotification } from '../../lib/api';
 import { useRealtime } from '../../lib/realtime';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
+import MobileMenu from '../../components/MobileMenu';
 
+const WIDE = 900;
 const REMOVED_TYPES = new Set(['post_removed', 'comment_removed']);
 
 export default function NotificationsScreen() {
+  const { width } = useWindowDimensions();
+  const isWide = width >= WIDE;
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { subscribeNotifications } = useRealtime();
@@ -45,10 +50,15 @@ export default function NotificationsScreen() {
   useEffect(() => subscribeNotifications(load), [subscribeNotifications, load]);
 
   return (
-    <FeedLayout>
+    <FeedLayout showMobileMenu={false}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Novidades</Text>
-        <Text style={styles.headerSub}>Curtidas, comentários e avisos do seu bairro</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.headerTexts}>
+            <Text style={styles.headerTitle}>Novidades</Text>
+            <Text style={styles.headerSub}>Curtidas, comentários e avisos do seu bairro</Text>
+          </View>
+          {!isWide && <MobileMenu inline />}
+        </View>
       </View>
 
       <FlatList
@@ -113,11 +123,12 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
-    gap: 2,
     backgroundColor: Colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTexts: { flex: 1, gap: 2 },
   headerTitle: { fontSize: 22, fontWeight: '800', color: Colors.text, letterSpacing: -0.5 },
   headerSub: { fontSize: 13, color: Colors.textTertiary },
   separator: { height: 1, backgroundColor: Colors.borderLight },

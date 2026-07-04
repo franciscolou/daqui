@@ -224,7 +224,7 @@ export default function UserScreen() {
 
   return (
     <>
-      <FeedLayout>
+      <FeedLayout showMobileMenu={isMe}>
         <ScrollView
           contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
