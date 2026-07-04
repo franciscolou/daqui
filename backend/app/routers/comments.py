@@ -20,3 +20,7 @@ router.delete(
     "/comments/{comment_id}",
     status_code=204,
 )(comment.delete_comment)
+
+# App de moderação: excluir qualquer comentário (independente do autor).
+admin_router = APIRouter(prefix="/admin/comments", tags=["moderation"])
+admin_router.delete("/{comment_id}", status_code=204)(comment.admin_delete_comment)

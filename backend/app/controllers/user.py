@@ -1,7 +1,7 @@
-from fastapi import Depends, Request
+from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_moderator, get_current_user, get_db
 from app.models.user import User
 from app.schemas.user import (
     AvatarUpdate,
@@ -65,3 +65,12 @@ def update_avatar(
     current_user: User = Depends(get_current_user),
 ) -> UserPublic:
     return user.update_avatar(db, current_user, str(request.base_url), payload.image)
+
+
+# ── Moderador (app de moderação) ──────────────────────────────────────
+def admin_search_users(
+    q: str = Query("", description="Nome ou @username"),
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> list[UserPublic]:
+    return user.admin_search(db, q)

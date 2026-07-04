@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Daqui · Moderação</title>
+  <title>Moderação | Daqui</title>
   <style>
     :root {
       --primary: #22C55E; --primary-dark: #16A34A; --gold: #F59E0B;
@@ -104,6 +104,20 @@
     .act.del { margin-left: auto; background: none; border: none; color: var(--danger); }
     .empty-state { text-align: center; color: var(--text-3); padding: 60px 20px; }
     @media (max-width: 560px) { .stats { grid-template-columns: 1fr; } }
+
+    /* Usuários */
+    .search-row { display: flex; gap: 8px; margin-bottom: 16px; }
+    .search-row input { flex: 1; }
+    .search-row button { width: auto; margin-top: 0; padding: 11px 20px; border-radius: 10px; }
+    .user-result {
+      display: flex; align-items: center; gap: 12px; padding: 12px;
+      border: 1px solid var(--border-light); border-radius: 12px; margin-bottom: 8px;
+      background: var(--surface); cursor: pointer;
+    }
+    .user-result:hover { border-color: var(--primary); }
+    .back-link { display: inline-block; margin-bottom: 14px; font-size: 13px; }
+    .applink { color: var(--primary-dark); font-weight: 700; font-size: 13px; text-decoration: none; }
+    .applink:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -114,6 +128,8 @@
       <p class="muted">Acesso restrito a moderadores.</p>
       <label>Servidor da API</label>
       <input id="api" value="http://localhost:8000/api/v1" />
+      <label>URL do app Daqui</label>
+      <input id="appUrl" value="http://localhost:8081" />
       <label>E-mail</label>
       <input id="email" type="email" placeholder="moderador@daqui.com" autocomplete="username" />
       <label>Senha</label>
@@ -150,6 +166,23 @@
             <div class="tabs" id="reportTypeTabs"></div>
             <div id="reportList"></div>
           </div>
+
+          <div id="section-users" class="hidden">
+            <div id="userSearchView">
+              <div class="search-row">
+                <input id="userSearchInput" placeholder="Buscar por nome ou @usuário..." />
+                <button id="userSearchBtn" class="act approve">Buscar</button>
+              </div>
+              <div id="userSearchResults"></div>
+            </div>
+
+            <div id="userDetailView" class="hidden">
+              <button class="linkbtn back-link" id="userBackBtn">← Voltar à busca</button>
+              <div id="userDetailCard"></div>
+              <div class="tabs" id="userContentTabs"></div>
+              <div id="userContentList"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -158,7 +191,18 @@
   <script>
     const $ = (id) => document.getElementById(id);
     let API = '';
+    let APP_URL = '';
     let token = '';
+
+    function postLink(postId) {
+      return `${APP_URL}/post/${postId}`;
+    }
+    function userLink(userId) {
+      return `${APP_URL}/user/${userId}`;
+    }
+    function appLinkTag(url, label) {
+      return `<a class="applink" href="${url}" target="_blank" rel="noopener noreferrer">${label} →</a>`;
+    }
 
     async function apiFetch(path, opts = {}) {
       const res = await fetch(API + path, {
@@ -194,6 +238,7 @@
       $('loginErr').textContent = '';
       $('loginBtn').disabled = true;
       API = $('api').value.trim().replace(/\/$/, '');
+      APP_URL = $('appUrl').value.trim().replace(/\/$/, '');
       try {
         const r = await fetch(API + '/auth/login', {
           method: 'POST',
@@ -229,6 +274,7 @@
     const SECTIONS = [
       { key: 'reviews', label: 'Avaliações', icon: '★', sectionId: 'section-reviews', title: 'Avaliações do Daqui', onShow: refreshReviews },
       { key: 'reports', label: 'Denúncias', icon: '⚑', sectionId: 'section-reports', title: 'Denúncias', onShow: refreshReports },
+      { key: 'users', label: 'Usuários', icon: '◍', sectionId: 'section-users', title: 'Usuários', onShow: showUsers },
     ];
     let currentSection = SECTIONS[0].key;
 
@@ -423,6 +469,7 @@
         return `<div class="target-box">
           <div class="label">Publicação de ${escapeHtml(r.post.author.name)}</div>
           <div class="content">${title}${escapeHtml(truncate(r.post.content, 280))}</div>
+          <div style="margin-top:8px;">${appLinkTag(postLink(r.post.id), 'Ver publicação no app')}</div>
         </div>`;
       }
       if (r.target_type === 'comment') {
@@ -430,6 +477,7 @@
         return `<div class="target-box">
           <div class="label">Comentário de ${escapeHtml(r.comment_target.author.name)}</div>
           <div class="content">${escapeHtml(truncate(r.comment_target.content, 280))}</div>
+          <div style="margin-top:8px;">${appLinkTag(postLink(r.comment_target.post_id), 'Ver publicação do comentário')}</div>
         </div>`;
       }
       if (r.target_type === 'user') {
@@ -437,6 +485,7 @@
         return `<div class="target-box">
           <div class="label">Perfil denunciado</div>
           <div class="content">${escapeHtml(r.reported_user.name)} · @${escapeHtml(r.reported_user.username)} · ${escapeHtml(r.reported_user.neighborhood || '')}</div>
+          <div style="margin-top:8px;">${appLinkTag(userLink(r.reported_user.id), 'Ver perfil no app')}</div>
         </div>`;
       }
       return '';
@@ -488,6 +537,174 @@
       if (!confirm('Excluir esta denúncia? Esta ação não pode ser desfeita.')) return;
       try { await apiFetch('/admin/reports/' + id, { method: 'DELETE' }); await refreshReports(); }
       catch (e) { alert(e.message); }
+    }
+
+    // ── Usuários ─────────────────────────────────────────────────────────
+    // Busca um usuário, depois lista seus posts/comentários para exclusão
+    // pontual pela moderação.
+    const CATEGORY_LABEL = {
+      geral: 'Geral', aviso: 'Aviso', seguranca: 'Segurança', evento: 'Evento',
+      recomendacao: 'Recomendação', venda: 'Venda', pets: 'Pets', ajuda: 'Ajuda',
+      perdidos: 'Perdidos', enquete: 'Enquete',
+    };
+    const USER_CONTENT_TABS = [
+      { key: 'posts', label: 'Posts' },
+      { key: 'comments', label: 'Comentários' },
+    ];
+    let selectedUser = null;
+    let userContentTab = 'posts';
+    let userPosts = [];
+    let userComments = [];
+
+    async function showUsers() {
+      $('userSearchInput').focus();
+    }
+
+    $('userSearchBtn').addEventListener('click', searchUsers);
+    $('userSearchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') searchUsers(); });
+    $('userBackBtn').addEventListener('click', () => {
+      $('userDetailView').classList.add('hidden');
+      $('userSearchView').classList.remove('hidden');
+    });
+
+    async function searchUsers() {
+      const q = $('userSearchInput').value.trim();
+      if (!q) { $('userSearchResults').innerHTML = ''; return; }
+      $('userSearchResults').innerHTML = `<div class="empty-state">Buscando…</div>`;
+      try {
+        const users = await apiFetch('/admin/users/search?q=' + encodeURIComponent(q));
+        renderUserSearchResults(users);
+      } catch (e) {
+        $('userSearchResults').innerHTML = `<div class="empty-state">${e.message}</div>`;
+      }
+    }
+
+    function renderUserSearchResults(users) {
+      if (!users.length) { $('userSearchResults').innerHTML = `<div class="empty-state">Nenhum usuário encontrado.</div>`; return; }
+      $('userSearchResults').innerHTML = '';
+      for (const u of users) {
+        const avatar = u.avatar_url || 'https://i.pravatar.cc/150?img=12';
+        const el = document.createElement('div');
+        el.className = 'user-result';
+        el.innerHTML = `
+          <img class="avatar" src="${avatar}" alt="" />
+          <div>
+            <div class="name">${escapeHtml(u.name)}</div>
+            <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')} · ${u.posts_count} posts</div>
+          </div>`;
+        el.onclick = () => openUserDetail(u);
+        $('userSearchResults').appendChild(el);
+      }
+    }
+
+    async function openUserDetail(u) {
+      selectedUser = u;
+      userContentTab = 'posts';
+      $('userSearchView').classList.add('hidden');
+      $('userDetailView').classList.remove('hidden');
+      renderUserDetailCard(u);
+      await loadUserContent();
+    }
+
+    function renderUserDetailCard(u) {
+      const avatar = u.avatar_url || 'https://i.pravatar.cc/150?img=12';
+      $('userDetailCard').innerHTML = `
+        <div class="card">
+          <div class="head">
+            <img class="avatar" src="${avatar}" alt="" />
+            <div>
+              <div class="name">${escapeHtml(u.name)}</div>
+              <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')}</div>
+            </div>
+            <div class="when">${u.posts_count} posts · ${u.help_count} ajudas</div>
+          </div>
+        </div>`;
+    }
+
+    function renderUserContentTabs() {
+      $('userContentTabs').innerHTML = '';
+      for (const t of USER_CONTENT_TABS) {
+        const b = document.createElement('button');
+        b.className = 'tab' + (t.key === userContentTab ? ' active' : '');
+        b.textContent = t.label;
+        b.onclick = () => { userContentTab = t.key; renderUserContentTabs(); renderUserContentList(); };
+        $('userContentTabs').appendChild(b);
+      }
+    }
+
+    async function loadUserContent() {
+      renderUserContentTabs();
+      $('userContentList').innerHTML = `<div class="empty-state">Carregando…</div>`;
+      try {
+        const [posts, comments] = await Promise.all([
+          apiFetch(`/admin/users/${selectedUser.id}/posts`),
+          apiFetch(`/admin/users/${selectedUser.id}/comments`),
+        ]);
+        userPosts = posts;
+        userComments = comments;
+        renderUserContentList();
+      } catch (e) {
+        $('userContentList').innerHTML = `<div class="empty-state">${e.message}</div>`;
+      }
+    }
+
+    function renderUserContentList() {
+      const items = userContentTab === 'posts' ? userPosts : userComments;
+      if (!items.length) {
+        $('userContentList').innerHTML = `<div class="empty-state">Nenhum${userContentTab === 'posts' ? ' post' : ' comentário'} encontrado.</div>`;
+        return;
+      }
+      $('userContentList').innerHTML = '';
+      for (const item of items) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        if (userContentTab === 'posts') {
+          const title = item.title ? escapeHtml(item.title) + ' — ' : '';
+          card.innerHTML = `
+            <div class="head">
+              <div class="name">${CATEGORY_LABEL[item.category] || item.category}</div>
+              <div class="when">${fmtDate(item.created_at)}</div>
+            </div>
+            <div class="comment">${title}${escapeHtml(truncate(item.content, 300))}</div>
+            <div class="sub" style="margin-top:8px;">${item.likes_count} curtidas · ${item.comments_count} comentários</div>
+            <div class="actions">
+              ${appLinkTag(postLink(item.id), 'Ver no app')}
+              <button class="act del">Excluir post</button>
+            </div>`;
+          card.querySelector('.del').onclick = () => deleteUserPost(item.id);
+        } else {
+          card.innerHTML = `
+            <div class="head">
+              <div class="name">Comentário</div>
+              <div class="when">${fmtDate(item.created_at)}</div>
+            </div>
+            <div class="comment">${escapeHtml(item.content)}</div>
+            <div class="actions">
+              ${appLinkTag(postLink(item.post_id), 'Ver publicação no app')}
+              <button class="act del">Excluir comentário</button>
+            </div>`;
+          card.querySelector('.del').onclick = () => deleteUserComment(item.id);
+        }
+        $('userContentList').appendChild(card);
+      }
+    }
+
+    async function deleteUserPost(id) {
+      if (!confirm('Excluir este post? Esta ação não pode ser desfeita.')) return;
+      try {
+        await apiFetch('/admin/posts/' + id, { method: 'DELETE' });
+        userPosts = userPosts.filter((p) => p.id !== id);
+        renderUserContentList();
+      } catch (e) { alert(e.message); }
+    }
+
+    async function deleteUserComment(id) {
+      if (!confirm('Excluir este comentário? Esta ação não pode ser desfeita.')) return;
+      try {
+        await apiFetch('/admin/comments/' + id, { method: 'DELETE' });
+        userComments = userComments.filter((c) => c.id !== id);
+        renderUserContentList();
+      } catch (e) { alert(e.message); }
     }
   </script>
 </body>

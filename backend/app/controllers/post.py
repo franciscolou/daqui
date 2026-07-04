@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import Depends, Query, Request
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_moderator, get_current_user, get_db
 from app.models.user import User
 from app.schemas.post import PollVoteIn, PostCreate, PostFeed, PostOut, PostUpdate
 from app.services import post
@@ -98,3 +98,20 @@ def delete_post(
     current_user: User = Depends(get_current_user),
 ) -> None:
     post.delete_post(db, post_id, current_user)
+
+
+# ── Moderador (app de moderação) ──────────────────────────────────────
+def admin_list_by_author(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> list[PostOut]:
+    return post.admin_list_by_author(db, user_id, _mod)
+
+
+def admin_delete_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> None:
+    post.admin_delete_post(db, post_id)

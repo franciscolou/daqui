@@ -17,6 +17,15 @@ def get_by_id(db: Session, comment_id: int) -> Comment | None:
     return db.get(Comment, comment_id)
 
 
+def list_by_author(db: Session, author_id: int) -> list[Comment]:
+    return (
+        db.query(Comment)
+        .filter(Comment.author_id == author_id)
+        .order_by(desc(Comment.created_at))
+        .all()
+    )
+
+
 def create(db: Session, *, post_id: int, author_id: int, content: str) -> Comment:
     comment = Comment(post_id=post_id, author_id=author_id, content=content)
     db.add(comment)

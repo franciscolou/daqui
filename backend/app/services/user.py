@@ -18,9 +18,10 @@ def public_view(viewer: User, target: User) -> UserPublic:
     """Serializa um usuário respeitando o isolamento por bairro.
 
     Perfis de outro bairro vêm "bloqueados": só nome popular, @username, foto e
-    quantidade de posts. O resto é ocultado.
+    quantidade de posts. O resto é ocultado. Moderador não tem essa
+    restrição — enxerga o perfil completo de qualquer bairro.
     """
-    if target.neighborhood == viewer.neighborhood:
+    if target.neighborhood == viewer.neighborhood or viewer.is_moderator:
         return UserPublic.model_validate(target)
     return UserPublic(
         id=target.id,
@@ -91,3 +92,13 @@ def update_me(db: Session, user: User, payload: UserUpdate) -> User:
 def update_avatar(db: Session, user: User, base_url: str, data_url: str) -> User:
     avatar_url = save_data_url_image(base_url, data_url, prefix=str(user.id))
     return user_dao.update(db, user, {"avatar_url": avatar_url})
+
+
+# ── Moderação ─────────────────────────────────────────────────────────
+def admin_search(db: Session, query: str) -> list[UserPublic]:
+    query = query.strip()
+    if not query:
+        return []
+    # Busca irrestrita a bairro: o moderador precisa achar qualquer usuário.
+    users = user_dao.search(db, query, limit=30)
+    return [UserPublic.model_validate(u) for u in users]

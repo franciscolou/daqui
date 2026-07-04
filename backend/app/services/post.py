@@ -98,7 +98,8 @@ def get_top_important(db: Session, viewer: User) -> PostOut | None:
 def list_by_author(db: Session, author_id: int, viewer: User) -> list[PostOut]:
     author = user_dao.get_by_id(db, author_id)
     # Perfis de outro bairro são bloqueados: não expõem os posts.
-    if not author or author.neighborhood != viewer.neighborhood:
+    # Moderador não tem essa restrição — pode inspecionar qualquer bairro.
+    if not author or (author.neighborhood != viewer.neighborhood and not viewer.is_moderator):
         return []
     posts = post_dao.list_by_author(db, author_id)
     return [_to_schema(p, viewer, db) for p in posts]
@@ -111,8 +112,9 @@ def get_map_posts(db: Session, viewer: User) -> list[PostOut]:
 
 def get_post(db: Session, post_id: int, viewer: User) -> PostOut:
     post = post_dao.get_by_id(db, post_id)
-    # Isolamento: só é possível ver posts do próprio bairro (404 não vaza a existência).
-    if not post or post.neighborhood != viewer.neighborhood:
+    # Isolamento: só é possível ver posts do próprio bairro (404 não vaza a
+    # existência) — exceto para o moderador, que pode ver posts de qualquer bairro.
+    if not post or (post.neighborhood != viewer.neighborhood and not viewer.is_moderator):
         raise HTTPException(status_code=404, detail="Post não encontrado")
     return _to_schema(post, viewer, db)
 
@@ -405,3 +407,20 @@ def delete_post(db: Session, post_id: int, user: User) -> None:
 
     post_dao.delete(db, post)
     user_dao.update(db, user, {"posts_count": max(0, user.posts_count - 1)})
+
+
+# ── Moderação ─────────────────────────────────────────────────────────
+def admin_list_by_author(db: Session, author_id: int, moderator: User) -> list[PostOut]:
+    # Moderador enxerga os posts do usuário independente de bairro/bloqueio.
+    posts = post_dao.list_by_author(db, author_id)
+    return [_to_schema(p, moderator, db) for p in posts]
+
+
+def admin_delete_post(db: Session, post_id: int) -> None:
+    post = post_dao.get_by_id(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+    author = user_dao.get_by_id(db, post.author_id)
+    post_dao.delete(db, post)
+    if author:
+        user_dao.update(db, author, {"posts_count": max(0, author.posts_count - 1)})

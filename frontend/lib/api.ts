@@ -13,14 +13,31 @@ export type SearchType = 'all' | 'posts' | 'users';
 const TOKEN_KEY = 'daqui.token';
 
 let token: string | null = null;
+// Promise memoizada da primeira leitura do storage. Existe para que `request`
+// possa aguardar o token estar carregado mesmo quando uma tela dispara sua
+// própria busca de dados antes do efeito de bootstrap do AuthProvider
+// terminar (acontece em navegação direta/refresh — sem isso, a 1ª chamada
+// sai sem Authorization e o backend responde 403).
+let tokenReady: Promise<void> | null = null;
+
+function ensureTokenLoaded(): Promise<void> {
+  if (!tokenReady) {
+    const p = getItem(TOKEN_KEY).then((stored) => {
+      if (tokenReady === p) token = stored;
+    });
+    tokenReady = p;
+  }
+  return tokenReady;
+}
 
 export async function loadToken(): Promise<string | null> {
-  token = await getItem(TOKEN_KEY);
+  await ensureTokenLoaded();
   return token;
 }
 
 export async function setToken(value: string | null): Promise<void> {
   token = value;
+  tokenReady = Promise.resolve();
   if (value) await setItem(TOKEN_KEY, value);
   else await removeItem(TOKEN_KEY);
 }
@@ -52,6 +69,7 @@ async function request<T>(
   options: { method?: string; body?: unknown; auth?: boolean } = {},
 ): Promise<T> {
   const { method = 'GET', body, auth = true } = options;
+  if (auth) await ensureTokenLoaded();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth && token) headers.Authorization = `Bearer ${token}`;
 

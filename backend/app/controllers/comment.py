@@ -1,7 +1,7 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_moderator, get_current_user, get_db
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentOut
 from app.services import comment
@@ -30,3 +30,20 @@ def delete_comment(
     current_user: User = Depends(get_current_user),
 ) -> None:
     comment.delete(db, comment_id, current_user)
+
+
+# ── Moderador (app de moderação) ──────────────────────────────────────
+def admin_list_by_author(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> list[CommentOut]:
+    return comment.admin_list_by_author(db, user_id)
+
+
+def admin_delete_comment(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> None:
+    comment.admin_delete(db, comment_id)

@@ -55,3 +55,7 @@ router.delete(
     "/{post_id}",
     status_code=204,
 )(post.delete_post)
+
+# App de moderação: excluir qualquer post (independente do autor).
+admin_router = APIRouter(prefix="/admin/posts", tags=["moderation"])
+admin_router.delete("/{post_id}", status_code=204)(post.admin_delete_post)

@@ -5,7 +5,13 @@ from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import report as report_dao
 from app.daos import user as user_dao
-from app.models.report import REASONS_BY_TARGET, STATUSES, TARGET_COMMENT, TARGET_POST, Report
+from app.models.report import (
+    REASONS_BY_TARGET,
+    STATUSES,
+    TARGET_COMMENT,
+    TARGET_POST,
+    Report,
+)
 from app.models.user import User
 from app.schemas.comment import CommentOut
 from app.schemas.post import PostOut
