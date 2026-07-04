@@ -31,7 +31,6 @@ class ReviewOut(BaseModel):
     id: int
     rating: float
     comment: str
-    status: str
     created_at: datetime
     updated_at: datetime
 
@@ -42,11 +41,6 @@ class ReviewAdminOut(ReviewOut):
     author: UserPublic
 
 
-class ReviewStatusUpdate(BaseModel):
-    status: str
-
-
 class ReviewStats(BaseModel):
     total: int
     average: Optional[float]
-    pending: int

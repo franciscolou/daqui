@@ -4,9 +4,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
-import { api, loadToken, setToken, LoginResult } from './api';
+import { router } from 'expo-router';
+import InfoModal from '../components/InfoModal';
+import { api, loadToken, setForceLogoutHandler, setToken, LoginResult } from './api';
 import { User } from '../data/mock';
 
 interface AuthState {
@@ -37,6 +40,31 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+  const [sessionEndedMessage, setSessionEndedMessage] = useState<string | null>(null);
+  const forceLoggingOut = useRef(false);
+
+  const showPendingNotice = useCallback((u: User) => {
+    if (u.pendingNotice) setNoticeMessage(u.pendingNotice);
+  }, []);
+
+  // Sessão suspensa: o backend responde 423 em qualquer chamada autenticada.
+  // Encerra a sessão na hora, com aviso, e volta para a mesma tela de welcome
+  // de quem nunca entrou (não a tela de login).
+  useEffect(() => {
+    setForceLogoutHandler((message) => {
+      if (forceLoggingOut.current) return;
+      forceLoggingOut.current = true;
+      setToken(null);
+      setUser(null);
+      setSessionEndedMessage(message);
+      router.replace('/(auth)/welcome');
+      setTimeout(() => {
+        forceLoggingOut.current = false;
+      }, 2000);
+    });
+    return () => setForceLogoutHandler(null);
+  }, []);
 
   // Restaura sessão a partir do token salvo
   useEffect(() => {
@@ -44,29 +72,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = await loadToken();
       if (token) {
         try {
-          setUser(await api.me());
+          const u = await api.me();
+          setUser(u);
+          showPendingNotice(u);
         } catch {
           await setToken(null);
         }
       }
       setLoading(false);
     })();
-  }, []);
+  }, [showPendingNotice]);
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await api.login(email, password);
     if (result.status === 'ok') {
       await setToken(result.token);
-      setUser(await api.me());
+      const u = await api.me();
+      setUser(u);
+      showPendingNotice(u);
     }
     return result;
-  }, []);
+  }, [showPendingNotice]);
 
   const verifyLogin2fa = useCallback(async (ticket: string, code: string) => {
     const token = await api.loginVerify2fa(ticket, code);
     await setToken(token);
-    setUser(await api.me());
-  }, []);
+    const u = await api.me();
+    setUser(u);
+    showPendingNotice(u);
+  }, [showPendingNotice]);
 
   const signup = useCallback(
     async (payload: {
@@ -110,7 +144,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user, loading, login, verifyLogin2fa, signup, logout, refresh],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      <InfoModal
+        visible={!!noticeMessage}
+        variant="info"
+        title="Aviso da moderação"
+        message={noticeMessage ?? ''}
+        onClose={() => setNoticeMessage(null)}
+      />
+      <InfoModal
+        visible={!!sessionEndedMessage}
+        variant="danger"
+        title="Sessão encerrada"
+        message={sessionEndedMessage ?? ''}
+        onClose={() => setSessionEndedMessage(null)}
+      />
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): AuthState {

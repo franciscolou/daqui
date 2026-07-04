@@ -3,7 +3,9 @@ from fastapi import HTTPException, status
 from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.core import totp, username as username_lib
+from app.core import totp
+from app.core import username as username_lib
+from app.core.deps import suspension_message
 from app.core.security import (
     create_2fa_ticket,
     create_access_token,
@@ -22,6 +24,8 @@ from app.schemas.auth import (
     TwoFactorLoginRequest,
     TwoFactorSetupResponse,
 )
+from app.schemas.user import UserMe
+from app.services import notification as notification_service
 
 _USERNAME_TAKEN = "Este nome de usuário já está em uso."
 _EMAIL_TAKEN = "Este e-mail já está cadastrado."
@@ -80,6 +84,8 @@ def login(db: Session, payload: LoginRequest) -> LoginResponse:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="E-mail ou senha incorretos",
         )
+    if user.is_currently_suspended:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=suspension_message(user))
     if user.totp_enabled:
         # Senha ok, mas a A2F exige um segundo passo: devolve um ticket curto.
         return LoginResponse(requires_2fa=True, ticket=create_2fa_ticket(user.id))
@@ -99,7 +105,16 @@ def login_2fa(db: Session, payload: TwoFactorLoginRequest) -> TokenResponse:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Verificação inválida")
     if not totp.verify(user.totp_secret, payload.code):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código inválido")
+    if user.is_currently_suspended:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=suspension_message(user))
     return TokenResponse(access_token=create_access_token(user.id))
+
+
+def me(db: Session, user: User) -> UserMe:
+    """Perfil do usuário logado + aviso de moderação pendente (consumido aqui)."""
+    notice = notification_service.consume_moderation_notice(db, user)
+    user.pending_notice = notice
+    return UserMe.model_validate(user)
 
 
 def start_2fa_setup(db: Session, user: User) -> TwoFactorSetupResponse:

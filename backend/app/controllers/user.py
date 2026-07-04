@@ -6,8 +6,10 @@ from app.models.user import User
 from app.schemas.user import (
     AvatarUpdate,
     NeighborhoodStats,
+    UserAdminOut,
     UsernameAvailability,
     UserPublic,
+    UserSuspendIn,
     UserUpdate,
 )
 from app.services import user
@@ -72,5 +74,22 @@ def admin_search_users(
     q: str = Query("", description="Nome ou @username"),
     db: Session = Depends(get_db),
     _mod: User = Depends(get_current_moderator),
-) -> list[UserPublic]:
+) -> list[UserAdminOut]:
     return user.admin_search(db, q)
+
+
+def admin_suspend_user(
+    user_id: int,
+    payload: UserSuspendIn,
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> UserAdminOut:
+    return user.admin_suspend(db, user_id, payload, _mod)
+
+
+def admin_unsuspend_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> UserAdminOut:
+    return user.admin_unsuspend(db, user_id, _mod)

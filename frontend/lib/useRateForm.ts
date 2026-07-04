@@ -16,7 +16,7 @@ export const RATING_LABELS: Record<number, string> = {
 export function useRateForm() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
-  const [status, setStatus] = useState<string | null>(null);
+  const [hasReview, setHasReview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
@@ -28,7 +28,7 @@ export function useRateForm() {
       if (mine) {
         setRating(mine.rating);
         setComment(mine.comment);
-        setStatus(mine.status);
+        setHasReview(true);
       }
     } catch {
       /* ignora */
@@ -43,8 +43,8 @@ export function useRateForm() {
     setFeedback(null);
     try {
       await api.submitReview(rating, comment.trim());
-      setStatus('pending');
-      setFeedback({ ok: true, text: 'Obrigado! Sua avaliação foi enviada e passará pela moderação.' });
+      setHasReview(true);
+      setFeedback({ ok: true, text: 'Obrigado! Sua avaliação foi registrada.' });
     } catch (e) {
       setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível enviar. Tente novamente.' });
     } finally {
@@ -54,7 +54,7 @@ export function useRateForm() {
 
   const label = RATING_LABELS[Math.ceil(rating)] ?? RATING_LABELS[0];
 
-  return { rating, setRating, comment, setComment, status, loading, saving, feedback, load, submit, label };
+  return { rating, setRating, comment, setComment, hasReview, loading, saving, feedback, load, submit, label };
 }
 
 export type RateForm = ReturnType<typeof useRateForm>;

@@ -43,6 +43,7 @@ export interface User {
   longitude?: number;
   locked?: boolean;           // perfil de outro bairro: só nome, @username, foto e nº de posts
   twoFactorEnabled?: boolean; // só presente em /auth/me (conta do próprio usuário)
+  pendingNotice?: string;     // aviso de moderação (post/comentário removido), só em /auth/me
 }
 
 export interface Post {

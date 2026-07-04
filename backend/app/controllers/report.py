@@ -47,7 +47,7 @@ def set_report_status(
     db: Session = Depends(get_db),
     _mod: User = Depends(get_current_moderator),
 ) -> ReportAdminOut:
-    return report_service.admin_set_status(db, report_id, payload.status)
+    return report_service.admin_set_status(db, report_id, payload.status, _mod)
 
 
 def delete_report(
@@ -55,4 +55,4 @@ def delete_report(
     db: Session = Depends(get_db),
     _mod: User = Depends(get_current_moderator),
 ) -> None:
-    report_service.admin_delete(db, report_id)
+    report_service.admin_delete(db, report_id, _mod)

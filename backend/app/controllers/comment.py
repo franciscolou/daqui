@@ -46,4 +46,4 @@ def admin_delete_comment(
     db: Session = Depends(get_db),
     _mod: User = Depends(get_current_moderator),
 ) -> None:
-    comment.admin_delete(db, comment_id)
+    comment.admin_delete(db, comment_id, _mod)

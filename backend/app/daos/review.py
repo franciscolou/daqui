@@ -1,7 +1,7 @@
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from app.models.review import STATUS_PENDING, Review
+from app.models.review import Review
 
 
 def get_by_user(db: Session, user_id: int) -> Review | None:
@@ -17,7 +17,6 @@ def upsert(db: Session, user_id: int, rating: float, comment: str) -> Review:
     if review:
         review.rating = rating
         review.comment = comment
-        review.status = STATUS_PENDING  # nova edição volta para a fila de moderação
     else:
         review = Review(user_id=user_id, rating=rating, comment=comment)
         db.add(review)
@@ -26,31 +25,16 @@ def upsert(db: Session, user_id: int, rating: float, comment: str) -> Review:
     return review
 
 
-def list_all(
-    db: Session, status: str | None, offset: int, limit: int
-) -> list[Review]:
-    q = db.query(Review)
-    if status:
-        q = q.filter(Review.status == status)
-    return q.order_by(desc(Review.updated_at)).offset(offset).limit(limit).all()
+def list_all(db: Session, offset: int, limit: int) -> list[Review]:
+    return db.query(Review).order_by(desc(Review.updated_at)).offset(offset).limit(limit).all()
 
 
-def count(db: Session, status: str | None) -> int:
-    q = db.query(func.count(Review.id))
-    if status:
-        q = q.filter(Review.status == status)
-    return q.scalar() or 0
+def count(db: Session) -> int:
+    return db.query(func.count(Review.id)).scalar() or 0
 
 
 def average(db: Session) -> float | None:
     return db.query(func.avg(Review.rating)).scalar()
-
-
-def set_status(db: Session, review: Review, status: str) -> Review:
-    review.status = status
-    db.commit()
-    db.refresh(review)
-    return review
 
 
 def delete(db: Session, review: Review) -> None:

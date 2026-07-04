@@ -1,17 +1,23 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.uploads import save_data_url_image
 from app.daos import post as post_dao
 from app.daos import user as user_dao
+from app.models.audit_log import ACTION_USER_SUSPEND, ACTION_USER_UNSUSPEND
 from app.models.user import User
 from app.schemas.user import (
     USERNAME_RE,
     NeighborhoodStats,
+    UserAdminOut,
     UsernameAvailability,
     UserPublic,
+    UserSuspendIn,
     UserUpdate,
 )
+from app.services import audit_log as audit_log_service
 
 
 def public_view(viewer: User, target: User) -> UserPublic:
@@ -95,10 +101,59 @@ def update_avatar(db: Session, user: User, base_url: str, data_url: str) -> User
 
 
 # ── Moderação ─────────────────────────────────────────────────────────
-def admin_search(db: Session, query: str) -> list[UserPublic]:
+def _admin_out(u: User) -> UserAdminOut:
+    base = UserPublic.model_validate(u)
+    return UserAdminOut(
+        **base.model_dump(),
+        is_suspended=u.is_currently_suspended,
+        suspended_until=u.suspended_until,
+        suspension_reason=u.suspension_reason or None,
+    )
+
+
+def admin_search(db: Session, query: str) -> list[UserAdminOut]:
     query = query.strip()
     if not query:
         return []
     # Busca irrestrita a bairro: o moderador precisa achar qualquer usuário.
     users = user_dao.search(db, query, limit=30)
-    return [UserPublic.model_validate(u) for u in users]
+    return [_admin_out(u) for u in users]
+
+
+def admin_suspend(db: Session, user_id: int, payload: UserSuspendIn, moderator: User) -> UserAdminOut:
+    target = user_dao.get_by_id(db, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if target.is_moderator:
+        raise HTTPException(status_code=400, detail="Não é possível suspender um moderador")
+
+    until = payload.until
+    if until is not None:
+        if until.tzinfo is None:
+            until = until.replace(tzinfo=timezone.utc)
+        if until <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="A data de suspensão deve estar no futuro")
+
+    reason = (payload.reason or "").strip()
+    user_dao.update(
+        db,
+        target,
+        {"is_suspended": True, "suspended_until": until, "suspension_reason": reason},
+    )
+
+    period = "por tempo indeterminado" if until is None else f"até {until.strftime('%d/%m/%Y %H:%M')}"
+    detail = f"Suspensão {period}" + (f" — {reason}" if reason else "")
+    audit_log_service.log(db, moderator, ACTION_USER_SUSPEND, target.id, detail)
+    return _admin_out(target)
+
+
+def admin_unsuspend(db: Session, user_id: int, moderator: User) -> UserAdminOut:
+    target = user_dao.get_by_id(db, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    user_dao.update(
+        db, target, {"is_suspended": False, "suspended_until": None, "suspension_reason": ""}
+    )
+    audit_log_service.log(db, moderator, ACTION_USER_UNSUSPEND, target.id, "Suspensão revogada")
+    return _admin_out(target)

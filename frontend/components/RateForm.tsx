@@ -13,12 +13,6 @@ import { useTheme, useThemedStyles } from '../lib/theme';
 import { MAX_COMMENT, RateForm as RateFormState } from '../lib/useRateForm';
 import StarRating from './StarRating';
 
-const STATUS_INFO: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  pending: { label: 'Em análise pela moderação', icon: 'time-outline' },
-  approved: { label: 'Avaliação publicada', icon: 'checkmark-circle-outline' },
-  rejected: { label: 'Avaliação não aprovada', icon: 'close-circle-outline' },
-};
-
 /**
  * Corpo do formulário de avaliação (estrelas, comentário, envio). `compact`
  * reduz tamanhos/paddings para caber num modal; sem ele, ocupa uma tela cheia.
@@ -26,7 +20,7 @@ const STATUS_INFO: Record<string, { label: string; icon: keyof typeof Ionicons.g
 export default function RateForm({ form, compact = false }: { form: RateFormState; compact?: boolean }) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const { rating, setRating, comment, setComment, status, loading, saving, feedback, submit, label } = form;
+  const { rating, setRating, comment, setComment, hasReview, loading, saving, feedback, submit, label } = form;
 
   if (loading) {
     return (
@@ -55,13 +49,6 @@ export default function RateForm({ form, compact = false }: { form: RateFormStat
           {rating > 0 ? `${rating.toString().replace('.', ',')} · ${label}` : label}
         </Text>
       </View>
-
-      {!!status && STATUS_INFO[status] && (
-        <View style={styles.statusRow}>
-          <Ionicons name={STATUS_INFO[status].icon} size={15} color={Colors.textSecondary} />
-          <Text style={styles.statusText}>{STATUS_INFO[status].label}</Text>
-        </View>
-      )}
 
       <Text style={styles.label}>Comentário (opcional)</Text>
       <TextInput
@@ -97,7 +84,7 @@ export default function RateForm({ form, compact = false }: { form: RateFormStat
         {saving ? (
           <ActivityIndicator color="#fff" size="small" />
         ) : (
-          <Text style={styles.submitBtnText}>{status ? 'Atualizar avaliação' : 'Enviar avaliação'}</Text>
+          <Text style={styles.submitBtnText}>{hasReview ? 'Atualizar avaliação' : 'Enviar avaliação'}</Text>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -123,8 +110,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   subtitle: { fontSize: 14, color: Colors.textTertiary, textAlign: 'center', marginTop: 6, maxWidth: 320, lineHeight: 20 },
   starsWrap: { alignItems: 'center', gap: 10, marginTop: 22, marginBottom: 6 },
   ratingLabel: { fontSize: 15, fontWeight: '700', color: Colors.text },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, marginBottom: 4 },
-  statusText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
   label: { alignSelf: 'stretch', fontSize: 14, fontWeight: '700', color: Colors.text, marginTop: 22, marginBottom: 8 },
   input: {
     alignSelf: 'stretch',

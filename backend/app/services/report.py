@@ -5,11 +5,19 @@ from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import report as report_dao
 from app.daos import user as user_dao
+from app.models.audit_log import (
+    ACTION_REPORT_DELETE,
+    ACTION_REPORT_DISMISS,
+    ACTION_REPORT_RESOLVE,
+)
 from app.models.report import (
     REASONS_BY_TARGET,
+    STATUS_DISMISSED,
+    STATUS_REVIEWED,
     STATUSES,
     TARGET_COMMENT,
     TARGET_POST,
+    TARGET_USER,
     Report,
 )
 from app.models.user import User
@@ -17,6 +25,7 @@ from app.schemas.comment import CommentOut
 from app.schemas.post import PostOut
 from app.schemas.report import ReportAdminOut, ReportCreate, ReportOut, ReportStats
 from app.schemas.user import UserPublic
+from app.services import audit_log as audit_log_service
 
 
 def submit(db: Session, user: User, payload: ReportCreate) -> ReportOut:
@@ -49,6 +58,17 @@ def _admin_out(report: Report) -> ReportAdminOut:
     return out
 
 
+def _affected_user_id(report: Report) -> int | None:
+    """Usuário afetado pela denúncia: o autor do conteúdo (ou o perfil denunciado)."""
+    if report.target_type == TARGET_POST:
+        return report.post.author_id if report.post else None
+    if report.target_type == TARGET_COMMENT:
+        return report.comment_target.author_id if report.comment_target else None
+    if report.target_type == TARGET_USER:
+        return report.reported_user_id
+    return None
+
+
 def admin_list(
     db: Session, status: str | None, target_type: str | None, page: int, page_size: int
 ) -> list[ReportAdminOut]:
@@ -66,18 +86,27 @@ def admin_stats(db: Session) -> ReportStats:
     )
 
 
-def admin_set_status(db: Session, report_id: int, status: str) -> ReportAdminOut:
+def admin_set_status(db: Session, report_id: int, status: str, moderator: User) -> ReportAdminOut:
     if status not in STATUSES:
         raise HTTPException(status_code=400, detail="Status inválido")
     report = report_dao.get_by_id(db, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Denúncia não encontrada")
+    affected = _affected_user_id(report)
+    detail = f"Denúncia #{report.id} ({report.reason})"
     report = report_dao.set_status(db, report, status)
+    if status == STATUS_REVIEWED:
+        audit_log_service.log(db, moderator, ACTION_REPORT_RESOLVE, affected, detail)
+    elif status == STATUS_DISMISSED:
+        audit_log_service.log(db, moderator, ACTION_REPORT_DISMISS, affected, detail)
     return _admin_out(report)
 
 
-def admin_delete(db: Session, report_id: int) -> None:
+def admin_delete(db: Session, report_id: int, moderator: User) -> None:
     report = report_dao.get_by_id(db, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Denúncia não encontrada")
+    affected = _affected_user_id(report)
+    detail = f"Denúncia #{report.id} ({report.reason})"
     report_dao.delete(db, report)
+    audit_log_service.log(db, moderator, ACTION_REPORT_DELETE, affected, detail)

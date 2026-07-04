@@ -2,11 +2,15 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.daos import comment as comment_dao
+from app.daos import notification as notification_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
+from app.models.audit_log import ACTION_COMMENT_DELETE
 from app.models.comment import Comment
+from app.models.notification import TYPE_COMMENT_REMOVED
 from app.models.user import User
 from app.schemas.comment import CommentCreate
+from app.services import audit_log as audit_log_service
 
 
 def _visible_post_or_404(db: Session, post_id: int, viewer: User):
@@ -61,13 +65,15 @@ def admin_list_by_author(db: Session, author_id: int) -> list[Comment]:
     return comment_dao.list_by_author(db, author_id)
 
 
-def admin_delete(db: Session, comment_id: int) -> None:
+def admin_delete(db: Session, comment_id: int, moderator: User) -> None:
     comment = comment_dao.get_by_id(db, comment_id)
     if not comment:
         raise HTTPException(status_code=404, detail="Comentário não encontrado")
 
     post_id = comment.post_id
     author_id = comment.author_id
+    content_preview = comment.content[:200]
+    snapshot = {"content": comment.content, "created_at": comment.created_at.isoformat()}
     comment_dao.delete(db, comment)
 
     post = post_dao.get_by_id(db, post_id)
@@ -77,3 +83,13 @@ def admin_delete(db: Session, comment_id: int) -> None:
     if author:
         author.comments_count = comment_dao.count_by_author(db, author_id)
     db.commit()
+
+    notification_dao.create(
+        db,
+        user_id=author_id,
+        type_=TYPE_COMMENT_REMOVED,
+        content="Seu comentário foi removido pela moderação por não seguir as diretrizes da comunidade.",
+        target_text=content_preview,
+        snapshot=snapshot,
+    )
+    audit_log_service.log(db, moderator, ACTION_COMMENT_DELETE, author_id, content_preview)

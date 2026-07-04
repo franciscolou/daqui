@@ -64,6 +64,14 @@ export class ApiError extends Error {
   }
 }
 
+// Chamado quando o backend responde 423 (conta suspensa): a sessão deve ser
+// encerrada na hora, com um aviso. Registrado pelo AuthProvider.
+type ForceLogoutHandler = (message: string) => void;
+let forceLogoutHandler: ForceLogoutHandler | null = null;
+export function setForceLogoutHandler(handler: ForceLogoutHandler | null): void {
+  forceLogoutHandler = handler;
+}
+
 async function request<T>(
   path: string,
   options: { method?: string; body?: unknown; auth?: boolean } = {},
@@ -92,7 +100,9 @@ async function request<T>(
   if (!res.ok) {
     const detail =
       (data && (data.detail || data.message)) || `Erro ${res.status}`;
-    throw new ApiError(res.status, typeof detail === 'string' ? detail : 'Erro');
+    const message = typeof detail === 'string' ? detail : 'Erro';
+    if (res.status === 423 && forceLogoutHandler) forceLogoutHandler(message);
+    throw new ApiError(res.status, message);
   }
   return data as T;
 }
@@ -119,6 +129,7 @@ interface BackendUser {
   locked?: boolean;
   email?: string;
   two_factor_enabled?: boolean;
+  pending_notice?: string | null;
 }
 
 interface BackendPollOption {
@@ -245,6 +256,15 @@ interface BackendGroupMessage {
   sender: BackendUser;
 }
 
+interface BackendRemovedSnapshot {
+  content: string;
+  created_at: string;
+  image_url?: string | null;
+  category?: string | null;
+  title?: string | null;
+  location?: string | null;
+}
+
 interface BackendNotification {
   id: number;
   type: string;
@@ -252,6 +272,7 @@ interface BackendNotification {
   target_text: string | null;
   read: boolean;
   post_id: number | null;
+  snapshot: BackendRemovedSnapshot | null;
   created_at: string;
   actor: BackendUser | null;
 }
@@ -375,12 +396,21 @@ export interface AppReview {
   id: string;
   rating: number;
   comment: string;
-  status: string; // pending | approved | rejected
   createdAt: string;
   updatedAt: string;
 }
 
 export type ReportTargetType = 'post' | 'comment' | 'user';
+
+// Cópia do post/comentário removido pela moderação (ele já não existe mais).
+export interface RemovedContentSnapshot {
+  content: string;
+  createdAt: string;
+  imageUrl?: string;
+  category?: string;
+  title?: string;
+  location?: string;
+}
 
 export interface AppNotification {
   id: string;
@@ -391,6 +421,7 @@ export interface AppNotification {
   read: boolean;
   postId?: string;
   actor?: User;
+  snapshot?: RemovedContentSnapshot;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -433,6 +464,7 @@ export function mapUser(u: BackendUser): User {
     longitude: u.longitude ?? undefined,
     locked: u.locked ?? false,
     twoFactorEnabled: u.two_factor_enabled,
+    pendingNotice: u.pending_notice ?? undefined,
   };
 }
 
@@ -587,6 +619,16 @@ function mapNotification(n: BackendNotification): AppNotification {
     read: n.read,
     postId: n.post_id != null ? String(n.post_id) : undefined,
     actor: n.actor ? mapUser(n.actor) : undefined,
+    snapshot: n.snapshot
+      ? {
+          content: n.snapshot.content,
+          createdAt: n.snapshot.created_at,
+          imageUrl: n.snapshot.image_url ?? undefined,
+          category: n.snapshot.category ?? undefined,
+          title: n.snapshot.title ?? undefined,
+          location: n.snapshot.location ?? undefined,
+        }
+      : undefined,
   };
 }
 
@@ -1040,7 +1082,6 @@ export const api = {
       id: number;
       rating: number;
       comment: string;
-      status: string;
       created_at: string;
       updated_at: string;
     } | null>('/reviews/me');
@@ -1049,7 +1090,6 @@ export const api = {
       id: String(r.id),
       rating: r.rating,
       comment: r.comment,
-      status: r.status,
       createdAt: r.created_at,
       updatedAt: r.updated_at,
     };

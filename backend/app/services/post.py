@@ -4,8 +4,11 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.uploads import save_data_url_image
+from app.daos import notification as notification_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
+from app.models.audit_log import ACTION_POST_DELETE
+from app.models.notification import TYPE_POST_REMOVED
 from app.models.post import Post
 from app.models.user import User
 from app.schemas.post import (
@@ -18,6 +21,7 @@ from app.schemas.post import (
     PostOut,
     PostUpdate,
 )
+from app.services import audit_log as audit_log_service
 from app.services import geo
 
 
@@ -416,11 +420,30 @@ def admin_list_by_author(db: Session, author_id: int, moderator: User) -> list[P
     return [_to_schema(p, moderator, db) for p in posts]
 
 
-def admin_delete_post(db: Session, post_id: int) -> None:
+def admin_delete_post(db: Session, post_id: int, moderator: User) -> None:
     post = post_dao.get_by_id(db, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
-    author = user_dao.get_by_id(db, post.author_id)
+    author_id = post.author_id
+    content_preview = post.content[:200]
+    snapshot = {
+        "category": post.category,
+        "title": post.title,
+        "content": post.content,
+        "image_url": post.image_url,
+        "location": post.location,
+        "created_at": post.created_at.isoformat(),
+    }
+    author = user_dao.get_by_id(db, author_id)
     post_dao.delete(db, post)
     if author:
         user_dao.update(db, author, {"posts_count": post_dao.count_by_author(db, author.id)})
+    notification_dao.create(
+        db,
+        user_id=author_id,
+        type_=TYPE_POST_REMOVED,
+        content="Seu post foi removido pela moderação por não seguir as diretrizes da comunidade.",
+        target_text=content_preview,
+        snapshot=snapshot,
+    )
+    audit_log_service.log(db, moderator, ACTION_POST_DELETE, author_id, content_preview)

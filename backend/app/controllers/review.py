@@ -8,7 +8,6 @@ from app.schemas.review import (
     ReviewCreate,
     ReviewOut,
     ReviewStats,
-    ReviewStatusUpdate,
 )
 from app.services import review as review_service
 
@@ -31,13 +30,12 @@ def get_my_review(
 
 # ── Moderador (app de moderação) ──────────────────────────────────────
 def list_reviews(
-    status: str | None = Query(None, description="Filtra por status"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     _mod: User = Depends(get_current_moderator),
 ) -> list[ReviewAdminOut]:
-    return review_service.admin_list(db, status, page, page_size)
+    return review_service.admin_list(db, page, page_size)
 
 
 def reviews_stats(
@@ -47,18 +45,9 @@ def reviews_stats(
     return review_service.admin_stats(db)
 
 
-def set_review_status(
-    review_id: int,
-    payload: ReviewStatusUpdate,
-    db: Session = Depends(get_db),
-    _mod: User = Depends(get_current_moderator),
-) -> ReviewAdminOut:
-    return review_service.admin_set_status(db, review_id, payload.status)
-
-
 def delete_review(
     review_id: int,
     db: Session = Depends(get_db),
     _mod: User = Depends(get_current_moderator),
 ) -> None:
-    review_service.admin_delete(db, review_id)
+    review_service.admin_delete(db, review_id, _mod)

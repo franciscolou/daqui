@@ -13,10 +13,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { NOTIF_ICONS } from '../../constants/notifications';
 import { notificationParts } from '../../components/NotificationText';
+import RemovedContentModal from '../../components/RemovedContentModal';
 import { api, AppNotification } from '../../lib/api';
 import { useRealtime } from '../../lib/realtime';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
+
+const REMOVED_TYPES = new Set(['post_removed', 'comment_removed']);
 
 export default function NotificationsScreen() {
   const Colors = useTheme();
@@ -24,6 +27,7 @@ export default function NotificationsScreen() {
   const { subscribeNotifications } = useRealtime();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [removedPreview, setRemovedPreview] = useState<AppNotification | null>(null);
 
   const load = useCallback(() => {
     api.getNotifications()
@@ -66,7 +70,8 @@ export default function NotificationsScreen() {
         renderItem={({ item }) => {
           const style = NOTIF_ICONS[item.type] ?? NOTIF_ICONS.welcome;
           const onPress = () => {
-            if (item.postId) router.push(`/post/${item.postId}` as any);
+            if (REMOVED_TYPES.has(item.type) && item.snapshot) setRemovedPreview(item);
+            else if (item.postId) router.push(`/post/${item.postId}` as any);
             else if (item.actor) router.push(`/user/${item.actor.id}` as any);
           };
           return (
@@ -98,6 +103,7 @@ export default function NotificationsScreen() {
           );
         }}
       />
+      <RemovedContentModal notification={removedPreview} onClose={() => setRemovedPreview(null)} />
     </FeedLayout>
   );
 }

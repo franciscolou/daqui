@@ -4,21 +4,51 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Moderação | Daqui</title>
+  <script>
+    // Aplica o tema antes do primeiro paint (evita flash do tema errado).
+    (function () {
+      try {
+        var stored = localStorage.getItem('daqui-moderator-theme');
+        var theme = stored === 'light' || stored === 'dark'
+          ? stored
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
   <style>
     :root {
-      --primary: #22C55E; --primary-dark: #16A34A; --gold: #F59E0B;
+      --primary: #22C55E; --primary-dark: #16A34A; --primary-tint: #DCFCE7; --gold: #F59E0B;
       --bg: #F8FAFC; --surface: #FFFFFF; --border: #E2E8F0; --border-light: #F1F5F9;
       --text: #0F172A; --text-2: #64748B; --text-3: #94A3B8;
       --danger: #EF4444; --danger-bg: #FEF2F2;
+      --pending-bg: #FEF3C7; --pending-text: #92400E; --reject-text: #B45309;
+      --star-empty: #D1D5DB; --overlay: rgba(15,23,42,0.5);
+      --shadow-login: rgba(0,0,0,0.06); --shadow-card: rgba(0,0,0,0.04);
+    }
+    :root[data-theme="dark"] {
+      --primary-dark: #4ADE80; --primary-tint: rgba(34,197,94,0.18);
+      --bg: #0B1220; --surface: #111A2E; --border: #243049; --border-light: #1A2336;
+      --text: #F1F5F9; --text-2: #9FB0C3; --text-3: #6B7A90;
+      --danger: #F87171; --danger-bg: rgba(239,68,68,0.14);
+      --pending-bg: rgba(245,158,11,0.18); --pending-text: #FCD34D; --reject-text: #FBBF24;
+      --star-empty: #3A4A63; --overlay: rgba(0,0,0,0.6);
+      --shadow-login: rgba(0,0,0,0.45); --shadow-card: rgba(0,0,0,0.3);
     }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
     a { color: inherit; }
     .hidden { display: none !important; }
+    .theme-toggle {
+      width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); font-size: 15px; display: flex; align-items: center; justify-content: center;
+      padding: 0; flex-shrink: 0;
+    }
 
     /* Login */
-    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-    .login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; box-shadow: 0 8px 30px rgba(0,0,0,0.06); }
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; position: relative; }
+    .login-theme-toggle { position: absolute; top: 20px; right: 20px; }
+    .login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; box-shadow: 0 8px 30px var(--shadow-login); }
     .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
     .brand .dot { width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; }
     .brand h1 { font-size: 22px; margin: 0; letter-spacing: -0.5px; }
@@ -46,7 +76,7 @@
       font-size: 14px; font-weight: 600; color: var(--text-2);
     }
     .navbtn .ic { font-size: 15px; width: 18px; text-align: center; }
-    .navbtn.active { background: #DCFCE7; color: var(--primary-dark); }
+    .navbtn.active { background: var(--primary-tint); color: var(--primary-dark); }
     .sidebar-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-light); }
     .sidebar-footer .who { font-size: 12px; color: var(--text-3); margin-bottom: 8px; word-break: break-all; }
     .main { flex: 1; min-width: 0; }
@@ -73,24 +103,25 @@
 
     .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
     .tab { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-2); }
-    .tab.active { background: #DCFCE7; border-color: #DCFCE7; color: var(--primary-dark); }
+    .tab.active { background: var(--primary-tint); border-color: var(--primary-tint); color: var(--primary-dark); }
 
-    .card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px var(--shadow-card); }
     .card .head { display: flex; align-items: center; gap: 12px; }
     .avatar { width: 44px; height: 44px; border-radius: 14px; object-fit: cover; background: var(--border); }
     .head .name { font-weight: 700; font-size: 15px; }
     .head .sub { font-size: 12px; color: var(--text-3); }
     .head .when { margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+    .audit-sentence { font-weight: 400; font-size: 15px; color: var(--text); }
     .rating-row { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; }
     .stars { position: relative; display: inline-block; font-size: 20px; line-height: 1; letter-spacing: 2px; }
-    .stars .base { color: #D1D5DB; }
+    .stars .base { color: var(--star-empty); }
     .stars .fill { color: var(--gold); position: absolute; top: 0; left: 0; overflow: hidden; white-space: nowrap; }
     .rating-num { font-weight: 800; font-size: 14px; }
     .comment { font-size: 14px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
     .comment.empty { color: var(--text-3); font-style: italic; }
     .badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: .4px; }
-    .b-pending { background: #FEF3C7; color: #92400E; }
-    .b-approved, .b-reviewed { background: #DCFCE7; color: var(--primary-dark); }
+    .b-pending { background: var(--pending-bg); color: var(--pending-text); }
+    .b-approved, .b-reviewed { background: var(--primary-tint); color: var(--primary-dark); }
     .b-rejected, .b-dismissed { background: var(--danger-bg); color: var(--danger); }
     .reason-tag { display: inline-block; font-size: 12px; font-weight: 700; color: var(--text-2); background: var(--border-light); padding: 3px 10px; border-radius: 999px; margin: 10px 0 6px; }
     .target-box { background: var(--bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; margin-top: 8px; }
@@ -98,9 +129,9 @@
     .target-box .content { font-size: 13px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
     .target-box.empty { color: var(--text-3); font-style: italic; font-size: 13px; }
     .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
-    .act { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 700; }
+    .act { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 700; }
     .act.approve { background: var(--primary); border-color: var(--primary); color: #fff; }
-    .act.reject { background: var(--surface); border-color: var(--gold); color: #B45309; }
+    .act.reject { background: var(--surface); border-color: var(--gold); color: var(--reject-text); }
     .act.del { margin-left: auto; background: none; border: none; color: var(--danger); }
     .empty-state { text-align: center; color: var(--text-3); padding: 60px 20px; }
     @media (max-width: 560px) { .stats { grid-template-columns: 1fr; } }
@@ -118,11 +149,19 @@
     .back-link { display: inline-block; margin-bottom: 14px; font-size: 13px; }
     .applink { color: var(--primary-dark); font-weight: 700; font-size: 13px; text-decoration: none; }
     .applink:hover { text-decoration: underline; }
+
+    /* Modal (suspender conta) */
+    .modal-overlay {
+      position: fixed; inset: 0; background: var(--overlay); z-index: 50;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-card { width: 100%; max-width: 380px; }
   </style>
 </head>
 <body>
   <!-- Login -->
   <div id="login" class="login-wrap">
+    <button class="theme-toggle login-theme-toggle" id="themeToggleLogin" title="Alternar tema"></button>
     <div class="login-card">
       <div class="brand"><div class="dot">d</div><h1>Moderação Daqui</h1></div>
       <p class="muted">Acesso restrito a moderadores.</p>
@@ -147,6 +186,7 @@
         <div id="nav"></div>
         <div class="sidebar-footer">
           <div class="who" id="who"></div>
+          <button class="theme-toggle" id="themeToggleApp" title="Alternar tema"></button>
           <button class="linkbtn" id="logoutBtn">Sair</button>
         </div>
       </nav>
@@ -183,7 +223,63 @@
               <div id="userContentList"></div>
             </div>
           </div>
+
+          <div id="section-audit" class="hidden">
+            <div class="search-row">
+              <input id="auditModFilter" placeholder="Moderador (nome ou @usuário)" />
+              <input id="auditUserFilter" placeholder="Usuário afetado (nome ou @usuário)" />
+              <button id="auditSearchBtn" class="act approve">Buscar</button>
+            </div>
+            <div class="tabs" id="auditActionTabs"></div>
+            <div id="auditList"></div>
+          </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: suspender conta -->
+  <div id="suspendModal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <div class="head"><div class="name" id="suspendModalTitle">Suspender conta</div></div>
+      <label>Duração</label>
+      <select id="suspendDuration">
+        <option value="1">1 dia</option>
+        <option value="3">3 dias</option>
+        <option value="7" selected>7 dias</option>
+        <option value="30">30 dias</option>
+        <option value="90">3 meses</option>
+        <option value="180">6 meses</option>
+        <option value="indef">Tempo indeterminado</option>
+      </select>
+      <label>Motivo (opcional)</label>
+      <input id="suspendReason" placeholder="Motivo da suspensão" />
+      <div class="actions">
+        <button class="act" id="suspendCancelBtn">Cancelar</button>
+        <button class="act approve" id="suspendConfirmBtn">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: confirmação genérica (substitui window.confirm) -->
+  <div id="confirmModal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <div class="head"><div class="name" id="confirmModalTitle">Confirmar ação</div></div>
+      <div class="comment" id="confirmModalMessage" style="margin-top:8px;"></div>
+      <div class="actions">
+        <button class="act" id="confirmCancelBtn">Cancelar</button>
+        <button class="act del" id="confirmOkBtn">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: aviso/erro (substitui window.alert) -->
+  <div id="messageModal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <div class="head"><div class="name" id="messageModalTitle">Aviso</div></div>
+      <div class="comment" id="messageModalText" style="margin-top:8px;"></div>
+      <div class="actions">
+        <button class="act approve" id="messageOkBtn" style="margin-left:auto;">OK</button>
       </div>
     </div>
   </div>
@@ -193,6 +289,50 @@
     let API = '';
     let APP_URL = '';
     let token = '';
+
+    // ── Tema (claro/escuro) ──
+    // O atributo data-theme já foi definido por um script no <head> (evita
+    // flash do tema errado); aqui só cuidamos do toggle e de persistir a escolha.
+    const THEME_KEY = 'daqui-moderator-theme';
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem(THEME_KEY, theme);
+      const icon = theme === 'dark' ? '☀️' : '🌙';
+      document.querySelectorAll('.theme-toggle').forEach((btn) => { btn.textContent = icon; });
+    }
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    }
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+    $('themeToggleLogin').addEventListener('click', toggleTheme);
+    $('themeToggleApp').addEventListener('click', toggleTheme);
+
+    // ── Diálogos do app (substituem window.confirm/window.alert) ──
+    let confirmResolve = null;
+    function showConfirm(message, { title = 'Confirmar ação', confirmLabel = 'Confirmar', danger = true } = {}) {
+      return new Promise((resolve) => {
+        confirmResolve = resolve;
+        $('confirmModalTitle').textContent = title;
+        $('confirmModalMessage').textContent = message;
+        $('confirmOkBtn').textContent = confirmLabel;
+        $('confirmOkBtn').className = 'act ' + (danger ? 'del' : 'approve');
+        $('confirmModal').classList.remove('hidden');
+      });
+    }
+    function resolveConfirm(value) {
+      $('confirmModal').classList.add('hidden');
+      if (confirmResolve) { confirmResolve(value); confirmResolve = null; }
+    }
+    $('confirmCancelBtn').addEventListener('click', () => resolveConfirm(false));
+    $('confirmOkBtn').addEventListener('click', () => resolveConfirm(true));
+
+    function showMessage(message, title = 'Aviso') {
+      $('messageModalTitle').textContent = title;
+      $('messageModalText').textContent = message;
+      $('messageModal').classList.remove('hidden');
+    }
+    $('messageOkBtn').addEventListener('click', () => $('messageModal').classList.add('hidden'));
 
     function postLink(postId) {
       return `${APP_URL}/post/${postId}`;
@@ -275,6 +415,7 @@
       { key: 'reviews', label: 'Avaliações', icon: '★', sectionId: 'section-reviews', title: 'Avaliações do Daqui', onShow: refreshReviews },
       { key: 'reports', label: 'Denúncias', icon: '⚑', sectionId: 'section-reports', title: 'Denúncias', onShow: refreshReports },
       { key: 'users', label: 'Usuários', icon: '◍', sectionId: 'section-users', title: 'Usuários', onShow: showUsers },
+      { key: 'audit', label: 'Auditoria', icon: '🕘', sectionId: 'section-audit', title: 'Registro de Auditoria', onShow: refreshAuditLogs },
     ];
     let currentSection = SECTIONS[0].key;
 
@@ -300,26 +441,9 @@
     }
 
     // ── Avaliações ─────────────────────────────────────────────────────
-    let reviewFilter = ''; // '', 'pending', 'approved', 'rejected'
-
-    const REVIEW_FILTERS = [
-      { key: '', label: 'Todas' },
-      { key: 'pending', label: 'Pendentes' },
-      { key: 'approved', label: 'Aprovadas' },
-      { key: 'rejected', label: 'Rejeitadas' },
-    ];
-    const REVIEW_STATUS_LABEL = { pending: 'Pendente', approved: 'Aprovada', rejected: 'Rejeitada' };
-
-    function renderReviewTabs() {
-      $('tabs').innerHTML = '';
-      for (const f of REVIEW_FILTERS) {
-        const b = document.createElement('button');
-        b.className = 'tab' + (f.key === reviewFilter ? ' active' : '');
-        b.textContent = f.label;
-        b.onclick = () => { reviewFilter = f.key; renderReviewTabs(); refreshReviews(); };
-        $('tabs').appendChild(b);
-      }
-    }
+    // Avaliação é a opinião do usuário: a moderação não aprova/rejeita, só
+    // pode excluir avaliações abusivas/spam (fica registrado na auditoria).
+    $('tabs').remove(); // sem filtro por status — não há mais status
 
     function stars(rating) {
       const pct = (rating / 5) * 100;
@@ -327,11 +451,10 @@
     }
 
     async function refreshReviews() {
-      renderReviewTabs();
       try {
         const [stats, list] = await Promise.all([
           apiFetch('/admin/reviews/stats'),
-          apiFetch('/admin/reviews' + (reviewFilter ? '?status=' + reviewFilter : '')),
+          apiFetch('/admin/reviews'),
         ]);
         renderReviewStats(stats);
         renderReviewList(list);
@@ -343,12 +466,11 @@
     function renderReviewStats(s) {
       $('stats').innerHTML = `
         <div class="stat"><div class="n">${s.total}</div><div class="l">avaliações</div></div>
-        <div class="stat"><div class="n">${s.average != null ? s.average.toFixed(2).replace('.', ',') + ' ★' : '—'}</div><div class="l">nota média</div></div>
-        <div class="stat"><div class="n">${s.pending}</div><div class="l">pendentes</div></div>`;
+        <div class="stat"><div class="n">${s.average != null ? s.average.toFixed(2).replace('.', ',') + ' ★' : '—'}</div><div class="l">nota média</div></div>`;
     }
 
     function renderReviewList(list) {
-      if (!list.length) { $('list').innerHTML = `<div class="empty-state">Nenhuma avaliação${reviewFilter ? ' com esse status' : ''}.</div>`; return; }
+      if (!list.length) { $('list').innerHTML = `<div class="empty-state">Nenhuma avaliação ainda.</div>`; return; }
       $('list').innerHTML = '';
       for (const r of list) {
         const a = r.author;
@@ -367,29 +489,23 @@
             </div>
             <div class="when">${fmtDate(r.updated_at)}</div>
           </div>
-          <div class="rating-row">${stars(r.rating)}<span class="rating-num">${r.rating.toString().replace('.', ',')}</span>
-            <span class="badge b-${r.status}">${REVIEW_STATUS_LABEL[r.status] || r.status}</span></div>
+          <div class="rating-row">${stars(r.rating)}<span class="rating-num">${r.rating.toString().replace('.', ',')}</span></div>
           ${comment}
           <div class="actions">
-            <button class="act approve">Aprovar</button>
-            <button class="act reject">Rejeitar</button>
             <button class="act del">Excluir</button>
           </div>`;
-        card.querySelector('.approve').onclick = () => setReviewStatus(r.id, 'approved');
-        card.querySelector('.reject').onclick = () => setReviewStatus(r.id, 'rejected');
         card.querySelector('.del').onclick = () => delReview(r.id, a.name);
         $('list').appendChild(card);
       }
     }
 
-    async function setReviewStatus(id, status) {
-      try { await apiFetch('/admin/reviews/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); await refreshReviews(); }
-      catch (e) { alert(e.message); }
-    }
     async function delReview(id, name) {
-      if (!confirm('Excluir a avaliação de ' + name + '? Esta ação não pode ser desfeita.')) return;
+      const ok = await showConfirm(`Excluir a avaliação de ${name}? Esta ação não pode ser desfeita.`, {
+        title: 'Excluir avaliação', confirmLabel: 'Excluir',
+      });
+      if (!ok) return;
       try { await apiFetch('/admin/reviews/' + id, { method: 'DELETE' }); await refreshReviews(); }
-      catch (e) { alert(e.message); }
+      catch (e) { showMessage(e.message, 'Erro'); }
     }
 
     // ── Denúncias ──────────────────────────────────────────────────────
@@ -532,12 +648,125 @@
 
     async function setReportStatus(id, status) {
       try { await apiFetch('/admin/reports/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); await refreshReports(); }
-      catch (e) { alert(e.message); }
+      catch (e) { showMessage(e.message, 'Erro'); }
     }
     async function delReport(id) {
-      if (!confirm('Excluir esta denúncia? Esta ação não pode ser desfeita.')) return;
+      const ok = await showConfirm('Excluir esta denúncia? Esta ação não pode ser desfeita.', {
+        title: 'Excluir denúncia', confirmLabel: 'Excluir',
+      });
+      if (!ok) return;
       try { await apiFetch('/admin/reports/' + id, { method: 'DELETE' }); await refreshReports(); }
-      catch (e) { alert(e.message); }
+      catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
+    // ── Auditoria ──────────────────────────────────────────────────────
+    // Registro de toda ação da moderação: exclusões, denúncias resolvidas/
+    // descartadas e suspensões de conta. Pesquisável por moderador, usuário
+    // afetado e tipo de ação.
+    let auditModFilter = '';
+    let auditUserFilter = '';
+    let auditActionFilter = '';
+
+    const AUDIT_ACTION_FILTERS = [
+      { key: '', label: 'Todas' },
+      { key: 'review_delete', label: 'Exclusão de avaliação' },
+      { key: 'report_resolve', label: 'Denúncia resolvida' },
+      { key: 'report_dismiss', label: 'Denúncia descartada' },
+      { key: 'report_delete', label: 'Exclusão de denúncia' },
+      { key: 'post_delete', label: 'Exclusão de post' },
+      { key: 'comment_delete', label: 'Exclusão de comentário' },
+      { key: 'user_suspend', label: 'Suspensão de conta' },
+      { key: 'user_unsuspend', label: 'Reativação de conta' },
+    ];
+    const AUDIT_ACTION_LABEL = Object.fromEntries(
+      AUDIT_ACTION_FILTERS.filter((f) => f.key).map((f) => [f.key, f.label]),
+    );
+
+    // Verbo usado na frase resumo de cada ação, com e sem usuário afetado
+    // (algumas denúncias antigas podem não ter um usuário associado).
+    const AUDIT_ACTION_VERB = {
+      review_delete: 'excluiu a avaliação de',
+      report_resolve: 'marcou como resolvida uma denúncia sobre',
+      report_dismiss: 'descartou uma denúncia sobre',
+      report_delete: 'excluiu uma denúncia sobre',
+      post_delete: 'excluiu um post de',
+      comment_delete: 'excluiu um comentário de',
+      user_suspend: 'suspendeu a conta de',
+      user_unsuspend: 'reativou a conta de',
+    };
+    const AUDIT_ACTION_VERB_NO_TARGET = {
+      review_delete: 'excluiu uma avaliação',
+      report_resolve: 'marcou uma denúncia como resolvida',
+      report_dismiss: 'descartou uma denúncia',
+      report_delete: 'excluiu uma denúncia',
+      post_delete: 'excluiu um post',
+      comment_delete: 'excluiu um comentário',
+      user_suspend: 'suspendeu uma conta',
+      user_unsuspend: 'reativou uma conta',
+    };
+
+    // Retorna HTML (não texto puro): moderador e usuário afetado em negrito,
+    // o resto da frase em peso normal.
+    function auditSentence(l) {
+      const mod = `<strong>${escapeHtml(l.moderator.username)}</strong>`;
+      if (l.target_user) {
+        const verb = AUDIT_ACTION_VERB[l.action] || AUDIT_ACTION_LABEL[l.action] || l.action;
+        const target = `<strong>${escapeHtml(l.target_user.username)}</strong>`;
+        return `${mod} ${escapeHtml(verb)} ${target}`;
+      }
+      const verb = AUDIT_ACTION_VERB_NO_TARGET[l.action] || AUDIT_ACTION_LABEL[l.action] || l.action;
+      return `${mod} ${escapeHtml(verb)}`;
+    }
+
+    function renderAuditTabs() {
+      $('auditActionTabs').innerHTML = '';
+      for (const f of AUDIT_ACTION_FILTERS) {
+        const b = document.createElement('button');
+        b.className = 'tab' + (f.key === auditActionFilter ? ' active' : '');
+        b.textContent = f.label;
+        b.onclick = () => { auditActionFilter = f.key; renderAuditTabs(); refreshAuditLogs(); };
+        $('auditActionTabs').appendChild(b);
+      }
+    }
+
+    $('auditSearchBtn').addEventListener('click', () => {
+      auditModFilter = $('auditModFilter').value.trim();
+      auditUserFilter = $('auditUserFilter').value.trim();
+      refreshAuditLogs();
+    });
+    $('auditModFilter').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('auditSearchBtn').click(); });
+    $('auditUserFilter').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('auditSearchBtn').click(); });
+
+    async function refreshAuditLogs() {
+      renderAuditTabs();
+      const params = new URLSearchParams();
+      if (auditModFilter) params.set('moderator', auditModFilter);
+      if (auditUserFilter) params.set('target_user', auditUserFilter);
+      if (auditActionFilter) params.set('action', auditActionFilter);
+      const qs = params.toString() ? '?' + params.toString() : '';
+      try {
+        const list = await apiFetch('/admin/audit-logs' + qs);
+        renderAuditList(list);
+      } catch (e) {
+        $('auditList').innerHTML = `<div class="empty-state">${e.message}</div>`;
+      }
+    }
+
+    function renderAuditList(list) {
+      if (!list.length) { $('auditList').innerHTML = `<div class="empty-state">Nenhum registro encontrado.</div>`; return; }
+      $('auditList').innerHTML = '';
+      for (const l of list) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="head">
+            <div class="audit-sentence">${auditSentence(l)}</div>
+            <div class="when">${fmtDate(l.created_at)}</div>
+          </div>
+          ${l.detail ? `<div class="comment" style="margin-top:8px;">${escapeHtml(l.detail)}</div>` : ''}
+        `;
+        $('auditList').appendChild(card);
+      }
     }
 
     // ── Usuários ─────────────────────────────────────────────────────────
@@ -580,6 +809,14 @@
       }
     }
 
+    // Rótulo sempre visível da suspensão (data de expiração, ou "indeterminado").
+    function suspensionLabel(u) {
+      if (!u.is_suspended) return null;
+      return u.suspended_until
+        ? `Suspenso até ${fmtDate(u.suspended_until)}`
+        : 'Suspenso por tempo indeterminado';
+    }
+
     function renderUserSearchResults(users) {
       if (!users.length) { $('userSearchResults').innerHTML = `<div class="empty-state">Nenhum usuário encontrado.</div>`; return; }
       $('userSearchResults').innerHTML = '';
@@ -587,11 +824,16 @@
         const avatar = u.avatar_url || 'https://i.pravatar.cc/150?img=12';
         const el = document.createElement('div');
         el.className = 'user-result';
+        const suspBadge = u.is_suspended ? `<span class="badge b-rejected">Suspenso</span>` : '';
+        const suspLine = u.is_suspended
+          ? `<div class="sub">${escapeHtml(suspensionLabel(u))}</div>`
+          : '';
         el.innerHTML = `
           <img class="avatar" src="${avatar}" alt="" />
           <div>
-            <div class="name">${escapeHtml(u.name)}</div>
+            <div class="name">${escapeHtml(u.name)} ${suspBadge}</div>
             <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')} · ${u.posts_count} posts</div>
+            ${suspLine}
           </div>`;
         el.onclick = () => openUserDetail(u);
         $('userSearchResults').appendChild(el);
@@ -609,17 +851,75 @@
 
     function renderUserDetailCard(u) {
       const avatar = u.avatar_url || 'https://i.pravatar.cc/150?img=12';
+      const suspBadge = u.is_suspended ? `<span class="badge b-rejected">Suspenso</span>` : '';
+      const suspLine = u.is_suspended
+        ? `<div class="comment" style="margin-top:8px;">${escapeHtml(suspensionLabel(u))}</div>`
+        : '';
+      const reasonLine = u.is_suspended && u.suspension_reason
+        ? `<div class="comment" style="margin-top:4px;">Motivo: ${escapeHtml(u.suspension_reason)}</div>`
+        : '';
+      const suspAction = u.is_suspended
+        ? `<button class="act reject" id="unsuspendBtn">Reativar conta</button>`
+        : `<button class="act reject" id="suspendBtn">Suspender conta</button>`;
       $('userDetailCard').innerHTML = `
         <div class="card">
           <div class="head">
             <img class="avatar" src="${avatar}" alt="" />
             <div>
-              <div class="name">${escapeHtml(u.name)}</div>
+              <div class="name">${escapeHtml(u.name)} ${suspBadge}</div>
               <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')}</div>
+              <div class="sub">Membro desde ${fmtDate(u.created_at)}</div>
             </div>
             <div class="when">${u.posts_count} posts · ${u.interactions_count} interações</div>
           </div>
+          ${suspLine}
+          ${reasonLine}
+          <div class="actions">${suspAction}</div>
         </div>`;
+      if (u.is_suspended) {
+        $('unsuspendBtn').onclick = () => unsuspendUser(u.id);
+      } else {
+        $('suspendBtn').onclick = () => openSuspendModal(u);
+      }
+    }
+
+    let suspendTargetId = null;
+
+    function openSuspendModal(user) {
+      suspendTargetId = user.id;
+      $('suspendModalTitle').textContent = `Suspender conta de ${user.name}`;
+      $('suspendReason').value = '';
+      $('suspendDuration').value = '7';
+      $('suspendModal').classList.remove('hidden');
+    }
+    $('suspendCancelBtn').addEventListener('click', () => $('suspendModal').classList.add('hidden'));
+    $('suspendConfirmBtn').addEventListener('click', async () => {
+      const duration = $('suspendDuration').value;
+      const reason = $('suspendReason').value.trim();
+      const until = duration === 'indef'
+        ? null
+        : new Date(Date.now() + parseInt(duration, 10) * 24 * 60 * 60 * 1000).toISOString();
+      try {
+        const updated = await apiFetch(`/admin/users/${suspendTargetId}/suspend`, {
+          method: 'POST',
+          body: JSON.stringify({ until, reason }),
+        });
+        $('suspendModal').classList.add('hidden');
+        selectedUser = { ...selectedUser, ...updated };
+        renderUserDetailCard(selectedUser);
+      } catch (e) { showMessage(e.message, 'Erro'); }
+    });
+
+    async function unsuspendUser(userId) {
+      const ok = await showConfirm('Reativar esta conta?', {
+        title: 'Reativar conta', confirmLabel: 'Reativar', danger: false,
+      });
+      if (!ok) return;
+      try {
+        const updated = await apiFetch(`/admin/users/${userId}/suspend`, { method: 'DELETE' });
+        selectedUser = { ...selectedUser, ...updated };
+        renderUserDetailCard(selectedUser);
+      } catch (e) { showMessage(e.message, 'Erro'); }
     }
 
     function renderUserContentTabs() {
@@ -691,21 +991,27 @@
     }
 
     async function deleteUserPost(id) {
-      if (!confirm('Excluir este post? Esta ação não pode ser desfeita.')) return;
+      const ok = await showConfirm('Excluir este post? Esta ação não pode ser desfeita.', {
+        title: 'Excluir post', confirmLabel: 'Excluir',
+      });
+      if (!ok) return;
       try {
         await apiFetch('/admin/posts/' + id, { method: 'DELETE' });
         userPosts = userPosts.filter((p) => p.id !== id);
         renderUserContentList();
-      } catch (e) { alert(e.message); }
+      } catch (e) { showMessage(e.message, 'Erro'); }
     }
 
     async function deleteUserComment(id) {
-      if (!confirm('Excluir este comentário? Esta ação não pode ser desfeita.')) return;
+      const ok = await showConfirm('Excluir este comentário? Esta ação não pode ser desfeita.', {
+        title: 'Excluir comentário', confirmLabel: 'Excluir',
+      });
+      if (!ok) return;
       try {
         await apiFetch('/admin/comments/' + id, { method: 'DELETE' });
         userComments = userComments.filter((c) => c.id !== id);
         renderUserContentList();
-      } catch (e) { alert(e.message); }
+      } catch (e) { showMessage(e.message, 'Erro'); }
     }
   </script>
 </body>

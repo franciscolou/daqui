@@ -114,4 +114,4 @@ def admin_delete_post(
     db: Session = Depends(get_db),
     _mod: User = Depends(get_current_moderator),
 ) -> None:
-    post.admin_delete_post(db, post_id)
+    post.admin_delete_post(db, post_id, _mod)

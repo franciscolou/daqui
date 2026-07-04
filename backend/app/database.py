@@ -15,6 +15,7 @@ class Base(DeclarativeBase):
 
 def create_tables():
     from app.models import (  # noqa: F401
+        audit_log,
         comment,
         group,
         message,
@@ -36,9 +37,11 @@ def _ensure_columns():
 
     if "notifications" in tables:
         columns = {c["name"] for c in inspector.get_columns("notifications")}
-        if "target_text" not in columns:
-            with engine.begin() as conn:
+        with engine.begin() as conn:
+            if "target_text" not in columns:
                 conn.execute(text("ALTER TABLE notifications ADD COLUMN target_text VARCHAR(300)"))
+            if "snapshot" not in columns:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN snapshot JSON"))
 
     if "users" in tables:
         columns = {c["name"] for c in inspector.get_columns("users")}
@@ -53,6 +56,12 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE users ADD COLUMN comments_count INTEGER DEFAULT 0 NOT NULL"))
             if "help_count" in columns:
                 conn.execute(text("ALTER TABLE users DROP COLUMN help_count"))
+            if "is_suspended" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN is_suspended BOOLEAN DEFAULT 0 NOT NULL"))
+            if "suspended_until" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN suspended_until DATETIME"))
+            if "suspension_reason" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN suspension_reason TEXT DEFAULT ''"))
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}
@@ -67,3 +76,11 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE posts ADD COLUMN poll_multiple BOOLEAN"))
             if "poll_closes_at" not in columns:
                 conn.execute(text("ALTER TABLE posts ADD COLUMN poll_closes_at DATETIME"))
+
+    if "reviews" in tables:
+        columns = {c["name"] for c in inspector.get_columns("reviews")}
+        # Avaliação não passa mais por aprovação/rejeição da moderação.
+        if "status" in columns:
+            with engine.begin() as conn:
+                conn.execute(text("DROP INDEX IF EXISTS ix_reviews_status"))
+                conn.execute(text("ALTER TABLE reviews DROP COLUMN status"))

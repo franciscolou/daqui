@@ -39,8 +39,11 @@ def login_2fa(payload: TwoFactorLoginRequest, db: Session = Depends(get_db)) -> 
     return auth.login_2fa(db, payload)
 
 
-def me(current_user: User = Depends(get_current_user)) -> UserMe:
-    return current_user
+def me(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserMe:
+    return auth.me(db, current_user)
 
 
 def two_factor_setup(
