@@ -599,24 +599,33 @@ function AddressPanel() {
 
   return (
     <View style={styles.panelGroup}>
-      <View style={styles.infoBox}>
-        <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primary} />
-        <Text style={styles.infoBoxText}>Seu endereço exato nunca é exibido — usamos só o bairro para montar seu feed.</Text>
-      </View>
-
-      <Field label="CEP" value={cep} onChangeText={setCep} placeholder="00000-000" keyboardType="numeric" />
-      <Field label="Rua" value={rua} onChangeText={setRua} placeholder="Nome da rua" />
-      <View style={styles.rowFields}>
-        <View style={styles.rowFieldSmall}>
-          <Field label="Número" value={numero} onChangeText={setNumero} placeholder="123" keyboardType="numeric" />
+      <View style={styles.addressLockedWrap}>
+        <View style={styles.infoBox}>
+          <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primary} />
+          <Text style={styles.infoBoxText}>Seu endereço exato nunca é exibido — usamos só o bairro para montar seu feed.</Text>
         </View>
-        <View style={styles.rowFieldFlex}>
-          <Field label="Complemento" value={complemento} onChangeText={setComplemento} placeholder="Apto, bloco…" />
+
+        <Field label="CEP" value={cep} onChangeText={setCep} placeholder="00000-000" keyboardType="numeric" editable={false} />
+        <Field label="Rua" value={rua} onChangeText={setRua} placeholder="Nome da rua" editable={false} />
+        <View style={styles.rowFields}>
+          <View style={styles.rowFieldSmall}>
+            <Field label="Número" value={numero} onChangeText={setNumero} placeholder="123" keyboardType="numeric" editable={false} />
+          </View>
+          <View style={styles.rowFieldFlex}>
+            <Field label="Complemento" value={complemento} onChangeText={setComplemento} placeholder="Apto, bloco…" editable={false} />
+          </View>
+        </View>
+        <Field label="Bairro" value={bairro} onChangeText={setBairro} placeholder="Seu bairro" editable={false} />
+
+        <VisualSaveButton disabled />
+
+        <View style={styles.lockOverlay} pointerEvents="none">
+          <Ionicons name="lock-closed" size={22} color={Colors.textSecondary} style={styles.lockIcon} />
+          <Text style={styles.lockText}>
+            Em breve, apenas moradores comprovados poderão pertencer às comunidades.
+          </Text>
         </View>
       </View>
-      <Field label="Bairro" value={bairro} onChangeText={setBairro} placeholder="Seu bairro" />
-
-      <VisualSaveButton />
     </View>
   );
 }
@@ -651,6 +660,7 @@ function Field({
   multiline,
   hint,
   prefix,
+  editable = true,
   ...props
 }: {
   label: string;
@@ -663,12 +673,13 @@ function Field({
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={[styles.inputWrap, multiline && styles.inputWrapMultiline]}>
+      <View style={[styles.inputWrap, multiline && styles.inputWrapMultiline, !editable && styles.inputWrapDisabled]}>
         {prefix && <Text style={styles.inputPrefix}>{prefix}</Text>}
         <TextInput
           style={[styles.input, multiline && styles.inputMultiline]}
           placeholderTextColor={Colors.textTertiary}
           multiline={multiline}
+          editable={editable}
           {...props}
         />
       </View>
@@ -724,10 +735,14 @@ function LinkRow({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label:
   );
 }
 
-function VisualSaveButton() {
+function VisualSaveButton({ disabled = false }: { disabled?: boolean }) {
   const styles = useThemedStyles(makeStyles);
   return (
-    <TouchableOpacity style={styles.saveBtn} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={[styles.saveBtn, disabled && styles.saveBtnDisabled]}
+      activeOpacity={0.85}
+      disabled={disabled}
+    >
       <Text style={styles.saveBtnText}>Salvar alterações</Text>
     </TouchableOpacity>
   );
@@ -825,6 +840,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   inputWrapMultiline: { alignItems: 'flex-start' },
+  inputWrapDisabled: { opacity: 0.6 },
   inputPrefix: { fontSize: 15, color: Colors.textTertiary, fontWeight: '600' },
   input: { flex: 1, paddingVertical: 12, fontSize: 15, color: Colors.text },
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
@@ -879,6 +895,22 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     marginBottom: 8,
   },
   infoBoxText: { flex: 1, fontSize: 13, color: Colors.primary, lineHeight: 18 },
+
+  // Interdição temporária da tela de endereço
+  addressLockedWrap: { position: 'relative' },
+  lockOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: Colors.background + 'E6',
+  },
+  lockIcon: { marginBottom: 10 },
+  lockText: { fontSize: 14, fontWeight: '700', color: Colors.text, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
 
   feedback: { fontSize: 13, fontWeight: '600', marginTop: 4 },
   feedbackOk: { color: Colors.success },
