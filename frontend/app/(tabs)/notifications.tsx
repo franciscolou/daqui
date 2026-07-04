@@ -9,17 +9,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Palette } from '../constants/Colors';
-import { NOTIF_ICONS } from '../constants/notifications';
-import { notificationParts } from '../components/NotificationText';
-import { api, AppNotification } from '../lib/api';
-import { useTheme, useThemedStyles } from '../lib/theme';
-import FeedLayout from '../components/FeedLayout';
+import { useCallback, useEffect, useState } from 'react';
+import { Palette } from '../../constants/Colors';
+import { NOTIF_ICONS } from '../../constants/notifications';
+import { notificationParts } from '../../components/NotificationText';
+import { api, AppNotification } from '../../lib/api';
+import { useRealtime } from '../../lib/realtime';
+import { useTheme, useThemedStyles } from '../../lib/theme';
+import FeedLayout from '../../components/FeedLayout';
 
-export default function NewsScreen() {
+export default function NotificationsScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { subscribeNotifications } = useRealtime();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,6 +36,9 @@ export default function NewsScreen() {
   }, []);
 
   useFocusEffect(load);
+
+  // Recarrega ao vivo quando o servidor avisa (via websocket) que chegou algo novo.
+  useEffect(() => subscribeNotifications(load), [subscribeNotifications, load]);
 
   return (
     <FeedLayout>

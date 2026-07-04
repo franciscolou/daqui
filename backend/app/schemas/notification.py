@@ -16,3 +16,7 @@ class NotificationOut(BaseModel):
     actor: UserPublic | None
 
     model_config = {"from_attributes": True}
+
+
+class UnreadCountOut(BaseModel):
+    count: int

@@ -43,6 +43,10 @@ class ConversationOut(BaseModel):
     unread_count: int
 
 
+class UnreadCountOut(BaseModel):
+    count: int
+
+
 class MessageSearchOut(BaseModel):
     id: int
     content: str

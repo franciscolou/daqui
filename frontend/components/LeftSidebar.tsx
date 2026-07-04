@@ -10,6 +10,7 @@ import { Palette } from '../constants/Colors';
 import { BRAND_FONT } from '../constants/BrandFont';
 import { CATEGORIES, PostCategory } from '../data/mock';
 import { useAuth } from '../lib/auth';
+import { useRealtime } from '../lib/realtime';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
 
 interface Props {
@@ -21,7 +22,7 @@ interface Props {
 const NAV_ITEMS = [
   { key: 'index',     route: '/(tabs)',             label: 'Início',     icon: 'home-outline'         as const, iconActive: 'home'         as const },
   { key: 'search',     route: '/search',              label: 'Buscar',     icon: 'search-outline'       as const, iconActive: 'search'       as const },
-  { key: 'news', route: '/news',          label: 'Novidades',  icon: 'notifications-outline' as const, iconActive: 'notifications' as const },
+  { key: 'notifications', route: '/(tabs)/notifications', label: 'Novidades',  icon: 'notifications-outline' as const, iconActive: 'notifications' as const },
   { key: 'map',      route: '/(tabs)/map',        label: 'Mapa',       icon: 'map-outline'          as const, iconActive: 'map'          as const },
   { key: 'messages', route: '/(tabs)/messages',   label: 'Mensagens',  icon: 'chatbubbles-outline'  as const, iconActive: 'chatbubbles'  as const },
   { key: 'profile',    route: '/(tabs)/profile',      label: 'Perfil',     icon: 'person-outline'       as const, iconActive: 'person'       as const },
@@ -52,6 +53,7 @@ const APP_ITEMS: {
 export default function LeftSidebar({ activeCategory, onCategoryChange, onNavigate }: Props) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { unreadMessages, unreadNotifications } = useRealtime();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { mode, toggle } = useThemeMode();
@@ -151,6 +153,9 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
       <View style={styles.group}>
         {NAV_ITEMS.map((item) => {
           const isActive = isTabActive(item.key);
+          const showDot =
+            (item.key === 'messages' && unreadMessages > 0) ||
+            (item.key === 'notifications' && unreadNotifications > 0);
           return (
             <TouchableOpacity
               key={item.key}
@@ -158,11 +163,14 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
               onPress={() => navigate(item.route)}
               activeOpacity={0.7}
             >
-              <Ionicons
-                name={isActive ? item.iconActive : item.icon}
-                size={18}
-                color={isActive ? Colors.primary : Colors.textSecondary}
-              />
+              <View style={styles.navIconWrapper}>
+                <Ionicons
+                  name={isActive ? item.iconActive : item.icon}
+                  size={18}
+                  color={isActive ? Colors.primary : Colors.textSecondary}
+                />
+                {showDot && <View style={styles.navDot} />}
+              </View>
               <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
                 {item.label}
               </Text>
@@ -400,6 +408,20 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   navLabelActive: {
     color: Colors.primary,
     fontWeight: '700',
+  },
+  navIconWrapper: {
+    position: 'relative',
+  },
+  navDot: {
+    position: 'absolute',
+    top: -2,
+    right: -3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.error,
+    borderWidth: 1.5,
+    borderColor: Colors.background,
   },
   logoutLabel: {
     color: Colors.error,

@@ -11,3 +11,7 @@ def list_for_user(db: Session, user: User) -> list[Notification]:
 
 def mark_all_read(db: Session, user: User) -> None:
     notification.mark_all_read(db, user.id)
+
+
+def unread_count(db: Session, user: User) -> int:
+    return notification.count_unread(db, user.id)

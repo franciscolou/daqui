@@ -29,6 +29,13 @@ export function getToken(): string | null {
   return token;
 }
 
+// URL do WebSocket de tempo real (mensagens/notificações), já com o token
+// atual. Retorna null se não houver sessão — quem chama deve tratar esse caso.
+export function getRealtimeUrl(): string | null {
+  if (!token) return null;
+  return `${API_URL.replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}`;
+}
+
 // ─────────────────────────────────────────────────────────────
 // HTTP helper
 // ─────────────────────────────────────────────────────────────
@@ -858,6 +865,11 @@ export const api = {
     return r.map(mapConversation);
   },
 
+  async getUnreadMessagesCount(): Promise<number> {
+    const r = await request<{ count: number }>('/messages/unread-count');
+    return r.count;
+  },
+
   async searchMessages(query: string): Promise<MessageResult[]> {
     const r = await request<BackendMessageResult[]>(
       `/messages/search?q=${encodeURIComponent(query)}`,
@@ -1034,5 +1046,10 @@ export const api = {
 
   async markNotificationsRead(): Promise<void> {
     await request<void>('/notifications/read-all', { method: 'PATCH' });
+  },
+
+  async getUnreadNotificationsCount(): Promise<number> {
+    const r = await request<{ count: number }>('/notifications/unread-count');
+    return r.count;
   },
 };

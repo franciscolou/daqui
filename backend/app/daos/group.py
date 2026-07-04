@@ -181,3 +181,28 @@ def mark_read(db: Session, member: GroupMember, last_id: int) -> None:
     if (member.last_read_message_id or 0) < last_id:
         member.last_read_message_id = last_id
         db.commit()
+
+
+def count_unread_for_user(db: Session, user_id: int) -> int:
+    total = 0
+    memberships = db.query(GroupMember).filter(GroupMember.user_id == user_id).all()
+    for member in memberships:
+        total += count_unread(db, member.group_id, user_id, member.last_read_message_id)
+    return total
+
+
+def new_messages_since(
+    db: Session, group_ids: list[int], exclude_user_id: int, since
+) -> list[GroupMessage]:
+    if not group_ids:
+        return []
+    return (
+        db.query(GroupMessage)
+        .filter(
+            GroupMessage.group_id.in_(group_ids),
+            GroupMessage.sender_id != exclude_user_id,
+            GroupMessage.created_at > since,
+        )
+        .order_by(GroupMessage.id)
+        .all()
+    )

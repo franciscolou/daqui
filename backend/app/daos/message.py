@@ -74,6 +74,24 @@ def count_unread(db: Session, from_user_id: int, to_user_id: int) -> int:
     )
 
 
+def count_unread_total(db: Session, user_id: int) -> int:
+    return (
+        db.query(func.count(Message.id))
+        .filter(Message.receiver_id == user_id, Message.read.is_(False))
+        .scalar()
+        or 0
+    )
+
+
+def new_received_since(db: Session, user_id: int, since) -> list[Message]:
+    return (
+        db.query(Message)
+        .filter(Message.receiver_id == user_id, Message.created_at > since)
+        .order_by(Message.id)
+        .all()
+    )
+
+
 def create(
     db: Session,
     sender_id: int,

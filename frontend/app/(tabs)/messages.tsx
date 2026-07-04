@@ -15,9 +15,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { User } from '../../data/mock';
+import { useRealtime } from '../../lib/realtime';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import {
   api,
@@ -50,6 +51,7 @@ export default function MessagesScreen() {
   const isWide = width >= WIDE;
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { subscribeMessages } = useRealtime();
 
   const [selected, setSelected] = useState<Selected | null>(null);
   const [newConvOpen, setNewConvOpen] = useState(false);
@@ -83,6 +85,9 @@ export default function MessagesScreen() {
   }, []);
 
   useFocusEffect(load);
+
+  // Atualiza a lista de conversas ao vivo quando chega mensagem nova (via websocket).
+  useEffect(() => subscribeMessages(() => load()), [subscribeMessages, load]);
 
   const inbox = useMemo<InboxItem[]>(() => {
     const items: InboxItem[] = [
@@ -132,7 +137,20 @@ export default function MessagesScreen() {
     timer.current = setTimeout(() => runSearch(v.trim()), 300);
   };
 
-  const open = (t: Selected) => setSelected(t);
+  // Ao abrir uma conversa, zera o selo dela na hora (a leitura de verdade é
+  // feita pelo ChatView ao buscar a thread) — sem esperar o próximo refresh.
+  const open = (t: Selected) => {
+    setSelected(t);
+    if (t.kind === 'dm') {
+      setConversations((prev) =>
+        prev.map((c) => (c.user.id === t.id && c.unread > 0 ? { ...c, unread: 0 } : c)),
+      );
+    } else {
+      setGroups((prev) =>
+        prev.map((g) => (g.group.id === t.id && g.unread > 0 ? { ...g, unread: 0 } : g)),
+      );
+    }
+  };
   const isActive = (kind: 'dm' | 'group', id: string) =>
     !!selected && selected.kind === kind && selected.id === id;
 

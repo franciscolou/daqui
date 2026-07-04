@@ -21,6 +21,7 @@ import { User } from '../data/mock';
 import { api, ChatMessage, GroupDetail } from '../lib/api';
 import { formatDayDivider, formatMessageTime } from '../lib/time';
 import { useAuth } from '../lib/auth';
+import { useRealtime } from '../lib/realtime';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { submitOnEnter } from '../lib/keyboard';
 import SharedPostPreview from './SharedPostPreview';
@@ -119,6 +120,7 @@ export default function ChatView({
 }) {
   const { kind, id } = target;
   const { user: me } = useAuth();
+  const { subscribeMessages, refreshUnreadCounts } = useRealtime();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -129,11 +131,28 @@ export default function ChatView({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(messageId ?? null);
-  // id da mensagem recém-enviada por mim — dispara a animação de entrada só nela
-  const [sentId, setSentId] = useState<string | null>(null);
+  // ids que devem animar a entrada (mensagem que eu acabei de enviar, ou que
+  // chegou agora por tempo real) — mesmo efeito nos dois casos
+  const [enteringIds, setEnteringIds] = useState<Set<string>>(new Set());
 
   const listRef = useRef<FlatList<ChatItem>>(null);
   const didScrollRef = useRef(false);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const animateEntrance = useCallback((ids: string[]) => {
+    if (!ids.length) return;
+    setEnteringIds((prev) => new Set([...prev, ...ids]));
+    setTimeout(() => {
+      setEnteringIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((msgId) => next.delete(msgId));
+        return next;
+      });
+    }, 600);
+  }, []);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -154,17 +173,51 @@ export default function ChatView({
         setGroup(g);
         setMessages(thread);
       }
+      // Buscar a thread já marca como lida no servidor — sincroniza o selo
+      // global (sidebar/tab bar) agora, sem esperar o próximo tick do websocket.
+      refreshUnreadCounts();
     } catch {
       setOther(null);
       setGroup(null);
     } finally {
       setLoading(false);
     }
-  }, [id, kind]);
+  }, [id, kind, refreshUnreadCounts]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Atualização silenciosa: busca a thread de novo (o que também marca como
+  // lida no servidor) mas só funde as mensagens novas na lista existente, sem
+  // trocar pra tela de loading nem re-renderizar as mensagens já exibidas.
+  const refreshQuiet = useCallback(async () => {
+    if (!id) return;
+    try {
+      const thread =
+        kind === 'dm' ? await api.getThread(id) : await api.getGroupThread(id);
+      const existingIds = new Set(messagesRef.current.map((m) => m.id));
+      const freshIds = thread.filter((m) => !existingIds.has(m.id)).map((m) => m.id);
+      setMessages(thread);
+      animateEntrance(freshIds);
+      // idem: essa mensagem nova já foi marcada como lida no servidor (a
+      // thread está aberta), então o selo global pode ser atualizado agora.
+      if (freshIds.length) refreshUnreadCounts();
+    } catch {
+      /* falha pontual: mantém o que já está na tela */
+    }
+  }, [id, kind, animateEntrance, refreshUnreadCounts]);
+
+  // Dispara a atualização silenciosa quando chega mensagem nova nesta
+  // conversa (via websocket), sem precisar dar refresh na página.
+  useEffect(
+    () =>
+      subscribeMessages((senderIds, groupIds) => {
+        const isForThisThread = kind === 'dm' ? senderIds.includes(id) : groupIds.includes(id);
+        if (isForThisThread) refreshQuiet();
+      }),
+    [subscribeMessages, kind, id, refreshQuiet],
+  );
 
   const send = useCallback(async () => {
     const content = input.trim();
@@ -177,14 +230,14 @@ export default function ChatView({
           ? await api.sendMessage(id, content)
           : await api.sendGroupMessage(id, content);
       setMessages((prev) => [...prev, msg]);
-      setSentId(msg.id);
+      animateEntrance([msg.id]);
       onActivity?.();
     } catch {
       setInput(content);
     } finally {
       setSending(false);
     }
-  }, [input, id, kind, sending, onActivity]);
+  }, [input, id, kind, sending, onActivity, animateEntrance]);
 
   // FlatList invertida: itens com divisores de dia, mais recente primeiro.
   const data = useMemo<ChatItem[]>(() => {
@@ -225,13 +278,6 @@ export default function ChatView({
     const t = setTimeout(() => setHighlightId(null), 2800);
     return () => clearTimeout(t);
   }, [highlightId]);
-
-  // limpa o marcador após a animação para não reanimar ao reciclar a linha na FlatList
-  useEffect(() => {
-    if (!sentId) return;
-    const t = setTimeout(() => setSentId(null), 600);
-    return () => clearTimeout(t);
-  }, [sentId]);
 
   const openInfo = () => {
     if (kind === 'dm' && other) router.push(`/user/${other.id}` as any);
@@ -316,7 +362,7 @@ export default function ChatView({
                   mine={!!me && item.msg.sender.id === me.id}
                   showSender={kind === 'group' && !(!!me && item.msg.sender.id === me.id)}
                   highlighted={item.msg.id === highlightId}
-                  animateIn={item.msg.id === sentId}
+                  animateIn={enteringIds.has(item.msg.id)}
                   styles={styles}
                 />
               );

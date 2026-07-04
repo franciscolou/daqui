@@ -17,6 +17,7 @@ from app.routers import (
     reviews,
     search,
     users,
+    ws,
 )
 
 
@@ -52,6 +53,7 @@ app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(geo.router, prefix="/api/v1")
+app.include_router(ws.router, prefix="/api/v1")
 
 # Arquivos enviados (ex.: fotos de perfil) servidos em /uploads
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

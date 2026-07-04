@@ -8,6 +8,7 @@ from app.schemas.message import (
     MessageCreate,
     MessageOut,
     MessageSearchOut,
+    UnreadCountOut,
 )
 from app.services import message
 
@@ -17,6 +18,13 @@ def list_conversations(
     current_user: User = Depends(get_current_user),
 ) -> list[ConversationOut]:
     return message.list_conversations(db, current_user)
+
+
+def get_unread_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UnreadCountOut:
+    return UnreadCountOut(count=message.unread_count(db, current_user))
 
 
 def search_messages(

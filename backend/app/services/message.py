@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.daos import group as group_dao
 from app.daos import message as message_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
@@ -61,6 +62,13 @@ def search_messages(db: Session, user: User, query: str) -> list[MessageSearchOu
             )
         )
     return results
+
+
+def unread_count(db: Session, user: User) -> int:
+    """Total de mensagens não lidas — diretas + grupos — usado no selo de 'Mensagens'."""
+    return message_dao.count_unread_total(db, user.id) + group_dao.count_unread_for_user(
+        db, user.id
+    )
 
 
 def get_thread(db: Session, user: User, other_id: int) -> list[Message]:
