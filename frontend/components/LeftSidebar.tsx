@@ -187,7 +187,7 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
       <View style={styles.divider} />
 
       {/* App */}
-      <Text style={styles.groupTitle}>App</Text>
+      <Text style={styles.groupTitle}>Sobre</Text>
       <View style={styles.group}>
         {APP_ITEMS.map((item) => (
           <TouchableOpacity key={item.key} style={styles.navItem} activeOpacity={0.7} onPress={() => onNavigate?.()}>
