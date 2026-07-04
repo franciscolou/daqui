@@ -78,15 +78,24 @@ def get_thread(db: Session, user: User, other_id: int) -> list[Message]:
 
 
 def send(db: Session, user: User, payload: MessageCreate) -> Message:
-    if not user_dao.get_by_id(db, payload.receiver_id):
+    receiver = user_dao.get_by_id(db, payload.receiver_id)
+    if not receiver:
         raise HTTPException(status_code=404, detail="Destinatário não encontrado")
 
     content = payload.content.strip()
     if not content and payload.shared_post_id is None:
         raise HTTPException(status_code=400, detail="Mensagem vazia")
 
-    if payload.shared_post_id is not None and not post_dao.get_by_id(db, payload.shared_post_id):
-        raise HTTPException(status_code=404, detail="Post não encontrado")
+    if payload.shared_post_id is not None:
+        shared_post = post_dao.get_by_id(db, payload.shared_post_id)
+        if not shared_post:
+            raise HTTPException(status_code=404, detail="Post não encontrado")
+        # Isolamento por bairro: não deixa encaminhar post para morador de outro bairro.
+        if shared_post.neighborhood != receiver.neighborhood:
+            raise HTTPException(
+                status_code=403,
+                detail="Este post não pode ser encaminhado para um morador de outro bairro",
+            )
 
     return message_dao.create(
         db, user.id, payload.receiver_id, content, payload.shared_post_id
