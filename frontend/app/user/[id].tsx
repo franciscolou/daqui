@@ -196,7 +196,7 @@ export default function UserScreen() {
                 onPress={() => router.push(`/messages/${user.id}` as any)}
               >
                 <Ionicons name="chatbubble-outline" size={16} color="#fff" />
-                <Text style={styles.actionBtnPrimaryText}>Mensagem</Text>
+                <Text style={styles.actionBtnPrimaryText}>Enviar mensagem</Text>
               </TouchableOpacity>
             )}
           </View>
