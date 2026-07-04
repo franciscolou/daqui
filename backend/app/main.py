@@ -14,6 +14,7 @@ from app.routers import (
     messages,
     notifications,
     posts,
+    reports,
     reviews,
     search,
     users,
@@ -49,6 +50,8 @@ app.include_router(messages.router, prefix="/api/v1")
 app.include_router(groups.router, prefix="/api/v1")
 app.include_router(reviews.router, prefix="/api/v1")
 app.include_router(reviews.admin_router, prefix="/api/v1")
+app.include_router(reports.router, prefix="/api/v1")
+app.include_router(reports.admin_router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")

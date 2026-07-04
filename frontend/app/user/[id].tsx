@@ -20,6 +20,8 @@ import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import PostCard from '../../components/PostCard';
 import FeedLayout from '../../components/FeedLayout';
+import ActionMenu from '../../components/ActionMenu';
+import ReportModal from '../../components/ReportModal';
 
 export default function UserScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,6 +34,8 @@ export default function UserScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const isMe = !!me && me.id === id;
 
@@ -89,10 +93,17 @@ export default function UserScreen() {
         end={{ x: 1, y: 1 }}
         style={[styles.hero, isWide && styles.heroWide]}
       >
-        {/* Back button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
-        </TouchableOpacity>
+        {/* Back button + menu */}
+        <View style={styles.heroTopRow}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={20} color="#fff" />
+          </TouchableOpacity>
+          {!isMe && (
+            <TouchableOpacity style={styles.backBtn} onPress={() => setMenuVisible(true)}>
+              <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.profileCenter}>
           <Image source={{ uri: user.avatar }} style={styles.avatar} />
@@ -212,14 +223,36 @@ export default function UserScreen() {
   );
 
   return (
-    <FeedLayout>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 24 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {content}
-      </ScrollView>
-    </FeedLayout>
+    <>
+      <FeedLayout>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {content}
+        </ScrollView>
+      </FeedLayout>
+
+      <ActionMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        options={[
+          {
+            key: 'report',
+            label: 'Denunciar perfil',
+            icon: 'flag-outline',
+            destructive: true,
+            onPress: () => setReportVisible(true),
+          },
+        ]}
+      />
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        targetType="user"
+        targetId={user.id}
+      />
+    </>
   );
 }
 
@@ -246,15 +279,19 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     marginTop: 20,
     marginHorizontal: 20,
   },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   backBtn: {
-    alignSelf: 'flex-start',
     width: 38,
     height: 38,
     borderRadius: 11,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
   },
   profileCenter: { alignItems: 'center', marginBottom: 20 },
   avatar: {

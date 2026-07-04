@@ -31,19 +31,47 @@
     .btn:disabled { opacity: .5; cursor: default; }
     .err { color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 12px; min-height: 16px; }
 
-    /* App */
-    .topbar { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
-    .topbar h1 { font-size: 17px; margin: 0; }
-    .topbar .who { font-size: 12px; color: var(--text-3); }
-    .linkbtn { background: none; border: none; color: var(--text-2); font-size: 13px; font-weight: 600; }
+    /* App shell: sidebar (seções) + conteúdo */
+    .layout { display: flex; min-height: 100vh; align-items: stretch; }
+    .sidebar {
+      width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 18px 12px;
+    }
+    .brand-mini { display: flex; align-items: center; gap: 9px; padding: 4px 10px 22px; font-weight: 800; font-size: 15px; }
+    .brand-mini .dot { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size: 13px; }
+    #nav { display: flex; flex-direction: column; gap: 3px; }
+    .navbtn {
+      display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+      padding: 10px 12px; border-radius: 10px; border: none; background: none;
+      font-size: 14px; font-weight: 600; color: var(--text-2);
+    }
+    .navbtn .ic { font-size: 15px; width: 18px; text-align: center; }
+    .navbtn.active { background: #DCFCE7; color: var(--primary-dark); }
+    .sidebar-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-light); }
+    .sidebar-footer .who { font-size: 12px; color: var(--text-3); margin-bottom: 8px; word-break: break-all; }
+    .main { flex: 1; min-width: 0; }
+
+    .topbar { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; }
+    .topbar h1 { font-size: 18px; margin: 0; }
+    .linkbtn { background: none; border: none; color: var(--text-2); font-size: 13px; font-weight: 600; padding: 0; }
     .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+    @media (max-width: 700px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; }
+      .brand-mini { padding: 0 14px 0 0; }
+      #nav { flex-direction: row; gap: 6px; }
+      .navbtn { width: auto; white-space: nowrap; }
+      .sidebar-footer { margin-top: 0; margin-left: auto; padding-top: 0; border-top: none; display: flex; align-items: center; gap: 10px; }
+      .sidebar-footer .who { margin-bottom: 0; }
+    }
 
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
     .stat { background: var(--surface); border: 1px solid var(--border-light); border-radius: 14px; padding: 14px 16px; }
     .stat .n { font-size: 24px; font-weight: 800; }
     .stat .l { font-size: 12px; color: var(--text-3); margin-top: 2px; }
 
-    .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
     .tab { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-2); }
     .tab.active { background: #DCFCE7; border-color: #DCFCE7; color: var(--primary-dark); }
 
@@ -62,8 +90,13 @@
     .comment.empty { color: var(--text-3); font-style: italic; }
     .badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: .4px; }
     .b-pending { background: #FEF3C7; color: #92400E; }
-    .b-approved { background: #DCFCE7; color: var(--primary-dark); }
-    .b-rejected { background: var(--danger-bg); color: var(--danger); }
+    .b-approved, .b-reviewed { background: #DCFCE7; color: var(--primary-dark); }
+    .b-rejected, .b-dismissed { background: var(--danger-bg); color: var(--danger); }
+    .reason-tag { display: inline-block; font-size: 12px; font-weight: 700; color: var(--text-2); background: var(--border-light); padding: 3px 10px; border-radius: 999px; margin: 10px 0 6px; }
+    .target-box { background: var(--bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; margin-top: 8px; }
+    .target-box .label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+    .target-box .content { font-size: 13px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
+    .target-box.empty { color: var(--text-3); font-style: italic; font-size: 13px; }
     .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
     .act { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 700; }
     .act.approve { background: var(--primary); border-color: var(--primary); color: #fff; }
@@ -92,17 +125,33 @@
 
   <!-- App -->
   <div id="app" class="hidden">
-    <div class="topbar">
-      <div>
-        <h1>Avaliações do Daqui</h1>
-        <div class="who" id="who"></div>
+    <div class="layout">
+      <nav class="sidebar">
+        <div class="brand-mini"><div class="dot">d</div><span>Moderação</span></div>
+        <div id="nav"></div>
+        <div class="sidebar-footer">
+          <div class="who" id="who"></div>
+          <button class="linkbtn" id="logoutBtn">Sair</button>
+        </div>
+      </nav>
+
+      <div class="main">
+        <div class="topbar"><h1 id="sectionTitle"></h1></div>
+        <div class="container">
+          <div id="section-reviews">
+            <div class="stats" id="stats"></div>
+            <div class="tabs" id="tabs"></div>
+            <div id="list"></div>
+          </div>
+
+          <div id="section-reports" class="hidden">
+            <div class="stats" id="reportStats"></div>
+            <div class="tabs" id="reportStatusTabs"></div>
+            <div class="tabs" id="reportTypeTabs"></div>
+            <div id="reportList"></div>
+          </div>
+        </div>
       </div>
-      <button class="linkbtn" id="logoutBtn">Sair</button>
-    </div>
-    <div class="container">
-      <div class="stats" id="stats"></div>
-      <div class="tabs" id="tabs"></div>
-      <div id="list"></div>
     </div>
   </div>
 
@@ -110,15 +159,6 @@
     const $ = (id) => document.getElementById(id);
     let API = '';
     let token = '';
-    let filter = ''; // '', 'pending', 'approved', 'rejected'
-
-    const FILTERS = [
-      { key: '', label: 'Todas' },
-      { key: 'pending', label: 'Pendentes' },
-      { key: 'approved', label: 'Aprovadas' },
-      { key: 'rejected', label: 'Rejeitadas' },
-    ];
-    const STATUS_LABEL = { pending: 'Pendente', approved: 'Aprovada', rejected: 'Rejeitada' };
 
     async function apiFetch(path, opts = {}) {
       const res = await fetch(API + path, {
@@ -130,6 +170,20 @@
       const data = text ? JSON.parse(text) : null;
       if (!res.ok) throw new Error((data && data.detail) || ('Erro ' + res.status));
       return data;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function fmtDate(iso) {
+      try { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+      catch { return iso; }
+    }
+
+    function truncate(s, n) {
+      if (!s) return '';
+      return s.length > n ? s.slice(0, n) + '…' : s;
     }
 
     // ── Login ──
@@ -155,8 +209,8 @@
         $('who').textContent = $('email').value.trim();
         $('login').classList.add('hidden');
         $('app').classList.remove('hidden');
-        renderTabs();
-        await refresh();
+        renderNav();
+        await goToSection(SECTIONS[0].key);
       } catch (e) {
         $('loginErr').textContent = e.message.includes('restrito') ? 'Esta conta não é moderadora.' : e.message;
       } finally {
@@ -168,14 +222,55 @@
       token = ''; $('app').classList.add('hidden'); $('login').classList.remove('hidden');
     });
 
-    // ── Dashboard ──
-    function renderTabs() {
-      $('tabs').innerHTML = '';
-      for (const f of FILTERS) {
+    // ── Navegação por seções ──────────────────────────────────────────
+    // Cada seção descreve seu título, o container que deve ficar visível e
+    // como (re)carregar seus dados. Novas telas de moderação (ex.: outras
+    // filas de denúncia) só precisam de uma nova entrada aqui.
+    const SECTIONS = [
+      { key: 'reviews', label: 'Avaliações', icon: '★', sectionId: 'section-reviews', title: 'Avaliações do Daqui', onShow: refreshReviews },
+      { key: 'reports', label: 'Denúncias', icon: '⚑', sectionId: 'section-reports', title: 'Denúncias', onShow: refreshReports },
+    ];
+    let currentSection = SECTIONS[0].key;
+
+    function renderNav() {
+      const nav = $('nav');
+      nav.innerHTML = '';
+      for (const s of SECTIONS) {
         const b = document.createElement('button');
-        b.className = 'tab' + (f.key === filter ? ' active' : '');
+        b.className = 'navbtn' + (s.key === currentSection ? ' active' : '');
+        b.innerHTML = `<span class="ic">${s.icon}</span><span>${s.label}</span>`;
+        b.onclick = () => goToSection(s.key);
+        nav.appendChild(b);
+      }
+    }
+
+    async function goToSection(key) {
+      currentSection = key;
+      const section = SECTIONS.find((s) => s.key === key);
+      renderNav();
+      $('sectionTitle').textContent = section.title;
+      for (const s of SECTIONS) $(s.sectionId).classList.toggle('hidden', s.key !== key);
+      await section.onShow();
+    }
+
+    // ── Avaliações ─────────────────────────────────────────────────────
+    let reviewFilter = ''; // '', 'pending', 'approved', 'rejected'
+
+    const REVIEW_FILTERS = [
+      { key: '', label: 'Todas' },
+      { key: 'pending', label: 'Pendentes' },
+      { key: 'approved', label: 'Aprovadas' },
+      { key: 'rejected', label: 'Rejeitadas' },
+    ];
+    const REVIEW_STATUS_LABEL = { pending: 'Pendente', approved: 'Aprovada', rejected: 'Rejeitada' };
+
+    function renderReviewTabs() {
+      $('tabs').innerHTML = '';
+      for (const f of REVIEW_FILTERS) {
+        const b = document.createElement('button');
+        b.className = 'tab' + (f.key === reviewFilter ? ' active' : '');
         b.textContent = f.label;
-        b.onclick = () => { filter = f.key; renderTabs(); refresh(); };
+        b.onclick = () => { reviewFilter = f.key; renderReviewTabs(); refreshReviews(); };
         $('tabs').appendChild(b);
       }
     }
@@ -185,33 +280,29 @@
       return `<span class="stars"><span class="base">★★★★★</span><span class="fill" style="width:${pct}%">★★★★★</span></span>`;
     }
 
-    function fmtDate(iso) {
-      try { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-      catch { return iso; }
-    }
-
-    async function refresh() {
+    async function refreshReviews() {
+      renderReviewTabs();
       try {
         const [stats, list] = await Promise.all([
           apiFetch('/admin/reviews/stats'),
-          apiFetch('/admin/reviews' + (filter ? '?status=' + filter : '')),
+          apiFetch('/admin/reviews' + (reviewFilter ? '?status=' + reviewFilter : '')),
         ]);
-        renderStats(stats);
-        renderList(list);
+        renderReviewStats(stats);
+        renderReviewList(list);
       } catch (e) {
         $('list').innerHTML = `<div class="empty-state">${e.message}</div>`;
       }
     }
 
-    function renderStats(s) {
+    function renderReviewStats(s) {
       $('stats').innerHTML = `
         <div class="stat"><div class="n">${s.total}</div><div class="l">avaliações</div></div>
         <div class="stat"><div class="n">${s.average != null ? s.average.toFixed(2).replace('.', ',') + ' ★' : '—'}</div><div class="l">nota média</div></div>
         <div class="stat"><div class="n">${s.pending}</div><div class="l">pendentes</div></div>`;
     }
 
-    function renderList(list) {
-      if (!list.length) { $('list').innerHTML = `<div class="empty-state">Nenhuma avaliação${filter ? ' com esse status' : ''}.</div>`; return; }
+    function renderReviewList(list) {
+      if (!list.length) { $('list').innerHTML = `<div class="empty-state">Nenhuma avaliação${reviewFilter ? ' com esse status' : ''}.</div>`; return; }
       $('list').innerHTML = '';
       for (const r of list) {
         const a = r.author;
@@ -231,32 +322,172 @@
             <div class="when">${fmtDate(r.updated_at)}</div>
           </div>
           <div class="rating-row">${stars(r.rating)}<span class="rating-num">${r.rating.toString().replace('.', ',')}</span>
-            <span class="badge b-${r.status}">${STATUS_LABEL[r.status] || r.status}</span></div>
+            <span class="badge b-${r.status}">${REVIEW_STATUS_LABEL[r.status] || r.status}</span></div>
           ${comment}
           <div class="actions">
             <button class="act approve">Aprovar</button>
             <button class="act reject">Rejeitar</button>
             <button class="act del">Excluir</button>
           </div>`;
-        card.querySelector('.approve').onclick = () => setStatus(r.id, 'approved');
-        card.querySelector('.reject').onclick = () => setStatus(r.id, 'rejected');
-        card.querySelector('.del').onclick = () => del(r.id, a.name);
+        card.querySelector('.approve').onclick = () => setReviewStatus(r.id, 'approved');
+        card.querySelector('.reject').onclick = () => setReviewStatus(r.id, 'rejected');
+        card.querySelector('.del').onclick = () => delReview(r.id, a.name);
         $('list').appendChild(card);
       }
     }
 
-    async function setStatus(id, status) {
-      try { await apiFetch('/admin/reviews/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); await refresh(); }
+    async function setReviewStatus(id, status) {
+      try { await apiFetch('/admin/reviews/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); await refreshReviews(); }
       catch (e) { alert(e.message); }
     }
-    async function del(id, name) {
+    async function delReview(id, name) {
       if (!confirm('Excluir a avaliação de ' + name + '? Esta ação não pode ser desfeita.')) return;
-      try { await apiFetch('/admin/reviews/' + id, { method: 'DELETE' }); await refresh(); }
+      try { await apiFetch('/admin/reviews/' + id, { method: 'DELETE' }); await refreshReviews(); }
       catch (e) { alert(e.message); }
     }
 
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    // ── Denúncias ──────────────────────────────────────────────────────
+    let reportStatusFilter = ''; // '', 'pending', 'reviewed', 'dismissed'
+    let reportTypeFilter = '';   // '', 'post', 'comment', 'user'
+
+    const REPORT_STATUS_FILTERS = [
+      { key: '', label: 'Todas' },
+      { key: 'pending', label: 'Pendentes' },
+      { key: 'reviewed', label: 'Revisadas' },
+      { key: 'dismissed', label: 'Descartadas' },
+    ];
+    const REPORT_TYPE_FILTERS = [
+      { key: '', label: 'Todos os tipos' },
+      { key: 'post', label: 'Publicações' },
+      { key: 'comment', label: 'Comentários' },
+      { key: 'user', label: 'Perfis' },
+    ];
+    const REPORT_STATUS_LABEL = { pending: 'Pendente', reviewed: 'Revisada', dismissed: 'Descartada' };
+    const REPORT_TARGET_LABEL = { post: 'Publicação', comment: 'Comentário', user: 'Perfil' };
+    const REPORT_REASON_LABEL = {
+      ofensivo: 'Ofensivo e/ou propaga ódio',
+      categoria_errada: 'Está na categoria errada',
+      spam: 'É spam',
+      nocivo: 'É nocivo para a comunidade',
+      fake: 'É uma conta falsa/fake',
+      nocivo_pessoa: 'Essa pessoa é nociva para a comunidade',
+    };
+
+    function renderReportTabs() {
+      $('reportStatusTabs').innerHTML = '';
+      for (const f of REPORT_STATUS_FILTERS) {
+        const b = document.createElement('button');
+        b.className = 'tab' + (f.key === reportStatusFilter ? ' active' : '');
+        b.textContent = f.label;
+        b.onclick = () => { reportStatusFilter = f.key; renderReportTabs(); refreshReports(); };
+        $('reportStatusTabs').appendChild(b);
+      }
+      $('reportTypeTabs').innerHTML = '';
+      for (const f of REPORT_TYPE_FILTERS) {
+        const b = document.createElement('button');
+        b.className = 'tab' + (f.key === reportTypeFilter ? ' active' : '');
+        b.textContent = f.label;
+        b.onclick = () => { reportTypeFilter = f.key; renderReportTabs(); refreshReports(); };
+        $('reportTypeTabs').appendChild(b);
+      }
+    }
+
+    async function refreshReports() {
+      renderReportTabs();
+      const params = new URLSearchParams();
+      if (reportStatusFilter) params.set('status', reportStatusFilter);
+      if (reportTypeFilter) params.set('target_type', reportTypeFilter);
+      const qs = params.toString() ? '?' + params.toString() : '';
+      try {
+        const [stats, list] = await Promise.all([
+          apiFetch('/admin/reports/stats'),
+          apiFetch('/admin/reports' + qs),
+        ]);
+        renderReportStats(stats);
+        renderReportList(list);
+      } catch (e) {
+        $('reportList').innerHTML = `<div class="empty-state">${e.message}</div>`;
+      }
+    }
+
+    function renderReportStats(s) {
+      $('reportStats').innerHTML = `
+        <div class="stat"><div class="n">${s.total}</div><div class="l">denúncias</div></div>
+        <div class="stat"><div class="n">${s.pending}</div><div class="l">pendentes</div></div>`;
+    }
+
+    function reportTargetBox(r) {
+      if (r.target_type === 'post') {
+        if (!r.post) return `<div class="target-box empty">Publicação não encontrada (pode ter sido excluída).</div>`;
+        const title = r.post.title ? escapeHtml(r.post.title) + ' — ' : '';
+        return `<div class="target-box">
+          <div class="label">Publicação de ${escapeHtml(r.post.author.name)}</div>
+          <div class="content">${title}${escapeHtml(truncate(r.post.content, 280))}</div>
+        </div>`;
+      }
+      if (r.target_type === 'comment') {
+        if (!r.comment_target) return `<div class="target-box empty">Comentário não encontrado (pode ter sido excluído).</div>`;
+        return `<div class="target-box">
+          <div class="label">Comentário de ${escapeHtml(r.comment_target.author.name)}</div>
+          <div class="content">${escapeHtml(truncate(r.comment_target.content, 280))}</div>
+        </div>`;
+      }
+      if (r.target_type === 'user') {
+        if (!r.reported_user) return `<div class="target-box empty">Perfil não encontrado.</div>`;
+        return `<div class="target-box">
+          <div class="label">Perfil denunciado</div>
+          <div class="content">${escapeHtml(r.reported_user.name)} · @${escapeHtml(r.reported_user.username)} · ${escapeHtml(r.reported_user.neighborhood || '')}</div>
+        </div>`;
+      }
+      return '';
+    }
+
+    function renderReportList(list) {
+      if (!list.length) { $('reportList').innerHTML = `<div class="empty-state">Nenhuma denúncia encontrada.</div>`; return; }
+      $('reportList').innerHTML = '';
+      for (const r of list) {
+        const rep = r.reporter;
+        const card = document.createElement('div');
+        card.className = 'card';
+        const avatar = rep.avatar_url || 'https://i.pravatar.cc/150?img=12';
+        const comment = r.comment
+          ? `<div class="comment">${escapeHtml(r.comment)}</div>`
+          : `<div class="comment empty">— sem comentário adicional —</div>`;
+        card.innerHTML = `
+          <div class="head">
+            <img class="avatar" src="${avatar}" alt="" />
+            <div>
+              <div class="name">${escapeHtml(rep.name)} <span class="sub">denunciou</span></div>
+              <div class="sub">@${escapeHtml(rep.username)} · ${REPORT_TARGET_LABEL[r.target_type] || r.target_type}</div>
+            </div>
+            <div class="when">${fmtDate(r.created_at)}</div>
+          </div>
+          <div>
+            <span class="reason-tag">${escapeHtml(REPORT_REASON_LABEL[r.reason] || r.reason)}</span>
+            <span class="badge b-${r.status}">${REPORT_STATUS_LABEL[r.status] || r.status}</span>
+          </div>
+          ${reportTargetBox(r)}
+          ${comment}
+          <div class="actions">
+            <button class="act approve">Marcar como revisada</button>
+            <button class="act reject">Descartar</button>
+            <button class="act del">Excluir</button>
+          </div>`;
+        card.querySelector('.approve').onclick = () => setReportStatus(r.id, 'reviewed');
+        card.querySelector('.reject').onclick = () => setReportStatus(r.id, 'dismissed');
+        card.querySelector('.del').onclick = () => delReport(r.id);
+        $('reportList').appendChild(card);
+      }
+    }
+
+    async function setReportStatus(id, status) {
+      try { await apiFetch('/admin/reports/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); await refreshReports(); }
+      catch (e) { alert(e.message); }
+    }
+    async function delReport(id) {
+      if (!confirm('Excluir esta denúncia? Esta ação não pode ser desfeita.')) return;
+      try { await apiFetch('/admin/reports/' + id, { method: 'DELETE' }); await refreshReports(); }
+      catch (e) { alert(e.message); }
     }
   </script>
 </body>

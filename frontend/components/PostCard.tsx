@@ -6,8 +6,11 @@ import { Post, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/mock';
 import { api } from '../lib/api';
 import { formatPostTime } from '../lib/time';
 import { useState, type ReactNode } from 'react';
+import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import ActionMenu from './ActionMenu';
 import PollBlock from './PollBlock';
+import ReportModal from './ReportModal';
 
 interface PostCardProps {
   post: Post;
@@ -17,10 +20,14 @@ interface PostCardProps {
 export default function PostCard({ post, onPress }: PostCardProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { user } = useAuth();
   const [liked, setLiked] = useState(post.liked);
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [busy, setBusy] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
   const catColor = Colors.category[post.category] ?? Colors.primary;
+  const isOwnPost = !!user && user.id === post.author.id;
 
   const openPost = () => router.push(`/post/${post.id}` as any);
 
@@ -45,6 +52,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
   };
 
   return (
+    <>
     <TouchableOpacity style={styles.row} onPress={onPress ?? openPost} activeOpacity={0.92}>
       {/* Important bar on the left edge */}
       {post.important && <View style={styles.importantBar} />}
@@ -77,9 +85,14 @@ export default function PostCard({ post, onPress }: PostCardProps) {
               </>
             )}
           </View>
-          <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          {!isOwnPost && (
+            <TouchableOpacity
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => setMenuVisible(true)}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Category + pinned */}
@@ -165,6 +178,27 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         </View>
       </View>
     </TouchableOpacity>
+
+    <ActionMenu
+      visible={menuVisible}
+      onClose={() => setMenuVisible(false)}
+      options={[
+        {
+          key: 'report',
+          label: 'Denunciar publicação',
+          icon: 'flag-outline',
+          destructive: true,
+          onPress: () => setReportVisible(true),
+        },
+      ]}
+    />
+    <ReportModal
+      visible={reportVisible}
+      onClose={() => setReportVisible(false)}
+      targetType="post"
+      targetId={post.id}
+    />
+    </>
   );
 }
 

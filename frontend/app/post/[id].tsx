@@ -23,6 +23,8 @@ import { useTheme, useThemedStyles } from '../../lib/theme';
 import { submitOnEnter } from '../../lib/keyboard';
 import WideLayout from '../../components/WideLayout';
 import PollBlock from '../../components/PollBlock';
+import ActionMenu from '../../components/ActionMenu';
+import ReportModal from '../../components/ReportModal';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,6 +39,8 @@ export default function PostDetailScreen() {
   const [sending, setSending] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
+  const [commentMenu, setCommentMenu] = useState<Comment | null>(null);
+  const [reportComment, setReportComment] = useState<Comment | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -239,6 +243,14 @@ export default function PostDetailScreen() {
                       <Text style={styles.commentUsername} numberOfLines={1}>@{item.author.username}</Text>
                     )}
                     <Text style={styles.commentTime}>{formatPostTime(item.createdAt)}</Text>
+                    {item.author.id !== user?.id && (
+                      <TouchableOpacity
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        onPress={() => setCommentMenu(item)}
+                      >
+                        <Ionicons name="ellipsis-horizontal" size={15} color={Colors.textTertiary} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                   <Text style={styles.commentText}>{item.content}</Text>
                 </View>
@@ -273,6 +285,26 @@ export default function PostDetailScreen() {
       )}
       </View>
       </WideLayout>
+
+      <ActionMenu
+        visible={!!commentMenu}
+        onClose={() => setCommentMenu(null)}
+        options={[
+          {
+            key: 'report',
+            label: 'Denunciar comentário',
+            icon: 'flag-outline',
+            destructive: true,
+            onPress: () => setReportComment(commentMenu),
+          },
+        ]}
+      />
+      <ReportModal
+        visible={!!reportComment}
+        onClose={() => setReportComment(null)}
+        targetType="comment"
+        targetId={reportComment?.id ?? ''}
+      />
     </SafeAreaView>
   );
 }

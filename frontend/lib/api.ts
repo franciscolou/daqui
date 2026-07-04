@@ -362,6 +362,8 @@ export interface AppReview {
   updatedAt: string;
 }
 
+export type ReportTargetType = 'post' | 'comment' | 'user';
+
 export interface AppNotification {
   id: string;
   type: string;
@@ -1037,6 +1039,24 @@ export const api = {
 
   async submitReview(rating: number, comment: string): Promise<void> {
     await request<unknown>('/reviews/', { method: 'POST', body: { rating, comment } });
+  },
+
+  // ── Denúncias ──────────────────────────────────────────────
+  async submitReport(
+    targetType: ReportTargetType,
+    targetId: string,
+    reason: string,
+    comment: string,
+  ): Promise<void> {
+    await request<unknown>('/reports/', {
+      method: 'POST',
+      body: {
+        target_type: targetType,
+        target_id: Number(targetId),
+        reason,
+        comment,
+      },
+    });
   },
 
   async getNotifications(): Promise<AppNotification[]> {
