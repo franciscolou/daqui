@@ -35,6 +35,28 @@ if (typeof document !== 'undefined') {
       div:has(> input):focus-within, div:has(> textarea):focus-within {
         border-color: ${green} !important;
       }
+
+      /* Scrollbar fino e discreto no lugar do padrão do navegador (Chrome/Safari/Edge). */
+      *::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      *::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      *::-webkit-scrollbar-thumb {
+        background-color: rgba(100, 116, 139, 0.35);
+        border-radius: 999px;
+      }
+      *::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(34, 197, 94, 0.55);
+      }
+
+      /* Firefox */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+      }
     `;
     document.head.appendChild(style);
   }

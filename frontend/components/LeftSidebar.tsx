@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Switch, useWindowDimensions } from 'react-native';
 import { useState } from 'react';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing,
@@ -12,6 +12,9 @@ import { CATEGORIES, PostCategory } from '../data/mock';
 import { useAuth } from '../lib/auth';
 import { useRealtime } from '../lib/realtime';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
+import RateModal from './RateModal';
+
+const WIDE = 900;
 
 interface Props {
   activeCategory?: string;
@@ -45,7 +48,7 @@ const APP_ITEMS: {
   icon: keyof typeof Ionicons.glyphMap;
   route?: string;
 }[] = [
-  { key: 'rate', label: 'Avaliar o Daqui', icon: 'star-outline', route: '/rate' },
+  { key: 'rate', label: 'Avaliar o Daqui', icon: 'star-outline' },
   { key: 'help',   label: 'Ajuda e suporte', icon: 'help-circle-outline' },
   { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline' },
 ];
@@ -54,10 +57,13 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { unreadMessages, unreadNotifications } = useRealtime();
+  const { width } = useWindowDimensions();
+  const isWide = width >= WIDE;
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { mode, toggle } = useThemeMode();
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
+  const [rateOpen, setRateOpen] = useState(false);
 
   // Colapso fluido das categorias: anima altura (medida) + opacidade da lista extra
   // e a rotação da setinha. Usamos shared values explícitos (padrão do welcome.tsx),
@@ -255,7 +261,22 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
             key={item.key}
             style={styles.navItem}
             activeOpacity={0.7}
-            onPress={() => (item.route ? navigate(item.route) : onNavigate?.())}
+            onPress={() => {
+              if (item.key === 'rate') {
+                // No desktop abre como modal; no mobile, o modal aninhado dentro do
+                // drawer do MobileMenu não funciona direito — vai para tela cheia.
+                if (isWide) {
+                  setRateOpen(true);
+                  onNavigate?.();
+                } else {
+                  navigate('/rate');
+                }
+              } else if (item.route) {
+                navigate(item.route);
+              } else {
+                onNavigate?.();
+              }
+            }}
           >
             <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
             <Text style={styles.navLabel}>{item.label}</Text>
@@ -291,6 +312,8 @@ export default function LeftSidebar({ activeCategory, onCategoryChange, onNaviga
         <Text style={styles.footerText}>Sobre · Privacidade · Termos</Text>
         <Text style={styles.footerVersion}>Daqui © 2025</Text>
       </View>
+
+      {isWide && <RateModal visible={rateOpen} onClose={() => setRateOpen(false)} />}
     </View>
   );
 }
