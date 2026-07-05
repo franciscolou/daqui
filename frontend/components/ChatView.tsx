@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing,
 } from 'react-native-reanimated';
@@ -27,6 +27,11 @@ import { submitOnEnter } from '../lib/keyboard';
 import SharedPostPreview from './SharedPostPreview';
 
 export type ChatTarget = { kind: 'dm' | 'group'; id: string };
+
+const INPUT_MIN_HEIGHT = 40;
+const INPUT_LINE_HEIGHT = 18;
+// 10 linhas de texto + padding vertical do input (10 em cima, 10 embaixo)
+const INPUT_MAX_HEIGHT = INPUT_LINE_HEIGHT * 10 + 20;
 
 type ChatItem = { type: 'msg'; msg: ChatMessage } | { type: 'divider'; id: string; label: string };
 
@@ -128,6 +133,8 @@ export default function ChatView({
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [inputHeight, setInputHeight] = useState(INPUT_MIN_HEIGHT);
+  const inputRef = useRef<TextInput>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(messageId ?? null);
@@ -224,6 +231,7 @@ export default function ChatView({
     if (!content || !id || sending) return;
     setSending(true);
     setInput('');
+    setInputHeight(INPUT_MIN_HEIGHT);
     try {
       const msg =
         kind === 'dm'
@@ -238,6 +246,23 @@ export default function ChatView({
       setSending(false);
     }
   }, [input, id, kind, sending, onActivity, animateEntrance]);
+
+  // Na web, o scrollHeight de um textarea nunca fica menor que a altura já
+  // aplicada via CSS — por isso, para encolher ao apagar texto, é preciso
+  // zerar a altura antes de medir de novo. Nativo já encolhe sozinho via
+  // onContentSizeChange (mede o texto, não a caixa), então isso é só pra web.
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const node = inputRef.current as unknown as HTMLTextAreaElement | null;
+    if (!node?.style) return;
+    // sem isso, o <textarea> assume o default de 2 rows quando a altura é
+    // 'auto', e o scrollHeight nunca reflete o conteúdo de fato
+    node.rows = 1;
+    node.style.height = 'auto';
+    const next = Math.min(Math.max(node.scrollHeight, INPUT_MIN_HEIGHT), INPUT_MAX_HEIGHT);
+    node.style.height = `${next}px`;
+    setInputHeight(next);
+  }, [input]);
 
   // FlatList invertida: itens com divisores de dia, mais recente primeiro.
   const data = useMemo<ChatItem[]>(() => {
@@ -382,12 +407,24 @@ export default function ChatView({
           {/* Composer */}
           <View style={styles.composer}>
             <TextInput
-              style={styles.input}
+              ref={inputRef}
+              style={[styles.input, { height: inputHeight }]}
               placeholder="Escreva uma mensagem..."
               placeholderTextColor={Colors.textTertiary}
               value={input}
               onChangeText={setInput}
               multiline
+              onContentSizeChange={(e) => {
+                // Na web quem manda é o useLayoutEffect acima (precisa zerar a
+                // altura antes de medir pra conseguir encolher); aqui só nativo.
+                if (Platform.OS === 'web') return;
+                setInputHeight(
+                  Math.min(
+                    Math.max(e.nativeEvent.contentSize.height, INPUT_MIN_HEIGHT),
+                    INPUT_MAX_HEIGHT,
+                  ),
+                );
+              }}
               onKeyPress={submitOnEnter(send)}
               onSubmitEditing={send}
             />
@@ -453,7 +490,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   sharedWrap: { marginBottom: 2 },
   bubbleTimeShared: { color: Colors.textTertiary, marginRight: 2 },
   senderName: { fontSize: 12, fontWeight: '700', color: Colors.primary, marginBottom: 2 },
-  bubbleMine: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
+  bubbleMine: { backgroundColor: Colors.primaryDeep, borderBottomRightRadius: 4 },
   bubbleTheirs: {
     backgroundColor: Colors.surface,
     borderBottomLeftRadius: 4,
@@ -486,14 +523,13 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: 40,
-    maxHeight: 120,
     backgroundColor: Colors.background,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 10,
     fontSize: 14,
+    lineHeight: INPUT_LINE_HEIGHT,
     color: Colors.text,
     outlineStyle: 'none',
   } as any,
