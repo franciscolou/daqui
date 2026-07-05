@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core import realtime_registry
 from app.daos import comment as comment_dao
 from app.daos import notification as notification_dao
 from app.daos import post as post_dao
@@ -92,4 +93,5 @@ def admin_delete(db: Session, comment_id: int, moderator: User) -> None:
         target_text=content_preview,
         snapshot=snapshot,
     )
+    realtime_registry.wake(author_id)
     audit_log_service.log(db, moderator, ACTION_COMMENT_DELETE, author_id, content_preview)

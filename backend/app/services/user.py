@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core import realtime_registry
 from app.core.uploads import save_data_url_image
 from app.daos import post as post_dao
 from app.daos import user as user_dao
@@ -144,6 +145,7 @@ def admin_suspend(db: Session, user_id: int, payload: UserSuspendIn, moderator: 
     period = "por tempo indeterminado" if until is None else f"até {until.strftime('%d/%m/%Y %H:%M')}"
     detail = f"Suspensão {period}" + (f" — {reason}" if reason else "")
     audit_log_service.log(db, moderator, ACTION_USER_SUSPEND, target.id, detail)
+    realtime_registry.wake(target.id)
     return _admin_out(target)
 
 

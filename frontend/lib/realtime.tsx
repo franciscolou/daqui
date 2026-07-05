@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { api, getRealtimeUrl } from './api';
+import { api, getRealtimeUrl, triggerForceLogout } from './api';
 import { useAuth } from './auth';
 
 interface RealtimeSyncPayload {
@@ -18,6 +18,11 @@ interface RealtimeSyncPayload {
   has_new_notification: boolean;
   typing_dm: number[];
   typing_groups: Record<string, number[]>;
+}
+
+interface ForcedLogoutPayload {
+  forced_logout: true;
+  reason: string | null;
 }
 
 type MessageListener = (senderIds: string[], groupIds: string[]) => void;
@@ -82,10 +87,17 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       socket = new WebSocket(url);
 
       socket.onmessage = (event) => {
-        let data: RealtimeSyncPayload;
+        let data: RealtimeSyncPayload | ForcedLogoutPayload;
         try {
           data = JSON.parse(event.data);
         } catch {
+          return;
+        }
+        if ('forced_logout' in data) {
+          triggerForceLogout(
+            data.reason ?? 'Sua conta foi suspensa. Entre em contato com o suporte para mais informações.',
+          );
+          socket?.close();
           return;
         }
         setUnreadMessages(data.unread_messages ?? 0);

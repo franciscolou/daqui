@@ -71,6 +71,11 @@ let forceLogoutHandler: ForceLogoutHandler | null = null;
 export function setForceLogoutHandler(handler: ForceLogoutHandler | null): void {
   forceLogoutHandler = handler;
 }
+// Também chamado pelo WS ao receber `forced_logout` (ver lib/realtime.tsx) —
+// mesma suspensão, dois gatilhos possíveis (request HTTP ou push do socket).
+export function triggerForceLogout(message: string): void {
+  forceLogoutHandler?.(message);
+}
 
 async function request<T>(
   path: string,
@@ -101,7 +106,7 @@ async function request<T>(
     const detail =
       (data && (data.detail || data.message)) || `Erro ${res.status}`;
     const message = typeof detail === 'string' ? detail : 'Erro';
-    if (res.status === 423 && forceLogoutHandler) forceLogoutHandler(message);
+    if (res.status === 423) triggerForceLogout(message);
     throw new ApiError(res.status, message);
   }
   return data as T;

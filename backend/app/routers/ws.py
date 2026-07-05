@@ -4,7 +4,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from jose import JWTError
 
-from app.core import typing_registry
+from app.core import realtime_registry, typing_registry
+from app.core.deps import suspension_message
 from app.core.security import decode_token
 from app.daos import group as group_dao
 from app.daos import message as message_dao
@@ -17,7 +18,9 @@ router = APIRouter(tags=["realtime"])
 # Sem infra de pub/sub: cada conexão faz polling periódico no banco e envia só
 # o que mudou desde o último ciclo. Suficiente para a escala do app (SQLite,
 # um processo uvicorn) e evita ter que instrumentar cada ponto que cria
-# mensagem/notificação para publicar eventos.
+# mensagem/notificação para publicar eventos. Exceções: notificação nova e
+# suspensão de conta chamam `realtime_registry.wake()`, que interrompe a
+# espera na hora em vez de esperar o próximo tick (ver core/realtime_registry.py).
 POLL_INTERVAL_SECONDS = 2.0
 
 
@@ -43,13 +46,32 @@ async def realtime(websocket: WebSocket, token: str):
     await websocket.accept()
     user_id = user.id
     last_check = datetime.now(timezone.utc)
+    wake_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    realtime_registry.register(user_id, wake_event, loop)
 
     try:
         while True:
-            await asyncio.sleep(POLL_INTERVAL_SECONDS)
+            try:
+                await asyncio.wait_for(wake_event.wait(), timeout=POLL_INTERVAL_SECONDS)
+            except asyncio.TimeoutError:
+                pass
+            wake_event.clear()
+
             now = datetime.now(timezone.utc)
             db = SessionLocal()
             try:
+                current = db.get(User, user_id)
+                if current is None or current.is_currently_suspended:
+                    await websocket.send_json(
+                        {
+                            "forced_logout": True,
+                            "reason": suspension_message(current) if current else None,
+                        }
+                    )
+                    await websocket.close(code=4403)
+                    return
+
                 new_messages = message_dao.new_received_since(db, user_id, last_check)
                 group_ids = [g.id for g in group_dao.list_user_groups(db, user_id)]
                 new_group_messages = group_dao.new_messages_since(
@@ -88,3 +110,5 @@ async def realtime(websocket: WebSocket, token: str):
             )
     except (WebSocketDisconnect, RuntimeError):
         return
+    finally:
+        realtime_registry.unregister(user_id, wake_event, loop)
