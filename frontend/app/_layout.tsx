@@ -34,6 +34,7 @@ export default function RootLayout() {
               <Stack.Screen name="groups/[id]/info" />
               <Stack.Screen name="neighbors/index" />
               <Stack.Screen name="rate/index" />
+              <Stack.Screen name="help/index" />
               <Stack.Screen name="forward/[postId]" />
               <Stack.Screen name="settings" />
             </Stack>

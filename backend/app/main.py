@@ -18,6 +18,7 @@ from app.routers import (
     reports,
     reviews,
     search,
+    support_tickets,
     users,
     ws,
 )
@@ -55,6 +56,8 @@ app.include_router(reviews.router, prefix="/api/v1")
 app.include_router(reviews.admin_router, prefix="/api/v1")
 app.include_router(reports.router, prefix="/api/v1")
 app.include_router(reports.admin_router, prefix="/api/v1")
+app.include_router(support_tickets.router, prefix="/api/v1")
+app.include_router(support_tickets.admin_router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
 app.include_router(comments.admin_router, prefix="/api/v1")

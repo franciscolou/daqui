@@ -388,7 +388,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   body: {
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: Colors.text,
     lineHeight: 20,
     marginBottom: 10,
   },

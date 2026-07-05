@@ -121,13 +121,18 @@
     .comment.empty { color: var(--text-3); font-style: italic; }
     .badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: .4px; }
     .b-pending { background: var(--pending-bg); color: var(--pending-text); }
-    .b-approved, .b-reviewed { background: var(--primary-tint); color: var(--primary-dark); }
+    .b-approved, .b-reviewed, .b-answered { background: var(--primary-tint); color: var(--primary-dark); }
     .b-rejected, .b-dismissed { background: var(--danger-bg); color: var(--danger); }
     .reason-tag { display: inline-block; font-size: 12px; font-weight: 700; color: var(--text-2); background: var(--border-light); padding: 3px 10px; border-radius: 999px; margin: 10px 0 6px; }
     .target-box { background: var(--bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; margin-top: 8px; }
     .target-box .label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
     .target-box .content { font-size: 13px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
     .target-box.empty { color: var(--text-3); font-style: italic; font-size: 13px; }
+    .reply-box { background: var(--primary-tint); border-radius: 12px; padding: 12px; margin-top: 10px; }
+    .reply-box .label { font-size: 11px; font-weight: 700; color: var(--primary-dark); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+    .reply-box .content { font-size: 13px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
+    textarea.reply-input { width: 100%; padding: 10px 12px; font-size: 13px; font-family: inherit; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); resize: vertical; min-height: 64px; margin-top: 10px; }
+    textarea.reply-input:focus { outline: none; border-color: var(--primary); }
     .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
     .act { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 700; }
     .act.approve { background: var(--primary); border-color: var(--primary); color: #fff; }
@@ -205,6 +210,12 @@
             <div class="tabs" id="reportStatusTabs"></div>
             <div class="tabs" id="reportTypeTabs"></div>
             <div id="reportList"></div>
+          </div>
+
+          <div id="section-tickets" class="hidden">
+            <div class="stats" id="ticketStats"></div>
+            <div class="tabs" id="ticketStatusTabs"></div>
+            <div id="ticketList"></div>
           </div>
 
           <div id="section-users" class="hidden">
@@ -414,6 +425,7 @@
     const SECTIONS = [
       { key: 'reviews', label: 'Avaliações', icon: '★', sectionId: 'section-reviews', title: 'Avaliações do Daqui', onShow: refreshReviews },
       { key: 'reports', label: 'Denúncias', icon: '⚑', sectionId: 'section-reports', title: 'Denúncias', onShow: refreshReports },
+      { key: 'tickets', label: 'Chamados', icon: '✉', sectionId: 'section-tickets', title: 'Chamados de suporte', onShow: refreshTickets },
       { key: 'users', label: 'Usuários', icon: '◍', sectionId: 'section-users', title: 'Usuários', onShow: showUsers },
       { key: 'audit', label: 'Auditoria', icon: '🕘', sectionId: 'section-audit', title: 'Registro de Auditoria', onShow: refreshAuditLogs },
     ];
@@ -659,6 +671,97 @@
       catch (e) { showMessage(e.message, 'Erro'); }
     }
 
+    // ── Chamados de suporte ──────────────────────────────────────────────
+    // Chamado é aberto pelo usuário quando "Como usar"/FAQ não resolveram a
+    // dúvida dele. A moderação responde por aqui; a resposta aparece para o
+    // usuário em "Meus chamados" no app Daqui.
+    let ticketStatusFilter = ''; // '', 'pending', 'answered'
+
+    const TICKET_STATUS_FILTERS = [
+      { key: '', label: 'Todos' },
+      { key: 'pending', label: 'Pendentes' },
+      { key: 'answered', label: 'Respondidos' },
+    ];
+    const TICKET_STATUS_LABEL = { pending: 'Pendente', answered: 'Respondido' };
+
+    function renderTicketTabs() {
+      $('ticketStatusTabs').innerHTML = '';
+      for (const f of TICKET_STATUS_FILTERS) {
+        const b = document.createElement('button');
+        b.className = 'tab' + (f.key === ticketStatusFilter ? ' active' : '');
+        b.textContent = f.label;
+        b.onclick = () => { ticketStatusFilter = f.key; renderTicketTabs(); refreshTickets(); };
+        $('ticketStatusTabs').appendChild(b);
+      }
+    }
+
+    async function refreshTickets() {
+      renderTicketTabs();
+      const params = new URLSearchParams();
+      if (ticketStatusFilter) params.set('status', ticketStatusFilter);
+      const qs = params.toString() ? '?' + params.toString() : '';
+      try {
+        const [stats, list] = await Promise.all([
+          apiFetch('/admin/support-tickets/stats'),
+          apiFetch('/admin/support-tickets' + qs),
+        ]);
+        renderTicketStats(stats);
+        renderTicketList(list);
+      } catch (e) {
+        $('ticketList').innerHTML = `<div class="empty-state">${e.message}</div>`;
+      }
+    }
+
+    function renderTicketStats(s) {
+      $('ticketStats').innerHTML = `
+        <div class="stat"><div class="n">${s.total}</div><div class="l">chamados</div></div>
+        <div class="stat"><div class="n">${s.pending}</div><div class="l">pendentes</div></div>`;
+    }
+
+    function renderTicketList(list) {
+      if (!list.length) { $('ticketList').innerHTML = `<div class="empty-state">Nenhum chamado encontrado.</div>`; return; }
+      $('ticketList').innerHTML = '';
+      for (const t of list) {
+        const u = t.user;
+        const card = document.createElement('div');
+        card.className = 'card';
+        const avatar = u.avatar_url || 'https://i.pravatar.cc/150?img=12';
+        const answeredBox = t.status === 'answered'
+          ? `<div class="reply-box"><div class="label">Resposta enviada em ${fmtDate(t.responded_at)}</div><div class="content">${escapeHtml(t.response)}</div></div>`
+          : '';
+        card.innerHTML = `
+          <div class="head">
+            <img class="avatar" src="${avatar}" alt="" />
+            <div>
+              <div class="name">${escapeHtml(u.name)}</div>
+              <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')}</div>
+            </div>
+            <div class="when">${fmtDate(t.created_at)}</div>
+          </div>
+          <div>
+            <span class="reason-tag">${escapeHtml(t.subject)}</span>
+            <span class="badge b-${t.status}">${TICKET_STATUS_LABEL[t.status] || t.status}</span>
+          </div>
+          <div class="comment" style="margin-top:8px;">${escapeHtml(t.message)}</div>
+          ${answeredBox}
+          <textarea class="reply-input" placeholder="Escreva uma resposta para o usuário...">${escapeHtml(t.response || '')}</textarea>
+          <div class="actions">
+            <button class="act approve">${t.status === 'answered' ? 'Atualizar resposta' : 'Responder'}</button>
+          </div>`;
+        card.querySelector('.reply-input').value = t.response || '';
+        card.querySelector('.approve').onclick = () => replyTicket(t.id, card.querySelector('.reply-input').value);
+        $('ticketList').appendChild(card);
+      }
+    }
+
+    async function replyTicket(id, response) {
+      if (!response || !response.trim()) { showMessage('Escreva uma resposta antes de enviar.', 'Aviso'); return; }
+      try {
+        await apiFetch('/admin/support-tickets/' + id + '/reply', { method: 'PATCH', body: JSON.stringify({ response: response.trim() }) });
+        await refreshTickets();
+      } catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
     // ── Auditoria ──────────────────────────────────────────────────────
     // Registro de toda ação da moderação: exclusões, denúncias resolvidas/
     // descartadas e suspensões de conta. Pesquisável por moderador, usuário
@@ -677,6 +780,7 @@
       { key: 'comment_delete', label: 'Exclusão de comentário' },
       { key: 'user_suspend', label: 'Suspensão de conta' },
       { key: 'user_unsuspend', label: 'Reativação de conta' },
+      { key: 'ticket_reply', label: 'Resposta de chamado' },
     ];
     const AUDIT_ACTION_LABEL = Object.fromEntries(
       AUDIT_ACTION_FILTERS.filter((f) => f.key).map((f) => [f.key, f.label]),
@@ -693,6 +797,7 @@
       comment_delete: 'excluiu um comentário de',
       user_suspend: 'suspendeu a conta de',
       user_unsuspend: 'reativou a conta de',
+      ticket_reply: 'respondeu um chamado de',
     };
     const AUDIT_ACTION_VERB_NO_TARGET = {
       review_delete: 'excluiu uma avaliação',
@@ -703,6 +808,7 @@
       comment_delete: 'excluiu um comentário',
       user_suspend: 'suspendeu uma conta',
       user_unsuspend: 'reativou uma conta',
+      ticket_reply: 'respondeu um chamado',
     };
 
     // Retorna HTML (não texto puro): moderador e usuário afetado em negrito,

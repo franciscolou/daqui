@@ -51,7 +51,7 @@ const APP_ITEMS: {
   route?: string;
 }[] = [
   { key: 'rate', label: 'Avaliar o Daqui', icon: 'star-outline' },
-  { key: 'help',   label: 'Ajuda e suporte', icon: 'help-circle-outline' },
+  { key: 'help',   label: 'Ajuda e suporte', icon: 'help-circle-outline', route: '/help' },
   { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline' },
 ];
 

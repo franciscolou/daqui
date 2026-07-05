@@ -277,6 +277,16 @@ interface BackendNotification {
   actor: BackendUser | null;
 }
 
+interface BackendSupportTicket {
+  id: number;
+  subject: string;
+  message: string;
+  status: SupportTicketStatus;
+  response: string | null;
+  responded_at: string | null;
+  created_at: string;
+}
+
 export interface Conversation {
   user: User;
   lastMessage: string;
@@ -398,6 +408,18 @@ export interface AppReview {
   comment: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type SupportTicketStatus = 'pending' | 'answered';
+
+export interface SupportTicket {
+  id: string;
+  subject: string;
+  message: string;
+  status: SupportTicketStatus;
+  response?: string;
+  respondedAt?: string;
+  createdAt: string;
 }
 
 export type ReportTargetType = 'post' | 'comment' | 'user';
@@ -629,6 +651,18 @@ function mapNotification(n: BackendNotification): AppNotification {
           location: n.snapshot.location ?? undefined,
         }
       : undefined,
+  };
+}
+
+function mapSupportTicket(t: BackendSupportTicket): SupportTicket {
+  return {
+    id: String(t.id),
+    subject: t.subject,
+    message: t.message,
+    status: t.status,
+    response: t.response ?? undefined,
+    respondedAt: t.responded_at ?? undefined,
+    createdAt: t.created_at,
   };
 }
 
@@ -1115,6 +1149,21 @@ export const api = {
         comment,
       },
     });
+  },
+
+  // ── Chamados de suporte ─────────────────────────────────────
+  async getMySupportTickets(): Promise<SupportTicket[]> {
+    const r = await request<BackendSupportTicket[]>('/support-tickets/mine');
+    return r.map(mapSupportTicket);
+  },
+
+  async submitSupportTicket(subject: string, message: string): Promise<SupportTicket> {
+    return mapSupportTicket(
+      await request<BackendSupportTicket>('/support-tickets/', {
+        method: 'POST',
+        body: { subject, message },
+      }),
+    );
   },
 
   async getNotifications(): Promise<AppNotification[]> {
