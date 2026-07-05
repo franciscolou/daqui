@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image, Switch, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Image, Switch, useWindowDimensions } from 'react-native';
 import { useState } from 'react';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing,
@@ -100,18 +100,17 @@ export default function LeftSidebar({
     const isActive = activeCategory === cat.key;
     const color = Colors.category[cat.key as PostCategory] ?? Colors.primary;
     return (
-      <TouchableOpacity
+      <Pressable
         key={cat.key}
-        style={[styles.navItem, isActive && styles.navItemActive]}
+        style={({ hovered }) => [styles.navItem, isActive && styles.navItemActive, !isActive && hovered && styles.navItemHover]}
         onPress={() => { onCategoryChange?.(cat.key); onNavigate?.(); }}
-        activeOpacity={0.7}
       >
         <View style={[styles.catDot, { backgroundColor: isActive ? color : color + '40' }]} />
         <Text style={[styles.navLabel, isActive && { color: Colors.text, fontWeight: '600' }]}>
           {cat.label}
         </Text>
         {isActive && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
-      </TouchableOpacity>
+      </Pressable>
     );
   };
 
@@ -140,7 +139,10 @@ export default function LeftSidebar({
       </View>
 
       {/* User info */}
-      <TouchableOpacity style={styles.userRow} onPress={() => navigate('/(tabs)/profile')}>
+      <Pressable
+        style={({ hovered }) => [styles.userRow, hovered && styles.userRowHover]}
+        onPress={() => navigate('/(tabs)/profile')}
+      >
         <Image source={{ uri: user?.avatar }} style={styles.userAvatar} />
         <View style={styles.userInfo}>
           <Text style={styles.userName} numberOfLines={1}>{user?.name?.split(' ')[0]}</Text>
@@ -149,7 +151,7 @@ export default function LeftSidebar({
             <Text style={styles.userNeighborhoodText}>{user?.neighborhood}</Text>
           </View>
         </View>
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Publish button */}
       <TouchableOpacity
@@ -171,11 +173,10 @@ export default function LeftSidebar({
             (item.key === 'messages' && unreadMessages > 0) ||
             (item.key === 'notifications' && unreadNotifications > 0);
           return (
-            <TouchableOpacity
+            <Pressable
               key={item.key}
-              style={[styles.navItem, isActive && styles.navItemActive]}
+              style={({ hovered }) => [styles.navItem, isActive && styles.navItemActive, !isActive && hovered && styles.navItemHover]}
               onPress={() => navigate(item.route)}
-              activeOpacity={0.7}
             >
               <View style={styles.navIconWrapper}>
                 <Ionicons
@@ -188,7 +189,7 @@ export default function LeftSidebar({
               <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
                 {item.label}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
@@ -198,22 +199,24 @@ export default function LeftSidebar({
         <>
           <View style={styles.divider} />
 
-          <TouchableOpacity
-            style={styles.categoriesHeader}
+          <Pressable
+            style={({ hovered }) => [styles.categoriesHeader, hovered && styles.navItemHover]}
             onPress={toggleCategories}
-            activeOpacity={0.7}
           >
             <Text style={styles.groupTitle}>Categorias</Text>
             <Animated.View style={chevronStyle}>
               <Ionicons name="chevron-down" size={14} color={Colors.textTertiary} />
             </Animated.View>
-          </TouchableOpacity>
+          </Pressable>
           <View style={styles.group}>
             {/* "Todas": remove o filtro e mostra todas as publicações de uma vez */}
-            <TouchableOpacity
-              style={[styles.navItem, activeCategory === 'todos' && styles.navItemActive]}
+            <Pressable
+              style={({ hovered }) => [
+                styles.navItem,
+                activeCategory === 'todos' && styles.navItemActive,
+                activeCategory !== 'todos' && hovered && styles.navItemHover,
+              ]}
               onPress={() => { onCategoryChange('todos'); onNavigate?.(); }}
-              activeOpacity={0.7}
             >
               <Ionicons
                 name="apps"
@@ -227,7 +230,7 @@ export default function LeftSidebar({
               {activeCategory === 'todos' && (
                 <View style={[styles.activeIndicator, { backgroundColor: Colors.primary }]} />
               )}
-            </TouchableOpacity>
+            </Pressable>
             {/* "Geral" fica sempre visível; o resto entra na lista colapsável */}
             {renderCategory(CATEGORIES.find((c) => c.key === 'geral')!)}
             <Animated.View style={[styles.extraCats, extraCatsStyle]}>
@@ -238,16 +241,15 @@ export default function LeftSidebar({
                 {CATEGORIES.filter((c) => c.key !== 'todos' && c.key !== 'geral').map(renderCategory)}
               </View>
             </Animated.View>
-            <TouchableOpacity
-              style={styles.importantRow}
+            <Pressable
+              style={({ hovered }) => [styles.importantRow, hovered && styles.navItemHover]}
               onPress={() => onImportantChange?.(!importantOnly)}
-              activeOpacity={0.7}
             >
               <View style={[styles.checkbox, importantOnly && styles.checkboxChecked]}>
                 {importantOnly && <Ionicons name="checkmark" size={14} color="#fff" />}
               </View>
               <Text style={styles.importantLabel}>Somente importantes</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </>
       )}
@@ -258,15 +260,14 @@ export default function LeftSidebar({
       <Text style={styles.groupTitle}>Pessoas</Text>
       <View style={styles.group}>
         {PEOPLE_ITEMS.map((item) => (
-          <TouchableOpacity
+          <Pressable
             key={item.key}
-            style={styles.navItem}
-            activeOpacity={0.7}
+            style={({ hovered }) => [styles.navItem, hovered && styles.navItemHover]}
             onPress={() => (item.route ? navigate(item.route) : onNavigate?.())}
           >
             <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
             <Text style={styles.navLabel}>{item.label}</Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
@@ -276,10 +277,9 @@ export default function LeftSidebar({
       <Text style={styles.groupTitle}>Sobre</Text>
       <View style={styles.group}>
         {APP_ITEMS.map((item) => (
-          <TouchableOpacity
+          <Pressable
             key={item.key}
-            style={styles.navItem}
-            activeOpacity={0.7}
+            style={({ hovered }) => [styles.navItem, hovered && styles.navItemHover]}
             onPress={() => {
               if (item.key === 'rate') {
                 // No desktop abre como modal; no mobile, o modal aninhado dentro do
@@ -299,7 +299,7 @@ export default function LeftSidebar({
           >
             <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
             <Text style={styles.navLabel}>{item.label}</Text>
-          </TouchableOpacity>
+          </Pressable>
         ))}
       </View>
 
@@ -321,10 +321,13 @@ export default function LeftSidebar({
       <View style={styles.divider} />
 
       {/* Logout */}
-      <TouchableOpacity style={styles.navItem} activeOpacity={0.7} onPress={handleLogout}>
+      <Pressable
+        style={({ hovered }) => [styles.navItem, hovered && styles.navItemHover]}
+        onPress={handleLogout}
+      >
         <Ionicons name="log-out-outline" size={17} color={Colors.error} />
         <Text style={[styles.navLabel, styles.logoutLabel]}>Sair</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Footer */}
       <View style={styles.footer}>
@@ -381,6 +384,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.primaryLight,
   },
+  userRowHover: {
+    backgroundColor: Colors.primaryLight,
+  },
   userAvatar: {
     width: 36,
     height: 36,
@@ -436,7 +442,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 4,
     paddingRight: 8,
+    borderRadius: 10,
   },
   groupTitle: {
     fontSize: 10,
@@ -459,6 +467,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   navItemActive: {
     backgroundColor: Colors.primaryFaint,
+  },
+  navItemHover: {
+    backgroundColor: Colors.borderLight,
   },
   navLabel: {
     fontSize: 14,
