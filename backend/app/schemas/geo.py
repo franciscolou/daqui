@@ -24,6 +24,7 @@ class NearbyNeighborhood(BaseModel):
     neighborhood: str
     latitude: float
     longitude: float
+    distance_m: float
 
 
 class GeocodeRequest(BaseModel):

@@ -13,13 +13,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { CATEGORIES, PostCategory, Post } from '../../data/mock';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import PostCard from '../../components/PostCard';
 import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
@@ -42,6 +43,11 @@ export default function FeedScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const listRef = useRef<FlatList<Post>>(null);
+
+  useRegisterScrollToTop('index', () => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  });
 
   const load = useCallback(async () => {
     try {
@@ -124,6 +130,7 @@ export default function FeedScreen() {
 
   const feed = (
     <FlatList
+      ref={listRef}
       data={filteredPosts}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}

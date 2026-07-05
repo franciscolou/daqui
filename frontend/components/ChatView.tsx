@@ -4,6 +4,7 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Pressable,
   Image,
   TextInput,
   ActivityIndicator,
@@ -14,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing,
+  useSharedValue, useAnimatedStyle, withTiming, withSpring, withDelay, withRepeat, withSequence, Easing,
 } from 'react-native-reanimated';
 import { Palette } from '../constants/Colors';
 import { User } from '../data/mock';
@@ -33,10 +34,15 @@ const INPUT_LINE_HEIGHT = 18;
 // 10 linhas de texto + padding vertical do input (10 em cima, 10 embaixo)
 const INPUT_MAX_HEIGHT = INPUT_LINE_HEIGHT * 10 + 20;
 
-type ChatItem = { type: 'msg'; msg: ChatMessage } | { type: 'divider'; id: string; label: string };
+type ChatItem =
+  | { type: 'msg'; msg: ChatMessage }
+  | { type: 'divider'; id: string; label: string }
+  | { type: 'typing' };
 
 // Balão de mensagem. Definido no módulo (não dentro de ChatView) para não remontar
 // a cada render — assim a animação de entrada roda só uma vez, na mensagem recém-enviada.
+const DOUBLE_TAP_MS = 300;
+
 function MessageBubble({
   msg,
   mine,
@@ -44,6 +50,8 @@ function MessageBubble({
   highlighted,
   animateIn,
   styles,
+  onReply,
+  onJumpTo,
 }: {
   msg: ChatMessage;
   mine: boolean;
@@ -51,9 +59,24 @@ function MessageBubble({
   highlighted: boolean;
   animateIn: boolean;
   styles: ReturnType<typeof makeStyles>;
+  onReply: (msg: ChatMessage) => void;
+  onJumpTo: (id: string) => void;
 }) {
   const ty = useSharedValue(animateIn ? 16 : 0);
   const op = useSharedValue(animateIn ? 0 : 1);
+  const lastTapRef = useRef(0);
+
+  // Duplo toque na mensagem (ou na altura dela, na área ao redor do balão)
+  // marca ela como a que está sendo respondida.
+  const handlePress = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+      lastTapRef.current = 0;
+      onReply(msg);
+    } else {
+      lastTapRef.current = now;
+    }
+  };
 
   useEffect(() => {
     if (!animateIn) return;
@@ -76,6 +99,10 @@ function MessageBubble({
             <Image source={{ uri: msg.sender.avatar }} style={styles.senderAvatar} />
           </TouchableOpacity>
         )}
+        <Pressable
+          style={[styles.bubbleTapArea, mine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}
+          onPress={handlePress}
+        >
         <View
           style={[
             styles.bubble,
@@ -86,6 +113,25 @@ function MessageBubble({
         >
           {showSender && (
             <Text style={styles.senderName} numberOfLines={1}>{msg.sender.name}</Text>
+          )}
+          {!!msg.replyTo && (
+            <TouchableOpacity
+              style={[styles.replyQuote, mine && !msg.sharedPost && styles.replyQuoteMine]}
+              onPress={() => onJumpTo(msg.replyTo!.id)}
+            >
+              <Text
+                style={[styles.replyQuoteSender, mine && !msg.sharedPost && styles.replyQuoteTextMine]}
+                numberOfLines={1}
+              >
+                {msg.replyTo.sender.name}
+              </Text>
+              <Text
+                style={[styles.replyQuoteText, mine && !msg.sharedPost && styles.replyQuoteTextMine]}
+                numberOfLines={1}
+              >
+                {msg.replyTo.content || 'Post compartilhado'}
+              </Text>
+            </TouchableOpacity>
           )}
           {!!msg.sharedPost && (
             <View style={styles.sharedWrap}>
@@ -107,6 +153,73 @@ function MessageBubble({
             {formatMessageTime(msg.createdAt)}
           </Text>
         </View>
+        </Pressable>
+      </View>
+    </Animated.View>
+  );
+}
+
+// Balão de "digitando…": entra como se fosse uma mensagem nova (mesma
+// animação de subida do MessageBubble), com as três bolinhas balançando em
+// looping e defasadas entre si.
+function TypingBubble({
+  avatar,
+  showAvatar,
+  styles,
+}: {
+  avatar: string | null;
+  showAvatar: boolean;
+  styles: ReturnType<typeof makeStyles>;
+}) {
+  const ty = useSharedValue(16);
+  const op = useSharedValue(0);
+  const b1 = useSharedValue(0);
+  const b2 = useSharedValue(0);
+  const b3 = useSharedValue(0);
+
+  useEffect(() => {
+    ty.value = withSpring(0, { damping: 15, stiffness: 200, mass: 0.6 });
+    op.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) });
+    const bounce = (v: typeof b1, delay: number) => {
+      v.value = withDelay(
+        delay,
+        withRepeat(
+          withSequence(
+            withTiming(-5, { duration: 260, easing: Easing.out(Easing.quad) }),
+            withTiming(0, { duration: 260, easing: Easing.in(Easing.quad) }),
+          ),
+          -1,
+        ),
+      );
+    };
+    bounce(b1, 0);
+    bounce(b2, 140);
+    bounce(b3, 280);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const wrapStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: ty.value }],
+    opacity: op.value,
+  }));
+  const dot1Style = useAnimatedStyle(() => ({ transform: [{ translateY: b1.value }] }));
+  const dot2Style = useAnimatedStyle(() => ({ transform: [{ translateY: b2.value }] }));
+  const dot3Style = useAnimatedStyle(() => ({ transform: [{ translateY: b3.value }] }));
+
+  return (
+    <Animated.View style={wrapStyle}>
+      <View style={[styles.bubbleRow, styles.bubbleRowTheirs]}>
+        {showAvatar &&
+          (avatar ? (
+            <Image source={{ uri: avatar }} style={styles.senderAvatar} />
+          ) : (
+            <View style={styles.senderAvatar} />
+          ))}
+        <View style={[styles.bubble, styles.bubbleTheirs, styles.typingBubble]}>
+          <Animated.View style={[styles.typingDot, dot1Style]} />
+          <Animated.View style={[styles.typingDot, dot2Style]} />
+          <Animated.View style={[styles.typingDot, dot3Style]} />
+        </View>
       </View>
     </Animated.View>
   );
@@ -125,7 +238,8 @@ export default function ChatView({
 }) {
   const { kind, id } = target;
   const { user: me } = useAuth();
-  const { subscribeMessages, refreshUnreadCounts } = useRealtime();
+  const { subscribeMessages, refreshUnreadCounts, typingDmUserIds, typingGroupUserIds, pingTyping } =
+    useRealtime();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -141,6 +255,8 @@ export default function ChatView({
   // ids que devem animar a entrada (mensagem que eu acabei de enviar, ou que
   // chegou agora por tempo real) — mesmo efeito nos dois casos
   const [enteringIds, setEnteringIds] = useState<Set<string>>(new Set());
+  // mensagem marcada (duplo clique) para responder — some ao enviar ou cancelar
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
 
   const listRef = useRef<FlatList<ChatItem>>(null);
   const didScrollRef = useRef(false);
@@ -229,23 +345,26 @@ export default function ChatView({
   const send = useCallback(async () => {
     const content = input.trim();
     if (!content || !id || sending) return;
+    const replyToId = replyingTo?.id;
     setSending(true);
     setInput('');
     setInputHeight(INPUT_MIN_HEIGHT);
+    setReplyingTo(null);
     try {
       const msg =
         kind === 'dm'
-          ? await api.sendMessage(id, content)
-          : await api.sendGroupMessage(id, content);
+          ? await api.sendMessage(id, content, undefined, replyToId)
+          : await api.sendGroupMessage(id, content, replyToId);
       setMessages((prev) => [...prev, msg]);
       animateEntrance([msg.id]);
       onActivity?.();
     } catch {
       setInput(content);
+      setReplyingTo(replyingTo ?? null);
     } finally {
       setSending(false);
     }
-  }, [input, id, kind, sending, onActivity, animateEntrance]);
+  }, [input, id, kind, sending, onActivity, animateEntrance, replyingTo]);
 
   // Na web, o scrollHeight de um textarea nunca fica menor que a altura já
   // aplicada via CSS — por isso, para encolher ao apagar texto, é preciso
@@ -264,7 +383,22 @@ export default function ChatView({
     setInputHeight(next);
   }, [input]);
 
-  // FlatList invertida: itens com divisores de dia, mais recente primeiro.
+  // "Digitando": no DM, é só o outro participante; no grupo, cruza os ids de
+  // quem está digitando com os membros pra achar os usuários.
+  const typingUsers = useMemo(() => {
+    if (kind === 'dm') {
+      return other && typingDmUserIds.has(other.id) ? [other] : [];
+    }
+    const ids = typingGroupUserIds(id);
+    if (!ids.length || !group) return [];
+    return ids
+      .map((uid) => group.members.find((m) => m.user.id === uid)?.user)
+      .filter((u): u is User => !!u);
+  }, [kind, other, typingDmUserIds, typingGroupUserIds, id, group]);
+
+  // FlatList invertida: itens com divisores de dia, mais recente primeiro —
+  // o balão de "digitando" (quando presente) fica na ponta, como se fosse a
+  // próxima mensagem chegando.
   const data = useMemo<ChatItem[]>(() => {
     const items: ChatItem[] = [];
     let lastDay = '';
@@ -276,16 +410,30 @@ export default function ChatView({
       }
       items.push({ type: 'msg', msg: m });
     }
-    return items.reverse();
-  }, [messages]);
+    const reversed = items.reverse();
+    return typingUsers.length ? [{ type: 'typing' }, ...reversed] : reversed;
+  }, [messages, typingUsers]);
 
   const targetIndex = useMemo(
     () => (messageId ? data.findIndex((it) => it.type === 'msg' && it.msg.id === messageId) : -1),
     [data, messageId],
   );
 
+  // Pula (com scroll e realce) para uma mensagem já carregada na conversa —
+  // usado ao tocar na prévia de "respondendo a" dentro de um balão.
+  const jumpToMessage = useCallback(
+    (targetId: string) => {
+      const index = data.findIndex((it) => it.type === 'msg' && it.msg.id === targetId);
+      if (index < 0) return;
+      listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+      setHighlightId(targetId);
+    },
+    [data],
+  );
+
   useEffect(() => {
     setHighlightId(messageId ?? null);
+    setReplyingTo(null);
     didScrollRef.current = false;
   }, [messageId, id]);
 
@@ -311,12 +459,13 @@ export default function ChatView({
 
   const headerName = kind === 'dm' ? other?.name : group?.name;
   const headerAvatar = kind === 'dm' ? other?.avatar : group?.avatar;
+
   const headerSub =
     kind === 'dm'
-      ? other?.neighborhood
-      : group
-      ? `${group.membersCount} ${group.membersCount === 1 ? 'membro' : 'membros'}${group.isOpen ? ' · Aberto' : ' · Fechado'}`
-      : '';
+    ? other?.neighborhood
+    : group
+    ? `${group.membersCount} ${group.membersCount === 1 ? 'membro' : 'membros'}${group.isOpen ? ' · Aberto' : ' · Fechado'}`
+    : '';
 
   return (
     <View style={styles.flex}>
@@ -365,7 +514,9 @@ export default function ChatView({
             ref={listRef}
             data={data}
             inverted
-            keyExtractor={(item) => (item.type === 'divider' ? item.id : item.msg.id)}
+            keyExtractor={(item) =>
+              item.type === 'divider' ? item.id : item.type === 'typing' ? 'typing-indicator' : item.msg.id
+            }
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
             onScrollToIndexFailed={(info) => {
@@ -381,6 +532,15 @@ export default function ChatView({
                   </View>
                 );
               }
+              if (item.type === 'typing') {
+                return (
+                  <TypingBubble
+                    avatar={typingUsers[0]?.avatar ?? null}
+                    showAvatar={kind === 'group'}
+                    styles={styles}
+                  />
+                );
+              }
               return (
                 <MessageBubble
                   msg={item.msg}
@@ -388,6 +548,8 @@ export default function ChatView({
                   showSender={kind === 'group' && !(!!me && item.msg.sender.id === me.id)}
                   highlighted={item.msg.id === highlightId}
                   animateIn={enteringIds.has(item.msg.id)}
+                  onReply={setReplyingTo}
+                  onJumpTo={jumpToMessage}
                   styles={styles}
                 />
               );
@@ -404,6 +566,24 @@ export default function ChatView({
             }
           />
 
+          {/* Prévia de "respondendo a" — some ao enviar ou cancelar */}
+          {!!replyingTo && (
+            <View style={styles.replyBar}>
+              <View style={styles.replyBarAccent} />
+              <View style={styles.flex}>
+                <Text style={styles.replyBarSender} numberOfLines={1}>
+                  Respondendo a {replyingTo.sender.name}
+                </Text>
+                <Text style={styles.replyBarText} numberOfLines={1}>
+                  {replyingTo.content || 'Post compartilhado'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setReplyingTo(null)} hitSlop={8}>
+                <Ionicons name="close" size={18} color={Colors.textTertiary} />
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Composer */}
           <View style={styles.composer}>
             <TextInput
@@ -412,7 +592,10 @@ export default function ChatView({
               placeholder="Escreva uma mensagem..."
               placeholderTextColor={Colors.textTertiary}
               value={input}
-              onChangeText={setInput}
+              onChangeText={(v) => {
+                setInput(v);
+                if (v.trim() && id) pingTyping({ kind, id });
+              }}
               multiline
               onContentSizeChange={(e) => {
                 // Na web quem manda é o useLayoutEffect acima (precisa zerar a
@@ -477,8 +660,22 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
   bubbleRowMine: { justifyContent: 'flex-end' },
   bubbleRowTheirs: { justifyContent: 'flex-start' },
+  bubbleTapArea: { flex: 1, flexDirection: 'row' },
   senderAvatar: { width: 28, height: 28, borderRadius: 9, backgroundColor: Colors.border },
   bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  replyQuote: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+    backgroundColor: Colors.background,
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+  },
+  replyQuoteMine: { backgroundColor: 'rgba(255,255,255,0.14)', borderLeftColor: '#fff' },
+  replyQuoteSender: { fontSize: 12, fontWeight: '700', color: Colors.primary },
+  replyQuoteText: { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
+  replyQuoteTextMine: { color: 'rgba(255,255,255,0.85)' },
   bubbleShared: {
     maxWidth: '86%',
     minWidth: 240,
@@ -498,6 +695,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderColor: Colors.borderLight,
   },
   bubbleHighlight: { borderWidth: 2, borderColor: Colors.primary, ...Colors.shadow.md },
+  typingBubble: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 12, paddingHorizontal: 14 },
+  typingDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.textTertiary },
   bubbleText: { fontSize: 14, color: Colors.text, lineHeight: 19 },
   bubbleTextMine: { color: '#fff' },
   bubbleTime: { fontSize: 10, color: Colors.textTertiary, marginTop: 3, alignSelf: 'flex-end' },
@@ -511,6 +710,19 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     transform: [{ scaleY: -1 }],
   },
   emptyText: { fontSize: 14, color: Colors.textTertiary, textAlign: 'center', maxWidth: 240 },
+  replyBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: Colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
+  replyBarAccent: { width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: Colors.primary },
+  replyBarSender: { fontSize: 12, fontWeight: '700', color: Colors.primary },
+  replyBarText: { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',

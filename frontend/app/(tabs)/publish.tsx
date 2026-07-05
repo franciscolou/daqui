@@ -52,6 +52,7 @@ LocaleConfig.locales['pt-br'] = {
 LocaleConfig.defaultLocale = 'pt-br';
 
 const CREATE_CATEGORIES = CATEGORIES.filter((c) => c.key !== 'todos');
+const MAX_IMAGES = 10;
 
 // Máscara de moeda BR: trata a entrada como centavos e formata com vírgula.
 function maskPrice(input: string): string {
@@ -88,7 +89,7 @@ export default function PublishScreen() {
   const [eventTime, setEventTime] = useState('');
   const [price, setPrice] = useState('');
   const [priceNegotiable, setPriceNegotiable] = useState(false);
-  const [productImage, setProductImage] = useState<string | null>(null); // data URL
+  const [images, setImages] = useState<string[]>([]); // data URLs, até 10 fotos
   const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
 
   // Ao editar o endereço, o status de validação anterior deixa de valer.
@@ -171,26 +172,35 @@ export default function PublishScreen() {
     return null;
   })();
 
-  const pickProductImage = async () => {
+  const pickImages = async () => {
     setError(null);
+    const remaining = MAX_IMAGES - images.length;
+    if (remaining <= 0) return;
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        setError('Permita o acesso às fotos para adicionar uma imagem.');
+        setError('Permita o acesso às fotos para adicionar imagens.');
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsEditing: true,
+        allowsMultipleSelection: true,
+        selectionLimit: remaining,
         quality: 0.7,
         base64: true,
       });
-      const asset = res.assets?.[0];
-      if (res.canceled || !asset?.base64) return;
-      setProductImage(`data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`);
+      if (res.canceled) return;
+      const picked = res.assets
+        .filter((a) => !!a.base64)
+        .map((a) => `data:${a.mimeType ?? 'image/jpeg'};base64,${a.base64}`);
+      setImages((prev) => [...prev, ...picked].slice(0, MAX_IMAGES));
     } catch {
-      setError('Não foi possível carregar a imagem.');
+      setError('Não foi possível carregar as imagens.');
     }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const buildDetails = (): Record<string, any> | undefined => {
@@ -229,7 +239,7 @@ export default function PublishScreen() {
         category: selectedCategory,
         title: title.trim() || undefined,
         content: content.trim(),
-        image: productImage ?? undefined,
+        images,
         details: buildDetails(),
         important: isImportant,
         poll:
@@ -479,24 +489,33 @@ export default function PublishScreen() {
             </View>
           )}
 
-          {/* Imagem (opcional; não se aplica a enquetes) */}
+          {/* Fotos (opcional, até 10; não se aplica a enquetes) */}
           {!!selectedCategory && selectedCategory !== 'enquete' && (
             <View style={styles.section}>
               <FieldLabel styles={styles} optional>
-                {selectedCategory === 'venda' ? 'Imagem do produto' : 'Imagem'}
+                {`${selectedCategory === 'venda' ? 'Fotos do produto' : 'Fotos'} (${images.length}/${MAX_IMAGES})`}
               </FieldLabel>
-              {productImage ? (
-                <View style={styles.productImageWrap}>
-                  <Image source={{ uri: productImage }} style={styles.productImage} resizeMode="cover" />
-                  <TouchableOpacity style={styles.removeImageBtn} onPress={() => setProductImage(null)}>
-                    <Ionicons name="close" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity style={styles.imagePicker} onPress={pickProductImage} activeOpacity={0.8}>
+              {images.length === 0 ? (
+                <TouchableOpacity style={styles.imagePicker} onPress={pickImages} activeOpacity={0.8}>
                   <Ionicons name="image-outline" size={22} color={Colors.primary} />
-                  <Text style={styles.imagePickerText}>Adicionar foto</Text>
+                  <Text style={styles.imagePickerText}>Adicionar fotos</Text>
                 </TouchableOpacity>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageThumbRow}>
+                  {images.map((uri, i) => (
+                    <View key={i} style={styles.imageThumbWrap}>
+                      <Image source={{ uri }} style={styles.imageThumb} resizeMode="cover" />
+                      <TouchableOpacity style={styles.removeImageBtn} onPress={() => removeImage(i)}>
+                        <Ionicons name="close" size={14} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {images.length < MAX_IMAGES && (
+                    <TouchableOpacity style={styles.addImageThumb} onPress={pickImages} activeOpacity={0.8}>
+                      <Ionicons name="add" size={26} color={Colors.primary} />
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
               )}
             </View>
           )}
@@ -974,16 +993,28 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingVertical: 22,
   },
   imagePickerText: { fontSize: 14, fontWeight: '700', color: Colors.primary },
-  productImageWrap: { position: 'relative' },
-  productImage: { width: '100%', height: 200, borderRadius: 14 },
+  imageThumbRow: { flexDirection: 'row', gap: 10, paddingRight: 4 },
+  imageThumbWrap: { position: 'relative' },
+  imageThumb: { width: 92, height: 92, borderRadius: 14, backgroundColor: Colors.border },
+  addImageThumb: {
+    width: 92,
+    height: 92,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryFaint,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: Colors.primary,
+  },
   removeImageBtn: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.65)',
     alignItems: 'center',
     justifyContent: 'center',
   },

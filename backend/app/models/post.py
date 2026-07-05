@@ -15,7 +15,8 @@ class Post(Base):
     category: Mapped[str] = mapped_column(String(30), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(200))
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    image_url: Mapped[Optional[str]] = mapped_column(String(500))
+    image_url: Mapped[Optional[str]] = mapped_column(String(500))  # legado; ver image_urls
+    image_urls: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
     details: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     neighborhood: Mapped[str] = mapped_column(String(120), default="")
     # Local do post (endereço validado no bairro) + coordenadas p/ o mapa.

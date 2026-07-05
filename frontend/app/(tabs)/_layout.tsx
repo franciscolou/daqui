@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Palette } from '../../constants/Colors';
 import { useRealtime } from '../../lib/realtime';
+import { useScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 
@@ -26,6 +27,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { unreadMessages, unreadNotifications } = useRealtime();
+  const { trigger } = useScrollToTop();
 
   if (width >= 900) return null;
 
@@ -39,13 +41,16 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
       target: route.key,
       canPreventDefault: true,
     });
-    if (activeName !== name && !event.defaultPrevented) {
+    if (event.defaultPrevented) return;
+    if (activeName !== name) {
       navigation.navigate(name);
+    } else {
+      trigger(name);
     }
   };
 
   return (
-    <View style={[styles.tabBarContainer, { paddingBottom: insets.bottom || 16 }]}>
+    <View style={[styles.tabBarContainer, { paddingBottom: 10 + insets.bottom }]}>
       <View style={styles.tabBar}>
         {TAB_ITEMS.map((tabItem) => {
           const isFocused = activeName === tabItem.name;
@@ -116,7 +121,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.surface,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    paddingTop: 6,
+    paddingTop: 10,
     ...Colors.shadow.lg,
   },
   tabBar: {
@@ -162,7 +167,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
     ...Colors.shadow.md,
   },
 });

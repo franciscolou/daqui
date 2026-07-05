@@ -92,18 +92,24 @@ def new_received_since(db: Session, user_id: int, since) -> list[Message]:
     )
 
 
+def get_by_id(db: Session, message_id: int) -> Message | None:
+    return db.query(Message).filter(Message.id == message_id).first()
+
+
 def create(
     db: Session,
     sender_id: int,
     receiver_id: int,
     content: str,
     shared_post_id: int | None = None,
+    reply_to_id: int | None = None,
 ) -> Message:
     msg = Message(
         sender_id=sender_id,
         receiver_id=receiver_id,
         content=content,
         shared_post_id=shared_post_id,
+        reply_to_id=reply_to_id,
     )
     db.add(msg)
     db.commit()

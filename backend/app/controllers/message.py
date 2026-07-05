@@ -8,6 +8,7 @@ from app.schemas.message import (
     MessageCreate,
     MessageOut,
     MessageSearchOut,
+    TypingPing,
     UnreadCountOut,
 )
 from app.services import message
@@ -49,3 +50,11 @@ def send_message(
     current_user: User = Depends(get_current_user),
 ) -> MessageOut:
     return message.send(db, current_user, payload)
+
+
+def ping_typing(
+    payload: TypingPing,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    message.ping_typing(db, current_user, payload)

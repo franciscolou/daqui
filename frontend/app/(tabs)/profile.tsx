@@ -3,7 +3,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Image,
   useWindowDimensions,
 } from 'react-native';
@@ -15,9 +14,10 @@ import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import FeedLayout from '../../components/FeedLayout';
 import PostCard from '../../components/PostCard';
+import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 
 const WIDE = 900;
 
@@ -28,6 +28,11 @@ export default function ProfileScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [myPosts, setMyPosts] = useState<Post[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useRegisterScrollToTop('profile', () => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -48,9 +53,6 @@ export default function ProfileScreen() {
         <View style={styles.profileCenter}>
           <View style={styles.avatarContainer}>
             <Image source={{ uri: user?.avatar }} style={styles.avatar} />
-            <TouchableOpacity style={styles.editAvatarBtn}>
-              <Ionicons name="camera" size={14} color="#fff" />
-            </TouchableOpacity>
           </View>
           <View style={styles.nameBadgeRow}>
             <Text style={styles.name}>{user?.name}</Text>
@@ -63,6 +65,9 @@ export default function ProfileScreen() {
               {user?.state ? ` - ${user.state}` : ''}
             </Text>
           </View>
+          {!!user?.bio && (
+            <Text style={styles.bio} numberOfLines={3}>{user.bio}</Text>
+          )}
         </View>
 
         {/* Stats */}
@@ -75,16 +80,6 @@ export default function ProfileScreen() {
           <View style={styles.statItem}>
             <Text style={styles.statNum}>{user?.interactionsCount ?? 0}</Text>
             <Text style={styles.statLabel}>Interações</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>238</Text>
-            <Text style={styles.statLabel}>Vizinhos</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>4.9</Text>
-            <Text style={styles.statLabel}>Reputação</Text>
           </View>
         </View>
       </LinearGradient>
@@ -110,6 +105,7 @@ export default function ProfileScreen() {
   return (
     <FeedLayout>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{ paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
       >
@@ -124,55 +120,50 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   hero: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: 18,
   },
   heroWide: {
     borderRadius: 20,
     marginTop: 20,
     marginHorizontal: 20,
   },
-  profileCenter: { alignItems: 'center', marginBottom: 20 },
-  avatarContainer: { position: 'relative', marginBottom: 12 },
+  profileCenter: { alignItems: 'center', marginBottom: 16 },
+  avatarContainer: { position: 'relative', marginBottom: 10 },
   avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 26,
+    width: 76,
+    height: 76,
+    borderRadius: 22,
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.5)',
-  },
-  editAvatarBtn: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    backgroundColor: Colors.primaryDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
   },
   nameBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  name: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
-  username: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '500', marginTop: 2 },
+  name: { fontSize: 19, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  username: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '500', marginTop: 1 },
   neighborhoodRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 10,
+    marginTop: 6,
   },
   neighborhood: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
+  bio: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 8,
+    paddingHorizontal: 12,
+  },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
   },

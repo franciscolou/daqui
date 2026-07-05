@@ -16,6 +16,7 @@ import { useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { Post, User } from '../../data/mock';
 import { api, SearchType } from '../../lib/api';
+import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import PostCard from '../../components/PostCard';
 import LeftSidebar from '../../components/LeftSidebar';
@@ -44,6 +45,11 @@ export default function SearchScreen() {
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seq = useRef(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useRegisterScrollToTop('search', () => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  });
 
   const runSearch = (q: string, t: SearchType) => {
     const term = q.trim();
@@ -209,7 +215,7 @@ export default function SearchScreen() {
           <ScrollView style={styles.leftCol} showsVerticalScrollIndicator={false}>
             <LeftSidebar />
           </ScrollView>
-          <ScrollView style={styles.centerCol} showsVerticalScrollIndicator={false}>
+          <ScrollView ref={scrollRef} style={styles.centerCol} showsVerticalScrollIndicator={false}>
             {content}
           </ScrollView>
           <ScrollView style={styles.rightCol} showsVerticalScrollIndicator={false}>
@@ -218,6 +224,7 @@ export default function SearchScreen() {
         </View>
       ) : (
         <ScrollView
+          ref={scrollRef}
           style={styles.mobileBody}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}

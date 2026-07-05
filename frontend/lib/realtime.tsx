@@ -16,6 +16,8 @@ interface RealtimeSyncPayload {
   new_message_senders: number[];
   new_group_message_groups: number[];
   has_new_notification: boolean;
+  typing_dm: number[];
+  typing_groups: Record<string, number[]>;
 }
 
 type MessageListener = (senderIds: string[], groupIds: string[]) => void;
@@ -30,6 +32,13 @@ interface RealtimeState {
   // conversa (que já marca como lida no back) pra não esperar o próximo tick
   // do websocket (~2s) só pra sumir o indicador.
   refreshUnreadCounts: () => void;
+  // "Digitando": quem está digitando pra mim agora numa DM (ids de usuário),
+  // e por grupo (id do grupo → ids de quem está digitando nele).
+  typingDmUserIds: Set<string>;
+  typingGroupUserIds: (groupId: string) => string[];
+  // Avisa o servidor que eu estou digitando (com debounce simples — só
+  // reenvia se já fez um tempo desde o último aviso pra essa conversa).
+  pingTyping: (target: { kind: 'dm' | 'group'; id: string }) => void;
 }
 
 const RealtimeContext = createContext<RealtimeState | null>(null);
@@ -40,8 +49,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { signedIn } = useAuth();
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [typingDmUserIds, setTypingDmUserIds] = useState<Set<string>>(new Set());
+  const [typingGroups, setTypingGroups] = useState<Record<string, string[]>>({});
   const messageListeners = useRef(new Set<MessageListener>());
   const notificationListeners = useRef(new Set<NotificationListener>());
+  const lastTypingPingRef = useRef(new Map<string, number>());
 
   const refreshUnreadCounts = useCallback(() => {
     if (!signedIn) return;
@@ -78,6 +90,12 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         }
         setUnreadMessages(data.unread_messages ?? 0);
         setUnreadNotifications(data.unread_notifications ?? 0);
+        setTypingDmUserIds(new Set((data.typing_dm ?? []).map(String)));
+        setTypingGroups(
+          Object.fromEntries(
+            Object.entries(data.typing_groups ?? {}).map(([gid, ids]) => [gid, ids.map(String)]),
+          ),
+        );
 
         if (data.new_message_senders?.length || data.new_group_message_groups?.length) {
           const senderIds = (data.new_message_senders ?? []).map(String);
@@ -114,6 +132,23 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     return () => notificationListeners.current.delete(cb);
   }, []);
 
+  const typingGroupUserIds = useCallback(
+    (groupId: string) => typingGroups[groupId] ?? [],
+    [typingGroups],
+  );
+
+  // Debounce simples: só reenvia o aviso pra mesma conversa a cada 2s (o TTL
+  // no servidor é de 4s — reavisar antes disso mantém o indicador "vivo"
+  // enquanto o usuário continua digitando, sem virar um POST por tecla).
+  const pingTyping = useCallback((target: { kind: 'dm' | 'group'; id: string }) => {
+    const key = `${target.kind}:${target.id}`;
+    const now = Date.now();
+    const last = lastTypingPingRef.current.get(key) ?? 0;
+    if (now - last < 2000) return;
+    lastTypingPingRef.current.set(key, now);
+    api.pingTyping(target.kind, target.id).catch(() => {});
+  }, []);
+
   const value = useMemo<RealtimeState>(
     () => ({
       unreadMessages,
@@ -121,6 +156,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       subscribeMessages,
       subscribeNotifications,
       refreshUnreadCounts,
+      typingDmUserIds,
+      typingGroupUserIds,
+      pingTyping,
     }),
     [
       unreadMessages,
@@ -128,6 +166,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       subscribeMessages,
       subscribeNotifications,
       refreshUnreadCounts,
+      typingDmUserIds,
+      typingGroupUserIds,
+      pingTyping,
     ],
   );
 

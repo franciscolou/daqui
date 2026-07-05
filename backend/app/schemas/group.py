@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.schemas.message import MessageReplyOut
 from app.schemas.user import UserPublic
 
 
@@ -66,6 +67,7 @@ class GroupAvatarUpdate(BaseModel):
 
 class GroupMessageCreate(BaseModel):
     content: str = ""
+    reply_to_id: int | None = None
 
 
 class GroupMessageOut(BaseModel):
@@ -73,5 +75,6 @@ class GroupMessageOut(BaseModel):
     content: str
     created_at: datetime
     sender: UserPublic
+    reply_to: MessageReplyOut | None = None
 
     model_config = {"from_attributes": True}

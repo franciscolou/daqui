@@ -152,7 +152,7 @@ interface BackendPost {
   category: string;
   title: string | null;
   content: string;
-  image_url: string | null;
+  image_urls: string[];
   details: Record<string, any> | null;
   neighborhood: string;
   location: string | null;
@@ -197,9 +197,15 @@ interface BackendSharedPost {
   category: string;
   title: string | null;
   content: string;
-  image_url: string | null;
+  image_urls: string[];
   created_at: string;
   author: BackendUser;
+}
+
+interface BackendMessageReply {
+  id: number;
+  content: string;
+  sender: BackendUser;
 }
 
 interface BackendMessage {
@@ -209,6 +215,7 @@ interface BackendMessage {
   created_at: string;
   sender: BackendUser;
   shared_post: BackendSharedPost | null;
+  reply_to: BackendMessageReply | null;
 }
 
 interface BackendMessageResult {
@@ -254,6 +261,7 @@ interface BackendGroupMessage {
   content: string;
   created_at: string;
   sender: BackendUser;
+  reply_to: BackendMessageReply | null;
 }
 
 interface BackendRemovedSnapshot {
@@ -305,6 +313,12 @@ export interface SharedPost {
   author: User;
 }
 
+export interface MessageReply {
+  id: string;
+  content: string;
+  sender: User;
+}
+
 export interface ChatMessage {
   id: string;
   content: string;
@@ -312,6 +326,7 @@ export interface ChatMessage {
   createdAt: string;
   sender: User;
   sharedPost?: SharedPost;
+  replyTo?: MessageReply;
 }
 
 export interface MessageResult {
@@ -362,6 +377,7 @@ export interface NearbyNeighborhood {
   neighborhood: string;
   latitude: number;
   longitude: number;
+  distanceM: number;
 }
 
 export interface GeocodeResult {
@@ -513,7 +529,7 @@ function mapPost(p: BackendPost): Post {
     category: p.category as PostCategory,
     title: p.title ?? undefined,
     content: p.content,
-    images: p.image_url ? [p.image_url] : undefined,
+    images: p.image_urls.length ? p.image_urls : undefined,
     createdAt: p.created_at, // ISO — formatado na renderização (lib/time)
     likesCount: p.likes_count,
     commentsCount: p.comments_count,
@@ -562,10 +578,14 @@ function mapSharedPost(p: BackendSharedPost): SharedPost {
     category: p.category as PostCategory,
     title: p.title ?? undefined,
     content: p.content,
-    image: p.image_url ?? undefined,
+    image: p.image_urls[0] ?? undefined,
     createdAt: p.created_at,
     author: mapUser(p.author),
   };
+}
+
+function mapMessageReply(r: BackendMessageReply): MessageReply {
+  return { id: String(r.id), content: r.content, sender: mapUser(r.sender) };
 }
 
 function mapMessage(m: BackendMessage): ChatMessage {
@@ -576,6 +596,7 @@ function mapMessage(m: BackendMessage): ChatMessage {
     createdAt: m.created_at,
     sender: mapUser(m.sender),
     sharedPost: m.shared_post ? mapSharedPost(m.shared_post) : undefined,
+    replyTo: m.reply_to ? mapMessageReply(m.reply_to) : undefined,
   };
 }
 
@@ -628,6 +649,7 @@ function mapGroupMessage(m: BackendGroupMessage): ChatMessage {
     read: true,
     createdAt: m.created_at,
     sender: mapUser(m.sender),
+    replyTo: m.reply_to ? mapMessageReply(m.reply_to) : undefined,
   };
 }
 
@@ -841,7 +863,9 @@ export const api = {
     latitude: number,
     longitude: number,
   ): Promise<NearbyNeighborhood[]> {
-    const r = await request<NearbyNeighborhood[]>('/geo/nearby', {
+    const r = await request<
+      { neighborhood: string; latitude: number; longitude: number; distance_m: number }[]
+    >('/geo/nearby', {
       method: 'POST',
       body: { latitude, longitude },
       auth: false,
@@ -850,6 +874,7 @@ export const api = {
       neighborhood: n.neighborhood,
       latitude: n.latitude,
       longitude: n.longitude,
+      distanceM: n.distance_m,
     }));
   },
 
@@ -869,8 +894,7 @@ export const api = {
     category: string;
     title?: string;
     content: string;
-    image_url?: string;
-    image?: string; // data URL base64 (ex.: imagem do produto)
+    images?: string[]; // data URLs base64, até 10 fotos
     details?: Record<string, any>;
     important?: boolean;
     poll?: { options: string[]; multiple: boolean; closes_at: string };
@@ -978,10 +1002,20 @@ export const api = {
     return r.map(mapMessage);
   },
 
+  // Avisa o servidor que estou digitando (DM ou grupo) — lido pelo polling
+  // do websocket e repassado a quem está na mesma conversa.
+  async pingTyping(kind: 'dm' | 'group', id: string): Promise<void> {
+    await request<void>('/messages/typing', {
+      method: 'POST',
+      body: { target_type: kind, target_id: Number(id) },
+    });
+  },
+
   async sendMessage(
     receiverId: string,
     content: string,
     sharedPostId?: string,
+    replyToId?: string,
   ): Promise<ChatMessage> {
     return mapMessage(
       await request<BackendMessage>('/messages/', {
@@ -990,6 +1024,7 @@ export const api = {
           receiver_id: Number(receiverId),
           content,
           shared_post_id: sharedPostId ? Number(sharedPostId) : undefined,
+          reply_to_id: replyToId ? Number(replyToId) : undefined,
         },
       }),
     );
@@ -1101,11 +1136,11 @@ export const api = {
     return r.map(mapGroupMessage);
   },
 
-  async sendGroupMessage(id: string, content: string): Promise<ChatMessage> {
+  async sendGroupMessage(id: string, content: string, replyToId?: string): Promise<ChatMessage> {
     return mapGroupMessage(
       await request<BackendGroupMessage>(`/groups/${id}/messages`, {
         method: 'POST',
-        body: { content },
+        body: { content, reply_to_id: replyToId ? Number(replyToId) : undefined },
       }),
     );
   },

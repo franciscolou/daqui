@@ -25,6 +25,7 @@ import WideLayout from '../../components/WideLayout';
 import PollBlock from '../../components/PollBlock';
 import ActionMenu from '../../components/ActionMenu';
 import ReportModal from '../../components/ReportModal';
+import PostImageGallery from '../../components/PostImageGallery';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -104,6 +105,7 @@ export default function PostDetailScreen() {
             style={styles.authorRowLeft}
             onPress={() => router.push(`/user/${post.author.id}` as any)}
             activeOpacity={0.8}
+            focusable={false}
           >
             <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
             <View style={{ flex: 1 }}>
@@ -124,6 +126,7 @@ export default function PostDetailScreen() {
           </View>
           {post.author.id !== user?.id && (
             <TouchableOpacity
+              style={styles.iconBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={() => setPostMenuVisible(true)}
             >
@@ -141,9 +144,7 @@ export default function PostDetailScreen() {
             onChange={(poll) => setPost((p) => (p ? { ...p, poll } : p))}
           />
         )}
-        {post.images?.[0] && (
-          <Image source={{ uri: post.images[0] }} style={styles.image} resizeMode="cover" />
-        )}
+        {!!post.images?.length && <PostImageGallery images={post.images} />}
 
         {(() => {
           const hasCoords = post.latitude != null && post.longitude != null;
@@ -257,6 +258,7 @@ export default function PostDetailScreen() {
                     <Text style={styles.commentTime}>{formatPostTime(item.createdAt)}</Text>
                     {item.author.id !== user?.id && (
                       <TouchableOpacity
+                        style={styles.iconBtn}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         onPress={() => setCommentMenu(item)}
                       >
@@ -377,7 +379,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   catText: { fontSize: 11, fontWeight: '700' },
   title: { fontSize: 17, fontWeight: '700', color: Colors.text, marginBottom: 6, letterSpacing: -0.2 },
   body: { fontSize: 15, color: Colors.text, lineHeight: 22, marginBottom: 12, fontWeight: "400" },
-  image: { width: '100%', height: 220, borderRadius: 14, marginBottom: 12 },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -400,8 +401,19 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border,
   },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
   actionCount: { fontSize: 14, color: Colors.textTertiary, fontWeight: '600' },
+  iconBtn: {
+    padding: 6,
+    borderRadius: 14,
+  },
 
   commentsTitle: {
     fontSize: 13,

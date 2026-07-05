@@ -65,9 +65,19 @@ def _ensure_columns():
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}
-        if "shared_post_id" not in columns:
-            with engine.begin() as conn:
+        with engine.begin() as conn:
+            if "shared_post_id" not in columns:
                 conn.execute(text("ALTER TABLE messages ADD COLUMN shared_post_id INTEGER REFERENCES posts(id)"))
+            if "reply_to_id" not in columns:
+                conn.execute(text("ALTER TABLE messages ADD COLUMN reply_to_id INTEGER REFERENCES messages(id)"))
+
+    if "group_messages" in tables:
+        columns = {c["name"] for c in inspector.get_columns("group_messages")}
+        if "reply_to_id" not in columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE group_messages ADD COLUMN reply_to_id INTEGER REFERENCES group_messages(id)")
+                )
 
     if "posts" in tables:
         columns = {c["name"] for c in inspector.get_columns("posts")}
@@ -76,6 +86,18 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE posts ADD COLUMN poll_multiple BOOLEAN"))
             if "poll_closes_at" not in columns:
                 conn.execute(text("ALTER TABLE posts ADD COLUMN poll_closes_at DATETIME"))
+            if "image_urls" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN image_urls JSON"))
+                # Backfill: migra a foto única legada (image_url) para a lista.
+                conn.execute(
+                    text(
+                        "UPDATE posts SET image_urls = json_array(image_url) "
+                        "WHERE image_url IS NOT NULL"
+                    )
+                )
+                conn.execute(
+                    text("UPDATE posts SET image_urls = '[]' WHERE image_urls IS NULL")
+                )
 
     if "reviews" in tables:
         columns = {c["name"] for c in inspector.get_columns("reviews")}

@@ -143,4 +143,6 @@ def send_message(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> GroupMessageOut:
-    return group_service.send_message(db, current_user, group_id, payload.content)
+    return group_service.send_message(
+        db, current_user, group_id, payload.content, payload.reply_to_id
+    )

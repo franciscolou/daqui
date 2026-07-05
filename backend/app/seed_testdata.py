@@ -157,7 +157,7 @@ def seed():
             time.sleep(1.1)
         p = Post(
             author_id=author.id, neighborhood=bairro, category=cat,
-            title=title, content=content, image_url=img,
+            title=title, content=content, image_urls=[img] if img else [],
             important=important, pinned=pinned, created_at=ago(mins),
             location=location, latitude=lat, longitude=lon,
         )

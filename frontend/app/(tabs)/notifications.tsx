@@ -6,17 +6,19 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  RefreshControl,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { NOTIF_ICONS } from '../../constants/notifications';
 import { notificationParts } from '../../components/NotificationText';
 import RemovedContentModal from '../../components/RemovedContentModal';
 import { api, AppNotification } from '../../lib/api';
 import { useRealtime } from '../../lib/realtime';
+import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
 import MobileMenu from '../../components/MobileMenu';
@@ -32,10 +34,12 @@ export default function NotificationsScreen() {
   const { subscribeNotifications } = useRealtime();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [removedPreview, setRemovedPreview] = useState<AppNotification | null>(null);
+  const listRef = useRef<FlatList<AppNotification>>(null);
 
   const load = useCallback(() => {
-    api.getNotifications()
+    return api.getNotifications()
       .then((items) => {
         setNotifications(items);
         if (items.some((n) => !n.read)) api.markNotificationsRead().catch(() => {});
@@ -44,10 +48,20 @@ export default function NotificationsScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  useFocusEffect(load);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   // Recarrega ao vivo quando o servidor avisa (via websocket) que chegou algo novo.
   useEffect(() => subscribeNotifications(load), [subscribeNotifications, load]);
+
+  useRegisterScrollToTop('notifications', () => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  });
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   return (
     <FeedLayout showMobileMenu={false}>
@@ -62,9 +76,13 @@ export default function NotificationsScreen() {
       </View>
 
       <FlatList
+        ref={listRef}
         data={notifications}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           loading ? (

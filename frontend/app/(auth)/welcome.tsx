@@ -22,6 +22,9 @@ import { useAvailability, AvailabilityState } from '../../lib/useAvailability';
 
 const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
 
+const formatDistance = (meters: number) =>
+  meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
+
 type GeoStatus = 'idle' | 'locating' | 'resolved' | 'error';
 
 // ─── Dados estáticos ────────────────────────────────────────────
@@ -788,24 +791,28 @@ export default function WelcomeScreen() {
                 </TouchableOpacity>
               </View>
               {(() => {
-                const options = nearby.filter(
-                  (n) => n.neighborhood.toLowerCase() !== neighborhood.toLowerCase(),
-                );
+                const options = nearby
+                  .filter((n) => n.neighborhood.toLowerCase() !== neighborhood.toLowerCase())
+                  .sort((a, b) => a.distanceM - b.distanceM);
                 return options.length === 0 ? (
                   <Text style={styles.nearbyEmpty}>
                     Não encontramos bairros vizinhos por aqui.
                   </Text>
                 ) : (
-                  <View style={styles.nearbyChips}>
-                    {options.map((n) => (
+                  <View style={styles.nearbyList}>
+                    {options.map((n, i) => (
                       <TouchableOpacity
                         key={n.neighborhood}
-                        style={styles.nearbyChip}
+                        style={styles.nearbyRow}
                         onPress={() => chooseNearby(n)}
                         activeOpacity={0.8}
                       >
-                        <Ionicons name="location-outline" size={14} color={Colors.primaryDark} />
-                        <Text style={styles.nearbyChipText}>{n.neighborhood}</Text>
+                        <View style={styles.nearbyRank}>
+                          <Text style={styles.nearbyRankText}>{i + 1}</Text>
+                        </View>
+                        <Ionicons name="location-outline" size={15} color={Colors.primaryDark} />
+                        <Text style={styles.nearbyRowText} numberOfLines={1}>{n.neighborhood}</Text>
+                        <Text style={styles.nearbyRowDistance}>{formatDistance(n.distanceM)}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -1080,9 +1087,29 @@ const styles = StyleSheet.create({
   nearbyTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
   nearbyCancel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
   nearbyEmpty: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
-  nearbyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  nearbyChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: Colors.primaryFaint, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: Colors.primaryLight },
-  nearbyChipText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '600' },
+  nearbyList: { gap: 8 },
+  nearbyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.primaryFaint,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: Colors.primaryLight,
+  },
+  nearbyRank: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryLight,
+  },
+  nearbyRankText: { fontSize: 11, fontWeight: '800', color: Colors.primaryDark },
+  nearbyRowText: { flex: 1, fontSize: 13, color: Colors.primaryDark, fontWeight: '600' },
+  nearbyRowDistance: { fontSize: 12, color: Colors.primaryDark, fontWeight: '600', opacity: 0.75 },
 
   // Painel direito (arte)
   rightPanel: { flex: 7, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },

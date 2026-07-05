@@ -56,7 +56,7 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
         category=post.category,
         title=post.title,
         content=post.content,
-        image_url=post.image_url,
+        image_urls=post.image_urls or [],
         details=post.details,
         neighborhood=post.neighborhood,
         location=post.location,
@@ -232,9 +232,9 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
 
     details = None if is_poll else _build_details(payload.category, payload.details)
 
-    image_url = payload.image_url
-    if payload.image:
-        image_url = save_data_url_image(base_url, payload.image, prefix="post")
+    if len(payload.images) > 10:
+        raise HTTPException(status_code=400, detail="No máximo 10 fotos por post")
+    image_urls = [save_data_url_image(base_url, img, prefix="post") for img in payload.images]
 
     # Local: quando informado, precisa ser um endereço válido dentro do bairro.
     location = (details or {}).get("location") if details else None
@@ -250,7 +250,7 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         category=payload.category,
         title=payload.title,
         content=payload.content,
-        image_url=image_url,
+        image_urls=image_urls,
         details=details,
         important=payload.important,
         neighborhood=user.neighborhood,
@@ -430,7 +430,7 @@ def admin_delete_post(db: Session, post_id: int, moderator: User) -> None:
         "category": post.category,
         "title": post.title,
         "content": post.content,
-        "image_url": post.image_url,
+        "image_url": (post.image_urls or [None])[0],
         "location": post.location,
         "created_at": post.created_at.isoformat(),
     }

@@ -1,13 +1,14 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core import typing_registry
 from app.daos import group as group_dao
 from app.daos import message as message_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.message import Message
 from app.models.user import User
-from app.schemas.message import ConversationOut, MessageCreate, MessageSearchOut
+from app.schemas.message import ConversationOut, MessageCreate, MessageSearchOut, TypingPing
 from app.schemas.user import UserPublic
 
 
@@ -97,6 +98,24 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
                 detail="Este post não pode ser encaminhado para um morador de outro bairro",
             )
 
+    if payload.reply_to_id is not None:
+        replied = message_dao.get_by_id(db, payload.reply_to_id)
+        conversation_ids = {user.id, payload.receiver_id}
+        if not replied or {replied.sender_id, replied.receiver_id} != conversation_ids:
+            raise HTTPException(status_code=404, detail="Mensagem respondida não encontrada")
+
     return message_dao.create(
-        db, user.id, payload.receiver_id, content, payload.shared_post_id
+        db, user.id, payload.receiver_id, content, payload.shared_post_id, payload.reply_to_id
     )
+
+
+def ping_typing(db: Session, user: User, payload: TypingPing) -> None:
+    """Avisa que `user` está digitando — lido pelo polling do websocket
+    (ver `routers/ws.py`) e repassado a quem está na mesma conversa."""
+    if payload.target_type == "dm":
+        typing_registry.set_dm_typing(user.id, payload.target_id)
+    else:
+        member = group_dao.get_membership(db, payload.target_id, user.id)
+        if not member:
+            raise HTTPException(status_code=403, detail="Sem permissão")
+        typing_registry.set_group_typing(payload.target_id, user.id)

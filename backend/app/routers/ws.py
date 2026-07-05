@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from jose import JWTError
 
+from app.core import typing_registry
 from app.core.security import decode_token
 from app.daos import group as group_dao
 from app.daos import message as message_dao
@@ -63,6 +64,15 @@ async def realtime(websocket: WebSocket, token: str):
                 db.close()
             last_check = now
 
+            # "Digitando": lê o registro em memória (ver core/typing_registry) —
+            # não bate no banco, é só um dict com timestamps recentes.
+            typing_dm = typing_registry.typing_to(user_id)
+            typing_groups = {
+                gid: senders
+                for gid in group_ids
+                if (senders := typing_registry.typing_in_group(gid, user_id))
+            }
+
             await websocket.send_json(
                 {
                     "unread_messages": unread_messages,
@@ -72,6 +82,8 @@ async def realtime(websocket: WebSocket, token: str):
                         {m.group_id for m in new_group_messages}
                     ),
                     "has_new_notification": len(new_notifications) > 0,
+                    "typing_dm": typing_dm,
+                    "typing_groups": typing_groups,
                 }
             )
     except (WebSocketDisconnect, RuntimeError):

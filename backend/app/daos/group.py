@@ -138,8 +138,20 @@ def set_role(db: Session, member: GroupMember, role: str) -> GroupMember:
 
 
 # ── Mensagens ─────────────────────────────────────────────────────────
-def create_message(db: Session, group_id: int, sender_id: int, content: str) -> GroupMessage:
-    msg = GroupMessage(group_id=group_id, sender_id=sender_id, content=content)
+def get_message_by_id(db: Session, message_id: int) -> GroupMessage | None:
+    return db.query(GroupMessage).filter(GroupMessage.id == message_id).first()
+
+
+def create_message(
+    db: Session,
+    group_id: int,
+    sender_id: int,
+    content: str,
+    reply_to_id: int | None = None,
+) -> GroupMessage:
+    msg = GroupMessage(
+        group_id=group_id, sender_id=sender_id, content=content, reply_to_id=reply_to_id
+    )
     db.add(msg)
     db.commit()
     db.refresh(msg)

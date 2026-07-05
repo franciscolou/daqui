@@ -11,6 +11,7 @@ import { BRAND_FONT } from '../constants/BrandFont';
 import { CATEGORIES, PostCategory } from '../data/mock';
 import { useAuth } from '../lib/auth';
 import { useRealtime } from '../lib/realtime';
+import { useScrollToTop } from '../lib/scrollToTop';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
 import RateModal from './RateModal';
 
@@ -65,6 +66,7 @@ export default function LeftSidebar({
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { unreadMessages, unreadNotifications } = useRealtime();
+  const { trigger } = useScrollToTop();
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
   const Colors = useTheme();
@@ -176,7 +178,7 @@ export default function LeftSidebar({
             <Pressable
               key={item.key}
               style={({ hovered }) => [styles.navItem, isActive && styles.navItemActive, !isActive && hovered && styles.navItemHover]}
-              onPress={() => navigate(item.route)}
+              onPress={() => (isActive ? trigger(item.key) : navigate(item.route))}
             >
               <View style={styles.navIconWrapper}>
                 <Ionicons

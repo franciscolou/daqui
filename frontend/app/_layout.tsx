@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../lib/auth';
 import { RealtimeProvider } from '../lib/realtime';
+import { ScrollToTopProvider } from '../lib/scrollToTop';
 import { ThemeProvider, useThemeMode } from '../lib/theme';
 import '../lib/globalStyles';
 import '../constants/BrandFont'; // preview: aplica a fonte-marca como fonte padrão de todo Text
@@ -19,25 +20,27 @@ export default function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
           <RealtimeProvider>
-            <ThemedStatusBar />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="user/[id]" />
-              <Stack.Screen name="post/[id]" />
-              <Stack.Screen name="poll/[id]" />
-              <Stack.Screen name="messages/[id]" />
-              <Stack.Screen name="groups/index" />
-              <Stack.Screen name="groups/new" />
-              <Stack.Screen name="groups/[id]/index" />
-              <Stack.Screen name="groups/[id]/info" />
-              <Stack.Screen name="neighbors/index" />
-              <Stack.Screen name="rate/index" />
-              <Stack.Screen name="help/index" />
-              <Stack.Screen name="forward/[postId]" />
-              <Stack.Screen name="settings" />
-            </Stack>
+            <ScrollToTopProvider>
+              <ThemedStatusBar />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="user/[id]" />
+                <Stack.Screen name="post/[id]" />
+                <Stack.Screen name="poll/[id]" />
+                <Stack.Screen name="messages/[id]" />
+                <Stack.Screen name="groups/index" />
+                <Stack.Screen name="groups/new" />
+                <Stack.Screen name="groups/[id]/index" />
+                <Stack.Screen name="groups/[id]/info" />
+                <Stack.Screen name="neighbors/index" />
+                <Stack.Screen name="rate/index" />
+                <Stack.Screen name="help/index" />
+                <Stack.Screen name="forward/[postId]" />
+                <Stack.Screen name="settings" />
+              </Stack>
+            </ScrollToTopProvider>
           </RealtimeProvider>
         </AuthProvider>
       </ThemeProvider>

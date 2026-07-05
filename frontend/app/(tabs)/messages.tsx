@@ -7,6 +7,7 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
+  RefreshControl,
   ScrollView,
   Modal,
   Pressable,
@@ -19,6 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { User } from '../../data/mock';
 import { useRealtime } from '../../lib/realtime';
+import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import {
   api,
@@ -66,12 +68,24 @@ export default function MessagesScreen() {
   const [msgLoading, setMsgLoading] = useState(false);
   const [discovered, setDiscovered] = useState<Group[]>([]);
   const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seq = useRef(0);
+  const listRef = useRef<FlatList<InboxItem>>(null);
+
+  useRegisterScrollToTop('messages', () => {
+    if (selected && !isWide) {
+      setSelected(null);
+    } else {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+  });
 
   const load = useCallback(() => {
-    Promise.all([
+    // Vizinhos para o modal de "Nova conversa" (recarrega no foco: robusto ao token).
+    api.getNeighbors().then(setNeighbors).catch(() => {});
+    return Promise.all([
       api.getConversations().catch(() => [] as Conversation[]),
       api.getGroupConversations().catch(() => [] as GroupConversation[]),
     ])
@@ -80,11 +94,15 @@ export default function MessagesScreen() {
         setGroups(gs);
       })
       .finally(() => setLoading(false));
-    // Vizinhos para o modal de "Nova conversa" (recarrega no foco: robusto ao token).
-    api.getNeighbors().then(setNeighbors).catch(() => {});
   }, []);
 
-  useFocusEffect(load);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
 
   // Atualiza a lista de conversas ao vivo quando chega mensagem nova (via websocket).
   useEffect(() => subscribeMessages(() => load()), [subscribeMessages, load]);
@@ -211,9 +229,13 @@ export default function MessagesScreen() {
       <View style={styles.flex}>
         {listHeader}
         <FlatList
+          ref={listRef}
           data={filteredInbox}
           keyExtractor={(item) => item.key}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+          }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => {
             const active =
@@ -326,10 +348,14 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
 function InboxRow({ item, active, onPress }: { item: InboxItem; active: boolean; onPress: () => void }) {
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
+  const { typingDmUserIds, typingGroupUserIds } = useRealtime();
   const isGroup = item.kind === 'group';
   const name = isGroup ? item.conversation.group.name : item.conversation.user.name;
   const avatar = isGroup ? item.conversation.group.avatar : item.conversation.user.avatar;
   const { lastMessage, unread } = item.conversation;
+  const isTyping = isGroup
+    ? typingGroupUserIds(item.conversation.group.id).length > 0
+    : typingDmUserIds.has(item.conversation.user.id);
 
   return (
     <TouchableOpacity style={[styles.msgRow, active && styles.msgRowActive]} activeOpacity={0.85} onPress={onPress}>
@@ -351,7 +377,12 @@ function InboxRow({ item, active, onPress }: { item: InboxItem; active: boolean;
           <Text style={[styles.msgTime, unread > 0 && styles.msgTimeBold]}>{formatConversationTime(item.time)}</Text>
         </View>
         <View style={styles.msgFooter}>
-          <Text style={[styles.msgPreview, unread > 0 && styles.msgPreviewBold]} numberOfLines={1}>{lastMessage}</Text>
+          <Text
+            style={[styles.msgPreview, unread > 0 && styles.msgPreviewBold, isTyping && styles.msgPreviewTyping]}
+            numberOfLines={1}
+          >
+            {isTyping ? 'digitando…' : lastMessage}
+          </Text>
           {unread > 0 && (
             <View style={styles.unreadBadge}>
               <Text style={styles.unreadBadgeText}>{unread}</Text>
@@ -612,6 +643,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   msgFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   msgPreview: { fontSize: 13, color: Colors.textSecondary, flex: 1 },
   msgPreviewBold: { color: Colors.text, fontWeight: '600' },
+  msgPreviewTyping: { color: Colors.primary, fontWeight: '700' },
   unreadBadge: {
     backgroundColor: Colors.primary,
     borderRadius: 10,

@@ -10,6 +10,7 @@ import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import ActionMenu from './ActionMenu';
 import PollBlock from './PollBlock';
+import PostImageGallery from './PostImageGallery';
 import ReportModal from './ReportModal';
 
 interface PostCardProps {
@@ -53,12 +54,12 @@ export default function PostCard({ post, onPress }: PostCardProps) {
 
   return (
     <>
-    <TouchableOpacity style={styles.row} onPress={onPress ?? openPost} activeOpacity={0.92}>
+    <TouchableOpacity style={styles.row} onPress={onPress ?? openPost} activeOpacity={0.92} focusable={false}>
       {/* Important bar on the left edge */}
       {post.important && <View style={styles.importantBar} />}
 
       {/* Left col: avatar */}
-      <TouchableOpacity style={styles.leftCol} onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.leftCol} onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.8} focusable={false}>
         <View style={styles.avatarWrapper}>
           <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
         </View>
@@ -69,7 +70,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         {/* Author + meta row */}
         <View style={styles.topRow}>
           <View style={styles.authorMeta}>
-            <TouchableOpacity onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.7} focusable={false}>
               <Text style={styles.authorName} numberOfLines={1}>{post.author.name}</Text>
             </TouchableOpacity>
             {!!post.author.username && (
@@ -87,6 +88,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
           </View>
           {!isOwnPost && (
             <TouchableOpacity
+              style={styles.iconBtn}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={() => setMenuVisible(true)}
             >
@@ -131,14 +133,8 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         {/* Campos específicos por categoria */}
         <PostDetails post={post} styles={styles} Colors={Colors} />
 
-        {/* Image */}
-        {post.images?.[0] && (
-          <Image
-            source={{ uri: post.images[0] }}
-            style={styles.image}
-            resizeMode="cover"
-          />
-        )}
+        {/* Fotos */}
+        {!!post.images?.length && <PostImageGallery images={post.images} />}
 
         {/* Actions */}
         <View style={styles.actions}>
@@ -267,11 +263,22 @@ function PostDetails({
   }
 
   if (post.location) {
+    const hasCoords = post.latitude != null && post.longitude != null;
     chips.push(
-      <View key="loc" style={styles.detailChip}>
+      <TouchableOpacity
+        key="loc"
+        style={styles.detailChip}
+        disabled={!hasCoords}
+        activeOpacity={0.7}
+        onPress={() =>
+          router.push(
+            `/(tabs)/map?focus=${post.id}&lat=${post.latitude}&lng=${post.longitude}` as any,
+          )
+        }
+      >
         <Ionicons name="location-outline" size={12} color={Colors.textTertiary} />
         <Text style={styles.detailChipText}>{post.location}</Text>
-      </View>,
+      </TouchableOpacity>,
     );
   }
 
@@ -392,12 +399,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     lineHeight: 20,
     marginBottom: 10,
   },
-  image: {
-    width: '100%',
-    height: 200,
-    borderRadius: 14,
-    marginBottom: 10,
-  },
 
   detailsRow: {
     flexDirection: 'row',
@@ -456,5 +457,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     fontSize: 13,
     color: Colors.textTertiary,
     fontWeight: '500',
+  },
+  iconBtn: {
+    padding: 6,
+    borderRadius: 14,
   },
 });

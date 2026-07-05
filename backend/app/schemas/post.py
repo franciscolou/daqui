@@ -48,8 +48,7 @@ class PostCreate(BaseModel):
     category: str
     title: Optional[str] = None
     content: str
-    image_url: Optional[str] = None
-    image: Optional[str] = None  # data URL base64 (ex.: imagem do produto em vendas)
+    images: list[str] = []  # data URLs base64, até 10 fotos
     details: Optional[dict] = None  # campos específicos da categoria
     important: bool = False
     poll: Optional[PollCreate] = None
@@ -66,7 +65,7 @@ class PostOut(BaseModel):
     category: str
     title: Optional[str]
     content: str
-    image_url: Optional[str]
+    image_urls: list[str] = []
     details: Optional[dict] = None
     neighborhood: str
     location: Optional[str] = None

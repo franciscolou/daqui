@@ -9,13 +9,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { CATEGORY_LABELS, CATEGORY_ICONS, PostCategory, Post } from '../../data/mock';
 import { api, NeighborhoodStats } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { formatDistance, haversineMeters } from '../../lib/location';
+import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import LeafletMap from '../../components/LeafletMap';
 import FeedLayout from '../../components/FeedLayout';
 
@@ -43,6 +44,11 @@ export default function MapScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [stats, setStats] = useState<NeighborhoodStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useRegisterScrollToTop('map', () => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  });
 
   useEffect(() => {
     Promise.all([api.getMapPosts(), api.getNeighborhoodStats().catch(() => null)])
@@ -107,7 +113,7 @@ export default function MapScreen() {
 
   return (
     <FeedLayout>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
         {/* Header — padrão claro, uniforme com as demais telas (mobile e desktop) */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Mapa do Bairro</Text>

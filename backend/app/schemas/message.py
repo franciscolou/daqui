@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -12,7 +13,7 @@ class SharedPostOut(BaseModel):
     category: str
     title: str | None
     content: str
-    image_url: str | None
+    image_urls: list[str] = []
     created_at: datetime
     author: UserPublic
 
@@ -23,6 +24,22 @@ class MessageCreate(BaseModel):
     receiver_id: int
     content: str = ""
     shared_post_id: int | None = None
+    reply_to_id: int | None = None
+
+
+class TypingPing(BaseModel):
+    target_type: Literal["dm", "group"]
+    target_id: int
+
+
+class MessageReplyOut(BaseModel):
+    """Prévia compacta da mensagem respondida (marcada com duplo clique)."""
+
+    id: int
+    content: str
+    sender: UserPublic
+
+    model_config = {"from_attributes": True}
 
 
 class MessageOut(BaseModel):
@@ -32,6 +49,7 @@ class MessageOut(BaseModel):
     created_at: datetime
     sender: UserPublic
     shared_post: SharedPostOut | None = None
+    reply_to: MessageReplyOut | None = None
 
     model_config = {"from_attributes": True}
 

@@ -260,13 +260,17 @@ def get_thread(db: Session, user: User, group_id: int) -> list[GroupMessageOut]:
 
 
 def send_message(
-    db: Session, user: User, group_id: int, content: str
+    db: Session, user: User, group_id: int, content: str, reply_to_id: int | None = None
 ) -> GroupMessageOut:
     group = _require_group(db, group_id)
     member = _require_membership(db, group, user)
     content = content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Mensagem vazia")
-    msg = group_dao.create_message(db, group.id, user.id, content)
+    if reply_to_id is not None:
+        replied = group_dao.get_message_by_id(db, reply_to_id)
+        if not replied or replied.group_id != group.id:
+            raise HTTPException(status_code=404, detail="Mensagem respondida não encontrada")
+    msg = group_dao.create_message(db, group.id, user.id, content, reply_to_id)
     group_dao.mark_read(db, member, msg.id)
     return GroupMessageOut.model_validate(msg)

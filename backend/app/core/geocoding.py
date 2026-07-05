@@ -113,6 +113,7 @@ class NearbyPlace(TypedDict):
     neighborhood: str
     latitude: float
     longitude: float
+    distance_m: float
 
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -168,8 +169,9 @@ def nearby(lat: float, lon: float, radius: int = 3000, limit: int = 12) -> list[
         except (KeyError, TypeError, ValueError):
             continue
         seen.add(key)
+        dist = _haversine(lat, lon, elat, elon)
         scored.append(
-            (_haversine(lat, lon, elat, elon), NearbyPlace(neighborhood=str(name), latitude=elat, longitude=elon))
+            (dist, NearbyPlace(neighborhood=str(name), latitude=elat, longitude=elon, distance_m=dist))
         )
 
     scored.sort(key=lambda t: t[0])

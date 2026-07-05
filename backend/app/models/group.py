@@ -69,8 +69,13 @@ class GroupMessage(Base):
     group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"), nullable=False, index=True)
     sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Mensagem respondida (marcada com duplo clique no app). Opcional.
+    reply_to_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("group_messages.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     sender: Mapped["User"] = relationship("User", foreign_keys=[sender_id])  # noqa: F821
+    reply_to: Mapped[Optional["GroupMessage"]] = relationship("GroupMessage", remote_side=[id])

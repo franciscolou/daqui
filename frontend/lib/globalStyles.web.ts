@@ -57,6 +57,27 @@ if (typeof document !== 'undefined') {
         scrollbar-width: thin;
         scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
       }
+
+      /* Hover para tudo que é clicável (TouchableOpacity/Pressable ganham
+         tabindex="0" automaticamente no RNW; elementos desabilitados viram
+         tabindex="-1", então já ficam de fora). Só em dispositivos com mouse
+         de verdade, pra não deixar hover "grudado" em telas de toque.
+         Usa box-shadow inset (não background-color) pra dar um realce visível
+         sem apagar a cor de fundo própria do elemento (botão verde, chip
+         colorido etc.) — o shadow soma por cima, respeitando o border-radius
+         de cada um. Um mero opacity dim sozinho é sutil demais em ícones
+         pequenos (like/comentário/compartilhar), por isso o reforço. */
+      @media (hover: hover) and (pointer: fine) {
+        div[tabindex="0"] {
+          transition: box-shadow .15s ease, opacity .15s ease;
+        }
+        div[tabindex="0"]:hover {
+          box-shadow: inset 0 0 0 999px rgba(120, 130, 145, 0.16);
+        }
+        div[tabindex="0"]:active {
+          box-shadow: inset 0 0 0 999px rgba(120, 130, 145, 0.26);
+        }
+      }
     `;
     document.head.appendChild(style);
   }
