@@ -342,8 +342,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderRadius: 6,
   },
   catText: { fontSize: 11, fontWeight: '700' },
-  title: { fontSize: 17, fontWeight: '800', color: Colors.text, marginBottom: 6, letterSpacing: -0.2 },
-  body: { fontSize: 15, color: Colors.text, lineHeight: 22, marginBottom: 12 },
+  title: { fontSize: 17, fontWeight: '700', color: Colors.text, marginBottom: 6, letterSpacing: -0.2 },
+  body: { fontSize: 15, color: Colors.text, lineHeight: 22, marginBottom: 12, fontWeight: "400" },
   image: { width: '100%', height: 220, borderRadius: 14, marginBottom: 12 },
   locationRow: {
     flexDirection: 'row',

@@ -380,7 +380,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
 
   title: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Colors.text,
     marginBottom: 4,
     letterSpacing: -0.2,

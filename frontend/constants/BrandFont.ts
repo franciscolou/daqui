@@ -38,15 +38,25 @@ export const BRAND_FONT = FAMILIES[SELECTED];
 
 // ── Carregamento das fontes na web ─────────────────────────────────────────
 // `document` só existe na web; no nativo (RN) isto é ignorado.
+// Inclui o peso 400 (regular) em todas as famílias — sem ele, o navegador
+// substitui qualquer <Text> sem fontWeight explícito (ou seja, a maioria do
+// corpo de texto do app) pela face mais pesada disponível (600+), deixando
+// tudo com aparência de negrito mesmo onde o CSS não pede isso.
 const GOOGLE_FONTS_HREF =
-  'https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800;900&family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap';
+  'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&display=swap';
 
-if (typeof document !== 'undefined' && !document.getElementById('daqui-brand-fonts')) {
-  const link = document.createElement('link');
-  link.id = 'daqui-brand-fonts';
-  link.rel = 'stylesheet';
-  link.href = GOOGLE_FONTS_HREF;
-  document.head.appendChild(link);
+if (typeof document !== 'undefined') {
+  let link = document.getElementById('daqui-brand-fonts') as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement('link');
+    link.id = 'daqui-brand-fonts';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  // Atualiza o href mesmo se a tag já existir — sem isso, o Fast Refresh nunca
+  // pega mudanças nos pesos carregados (a tag persiste no DOM entre reloads
+  // do módulo, então só criar-se-não-existir deixava presos nos pesos antigos).
+  if (link.href !== GOOGLE_FONTS_HREF) link.href = GOOGLE_FONTS_HREF;
 }
 
 // ── Preview global: BRAND_FONT como fonte padrão de todo <Text> ─────────────
