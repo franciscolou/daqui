@@ -117,11 +117,11 @@ export default function ForwardScreen() {
       <WideLayout>
         <View style={styles.column}>
           <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
+            <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.back()} hitSlop={10}>
               <Ionicons name="arrow-back" size={22} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>Encaminhar</Text>
-            <View style={{ width: 22 }} />
+            <View style={styles.topBarIconBtn} />
           </View>
 
           {loading ? (
@@ -218,6 +218,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   topBarTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  topBarIconBtn: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
   previewWrap: { padding: 16 },
   error: { color: Colors.error, fontSize: 13, paddingHorizontal: 16, marginBottom: 10 },

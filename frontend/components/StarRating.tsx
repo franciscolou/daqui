@@ -44,7 +44,12 @@ export default function StarRating({
             {full && <Ionicons name="star" size={size} color={GOLD} style={styles.icon} />}
             {half && <Ionicons name="star-half" size={size} color={GOLD} style={styles.icon} />}
             {!readOnly && !!onChange && (
-              <TouchableOpacity style={styles.tap} activeOpacity={0.7} onPress={() => cycle(i)} />
+              <TouchableOpacity
+                style={styles.tap}
+                activeOpacity={0.7}
+                onPress={() => cycle(i)}
+                focusable={false}
+              />
             )}
           </View>
         );

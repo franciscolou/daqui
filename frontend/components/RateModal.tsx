@@ -19,11 +19,11 @@ export default function RateModal({ visible, onClose }: { visible: boolean; onCl
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable style={styles.overlay} onPress={onClose} tabIndex={-1}>
+        <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Avaliar o Daqui</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -54,4 +54,5 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
   headerTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  closeBtn: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 });

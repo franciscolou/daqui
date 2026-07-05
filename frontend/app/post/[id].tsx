@@ -208,16 +208,16 @@ export default function PostDetailScreen() {
       <WideLayout showMobileMenu={false}>
       <View style={styles.column}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
+        <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{post?.poll ? 'Enquete' : 'Post'}</Text>
         {post?.poll && post.author.id === user?.id ? (
-          <TouchableOpacity onPress={() => router.push(`/poll/${post.id}` as any)} hitSlop={10}>
+          <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.push(`/poll/${post.id}` as any)} hitSlop={10}>
             <Ionicons name="create-outline" size={22} color={Colors.primary} />
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 22 }} />
+          <View style={styles.topBarIconBtn} />
         )}
       </View>
 
@@ -359,6 +359,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   topBarTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  topBarIconBtn: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 
   post: { paddingHorizontal: 16, paddingTop: 14 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },

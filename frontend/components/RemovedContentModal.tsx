@@ -33,11 +33,11 @@ export default function RemovedContentModal({
 
   return (
     <Modal visible={!!notification} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable style={styles.overlay} onPress={onClose} tabIndex={-1}>
+        <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{isPost ? 'Post removido' : 'Comentário removido'}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -107,6 +107,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   headerTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  closeBtn: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   body: { gap: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   catTag: {

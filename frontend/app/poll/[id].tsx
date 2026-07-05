@@ -97,7 +97,7 @@ export default function EditPollScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <WideLayout showMobileMenu={false}>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
+          <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.back()} hitSlop={10}>
             <Ionicons name="arrow-back" size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>Editar enquete</Text>
@@ -172,6 +172,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   topBarTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  topBarIconBtn: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   saveBtn: {
     backgroundColor: Colors.primary,
     borderRadius: 11,
