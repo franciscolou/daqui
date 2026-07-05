@@ -41,6 +41,8 @@ export default function PostDetailScreen() {
   const [likesCount, setLikesCount] = useState(0);
   const [commentMenu, setCommentMenu] = useState<Comment | null>(null);
   const [reportComment, setReportComment] = useState<Comment | null>(null);
+  const [postMenuVisible, setPostMenuVisible] = useState(false);
+  const [reportPostVisible, setReportPostVisible] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -97,28 +99,38 @@ export default function PostDetailScreen() {
   const header = post && (
     <View>
       <View style={styles.post}>
-        <TouchableOpacity
-          style={styles.authorRow}
-          onPress={() => router.push(`/user/${post.author.id}` as any)}
-          activeOpacity={0.8}
-        >
-          <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
-          <View style={{ flex: 1 }}>
-            <View style={styles.authorNameRow}>
-              <Text style={styles.authorName} numberOfLines={1}>{post.author.name}</Text>
-              {!!post.author.username && (
-                <Text style={styles.authorUsername} numberOfLines={1}>@{post.author.username}</Text>
-              )}
+        <View style={styles.authorRow}>
+          <TouchableOpacity
+            style={styles.authorRowLeft}
+            onPress={() => router.push(`/user/${post.author.id}` as any)}
+            activeOpacity={0.8}
+          >
+            <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
+            <View style={{ flex: 1 }}>
+              <View style={styles.authorNameRow}>
+                <Text style={styles.authorName} numberOfLines={1}>{post.author.name}</Text>
+                {!!post.author.username && (
+                  <Text style={styles.authorUsername} numberOfLines={1}>@{post.author.username}</Text>
+                )}
+              </View>
+              <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
             </View>
-            <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
-          </View>
+          </TouchableOpacity>
           <View style={[styles.catTag, { backgroundColor: catColor + '18' }]}>
             <Ionicons name={CATEGORY_ICONS[post.category] as any} size={10} color={catColor} />
             <Text style={[styles.catText, { color: catColor }]}>
               {CATEGORY_LABELS[post.category]}
             </Text>
           </View>
-        </TouchableOpacity>
+          {post.author.id !== user?.id && (
+            <TouchableOpacity
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => setPostMenuVisible(true)}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {post.title && <Text style={styles.title}>{post.title}</Text>}
         <Text style={styles.body}>{post.content}</Text>
@@ -305,6 +317,26 @@ export default function PostDetailScreen() {
         targetType="comment"
         targetId={reportComment?.id ?? ''}
       />
+
+      <ActionMenu
+        visible={postMenuVisible}
+        onClose={() => setPostMenuVisible(false)}
+        options={[
+          {
+            key: 'report',
+            label: 'Denunciar publicação',
+            icon: 'flag-outline',
+            destructive: true,
+            onPress: () => setReportPostVisible(true),
+          },
+        ]}
+      />
+      <ReportModal
+        visible={reportPostVisible}
+        onClose={() => setReportPostVisible(false)}
+        targetType="post"
+        targetId={post?.id ?? ''}
+      />
     </SafeAreaView>
   );
 }
@@ -328,6 +360,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
 
   post: { paddingHorizontal: 16, paddingTop: 14 },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  authorRowLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
   avatar: { width: 44, height: 44, borderRadius: 22 },
   authorNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   authorName: { fontSize: 15, fontWeight: '700', color: Colors.text, flexShrink: 1 },
