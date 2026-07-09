@@ -16,9 +16,9 @@ from app.services import audit_log as audit_log_service
 
 def _visible_post_or_404(db: Session, post_id: int, viewer: User):
     post = post_dao.get_by_id(db, post_id)
-    # Isolamento por bairro: post de outro bairro é como se não existisse.
-    # Moderador não tem essa restrição — pode ver comentários de qualquer bairro.
-    if not post or (post.neighborhood != viewer.neighborhood and not viewer.is_moderator):
+    # Qualquer usuário pode ver e comentar qualquer post (o isolamento fica só
+    # no feed, que não exibe posts de outros bairros espontaneamente).
+    if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
     return post
 

@@ -1,3 +1,5 @@
+import time
+
 from fastapi import HTTPException
 
 from app.core import geocoding
@@ -7,6 +9,30 @@ from app.schemas.geo import GeocodeResult, NearbyNeighborhood, NeighborhoodResol
 
 def _norm(value: str) -> str:
     return (value or "").strip().lower()
+
+
+# Cache em memória dos bairros vizinhos por ponto. O Overpass é lento (~25s de
+# timeout) e limitado por taxa, então não pode rodar a cada carga de feed. A
+# chave arredonda lat/lng em 2 casas (~1km) e o valor expira em 6h.
+_NEARBY_TTL = 6 * 60 * 60
+_nearby_cache: dict[tuple[float, float], tuple[float, list[str]]] = {}
+
+
+def neighborhoods_around(latitude: float, longitude: float) -> list[str]:
+    """Nomes dos bairros vizinhos ao ponto (para o feed 'incluir redondezas').
+
+    Reusa `geocoding.nearby` (OSM/Overpass) com cache por ponto. Tolerante a
+    falha: devolve [] se o Overpass não responder.
+    """
+    key = (round(latitude, 2), round(longitude, 2))
+    now = time.monotonic()
+    cached = _nearby_cache.get(key)
+    if cached and now - cached[0] < _NEARBY_TTL:
+        return cached[1]
+    places = geocoding.nearby(latitude, longitude)
+    names = [p["neighborhood"] for p in places if p["neighborhood"]]
+    _nearby_cache[key] = (now, names)
+    return names
 
 
 def resolve_neighborhood(latitude: float, longitude: float) -> NeighborhoodResolution:

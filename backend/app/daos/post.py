@@ -11,12 +11,12 @@ def get_by_id(db: Session, post_id: int) -> Post | None:
 
 def list_feed(
     db: Session,
-    neighborhood: str,
+    neighborhoods: list[str],
     category: str | None,
     offset: int,
     limit: int,
 ) -> list[Post]:
-    q = db.query(Post).filter(Post.neighborhood == neighborhood)
+    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods))
     if category and category != "todos":
         q = q.filter(Post.category == category)
     return (
@@ -85,8 +85,8 @@ def count_by_author(db: Session, author_id: int) -> int:
     return db.query(Post).filter(Post.author_id == author_id).count()
 
 
-def count_feed(db: Session, neighborhood: str, category: str | None) -> int:
-    q = db.query(Post).filter(Post.neighborhood == neighborhood)
+def count_feed(db: Session, neighborhoods: list[str], category: str | None) -> int:
+    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods))
     if category and category != "todos":
         q = q.filter(Post.category == category)
     return q.count()

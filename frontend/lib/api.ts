@@ -807,8 +807,20 @@ export const api = {
     return request<NeighborhoodStats>('/users/neighborhood-stats');
   },
 
-  async getFeed(category?: string): Promise<Post[]> {
-    const q = category && category !== 'todos' ? `?category=${category}` : '';
+  async getFeed(opts: {
+    category?: string;
+    neighborhood?: string; // bairro em foco (ex.: "perto de mim"); ausente = bairro cadastrado
+    latitude?: number;
+    longitude?: number;
+    includeNearby?: boolean; // incluir também os bairros vizinhos
+  } = {}): Promise<Post[]> {
+    const params = new URLSearchParams();
+    if (opts.category && opts.category !== 'todos') params.set('category', opts.category);
+    if (opts.neighborhood) params.set('neighborhood', opts.neighborhood);
+    if (opts.latitude != null) params.set('latitude', String(opts.latitude));
+    if (opts.longitude != null) params.set('longitude', String(opts.longitude));
+    if (opts.includeNearby) params.set('include_nearby', 'true');
+    const q = params.toString() ? `?${params.toString()}` : '';
     const r = await request<{ items: BackendPost[] }>(`/posts/feed${q}`);
     return r.items.map(mapPost);
   },

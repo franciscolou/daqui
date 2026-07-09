@@ -13,10 +13,24 @@ def get_feed(
     category: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
+    neighborhood: Optional[str] = Query(None),
+    latitude: Optional[float] = Query(None),
+    longitude: Optional[float] = Query(None),
+    include_nearby: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PostFeed:
-    return post.get_feed(db, current_user, category, page, page_size)
+    return post.get_feed(
+        db,
+        current_user,
+        category,
+        page,
+        page_size,
+        neighborhood=neighborhood,
+        latitude=latitude,
+        longitude=longitude,
+        include_nearby=include_nearby,
+    )
 
 
 def list_by_author(

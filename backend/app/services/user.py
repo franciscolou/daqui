@@ -22,32 +22,9 @@ from app.services import audit_log as audit_log_service
 
 
 def public_view(viewer: User, target: User) -> UserPublic:
-    """Serializa um usuário respeitando o isolamento por bairro.
-
-    Perfis de outro bairro vêm "bloqueados": só nome popular, @username, foto e
-    quantidade de posts. O resto é ocultado. Moderador não tem essa
-    restrição — enxerga o perfil completo de qualquer bairro.
-    """
-    if target.neighborhood == viewer.neighborhood or viewer.is_moderator:
-        return UserPublic.model_validate(target)
-    return UserPublic(
-        id=target.id,
-        username=target.username,
-        name=target.name,
-        bio=None,
-        avatar_url=target.avatar_url,
-        neighborhood="",
-        city=None,
-        state=None,
-        badge=None,
-        verified=False,
-        posts_count=target.posts_count,
-        interactions_count=target.interactions_count,
-        created_at=target.created_at,
-        latitude=None,
-        longitude=None,
-        locked=True,
-    )
+    """Serializa um usuário. Qualquer usuário pode ver o perfil completo de
+    qualquer bairro — o isolamento fica só no feed."""
+    return UserPublic.model_validate(target)
 
 
 def get_neighbors(db: Session, user: User) -> list[User]:
@@ -80,7 +57,7 @@ def get_neighborhood_stats(db: Session, user: User) -> NeighborhoodStats:
     return NeighborhoodStats(
         neighborhood=user.neighborhood,
         neighbors=user_dao.count_by_neighborhood(db, user.neighborhood),
-        posts=post_dao.count_feed(db, user.neighborhood, None),
+        posts=post_dao.count_feed(db, [user.neighborhood], None),
     )
 
 

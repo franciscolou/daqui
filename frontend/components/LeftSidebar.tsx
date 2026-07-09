@@ -22,6 +22,10 @@ interface Props {
   onCategoryChange?: (key: string) => void;
   importantOnly?: boolean;
   onImportantChange?: (value: boolean) => void;
+  // Redondezas: liga/desliga a inclusão de bairros vizinhos na visualização
+  // ativa do feed. Reflete a preferência da aba atual ("Meu bairro"/"Perto de mim").
+  includeNearby?: boolean;
+  onIncludeNearbyChange?: (value: boolean) => void;
   onNavigate?: () => void; // chamado ao tocar em um item (ex.: fechar o drawer no mobile)
 }
 
@@ -61,6 +65,8 @@ export default function LeftSidebar({
   onCategoryChange,
   importantOnly,
   onImportantChange,
+  includeNearby,
+  onIncludeNearbyChange,
   onNavigate,
 }: Props) {
   const pathname = usePathname();
@@ -252,6 +258,19 @@ export default function LeftSidebar({
               </View>
               <Text style={styles.importantLabel}>Somente importantes</Text>
             </Pressable>
+            {/* Redondezas: aplica à visualização ativa do feed */}
+            {onIncludeNearbyChange && (
+              <View style={[styles.navItem, styles.nearbyRow]}>
+                <Ionicons name="git-network-outline" size={17} color={Colors.textSecondary} />
+                <Text style={styles.navLabel}>Incluir redondezas</Text>
+                <Switch
+                  value={!!includeNearby}
+                  onValueChange={onIncludeNearbyChange}
+                  trackColor={{ false: Colors.border, true: Colors.primary }}
+                  thumbColor="#fff"
+                />
+              </View>
+            )}
           </View>
         </>
       )}
@@ -344,6 +363,7 @@ export default function LeftSidebar({
 
 const makeStyles = (Colors: Palette) => StyleSheet.create({
   themeRow: { justifyContent: 'space-between', paddingVertical: 4 },
+  nearbyRow: { justifyContent: 'space-between', paddingVertical: 4 },
   sidebar: {
     width: 220,
     backgroundColor: Colors.background,

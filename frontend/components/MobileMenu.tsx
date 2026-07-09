@@ -20,6 +20,8 @@ interface Props {
   onCategoryChange?: (key: string) => void;
   importantOnly?: boolean;
   onImportantChange?: (value: boolean) => void;
+  includeNearby?: boolean;
+  onIncludeNearbyChange?: (value: boolean) => void;
 }
 
 export default function MobileMenu({
@@ -28,6 +30,8 @@ export default function MobileMenu({
   onCategoryChange,
   importantOnly,
   onImportantChange,
+  includeNearby,
+  onIncludeNearbyChange,
 }: Props) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -54,6 +58,8 @@ export default function MobileMenu({
                 onCategoryChange={onCategoryChange}
                 importantOnly={importantOnly}
                 onImportantChange={onImportantChange}
+                includeNearby={includeNearby}
+                onIncludeNearbyChange={onIncludeNearbyChange}
               />
             </ScrollView>
           </Pressable>

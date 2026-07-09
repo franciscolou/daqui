@@ -11,6 +11,9 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming, Easing,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
@@ -19,6 +22,7 @@ import { BRAND_FONT } from '../../constants/BrandFont';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { CATEGORIES, PostCategory, Post } from '../../data/mock';
 import { api } from '../../lib/api';
+import { getDeviceCoords, LocationError, Coords } from '../../lib/location';
 import { useAuth } from '../../lib/auth';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import PostCard from '../../components/PostCard';
@@ -27,6 +31,7 @@ import RightSidebar from '../../components/RightSidebar';
 import MobileMenu from '../../components/MobileMenu';
 
 type FilterKey = 'todos' | PostCategory;
+type ViewMode = 'meu' | 'perto';
 
 const WIDE = 900;
 
@@ -45,34 +50,126 @@ export default function FeedScreen() {
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<FlatList<Post>>(null);
 
+  // Visualização ativa e preferência de "redondezas" por visualização.
+  const [viewMode, setViewMode] = useState<ViewMode>('meu');
+  const [nearbyMeu, setNearbyMeu] = useState(false);
+  const [nearbyPerto, setNearbyPerto] = useState(false);
+  // "Perto de mim": bairro/coords resolvidos pelo GPS atual do dispositivo.
+  const [pertoCoords, setPertoCoords] = useState<Coords | null>(null);
+  const [pertoNeighborhood, setPertoNeighborhood] = useState<string | null>(null);
+  const [locLoading, setLocLoading] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
+
+  const nearbyActive = viewMode === 'meu' ? nearbyMeu : nearbyPerto;
+
+  // Animação de slide ao alternar as abas.
+  const contentX = useSharedValue(0);
+  const indicator = useSharedValue(0); // 0 = "meu", 1 = "perto"
+  const [tabsWidth, setTabsWidth] = useState(0);
+
   useRegisterScrollToTop('index', () => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
   });
 
+  // Descobre o bairro atual pelo GPS (usado sempre que a aba "Perto de mim" é ativada).
+  const fetchPertoLocation = useCallback(async () => {
+    setLocError(null);
+    setLocLoading(true);
+    try {
+      const coords = await getDeviceCoords();
+      const res = await api.resolveNeighborhood(coords.latitude, coords.longitude);
+      setPertoCoords(coords);
+      setPertoNeighborhood(res.neighborhood);
+    } catch (e) {
+      setPertoCoords(null);
+      setPertoNeighborhood(null);
+      setLocError(
+        e instanceof LocationError
+          ? e.message
+          : 'Não foi possível descobrir seu bairro agora.',
+      );
+    } finally {
+      setLocLoading(false);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     try {
       setError(null);
-      const feed = await api.getFeed();
+      let feed: Post[];
+      if (viewMode === 'meu') {
+        feed = await api.getFeed({
+          includeNearby: nearbyMeu,
+          latitude: user?.latitude,
+          longitude: user?.longitude,
+        });
+      } else {
+        // Sem localização resolvida ainda: a UI mostra o estado de localização.
+        if (!pertoNeighborhood || !pertoCoords) {
+          setPosts([]);
+          return;
+        }
+        feed = await api.getFeed({
+          neighborhood: pertoNeighborhood,
+          latitude: pertoCoords.latitude,
+          longitude: pertoCoords.longitude,
+          includeNearby: nearbyPerto,
+        });
+      }
       setPosts(feed);
     } catch {
       setError('Não foi possível carregar o feed.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [viewMode, nearbyMeu, nearbyPerto, pertoCoords, pertoNeighborhood, user]);
 
-  // Recarrega ao focar a tela (reflete novos posts, curtidas e comentários)
+  // Recarrega ao focar a tela e sempre que a visualização/preferências mudam
+  // (reflete novos posts, curtidas e comentários).
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load]),
   );
 
+  const switchView = useCallback((mode: ViewMode) => {
+    if (mode === viewMode) {
+      // Retoque na aba "Perto de mim" reobtém a localização.
+      if (mode === 'perto') fetchPertoLocation();
+      return;
+    }
+    const dir = mode === 'perto' ? 1 : -1;
+    contentX.value = dir * 60;
+    contentX.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
+    indicator.value = withTiming(mode === 'perto' ? 1 : 0, {
+      duration: 220,
+      easing: Easing.inOut(Easing.cubic),
+    });
+    setViewMode(mode);
+    if (mode === 'perto') fetchPertoLocation();
+  }, [viewMode, fetchPertoLocation, contentX, indicator]);
+
+  const onIncludeNearbyChange = useCallback(
+    (value: boolean) => {
+      if (viewMode === 'meu') setNearbyMeu(value);
+      else setNearbyPerto(value);
+    },
+    [viewMode],
+  );
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    if (viewMode === 'perto') await fetchPertoLocation();
     await load();
     setRefreshing(false);
-  }, [load]);
+  }, [viewMode, fetchPertoLocation, load]);
+
+  const contentStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: contentX.value }],
+  }));
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicator.value * (tabsWidth / 2) }],
+  }));
 
   const filteredPosts = posts.filter(
     (p) =>
@@ -98,6 +195,36 @@ export default function FeedScreen() {
         </TouchableOpacity>
       </View>
       <View style={styles.composeDivider} />
+
+      {/* View tabs: "Meu bairro" | "Perto de mim" (desktop e mobile) */}
+      <View
+        style={styles.viewTabs}
+        onLayout={(e) => setTabsWidth(e.nativeEvent.layout.width)}
+      >
+        {(['meu', 'perto'] as ViewMode[]).map((mode) => {
+          const isActive = viewMode === mode;
+          return (
+            <TouchableOpacity
+              key={mode}
+              style={styles.viewTab}
+              activeOpacity={0.7}
+              onPress={() => switchView(mode)}
+            >
+              <Ionicons
+                name={mode === 'meu' ? 'home' : 'navigate'}
+                size={15}
+                color={isActive ? Colors.primary : Colors.textTertiary}
+              />
+              <Text style={[styles.viewTabText, isActive && styles.viewTabTextActive]}>
+                {mode === 'meu' ? 'Meu bairro' : 'Perto de mim'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+        <Animated.View
+          style={[styles.viewTabIndicator, { width: tabsWidth / 2 }, indicatorStyle]}
+        />
+      </View>
 
       {/* Category filter tabs */}
       {!isWide && (
@@ -128,42 +255,70 @@ export default function FeedScreen() {
     </>
   );
 
+  // Estado exibido no corpo do feed vazio: prioriza a resolução de localização
+  // na aba "Perto de mim".
+  const renderEmpty = () => {
+    if (viewMode === 'perto' && locLoading) {
+      return (
+        <View style={styles.feedState}>
+          <ActivityIndicator color={Colors.primary} />
+          <Text style={styles.feedStateText}>Descobrindo seu bairro…</Text>
+        </View>
+      );
+    }
+    if (viewMode === 'perto' && locError) {
+      return (
+        <View style={styles.feedState}>
+          <Ionicons name="location-outline" size={32} color={Colors.textTertiary} />
+          <Text style={styles.feedStateText}>{locError}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={fetchPertoLocation}>
+            <Text style={styles.retryText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (loading) {
+      return (
+        <View style={styles.feedState}>
+          <ActivityIndicator color={Colors.primary} />
+        </View>
+      );
+    }
+    return (
+      <View style={styles.feedState}>
+        <Ionicons
+          name={error ? 'cloud-offline-outline' : 'newspaper-outline'}
+          size={32}
+          color={Colors.textTertiary}
+        />
+        <Text style={styles.feedStateText}>
+          {error ?? 'Nenhum post por aqui ainda.'}
+        </Text>
+        {error && (
+          <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
+            <Text style={styles.retryText}>Tentar novamente</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   const feed = (
-    <FlatList
-      ref={listRef}
-      data={filteredPosts}
-      keyExtractor={(item) => item.id}
-      showsVerticalScrollIndicator={false}
-      ListHeaderComponent={feedHeader}
-      renderItem={({ item }) => <PostCard post={item} />}
-      contentContainerStyle={styles.listContent}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
-      }
-      ListEmptyComponent={
-        loading ? (
-          <View style={styles.feedState}>
-            <ActivityIndicator color={Colors.primary} />
-          </View>
-        ) : (
-          <View style={styles.feedState}>
-            <Ionicons
-              name={error ? 'cloud-offline-outline' : 'newspaper-outline'}
-              size={32}
-              color={Colors.textTertiary}
-            />
-            <Text style={styles.feedStateText}>
-              {error ?? 'Nenhum post por aqui ainda.'}
-            </Text>
-            {error && (
-              <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
-                <Text style={styles.retryText}>Tentar novamente</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )
-      }
-    />
+    <Animated.View style={[styles.feedFill, contentStyle]}>
+      <FlatList
+        ref={listRef}
+        data={filteredPosts}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={feedHeader}
+        renderItem={({ item }) => <PostCard post={item} />}
+        contentContainerStyle={styles.listContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
+        ListEmptyComponent={renderEmpty}
+      />
+    </Animated.View>
   );
 
   return (
@@ -178,6 +333,8 @@ export default function FeedScreen() {
               onCategoryChange={(k) => setActiveCategory(k as FilterKey)}
               importantOnly={importantOnly}
               onImportantChange={setImportantOnly}
+              includeNearby={nearbyActive}
+              onIncludeNearbyChange={onIncludeNearbyChange}
             />
           </ScrollView>
 
@@ -201,6 +358,8 @@ export default function FeedScreen() {
               onCategoryChange={(k) => setActiveCategory(k as FilterKey)}
               importantOnly={importantOnly}
               onImportantChange={setImportantOnly}
+              includeNearby={nearbyActive}
+              onIncludeNearbyChange={onIncludeNearbyChange}
             />
           </View>
           {feed}
@@ -298,6 +457,41 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   composeDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.border,
+  },
+  feedFill: { flex: 1 },
+  /* ── View tabs (Meu bairro / Perto de mim) ── */
+  viewTabs: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    position: 'relative',
+  },
+  viewTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+  },
+  viewTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textTertiary,
+  },
+  viewTabTextActive: {
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  viewTabIndicator: {
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    height: 2.5,
+    backgroundColor: Colors.primary,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
   },
   mobileTabs: {
     backgroundColor: Colors.surface,

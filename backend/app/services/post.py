@@ -81,10 +81,30 @@ def get_feed(
     category: str | None,
     page: int,
     page_size: int,
+    neighborhood: str | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    include_nearby: bool = False,
 ) -> PostFeed:
+    # Bairro em foco: o cadastrado ("Meu bairro") ou o informado pelo cliente
+    # ("Perto de mim", resolvido pelo GPS atual).
+    center = neighborhood or user.neighborhood
+    neighborhoods = [center]
+    if include_nearby:
+        # Para as redondezas precisamos de um ponto; usa o informado ou, na
+        # falta, a localização cadastrada do usuário.
+        lat = latitude if latitude is not None else user.latitude
+        lon = longitude if longitude is not None else user.longitude
+        if lat is not None and lon is not None:
+            nearby = geo.neighborhoods_around(lat, lon)
+            # Preserva o bairro em foco no topo e acrescenta os vizinhos (sem duplicar).
+            for name in nearby:
+                if name and name not in neighborhoods:
+                    neighborhoods.append(name)
+
     offset = (page - 1) * page_size
-    posts = post_dao.list_feed(db, user.neighborhood, category, offset, page_size)
-    total = post_dao.count_feed(db, user.neighborhood, category)
+    posts = post_dao.list_feed(db, neighborhoods, category, offset, page_size)
+    total = post_dao.count_feed(db, neighborhoods, category)
     return PostFeed(
         items=[_to_schema(p, user, db) for p in posts],
         total=total,
@@ -102,9 +122,7 @@ def get_top_important(db: Session, viewer: User) -> PostOut | None:
 
 def list_by_author(db: Session, author_id: int, viewer: User) -> list[PostOut]:
     author = user_dao.get_by_id(db, author_id)
-    # Perfis de outro bairro são bloqueados: não expõem os posts.
-    # Moderador não tem essa restrição — pode inspecionar qualquer bairro.
-    if not author or (author.neighborhood != viewer.neighborhood and not viewer.is_moderator):
+    if not author:
         return []
     posts = post_dao.list_by_author(db, author_id)
     return [_to_schema(p, viewer, db) for p in posts]
@@ -117,9 +135,9 @@ def get_map_posts(db: Session, viewer: User) -> list[PostOut]:
 
 def get_post(db: Session, post_id: int, viewer: User) -> PostOut:
     post = post_dao.get_by_id(db, post_id)
-    # Isolamento: só é possível ver posts do próprio bairro (404 não vaza a
-    # existência) — exceto para o moderador, que pode ver posts de qualquer bairro.
-    if not post or (post.neighborhood != viewer.neighborhood and not viewer.is_moderator):
+    # Qualquer usuário pode abrir qualquer post — o isolamento fica só no feed,
+    # que não exibe posts de outros bairros espontaneamente.
+    if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
     return _to_schema(post, viewer, db)
 
@@ -342,7 +360,7 @@ def _apply_poll_update(db: Session, post: Post, poll: PollUpdate) -> None:
 
 def vote_poll(db: Session, post_id: int, user: User, option_ids: list[int]) -> PostOut:
     post = post_dao.get_by_id(db, post_id)
-    if not post or post.neighborhood != user.neighborhood:
+    if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
     if post.category != "enquete" or post.poll_closes_at is None:
         raise HTTPException(status_code=400, detail="Este post não é uma enquete")
@@ -370,7 +388,7 @@ def vote_poll(db: Session, post_id: int, user: User, option_ids: list[int]) -> P
 def unvote_poll(db: Session, post_id: int, user: User) -> PostOut:
     """Remove o(s) voto(s) do usuário na enquete (desvotar)."""
     post = post_dao.get_by_id(db, post_id)
-    if not post or post.neighborhood != user.neighborhood:
+    if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
     if post.category != "enquete" or post.poll_closes_at is None:
         raise HTTPException(status_code=400, detail="Este post não é uma enquete")
