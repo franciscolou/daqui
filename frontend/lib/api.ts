@@ -744,11 +744,6 @@ export const api = {
     username: string;
     email: string;
     password: string;
-    neighborhood: string;
-    city: string;
-    state?: string;
-    latitude?: number;
-    longitude?: number;
   }): Promise<string> {
     const r = await request<{ access_token: string }>('/auth/signup', {
       method: 'POST',
@@ -824,6 +819,10 @@ export const api = {
     name?: string;
     bio?: string;
     neighborhood?: string;
+    city?: string;
+    state?: string;
+    latitude?: number;
+    longitude?: number;
   }): Promise<User> {
     return mapUser(
       await request<BackendUser>('/users/me', { method: 'PATCH', body: payload }),

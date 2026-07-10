@@ -16,16 +16,10 @@ import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
 import { useAuth } from '../../lib/auth';
-import { api, ApiError, NeighborhoodStats, NearbyNeighborhood } from '../../lib/api';
-import { getDeviceCoords, LocationError } from '../../lib/location';
+import { api, ApiError } from '../../lib/api';
 import { useAvailability, AvailabilityState } from '../../lib/useAvailability';
 
 const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
-
-const formatDistance = (meters: number) =>
-  meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
-
-type GeoStatus = 'idle' | 'locating' | 'resolved' | 'error';
 
 // ─── Dados estáticos ────────────────────────────────────────────
 const FEATURES = [
@@ -39,7 +33,7 @@ const POSTS = [
   { color: '#F59E0B', label: 'Recomendação',  text: 'Padaria nova na Harmonia 🥐' },
   { color: '#EC4899', label: 'Pets',  text: 'Gatinha encontrada aqui no…' },
 ];
-const SIGNUP_STEPS = ['Conta', 'Bairro', 'Pronto'];
+const SIGNUP_STEPS = ['Conta', 'Pronto'];
 
 // ─── Bolha decorativa animada ────────────────────────────────────
 // Flutua sozinha (drift suave em X/Y, com fases próprias) e reage ao mouse
@@ -114,20 +108,6 @@ export default function WelcomeScreen() {
     ready: (v) => v.length >= 3,
   });
   const emailCheck = useAvailability(email, api.checkSignupEmail, { ready: emailLooksReady });
-  // Bairro designado pela localização do dispositivo (não digitado).
-  const [neighborhood, setNeighborhood] = useState('');
-  const [city, setCity] = useState('São Paulo');
-  const [uf, setUf] = useState('SP');
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [geoStatus, setGeoStatus] = useState<GeoStatus>('idle');
-  // Bairros vizinhos (quando o detectado não é o do usuário).
-  // `nearby` guarda o resultado da busca (cache); null = ainda não buscado.
-  // A busca é feita UMA vez, ancorada na localização detectada — reabrir o
-  // picker reusa o cache, então não dá pra "pular" de bairro em bairro.
-  const [nearby, setNearby] = useState<NearbyNeighborhood[] | null>(null);
-  const [nearbyLoading, setNearbyLoading] = useState(false);
-  const [nearbyOpen, setNearbyOpen] = useState(false);
-  const [stats, setStats] = useState<NeighborhoodStats | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -253,87 +233,8 @@ export default function WelcomeScreen() {
     }
   };
 
-  // Descobre o bairro a partir das coordenadas do aparelho.
-  // Abre a lista de bairros vizinhos. Só busca na primeira vez (uma chamada de
-  // API, ancorada na localização detectada); depois reusa o cache.
-  const openNearby = async () => {
-    if (!coords) return;
-    setNearbyOpen(true);
-    if (nearby !== null || nearbyLoading) return;
-    setNearbyLoading(true);
-    try {
-      const list = await api.nearbyNeighborhoods(coords.latitude, coords.longitude);
-      setNearby(list);
-    } catch {
-      setNearby([]);
-    } finally {
-      setNearbyLoading(false);
-    }
-  };
-
-  // Usuário escolheu um bairro vizinho: passa a valer como o bairro dele.
-  // Não refaz a busca — o cache continua ancorado na localização original.
-  const chooseNearby = (n: NearbyNeighborhood) => {
-    setNeighborhood(n.neighborhood);
-    setCoords({ latitude: n.latitude, longitude: n.longitude });
-    setNearbyOpen(false);
-  };
-
-  const detectLocation = async () => {
-    setAuthError(null);
-    setGeoStatus('locating');
-    setNearby(null);
-    setNearbyLoading(false);
-    setNearbyOpen(false);
-    try {
-      const c = await getDeviceCoords();
-      const res = await api.resolveNeighborhood(c.latitude, c.longitude);
-      setNeighborhood(res.neighborhood);
-      setCity(res.city);
-      setUf(res.state);
-      setCoords({ latitude: res.latitude, longitude: res.longitude });
-      setGeoStatus('resolved');
-    } catch (e) {
-      setGeoStatus('error');
-      if (e instanceof LocationError) {
-        setAuthError(
-          e.reason === 'denied'
-            ? 'Permita o acesso à localização para descobrirmos seu bairro.'
-            : 'Não conseguimos obter sua localização. Tente novamente.',
-        );
-      } else if (e instanceof ApiError) {
-        setAuthError(e.message);
-      } else {
-        setAuthError('Não foi possível identificar seu bairro.');
-      }
-    }
-  };
-
-  const acceptNeighborhood = async () => {
-    if (submitting || !coords) return;
-    setAuthError(null);
-    setSubmitting(true);
-    try {
-      await signup({
-        name: name.trim(),
-        username: username.trim(),
-        email: email.trim(),
-        password,
-        neighborhood,
-        city,
-        state: uf,
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-      });
-      api.getNeighborhoodStats().then(setStats).catch(() => {});
-      nextStep();
-    } catch (e) {
-      setAuthError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+  // signupStep 0 → cria a conta (sem localização — o bairro é configurado
+  // depois, em "Meu bairro"; o usuário entra direto vendo "Perto de mim").
   const handleSignupNext = async () => {
     if (submitting) return;
     setAuthError(null);
@@ -355,14 +256,20 @@ export default function WelcomeScreen() {
         setAuthError(emailCheck.error ?? 'Informe um e-mail válido e disponível.');
         return;
       }
-      nextStep();
-      detectLocation();
-      return;
-    }
-
-    if (signupStep === 1) {
-      if (geoStatus === 'resolved') await acceptNeighborhood();
-      else detectLocation(); // tentar novamente
+      setSubmitting(true);
+      try {
+        await signup({
+          name: name.trim(),
+          username: username.trim(),
+          email: email.trim(),
+          password,
+        });
+        nextStep();
+      } catch (e) {
+        setAuthError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -618,12 +525,10 @@ export default function WelcomeScreen() {
 
       <View style={styles.formHeader}>
         <Text style={styles.formTitle}>
-          {step === 0 ? 'Crie sua conta' : step === 1 ? 'Onde você mora?' : 'Tudo certo!'}
+          {step === 0 ? 'Crie sua conta' : 'Tudo certo!'}
         </Text>
         <Text style={styles.formSubtitle}>
-          {step === 0 ? 'Junte-se a milhares de vizinhos'
-            : step === 1 ? 'Conecte-se com seu bairro'
-            : 'Sua conta foi criada com sucesso'}
+          {step === 0 ? 'Junte-se a milhares de vizinhos' : 'Sua conta foi criada com sucesso'}
         </Text>
       </View>
 
@@ -669,71 +574,15 @@ export default function WelcomeScreen() {
       )}
 
       {step === 1 && (
-        <View style={styles.geoArea}>
-          {geoStatus === 'locating' && (
-            <>
-              <View style={styles.geoSpinnerWrap}>
-                <ActivityIndicator color={Colors.primary} size="large" />
-              </View>
-              <Text style={styles.geoTitle}>Descobrindo seu bairro…</Text>
-              <Text style={styles.geoDesc}>
-                Estamos usando a localização do seu aparelho para encontrar sua comunidade.
-              </Text>
-            </>
-          )}
-
-          {geoStatus === 'resolved' && (
-            <>
-              <LinearGradient colors={Colors.gradient.primary} style={styles.geoEmblem}>
-                <Ionicons name="location" size={38} color="#fff" />
-              </LinearGradient>
-              <Text style={styles.geoEyebrow}>Você está em</Text>
-              <Text style={styles.geoNeighborhood}>{neighborhood}</Text>
-              <Text style={styles.geoCity}>{city}{uf ? ` - ${uf}` : ''}</Text>
-              <View style={styles.geoHint}>
-                <Ionicons name="information-circle" size={18} color={Colors.primaryDark} />
-                <Text style={styles.geoHintText}>
-                  Sua comunidade é definida por onde você está agora. Se você não está no seu
-                  bairro neste momento, é melhor se cadastrar quando estiver lá.
-                </Text>
-              </View>
-            </>
-          )}
-
-          {geoStatus === 'error' && (
-            <>
-              <View style={styles.geoErrorIcon}>
-                <Ionicons name="location-outline" size={32} color={Colors.error} />
-              </View>
-              <Text style={styles.geoTitle}>Não encontramos seu bairro</Text>
-              <Text style={styles.geoDesc}>
-                {authError ?? 'Verifique a permissão de localização e tente novamente.'}
-              </Text>
-            </>
-          )}
-        </View>
-      )}
-
-      {step === 2 && (
         <View style={styles.successArea}>
           <LinearGradient colors={Colors.gradient.primary} style={styles.successIcon}>
             <Ionicons name="checkmark" size={32} color="#fff" />
           </LinearGradient>
           <Text style={styles.successDesc}>
-            Você agora faz parte da comunidade da{' '}
-            <Text style={{ color: Colors.primaryDark, fontWeight: '700' }}>{neighborhood}</Text>.
+            Sua conta foi criada. Você já pode ver o que está rolando perto de você em
+            "Perto de mim" — quando quiser, configure "Meu bairro" para participar da
+            comunidade onde você mora.
           </Text>
-          <View style={styles.statsRow}>
-            {[
-              { n: stats ? String(stats.neighbors) : '—', l: 'vizinhos' },
-              { n: stats ? String(stats.posts) : '—', l: 'posts' },
-            ].map((s, i, a) => (
-              <View key={s.l} style={{ flex: 1, flexDirection: 'row' }}>
-                <View style={styles.stat}><Text style={styles.statNum}>{s.n}</Text><Text style={styles.statLabel}>{s.l}</Text></View>
-                {i < a.length - 1 && <View style={styles.statDivider} />}
-              </View>
-            ))}
-          </View>
         </View>
       )}
 
@@ -745,17 +594,9 @@ export default function WelcomeScreen() {
       )}
 
       {(() => {
-        const busy = submitting || (step === 1 && geoStatus === 'locating');
-        const label =
-          step === 0
-            ? 'Continuar'
-            : step === 1
-            ? geoStatus === 'resolved'
-              ? 'Sim, é aqui que eu moro'
-              : 'Tentar novamente'
-            : 'Explorar o bairro';
-        const icon =
-          step === 1 && geoStatus === 'resolved' ? 'checkmark' : step === 2 ? 'home' : 'arrow-forward';
+        const busy = submitting;
+        const label = step === 0 ? 'Continuar' : 'Começar a usar o Daqui';
+        const icon = step === 0 ? 'arrow-forward' : 'navigate';
         return (
           <TouchableOpacity
             style={[styles.btnPrimary, { marginTop: 16 }, busy && { opacity: 0.7 }]}
@@ -774,61 +615,6 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
         );
       })()}
-
-      {step === 1 && geoStatus === 'resolved' && (
-        <View style={styles.nearbyArea}>
-          {nearbyLoading ? (
-            <View style={styles.nearbyLoading}>
-              <ActivityIndicator color={Colors.primary} size="small" />
-              <Text style={styles.nearbyLoadingText}>Buscando bairros vizinhos…</Text>
-            </View>
-          ) : nearbyOpen && nearby !== null ? (
-            <>
-              <View style={styles.nearbyHeader}>
-                <Text style={styles.nearbyTitle}>Bairros nas redondezas</Text>
-                <TouchableOpacity onPress={() => setNearbyOpen(false)} hitSlop={8}>
-                  <Text style={styles.nearbyCancel}>Cancelar</Text>
-                </TouchableOpacity>
-              </View>
-              {(() => {
-                const options = nearby
-                  .filter((n) => n.neighborhood.toLowerCase() !== neighborhood.toLowerCase())
-                  .sort((a, b) => a.distanceM - b.distanceM);
-                return options.length === 0 ? (
-                  <Text style={styles.nearbyEmpty}>
-                    Não encontramos bairros vizinhos por aqui.
-                  </Text>
-                ) : (
-                  <View style={styles.nearbyList}>
-                    {options.map((n, i) => (
-                      <TouchableOpacity
-                        key={n.neighborhood}
-                        style={styles.nearbyRow}
-                        onPress={() => chooseNearby(n)}
-                        activeOpacity={0.8}
-                      >
-                        <View style={styles.nearbyRank}>
-                          <Text style={styles.nearbyRankText}>{i + 1}</Text>
-                        </View>
-                        <Ionicons name="location-outline" size={15} color={Colors.primaryDark} />
-                        <Text style={styles.nearbyRowText} numberOfLines={1}>{n.neighborhood}</Text>
-                        <Text style={styles.nearbyRowDistance}>{formatDistance(n.distanceM)}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                );
-              })()}
-            </>
-          ) : (
-            <TouchableOpacity style={styles.nearbyToggle} onPress={openNearby} activeOpacity={0.7}>
-              <Ionicons name="navigate-outline" size={15} color={Colors.primaryDark} />
-              <Text style={styles.nearbyToggleText}>
-                Não é seu bairro? Informe-nos um bairro nas redondezas
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
 
       {step === 0 && (
         <View style={styles.switchRow}>
@@ -1058,58 +844,6 @@ const styles = StyleSheet.create({
   successArea: { alignItems: 'center', paddingVertical: 16 },
   successIcon: { width: 68, height: 68, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 20, ...Colors.shadow.lg },
   successDesc: { fontSize: 15, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  statsRow: { flexDirection: 'row', backgroundColor: Colors.background, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, overflow: 'hidden', width: '100%' },
-  stat: { flex: 1, alignItems: 'center', paddingVertical: 16 },
-  statNum: { fontSize: 20, fontWeight: '800', color: Colors.primaryDark },
-  statLabel: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: Colors.border },
-
-  // Geolocalização (signup step 1)
-  geoArea: { alignItems: 'center', paddingVertical: 8 },
-  geoSpinnerWrap: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.primaryFaint, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  geoTitle: { fontSize: 18, fontWeight: '800', color: Colors.text, textAlign: 'center' },
-  geoDesc: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 21, marginTop: 8, paddingHorizontal: 8 },
-  geoEmblem: { width: 88, height: 88, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 16, ...Colors.shadow.lg },
-  geoEyebrow: { fontSize: 12, fontWeight: '700', color: Colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1 },
-  geoNeighborhood: { fontSize: 28, fontWeight: '800', color: Colors.primaryDark, letterSpacing: -0.5, textAlign: 'center', marginTop: 4 },
-  geoCity: { fontSize: 14, color: Colors.textSecondary, marginTop: 2, marginBottom: 18 },
-  geoHint: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: Colors.primaryFaint, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: Colors.primaryLight },
-  geoHintText: { flex: 1, fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
-  geoErrorIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.error + '15', alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-
-  // Bairros vizinhos (escolha manual)
-  nearbyArea: { marginTop: 14 },
-  nearbyToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 8 },
-  nearbyToggleText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '600', textAlign: 'center' },
-  nearbyLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10 },
-  nearbyLoadingText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
-  nearbyHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  nearbyTitle: { fontSize: 13, fontWeight: '700', color: Colors.text },
-  nearbyCancel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
-  nearbyEmpty: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
-  nearbyList: { gap: 8 },
-  nearbyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.primaryFaint,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: Colors.primaryLight,
-  },
-  nearbyRank: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primaryLight,
-  },
-  nearbyRankText: { fontSize: 11, fontWeight: '800', color: Colors.primaryDark },
-  nearbyRowText: { flex: 1, fontSize: 13, color: Colors.primaryDark, fontWeight: '600' },
-  nearbyRowDistance: { fontSize: 12, color: Colors.primaryDark, fontWeight: '600', opacity: 0.75 },
 
   // Painel direito (arte)
   rightPanel: { flex: 7, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },

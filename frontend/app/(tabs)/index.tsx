@@ -29,6 +29,7 @@ import PostCard from '../../components/PostCard';
 import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
 import MobileMenu from '../../components/MobileMenu';
+import HomeNeighborhoodSetup from '../../components/HomeNeighborhoodSetup';
 
 type FilterKey = 'todos' | PostCategory;
 type ViewMode = 'meu' | 'perto';
@@ -51,7 +52,8 @@ export default function FeedScreen() {
   const listRef = useRef<FlatList<Post>>(null);
 
   // Visualização ativa e preferência de "redondezas" por visualização.
-  const [viewMode, setViewMode] = useState<ViewMode>('meu');
+  // Padrão "perto de mim": "Meu bairro" pode exigir configurar o bairro antes.
+  const [viewMode, setViewMode] = useState<ViewMode>('perto');
   const [nearbyMeu, setNearbyMeu] = useState(false);
   const [nearbyPerto, setNearbyPerto] = useState(false);
   // "Perto de mim": bairro/coords resolvidos pelo GPS atual do dispositivo.
@@ -64,7 +66,7 @@ export default function FeedScreen() {
 
   // Animação de slide ao alternar as abas.
   const contentX = useSharedValue(0);
-  const indicator = useSharedValue(0); // 0 = "meu", 1 = "perto"
+  const indicator = useSharedValue(1); // 0 = "meu", 1 = "perto" (padrão: "perto")
   const [tabsWidth, setTabsWidth] = useState(0);
 
   useRegisterScrollToTop('index', () => {
@@ -98,6 +100,11 @@ export default function FeedScreen() {
       setError(null);
       let feed: Post[];
       if (viewMode === 'meu') {
+        // Sem "Meu bairro" configurado ainda: a UI mostra a configuração.
+        if (!user?.neighborhood) {
+          setPosts([]);
+          return;
+        }
         feed = await api.getFeed({
           includeNearby: nearbyMeu,
           latitude: user?.latitude,
@@ -177,6 +184,40 @@ export default function FeedScreen() {
       (!importantOnly || p.important),
   );
 
+  // View tabs: "Meu bairro" | "Perto de mim" (desktop e mobile) — presente
+  // tanto no feed quanto na configuração de "Meu bairro", para o usuário
+  // conseguir sair da configuração a qualquer momento.
+  const viewTabsBlock = (
+    <View
+      style={styles.viewTabs}
+      onLayout={(e) => setTabsWidth(e.nativeEvent.layout.width)}
+    >
+      {(['meu', 'perto'] as ViewMode[]).map((mode) => {
+        const isActive = viewMode === mode;
+        return (
+          <TouchableOpacity
+            key={mode}
+            style={styles.viewTab}
+            activeOpacity={0.7}
+            onPress={() => switchView(mode)}
+          >
+            <Ionicons
+              name={mode === 'meu' ? 'home' : 'navigate'}
+              size={15}
+              color={isActive ? Colors.primary : Colors.textTertiary}
+            />
+            <Text style={[styles.viewTabText, isActive && styles.viewTabTextActive]}>
+              {mode === 'meu' ? 'Meu bairro' : 'Perto de mim'}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+      <Animated.View
+        style={[styles.viewTabIndicator, { width: tabsWidth / 2 }, indicatorStyle]}
+      />
+    </View>
+  );
+
   const feedHeader = (
     <>
       {/* Compose box */}
@@ -196,35 +237,7 @@ export default function FeedScreen() {
       </View>
       <View style={styles.composeDivider} />
 
-      {/* View tabs: "Meu bairro" | "Perto de mim" (desktop e mobile) */}
-      <View
-        style={styles.viewTabs}
-        onLayout={(e) => setTabsWidth(e.nativeEvent.layout.width)}
-      >
-        {(['meu', 'perto'] as ViewMode[]).map((mode) => {
-          const isActive = viewMode === mode;
-          return (
-            <TouchableOpacity
-              key={mode}
-              style={styles.viewTab}
-              activeOpacity={0.7}
-              onPress={() => switchView(mode)}
-            >
-              <Ionicons
-                name={mode === 'meu' ? 'home' : 'navigate'}
-                size={15}
-                color={isActive ? Colors.primary : Colors.textTertiary}
-              />
-              <Text style={[styles.viewTabText, isActive && styles.viewTabTextActive]}>
-                {mode === 'meu' ? 'Meu bairro' : 'Perto de mim'}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-        <Animated.View
-          style={[styles.viewTabIndicator, { width: tabsWidth / 2 }, indicatorStyle]}
-        />
-      </View>
+      {viewTabsBlock}
 
       {/* Category filter tabs */}
       {!isWide && (
@@ -303,7 +316,18 @@ export default function FeedScreen() {
     );
   };
 
-  const feed = (
+  // "Meu bairro" ainda não configurado: mostra a configuração (mesmo fluxo do
+  // cadastro, com escolha de redondezas) em vez do feed.
+  const needsHomeSetup = viewMode === 'meu' && !user?.neighborhood;
+
+  const feed = needsHomeSetup ? (
+    <Animated.View style={[styles.feedFill, contentStyle]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
+        {viewTabsBlock}
+        <HomeNeighborhoodSetup />
+      </ScrollView>
+    </Animated.View>
+  ) : (
     <Animated.View style={[styles.feedFill, contentStyle]}>
       <FlatList
         ref={listRef}

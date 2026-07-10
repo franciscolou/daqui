@@ -76,6 +76,9 @@ class UserUpdate(BaseModel):
     bio: str | None = None
     neighborhood: str | None = None
     city: str | None = None
+    state: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
     avatar_url: str | None = None
 
     @field_validator("username")

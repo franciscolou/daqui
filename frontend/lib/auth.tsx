@@ -25,11 +25,6 @@ interface AuthState {
     username: string;
     email: string;
     password: string;
-    neighborhood: string;
-    city: string;
-    state?: string;
-    latitude?: number;
-    longitude?: number;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -108,11 +103,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username: string;
       email: string;
       password: string;
-      neighborhood: string;
-      city: string;
-      state?: string;
-      latitude?: number;
-      longitude?: number;
     }) => {
       const token = await api.signup(payload);
       await setToken(token);
