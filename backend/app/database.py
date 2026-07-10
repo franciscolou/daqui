@@ -68,8 +68,18 @@ def _ensure_columns():
         with engine.begin() as conn:
             if "shared_post_id" not in columns:
                 conn.execute(text("ALTER TABLE messages ADD COLUMN shared_post_id INTEGER REFERENCES posts(id)"))
+            if "shared_comment_id" not in columns:
+                conn.execute(text("ALTER TABLE messages ADD COLUMN shared_comment_id INTEGER REFERENCES comments(id)"))
             if "reply_to_id" not in columns:
                 conn.execute(text("ALTER TABLE messages ADD COLUMN reply_to_id INTEGER REFERENCES messages(id)"))
+
+    if "comments" in tables:
+        columns = {c["name"] for c in inspector.get_columns("comments")}
+        with engine.begin() as conn:
+            if "parent_id" not in columns:
+                conn.execute(text("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"))
+            if "likes_count" not in columns:
+                conn.execute(text("ALTER TABLE comments ADD COLUMN likes_count INTEGER DEFAULT 0 NOT NULL"))
 
     if "group_messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("group_messages")}

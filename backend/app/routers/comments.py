@@ -16,6 +16,21 @@ router.post(
     status_code=201,
 )(comment.create_comment)
 
+router.get(
+    "/comments/{comment_id}",
+    response_model=CommentOut,
+)(comment.get_comment)
+
+router.get(
+    "/comments/{comment_id}/replies",
+    response_model=list[CommentOut],
+)(comment.list_replies)
+
+router.post(
+    "/comments/{comment_id}/like",
+    response_model=CommentOut,
+)(comment.toggle_comment_like)
+
 router.delete(
     "/comments/{comment_id}",
     status_code=204,

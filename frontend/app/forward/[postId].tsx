@@ -14,11 +14,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { Post, User } from '../../data/mock';
-import { api, ApiError, SharedPost } from '../../lib/api';
+import { api, ApiError, Comment, SharedComment, SharedPost } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import SharedPostPreview from '../../components/SharedPostPreview';
+import SharedCommentPreview from '../../components/SharedCommentPreview';
 
 // Converte o Post completo na prévia compacta usada nas mensagens.
 function toSharedPost(p: Post): SharedPost {
@@ -33,17 +34,32 @@ function toSharedPost(p: Post): SharedPost {
   };
 }
 
+function toSharedComment(c: Comment): SharedComment {
+  return {
+    id: c.id,
+    postId: c.postId,
+    content: c.content,
+    createdAt: c.createdAt,
+    author: c.author,
+  };
+}
+
 export default function ForwardScreen() {
-  const { postId } = useLocalSearchParams<{ postId: string }>();
+  // Encaminha um post (rota /forward/{postId}) ou um comentário
+  // (/forward/{postId}?commentId=...). Comentário não tem restrição de bairro.
+  const { postId, commentId } = useLocalSearchParams<{ postId: string; commentId?: string }>();
   const { loading: authLoading } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
+  const forwardingComment = !!commentId;
+
   const [post, setPost] = useState<Post | null>(null);
+  const [comment, setComment] = useState<Comment | null>(null);
   const [people, setPeople] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  // Vizinhos já com o post enviado / com envio em andamento (permite enviar a vários).
+  // Vizinhos já com o item enviado / com envio em andamento (permite enviar a vários).
   const [sent, setSent] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -51,12 +67,19 @@ export default function ForwardScreen() {
   const load = useCallback(async () => {
     if (!postId) return;
     try {
-      const [p, convs, neighbors] = await Promise.all([
-        api.getPost(postId),
+      const [convs, neighbors] = await Promise.all([
         api.getConversations().catch(() => []),
         api.getNeighbors().catch(() => []),
       ]);
-      setPost(p);
+      let restrictNeighborhood: string | null = null;
+      if (commentId) {
+        setComment(await api.getComment(commentId));
+        // Comentário pode ser encaminhado a qualquer vizinho (isolamento relaxado).
+      } else {
+        const p = await api.getPost(postId);
+        setPost(p);
+        restrictNeighborhood = p.neighborhood;
+      }
       // Conversas recentes primeiro, depois demais vizinhos (sem repetir).
       const seen = new Set<string>();
       const merged: User[] = [];
@@ -66,16 +89,21 @@ export default function ForwardScreen() {
       for (const u of neighbors) {
         if (!seen.has(u.id)) { seen.add(u.id); merged.push(u); }
       }
-      // Usuários do mesmo bairro do post primeiro; os de outros bairros (bloqueados) depois.
-      const sameNeighborhood = merged.filter((u) => u.neighborhood === p.neighborhood);
-      const otherNeighborhood = merged.filter((u) => u.neighborhood !== p.neighborhood);
-      setPeople([...sameNeighborhood, ...otherNeighborhood]);
+      if (restrictNeighborhood) {
+        // Post: usuários do mesmo bairro primeiro; os de outros bairros (bloqueados) depois.
+        const same = merged.filter((u) => u.neighborhood === restrictNeighborhood);
+        const other = merged.filter((u) => u.neighborhood !== restrictNeighborhood);
+        setPeople([...same, ...other]);
+      } else {
+        setPeople(merged);
+      }
     } catch {
       setPost(null);
+      setComment(null);
     } finally {
       setLoading(false);
     }
-  }, [postId]);
+  }, [postId, commentId]);
 
   useEffect(() => {
     // Espera o token carregar (deep-link/refresh direto) antes de buscar.
@@ -98,19 +126,29 @@ export default function ForwardScreen() {
   };
 
   const forward = async (user: User) => {
-    if (!postId || sent.has(user.id) || pending.has(user.id)) return;
+    if (sent.has(user.id) || pending.has(user.id)) return;
     setPending((p) => withId(p, user.id, true));
     setError(null);
     try {
-      await api.sendMessage(user.id, '', postId);
+      if (forwardingComment) {
+        await api.sendMessage(user.id, '', undefined, undefined, commentId);
+      } else {
+        await api.sendMessage(user.id, '', postId);
+      }
       // Marca como enviado e permanece na tela para encaminhar a outros vizinhos.
       setSent((s) => withId(s, user.id, true));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível encaminhar o post.');
+      setError(
+        e instanceof ApiError
+          ? e.message
+          : `Não foi possível encaminhar o ${forwardingComment ? 'comentário' : 'post'}.`,
+      );
     } finally {
       setPending((p) => withId(p, user.id, false));
     }
   };
+
+  const notFound = forwardingComment ? !comment : !post;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -128,10 +166,12 @@ export default function ForwardScreen() {
             <View style={styles.center}>
               <ActivityIndicator color={Colors.primary} />
             </View>
-          ) : !post ? (
+          ) : notFound ? (
             <View style={styles.center}>
               <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
-              <Text style={styles.emptyText}>Post não encontrado.</Text>
+              <Text style={styles.emptyText}>
+                {forwardingComment ? 'Comentário não encontrado.' : 'Post não encontrado.'}
+              </Text>
             </View>
           ) : (
             <FlatList
@@ -142,7 +182,11 @@ export default function ForwardScreen() {
               ListHeaderComponent={
                 <View>
                   <View style={styles.previewWrap}>
-                    <SharedPostPreview post={toSharedPost(post)} static />
+                    {forwardingComment && comment ? (
+                      <SharedCommentPreview comment={toSharedComment(comment)} static />
+                    ) : post ? (
+                      <SharedPostPreview post={toSharedPost(post)} static />
+                    ) : null}
                   </View>
                   {!!error && <Text style={styles.error}>{error}</Text>}
                   <View style={styles.searchBar}>
@@ -162,7 +206,9 @@ export default function ForwardScreen() {
                 <Text style={styles.noResults}>Nenhum vizinho encontrado.</Text>
               }
               renderItem={({ item }) => {
-                const otherNeighborhood = item.neighborhood !== post.neighborhood;
+                // Comentário: sem restrição de bairro. Post: bloqueia outro bairro.
+                const otherNeighborhood =
+                  !forwardingComment && !!post && item.neighborhood !== post.neighborhood;
                 return (
                   <TouchableOpacity
                     style={styles.row}

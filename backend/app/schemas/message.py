@@ -20,10 +20,23 @@ class SharedPostOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SharedCommentOut(BaseModel):
+    """Prévia compacta de um comentário encaminhado em uma mensagem."""
+
+    id: int
+    post_id: int
+    content: str
+    created_at: datetime
+    author: UserPublic
+
+    model_config = {"from_attributes": True}
+
+
 class MessageCreate(BaseModel):
     receiver_id: int
     content: str = ""
     shared_post_id: int | None = None
+    shared_comment_id: int | None = None
     reply_to_id: int | None = None
 
 
@@ -49,6 +62,7 @@ class MessageOut(BaseModel):
     created_at: datetime
     sender: UserPublic
     shared_post: SharedPostOut | None = None
+    shared_comment: SharedCommentOut | None = None
     reply_to: MessageReplyOut | None = None
 
     model_config = {"from_attributes": True}

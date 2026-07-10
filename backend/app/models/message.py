@@ -18,6 +18,10 @@ class Message(Base):
     shared_post_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("posts.id"), nullable=True
     )
+    # Comentário encaminhado dentro da conversa. Opcional.
+    shared_comment_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("comments.id"), nullable=True
+    )
     # Mensagem respondida (marcada com duplo clique no app). Opcional.
     reply_to_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("messages.id"), nullable=True
@@ -29,4 +33,5 @@ class Message(Base):
 
     sender: Mapped["User"] = relationship("User", foreign_keys=[sender_id], back_populates="sent_messages")  # noqa: F821
     shared_post: Mapped[Optional["Post"]] = relationship("Post", foreign_keys=[shared_post_id])  # noqa: F821
+    shared_comment: Mapped[Optional["Comment"]] = relationship("Comment", foreign_keys=[shared_comment_id])  # noqa: F821
     reply_to: Mapped[Optional["Message"]] = relationship("Message", remote_side=[id])

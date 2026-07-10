@@ -177,17 +177,25 @@ interface BackendPost {
 interface BackendComment {
   id: number;
   post_id: number;
+  parent_id: number | null;
   content: string;
   created_at: string;
   author: BackendUser;
+  likes_count: number;
+  liked: boolean;
+  replies_count: number;
 }
 
 export interface Comment {
   id: string;
   postId: string;
+  parentId?: string; // comentário respondido (thread); ausente = comentário de topo
   content: string;
   createdAt: string;
   author: User;
+  likesCount: number;
+  liked: boolean;
+  repliesCount: number; // respostas diretas (carregadas sob demanda)
 }
 
 interface BackendConversation {
@@ -207,6 +215,14 @@ interface BackendSharedPost {
   author: BackendUser;
 }
 
+interface BackendSharedComment {
+  id: number;
+  post_id: number;
+  content: string;
+  created_at: string;
+  author: BackendUser;
+}
+
 interface BackendMessageReply {
   id: number;
   content: string;
@@ -220,6 +236,7 @@ interface BackendMessage {
   created_at: string;
   sender: BackendUser;
   shared_post: BackendSharedPost | null;
+  shared_comment: BackendSharedComment | null;
   reply_to: BackendMessageReply | null;
 }
 
@@ -318,6 +335,15 @@ export interface SharedPost {
   author: User;
 }
 
+// Prévia de um comentário encaminhado dentro de uma mensagem.
+export interface SharedComment {
+  id: string;
+  postId: string;
+  content: string;
+  createdAt: string;
+  author: User;
+}
+
 export interface MessageReply {
   id: string;
   content: string;
@@ -331,6 +357,7 @@ export interface ChatMessage {
   createdAt: string;
   sender: User;
   sharedPost?: SharedPost;
+  sharedComment?: SharedComment;
   replyTo?: MessageReply;
 }
 
@@ -562,9 +589,13 @@ function mapComment(c: BackendComment): Comment {
   return {
     id: String(c.id),
     postId: String(c.post_id),
+    parentId: c.parent_id != null ? String(c.parent_id) : undefined,
     content: c.content,
     createdAt: c.created_at, // ISO — formatado na renderização (lib/time)
     author: mapUser(c.author),
+    likesCount: c.likes_count,
+    liked: c.liked,
+    repliesCount: c.replies_count,
   };
 }
 
@@ -589,6 +620,16 @@ function mapSharedPost(p: BackendSharedPost): SharedPost {
   };
 }
 
+function mapSharedComment(c: BackendSharedComment): SharedComment {
+  return {
+    id: String(c.id),
+    postId: String(c.post_id),
+    content: c.content,
+    createdAt: c.created_at,
+    author: mapUser(c.author),
+  };
+}
+
 function mapMessageReply(r: BackendMessageReply): MessageReply {
   return { id: String(r.id), content: r.content, sender: mapUser(r.sender) };
 }
@@ -601,6 +642,7 @@ function mapMessage(m: BackendMessage): ChatMessage {
     createdAt: m.created_at,
     sender: mapUser(m.sender),
     sharedPost: m.shared_post ? mapSharedPost(m.shared_post) : undefined,
+    sharedComment: m.shared_comment ? mapSharedComment(m.shared_comment) : undefined,
     replyTo: m.reply_to ? mapMessageReply(m.reply_to) : undefined,
   };
 }
@@ -988,13 +1030,33 @@ export const api = {
     return r.map(mapComment);
   },
 
-  async addComment(postId: string, content: string): Promise<Comment> {
+  async addComment(postId: string, content: string, parentId?: string): Promise<Comment> {
     return mapComment(
       await request<BackendComment>(`/posts/${postId}/comments`, {
         method: 'POST',
-        body: { content },
+        body: { content, parent_id: parentId ? Number(parentId) : undefined },
       }),
     );
+  },
+
+  async getComment(commentId: string): Promise<Comment> {
+    return mapComment(await request<BackendComment>(`/comments/${commentId}`));
+  },
+
+  // Respostas diretas de um comentário (recentes primeiro). Carregado sob demanda.
+  async getReplies(commentId: string): Promise<Comment[]> {
+    const r = await request<BackendComment[]>(`/comments/${commentId}/replies`);
+    return r.map(mapComment);
+  },
+
+  async toggleCommentLike(commentId: string): Promise<Comment> {
+    return mapComment(
+      await request<BackendComment>(`/comments/${commentId}/like`, { method: 'POST' }),
+    );
+  },
+
+  async deleteComment(commentId: string): Promise<void> {
+    await request<void>(`/comments/${commentId}`, { method: 'DELETE' });
   },
 
   async getConversations(): Promise<Conversation[]> {
@@ -1033,6 +1095,7 @@ export const api = {
     content: string,
     sharedPostId?: string,
     replyToId?: string,
+    sharedCommentId?: string,
   ): Promise<ChatMessage> {
     return mapMessage(
       await request<BackendMessage>('/messages/', {
@@ -1041,6 +1104,7 @@ export const api = {
           receiver_id: Number(receiverId),
           content,
           shared_post_id: sharedPostId ? Number(sharedPostId) : undefined,
+          shared_comment_id: sharedCommentId ? Number(sharedCommentId) : undefined,
           reply_to_id: replyToId ? Number(replyToId) : undefined,
         },
       }),

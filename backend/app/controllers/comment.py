@@ -15,6 +15,22 @@ def list_comments(
     return comment.list_for_post(db, post_id, current_user)
 
 
+def get_comment(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CommentOut:
+    return comment.get(db, comment_id, current_user)
+
+
+def list_replies(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[CommentOut]:
+    return comment.list_replies(db, comment_id, current_user)
+
+
 def create_comment(
     post_id: int,
     payload: CommentCreate,
@@ -22,6 +38,14 @@ def create_comment(
     current_user: User = Depends(get_current_user),
 ) -> CommentOut:
     return comment.create(db, post_id, current_user, payload)
+
+
+def toggle_comment_like(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CommentOut:
+    return comment.toggle_like(db, comment_id, current_user)
 
 
 def delete_comment(

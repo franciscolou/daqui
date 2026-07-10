@@ -103,12 +103,14 @@ def create(
     content: str,
     shared_post_id: int | None = None,
     reply_to_id: int | None = None,
+    shared_comment_id: int | None = None,
 ) -> Message:
     msg = Message(
         sender_id=sender_id,
         receiver_id=receiver_id,
         content=content,
         shared_post_id=shared_post_id,
+        shared_comment_id=shared_comment_id,
         reply_to_id=reply_to_id,
     )
     db.add(msg)

@@ -26,6 +26,7 @@ import { useRealtime } from '../lib/realtime';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { submitOnEnter } from '../lib/keyboard';
 import SharedPostPreview from './SharedPostPreview';
+import SharedCommentPreview from './SharedCommentPreview';
 
 export type ChatTarget = { kind: 'dm' | 'group'; id: string };
 
@@ -65,6 +66,8 @@ function MessageBubble({
   const ty = useSharedValue(animateIn ? 16 : 0);
   const op = useSharedValue(animateIn ? 0 : 1);
   const lastTapRef = useRef(0);
+  // Post ou comentário encaminhado: recebem o mesmo tratamento de balão "shared".
+  const hasShared = !!msg.sharedPost || !!msg.sharedComment;
 
   // Duplo toque na mensagem (ou na altura dela, na área ao redor do balão)
   // marca ela como a que está sendo respondida.
@@ -107,7 +110,7 @@ function MessageBubble({
           style={[
             styles.bubble,
             mine ? styles.bubbleMine : styles.bubbleTheirs,
-            !!msg.sharedPost && styles.bubbleShared,
+            hasShared && styles.bubbleShared,
             highlighted && styles.bubbleHighlight,
           ]}
         >
@@ -116,17 +119,17 @@ function MessageBubble({
           )}
           {!!msg.replyTo && (
             <TouchableOpacity
-              style={[styles.replyQuote, mine && !msg.sharedPost && styles.replyQuoteMine]}
+              style={[styles.replyQuote, mine && !hasShared && styles.replyQuoteMine]}
               onPress={() => onJumpTo(msg.replyTo!.id)}
             >
               <Text
-                style={[styles.replyQuoteSender, mine && !msg.sharedPost && styles.replyQuoteTextMine]}
+                style={[styles.replyQuoteSender, mine && !hasShared && styles.replyQuoteTextMine]}
                 numberOfLines={1}
               >
                 {msg.replyTo.sender.name}
               </Text>
               <Text
-                style={[styles.replyQuoteText, mine && !msg.sharedPost && styles.replyQuoteTextMine]}
+                style={[styles.replyQuoteText, mine && !hasShared && styles.replyQuoteTextMine]}
                 numberOfLines={1}
               >
                 {msg.replyTo.content || 'Post compartilhado'}
@@ -138,16 +141,21 @@ function MessageBubble({
               <SharedPostPreview post={msg.sharedPost} />
             </View>
           )}
+          {!!msg.sharedComment && (
+            <View style={styles.sharedWrap}>
+              <SharedCommentPreview comment={msg.sharedComment} />
+            </View>
+          )}
           {!!msg.content && (
-            <Text style={[styles.bubbleText, mine && !msg.sharedPost && styles.bubbleTextMine]}>
+            <Text style={[styles.bubbleText, mine && !hasShared && styles.bubbleTextMine]}>
               {msg.content}
             </Text>
           )}
           <Text
             style={[
               styles.bubbleTime,
-              mine && !msg.sharedPost && styles.bubbleTimeMine,
-              !!msg.sharedPost && styles.bubbleTimeShared,
+              mine && !hasShared && styles.bubbleTimeMine,
+              hasShared && styles.bubbleTimeShared,
             ]}
           >
             {formatMessageTime(msg.createdAt)}

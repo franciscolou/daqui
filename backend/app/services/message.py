@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core import typing_registry
+from app.daos import comment as comment_dao
 from app.daos import group as group_dao
 from app.daos import message as message_dao
 from app.daos import post as post_dao
@@ -19,6 +20,8 @@ def _preview_text(msg: Message) -> str:
     if msg.shared_post_id is not None:
         title = getattr(msg.shared_post, "title", None)
         return f"📎 {title}" if title else "📎 Post compartilhado"
+    if msg.shared_comment_id is not None:
+        return "💬 Comentário compartilhado"
     return ""
 
 
@@ -84,7 +87,7 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         raise HTTPException(status_code=404, detail="Destinatário não encontrado")
 
     content = payload.content.strip()
-    if not content and payload.shared_post_id is None:
+    if not content and payload.shared_post_id is None and payload.shared_comment_id is None:
         raise HTTPException(status_code=400, detail="Mensagem vazia")
 
     if payload.shared_post_id is not None:
@@ -98,6 +101,11 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
                 detail="Este post não pode ser encaminhado para um morador de outro bairro",
             )
 
+    if payload.shared_comment_id is not None:
+        shared_comment = comment_dao.get_by_id(db, payload.shared_comment_id)
+        if not shared_comment:
+            raise HTTPException(status_code=404, detail="Comentário não encontrado")
+
     if payload.reply_to_id is not None:
         replied = message_dao.get_by_id(db, payload.reply_to_id)
         conversation_ids = {user.id, payload.receiver_id}
@@ -105,7 +113,13 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
             raise HTTPException(status_code=404, detail="Mensagem respondida não encontrada")
 
     return message_dao.create(
-        db, user.id, payload.receiver_id, content, payload.shared_post_id, payload.reply_to_id
+        db,
+        user.id,
+        payload.receiver_id,
+        content,
+        payload.shared_post_id,
+        payload.reply_to_id,
+        shared_comment_id=payload.shared_comment_id,
     )
 
 
