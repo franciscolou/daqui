@@ -5,7 +5,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.core.security import decode_token
+from app.core.security import decode_token_claims
+from app.daos import session as session_dao
 from app.database import SessionLocal
 from app.models.user import User
 
@@ -35,8 +36,9 @@ def get_current_user(
     db: Session = Depends(get_db),
 ) -> User:
     try:
-        user_id = int(decode_token(credentials.credentials))
-    except (JWTError, ValueError):
+        payload = decode_token_claims(credentials.credentials)
+        user_id = int(payload["sub"])
+    except (JWTError, ValueError, KeyError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido ou expirado",
@@ -47,6 +49,22 @@ def get_current_user(
     if user.is_currently_suspended:
         # 423 Locked: sinal distinto para o app encerrar a sessão na hora com aviso.
         raise HTTPException(status_code=423, detail=suspension_message(user))
+
+    # Tokens emitidos antes da sessão existir não carregam "jti" — nesse caso não
+    # há o que checar (compatibilidade com tokens já em uso). Quando presente,
+    # a sessão precisa existir e não ter sido desconectada em "Dispositivos
+    # conectados". `current_session_id` fica pendurado no objeto (não persistido)
+    # para /auth/sessions saber qual é "este dispositivo" (mesmo padrão de
+    # `pending_notice` em UserMe).
+    jti = payload.get("jti")
+    if jti:
+        session = session_dao.get_by_jti(db, jti)
+        if not session or session.revoked_at is not None or session.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sessão encerrada. Faça login novamente.",
+            )
+        user.current_session_id = session.id
     return user
 
 

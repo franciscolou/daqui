@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
   },
-  eyeBtn: { padding: 4 },
+  eyeBtn: { padding: 4, borderRadius: 8 },
   forgotBtn: {
     alignSelf: 'flex-end',
     marginBottom: 22,

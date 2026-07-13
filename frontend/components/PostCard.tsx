@@ -12,6 +12,7 @@ import ActionMenu from './ActionMenu';
 import PollBlock from './PollBlock';
 import PostImageGallery from './PostImageGallery';
 import ReportModal from './ReportModal';
+import ResidentBadge from './ResidentBadge';
 
 interface PostCardProps {
   post: Post;
@@ -76,6 +77,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             {!!post.author.username && (
               <Text style={styles.authorUsername} numberOfLines={1}>@{post.author.username}</Text>
             )}
+            {post.authorIsResident && <ResidentBadge />}
             <Text style={styles.dot}>·</Text>
             <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
             {!!post.distance && (

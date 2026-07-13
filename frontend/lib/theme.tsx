@@ -22,6 +22,14 @@ interface ThemeState {
 const ThemeContext = createContext<ThemeState | null>(null);
 const THEME_KEY = 'daqui.theme';
 
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<Mode>(
     Appearance.getColorScheme() === 'dark' ? 'dark' : 'light',
@@ -48,6 +56,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const colors = mode === 'dark' ? darkColors : lightColors;
+
+  // Tom do hover/pressed no web (globalStyles.web.ts lê essas custom
+  // properties): a própria cor de texto do tema, em baixa opacidade — assim
+  // escurece no claro e clareia no escuro automaticamente, sempre com o tom
+  // certo da paleta em vez de um cinza neutro fixo que destoa do fundo
+  // (ficava visivelmente "errado"/feio no escuro, por exemplo).
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.style.setProperty('--hover-tint', hexToRgba(colors.text, mode === 'dark' ? 0.07 : 0.05));
+    root.style.setProperty('--hover-tint-active', hexToRgba(colors.text, mode === 'dark' ? 0.13 : 0.09));
+  }, [colors, mode]);
 
   const value = useMemo<ThemeState>(
     () => ({ mode, colors, toggle, setMode }),

@@ -52,6 +52,9 @@ def _poll_schema(post: Post, viewer: User, db: Session) -> PollOut | None:
 
 def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
     liked = post_dao.get_like(db, post.id, viewer.id) is not None
+    # Morador: o bairro atual do autor ainda é o mesmo em que o post foi publicado
+    # (se o autor mudar de bairro depois, o selo some dos posts antigos).
+    author_is_resident = bool(post.neighborhood) and post.author.neighborhood == post.neighborhood
     return PostOut(
         id=post.id,
         category=post.category,
@@ -70,6 +73,7 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
         pinned=post.pinned,
         created_at=post.created_at,
         author=post.author,
+        author_is_resident=author_is_resident,
         liked=liked,
         poll=_poll_schema(post, viewer, db),
     )

@@ -22,6 +22,7 @@ def create_tables():
         notification,
         post,
         review,
+        session,
         user,
     )
     Base.metadata.create_all(bind=engine)

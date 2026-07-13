@@ -7,6 +7,7 @@ from app.schemas.auth import (
     TokenResponse,
     TwoFactorSetupResponse,
 )
+from app.schemas.session import SessionOut
 from app.schemas.user import UserMe
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -20,3 +21,6 @@ router.get( "/me",          response_model=UserMe)(auth.me)
 router.post("/2fa/setup",   response_model=TwoFactorSetupResponse)(auth.two_factor_setup)
 router.post("/2fa/enable",  response_model=UserMe)(auth.two_factor_enable)
 router.post("/2fa/disable", response_model=UserMe)(auth.two_factor_disable)
+router.post("/change-password", status_code=204)(auth.change_password)
+router.get(   "/sessions",         response_model=list[SessionOut])(auth.list_sessions)
+router.delete("/sessions/{session_id}", status_code=204)(auth.revoke_session)

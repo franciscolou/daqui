@@ -170,6 +170,7 @@ interface BackendPost {
   pinned: boolean;
   created_at: string;
   author: BackendUser;
+  author_is_resident: boolean;
   liked: boolean;
   poll: BackendPoll | null;
 }
@@ -181,9 +182,17 @@ interface BackendComment {
   content: string;
   created_at: string;
   author: BackendUser;
+  author_is_resident: boolean;
   likes_count: number;
   liked: boolean;
   replies_count: number;
+}
+
+interface BackendSession {
+  id: number;
+  device_name: string;
+  created_at: string;
+  is_current: boolean;
 }
 
 export interface Comment {
@@ -193,9 +202,17 @@ export interface Comment {
   content: string;
   createdAt: string;
   author: User;
+  authorIsResident: boolean; // autor mora no bairro do post comentado (selo de Morador)
   likesCount: number;
   liked: boolean;
   repliesCount: number; // respostas diretas (carregadas sob demanda)
+}
+
+export interface UserSession {
+  id: string;
+  deviceName: string;
+  createdAt: string;
+  isCurrent: boolean;
 }
 
 interface BackendConversation {
@@ -558,6 +575,7 @@ function mapPost(p: BackendPost): Post {
   return {
     id: String(p.id),
     author: mapUser(p.author),
+    authorIsResident: p.author_is_resident,
     category: p.category as PostCategory,
     title: p.title ?? undefined,
     content: p.content,
@@ -593,9 +611,19 @@ function mapComment(c: BackendComment): Comment {
     content: c.content,
     createdAt: c.created_at, // ISO — formatado na renderização (lib/time)
     author: mapUser(c.author),
+    authorIsResident: c.author_is_resident,
     likesCount: c.likes_count,
     liked: c.liked,
     repliesCount: c.replies_count,
+  };
+}
+
+function mapSession(s: BackendSession): UserSession {
+  return {
+    id: String(s.id),
+    deviceName: s.device_name,
+    createdAt: s.created_at,
+    isCurrent: s.is_current,
   };
 }
 
@@ -808,6 +836,22 @@ export const api = {
     return mapUser(
       await request<BackendUser>('/auth/2fa/disable', { method: 'POST', body: { code } }),
     );
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await request<void>('/auth/change-password', {
+      method: 'POST',
+      body: { current_password: currentPassword, new_password: newPassword },
+    });
+  },
+
+  async getSessions(): Promise<UserSession[]> {
+    const r = await request<BackendSession[]>('/auth/sessions');
+    return r.map(mapSession);
+  },
+
+  async revokeSession(id: string): Promise<void> {
+    await request<void>(`/auth/sessions/${id}`, { method: 'DELETE' });
   },
 
   async me(): Promise<User> {

@@ -18,6 +18,8 @@ class CommentOut(BaseModel):
     content: str
     created_at: datetime
     author: UserPublic
+    # True quando o bairro atual do autor é o mesmo do post comentado — selo de Morador.
+    author_is_resident: bool = False
     likes_count: int = 0
     liked: bool = False
     replies_count: int = 0  # respostas diretas (carregadas sob demanda)

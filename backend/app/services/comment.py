@@ -25,6 +25,9 @@ def _visible_post_or_404(db: Session, post_id: int, viewer: User):
 
 
 def _to_schema(comment: Comment, liked: bool, replies_count: int = 0) -> CommentOut:
+    # Morador: o bairro atual do autor é o mesmo do post comentado (mesma regra do post).
+    post_neighborhood = comment.post.neighborhood if comment.post else ""
+    author_is_resident = bool(post_neighborhood) and comment.author.neighborhood == post_neighborhood
     return CommentOut(
         id=comment.id,
         post_id=comment.post_id,
@@ -32,6 +35,7 @@ def _to_schema(comment: Comment, liked: bool, replies_count: int = 0) -> Comment
         content=comment.content,
         created_at=comment.created_at,
         author=UserPublic.model_validate(comment.author),
+        author_is_resident=author_is_resident,
         likes_count=comment.likes_count,
         liked=liked,
         replies_count=replies_count,

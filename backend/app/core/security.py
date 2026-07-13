@@ -17,20 +17,33 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 
-def create_access_token(subject: Any) -> str:
+def create_access_token(subject: Any, jti: str | None = None) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
     payload = {"sub": str(subject), "exp": expire}
+    if jti:
+        # Liga o token a uma sessão (ver models.session.UserSession) para permitir
+        # listar/desconectar dispositivos em "Configurações > Dispositivos conectados".
+        payload["jti"] = jti
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def decode_token(token: str) -> str:
+def _decode_access_payload(token: str) -> dict:
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     if payload.get("scope") == "2fa":
         # Ticket intermediário da A2F não vale como token de acesso.
         raise JWTError("Token de acesso inválido")
-    return payload["sub"]
+    return payload
+
+
+def decode_token(token: str) -> str:
+    return _decode_access_payload(token)["sub"]
+
+
+def decode_token_claims(token: str) -> dict:
+    """Payload completo (sub + jti quando presente) — usado para checar a sessão."""
+    return _decode_access_payload(token)
 
 
 # Ticket curto emitido após senha correta quando a A2F está ativa; só serve

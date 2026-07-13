@@ -17,9 +17,10 @@ import { useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import QRCode from 'react-native-qrcode-svg';
 import { Palette } from '../constants/Colors';
-import { api, ApiError } from '../lib/api';
+import { api, ApiError, UserSession } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
+import { formatExactDateTime } from '../lib/time';
 import LeftSidebar from '../components/LeftSidebar';
 import MobileMenu from '../components/MobileMenu';
 import { CONTENT_MAX_W } from '../components/WideLayout';
@@ -350,9 +351,223 @@ function PrivacyPanel() {
 
       <SectionTitle>Segurança</SectionTitle>
       <TwoFactorSection />
-      <LinkRow icon="key-outline" label="Alterar senha" />
-      <LinkRow icon="phone-portrait-outline" label="Dispositivos conectados" />
-      <LinkRow icon="download-outline" label="Baixar meus dados" />
+      <ChangePasswordSection />
+      <ConnectedDevicesSection />
+    </View>
+  );
+}
+
+/**
+ * Alteração de senha: pede a senha atual + a nova (com confirmação). Expande
+ * inline a partir de uma linha de link, no mesmo padrão da seção de A2F.
+ */
+function ChangePasswordSection() {
+  const styles = useThemedStyles(makeStyles);
+  const Colors = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const reset = () => {
+    setExpanded(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setFeedback(null);
+  };
+
+  const toggle = () => {
+    if (expanded) {
+      reset();
+    } else {
+      setFeedback(null);
+      setExpanded(true);
+    }
+  };
+
+  const submit = async () => {
+    setFeedback(null);
+    if (newPassword.length < 6) {
+      setFeedback({ ok: false, text: 'A nova senha deve ter ao menos 6 caracteres.' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setFeedback({ ok: false, text: 'A confirmação não confere com a nova senha.' });
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.changePassword(currentPassword, newPassword);
+      reset();
+      setFeedback({ ok: true, text: 'Senha alterada com sucesso!' });
+    } catch (e) {
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível alterar a senha.' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View>
+      <TouchableOpacity
+        style={styles.settingRow}
+        activeOpacity={0.7}
+        onPress={toggle}
+      >
+        <View style={styles.linkIcon}>
+          <Ionicons name="key-outline" size={18} color={Colors.textSecondary} />
+        </View>
+        <Text style={[styles.settingLabel, styles.linkLabel]}>Alterar senha</Text>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-forward'} size={18} color={Colors.textTertiary} />
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.twoFaCard}>
+          <Field
+            label="Senha atual"
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            placeholder="Sua senha atual"
+            secureToggle
+          />
+          <Field
+            label="Nova senha"
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder="Ao menos 6 caracteres"
+            secureToggle
+          />
+          <Field
+            label="Confirmar nova senha"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="Repita a nova senha"
+            secureToggle
+          />
+          {feedback && (
+            <Text style={[styles.feedback, feedback.ok ? styles.feedbackOk : styles.feedbackErr]}>{feedback.text}</Text>
+          )}
+          <View style={styles.twoFaBtnRow}>
+            <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8} onPress={reset} disabled={busy}>
+              <Text style={styles.secondaryBtnText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.twoFaPrimaryBtn, (busy || !currentPassword || !newPassword || !confirmPassword) && styles.saveBtnDisabled]}
+              activeOpacity={0.85}
+              onPress={submit}
+              disabled={busy || !currentPassword || !newPassword || !confirmPassword}
+            >
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Salvar nova senha</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Dispositivos conectados: lista as sessões ativas (login atual + outros
+ * dispositivos), com nome do dispositivo e quando a sessão começou. A sessão
+ * atual não pode ser desconectada por aqui — só as demais.
+ */
+function ConnectedDevicesSection() {
+  const styles = useThemedStyles(makeStyles);
+  const Colors = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sessions, setSessions] = useState<UserSession[] | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await api.getSessions();
+      setSessions(list);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível carregar os dispositivos.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggle = () => {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && sessions === null) load();
+  };
+
+  const disconnect = async (session: UserSession) => {
+    setRevokingId(session.id);
+    try {
+      await api.revokeSession(session.id);
+      setSessions((prev) => (prev ? prev.filter((s) => s.id !== session.id) : prev));
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível desconectar esse dispositivo.');
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
+  return (
+    <View>
+      <TouchableOpacity style={styles.settingRow} activeOpacity={0.7} onPress={toggle}>
+        <View style={styles.linkIcon}>
+          <Ionicons name="phone-portrait-outline" size={18} color={Colors.textSecondary} />
+        </View>
+        <Text style={[styles.settingLabel, styles.linkLabel]}>Dispositivos conectados</Text>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-forward'} size={18} color={Colors.textTertiary} />
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.twoFaCard}>
+          {loading ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : error ? (
+            <Text style={styles.feedbackErr}>{error}</Text>
+          ) : !sessions?.length ? (
+            <Text style={styles.fieldHint}>Nenhuma sessão ativa encontrada.</Text>
+          ) : (
+            sessions.map((session) => (
+              <View key={session.id} style={styles.deviceRow}>
+                <View style={styles.linkIcon}>
+                  <Ionicons name="hardware-chip-outline" size={16} color={Colors.textSecondary} />
+                </View>
+                <View style={styles.settingText}>
+                  <View style={styles.deviceNameRow}>
+                    <Text style={styles.settingLabel}>{session.deviceName}</Text>
+                    {session.isCurrent && (
+                      <View style={styles.devicePill}>
+                        <Text style={styles.devicePillText}>Este dispositivo</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.settingDesc}>Sessão iniciada em {formatExactDateTime(session.createdAt)}</Text>
+                </View>
+                {!session.isCurrent && (
+                  <TouchableOpacity
+                    style={styles.deviceDisconnectBtn}
+                    activeOpacity={0.7}
+                    onPress={() => disconnect(session)}
+                    disabled={revokingId === session.id}
+                  >
+                    {revokingId === session.id ? (
+                      <ActivityIndicator size="small" color={Colors.error} />
+                    ) : (
+                      <Text style={styles.deviceDisconnectText}>Desconectar</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -622,7 +837,7 @@ function AddressPanel() {
         <View style={styles.lockOverlay} pointerEvents="none">
           <Ionicons name="lock-closed" size={22} color={Colors.textSecondary} style={styles.lockIcon} />
           <Text style={styles.lockText}>
-            Em breve, apenas moradores comprovados poderão pertencer às comunidades.
+            Em breve, apenas moradores comprovados poderão pertencer às comunidades com o selo de Morador.
           </Text>
         </View>
       </View>
@@ -661,15 +876,18 @@ function Field({
   hint,
   prefix,
   editable = true,
+  secureToggle = false,
   ...props
 }: {
   label: string;
   multiline?: boolean;
   hint?: string;
   prefix?: string;
+  secureToggle?: boolean; // mostra o botão de olho e controla secureTextEntry internamente
 } & React.ComponentProps<typeof TextInput>) {
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
+  const [visible, setVisible] = useState(false);
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -681,7 +899,13 @@ function Field({
           multiline={multiline}
           editable={editable}
           {...props}
+          secureTextEntry={secureToggle ? !visible : props.secureTextEntry}
         />
+        {secureToggle && (
+          <TouchableOpacity onPress={() => setVisible((v) => !v)} style={styles.eyeBtn} hitSlop={8}>
+            <Ionicons name={visible ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        )}
       </View>
       {hint && <Text style={styles.fieldHint}>{hint}</Text>}
     </View>
@@ -718,20 +942,6 @@ function ToggleRow({
         thumbColor="#fff"
       />
     </View>
-  );
-}
-
-function LinkRow({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
-  const styles = useThemedStyles(makeStyles);
-  const Colors = useTheme();
-  return (
-    <TouchableOpacity style={styles.settingRow} activeOpacity={0.7}>
-      <View style={styles.linkIcon}>
-        <Ionicons name={icon} size={18} color={Colors.textSecondary} />
-      </View>
-      <Text style={[styles.settingLabel, styles.linkLabel]}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-    </TouchableOpacity>
   );
 }
 
@@ -844,6 +1054,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   inputPrefix: { fontSize: 15, color: Colors.textTertiary, fontWeight: '600' },
   input: { flex: 1, paddingVertical: 12, fontSize: 15, color: Colors.text },
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
+  eyeBtn: { padding: 4, borderRadius: 8 },
   rowFields: { flexDirection: 'row', gap: 12 },
   rowFieldSmall: { width: 110 },
   rowFieldFlex: { flex: 1, minWidth: 0 },
@@ -1035,4 +1246,28 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: 'transparent',
   },
   twoFaOutlineDangerText: { fontSize: 14, fontWeight: '700', color: Colors.error },
+
+  // Dispositivos conectados
+  deviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  deviceNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  devicePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: Colors.primaryFaint,
+  },
+  devicePillText: { fontSize: 11, fontWeight: '700', color: Colors.primary },
+  deviceDisconnectBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  deviceDisconnectText: { fontSize: 13, fontWeight: '700', color: Colors.error },
 });

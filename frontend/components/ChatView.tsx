@@ -42,7 +42,7 @@ type ChatItem =
 
 // Balão de mensagem. Definido no módulo (não dentro de ChatView) para não remontar
 // a cada render — assim a animação de entrada roda só uma vez, na mensagem recém-enviada.
-const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_MS = 400;
 
 function MessageBubble({
   msg,
@@ -63,9 +63,15 @@ function MessageBubble({
   onReply: (msg: ChatMessage) => void;
   onJumpTo: (id: string) => void;
 }) {
+  const Colors = useTheme();
   const ty = useSharedValue(animateIn ? 16 : 0);
   const op = useSharedValue(animateIn ? 0 : 1);
   const lastTapRef = useRef(0);
+  // No web, o ícone de responder só aparece com o mouse em cima da mensagem
+  // (como o duplo clique não é óbvio); no nativo não existe "hover", então
+  // fica sempre visível — senão a ação ficaria sem nenhuma forma descoberta.
+  const [hovered, setHovered] = useState(false);
+  const showReplyIcon = Platform.OS !== 'web' || hovered;
   // Post ou comentário encaminhado: recebem o mesmo tratamento de balão "shared".
   const hasShared = !!msg.sharedPost || !!msg.sharedComment;
 
@@ -105,7 +111,19 @@ function MessageBubble({
         <Pressable
           style={[styles.bubbleTapArea, mine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}
           onPress={handlePress}
+          onHoverIn={() => setHovered(true)}
+          onHoverOut={() => setHovered(false)}
         >
+        {mine && (
+          <TouchableOpacity
+            style={[styles.replyIconBtn, !showReplyIcon && styles.replyIconBtnHidden]}
+            onPress={() => onReply(msg)}
+            disabled={!showReplyIcon}
+            hitSlop={8}
+          >
+            <Ionicons name="arrow-undo-outline" size={14} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        )}
         <View
           style={[
             styles.bubble,
@@ -161,6 +179,16 @@ function MessageBubble({
             {formatMessageTime(msg.createdAt)}
           </Text>
         </View>
+        {!mine && (
+          <TouchableOpacity
+            style={[styles.replyIconBtn, !showReplyIcon && styles.replyIconBtnHidden]}
+            onPress={() => onReply(msg)}
+            disabled={!showReplyIcon}
+            hitSlop={8}
+          >
+            <Ionicons name="arrow-undo-outline" size={14} color={Colors.textTertiary} />
+          </TouchableOpacity>
+        )}
         </Pressable>
       </View>
     </Animated.View>
@@ -669,6 +697,12 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   bubbleRowMine: { justifyContent: 'flex-end' },
   bubbleRowTheirs: { justifyContent: 'flex-start' },
   bubbleTapArea: { flex: 1, flexDirection: 'row' },
+  // Botão de responder: aparece ao lado de qualquer balão (inclusive os
+  // próprios) — alternativa visível ao duplo toque, que sozinho não é óbvio.
+  replyIconBtn: { alignSelf: 'center', padding: 6, borderRadius: 12, marginHorizontal: 2 },
+  // Mantém o espaço reservado (evita o balão "pulando" ao mostrar/esconder) —
+  // só fica transparente e sem interação fora do hover (ou fora do web).
+  replyIconBtnHidden: { opacity: 0 },
   senderAvatar: { width: 28, height: 28, borderRadius: 9, backgroundColor: Colors.border },
   bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
   replyQuote: {

@@ -42,6 +42,7 @@ export default function SignupScreen() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   // Validação em tempo real (formato + disponibilidade) de username e e-mail.
   const usernameCheck = useAvailability(username, api.checkSignupUsername, {
     ready: (v) => v.length >= 3,
@@ -207,15 +208,22 @@ export default function SignupScreen() {
                   <View style={styles.inputWrapper}>
                     <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
-                      style={styles.input}
+                      style={styles.inputFlex}
                       placeholder="Mínimo 8 caracteres"
                       placeholderTextColor={Colors.textTertiary}
                       value={password}
                       onChangeText={setPassword}
-                      secureTextEntry
+                      secureTextEntry={!showPassword}
                       onKeyPress={submitOnEnter(createAccount)}
                       onSubmitEditing={createAccount}
                     />
+                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={18}
+                        color={Colors.textTertiary}
+                      />
+                    </TouchableOpacity>
                   </View>
                 </View>
               </>
@@ -421,6 +429,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
   },
+  inputFlex: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.text,
+  },
+  eyeBtn: { padding: 4, borderRadius: 8 },
 
   // Sucesso (step 1)
   successArea: {

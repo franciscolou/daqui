@@ -303,10 +303,6 @@ export default function PublishScreen() {
               <View style={styles.authorMeta}>
                 <Ionicons name="location-outline" size={12} color={Colors.primary} />
                 <Text style={styles.authorNeighborhood}>{user?.neighborhood}</Text>
-                <View style={styles.audienceChip}>
-                  <Ionicons name="people" size={11} color={Colors.primary} />
-                  <Text style={styles.audienceText}>Bairro inteiro</Text>
-                </View>
               </View>
             </View>
           </View>
@@ -835,7 +831,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  audienceText: { fontSize: 11, color: Colors.primary, fontWeight: '600' },
   section: { paddingHorizontal: 16, paddingTop: 18 },
   sectionLabel: {
     fontSize: 14,

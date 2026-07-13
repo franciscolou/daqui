@@ -71,8 +71,13 @@ export default function HelpScreen() {
 const HOW_TO_STEPS: { icon: keyof typeof Ionicons.glyphMap; title: string; desc: string }[] = [
   {
     icon: 'home-outline',
-    title: 'Seu feed é o seu bairro',
-    desc: 'A aba Início mostra posts de quem mora perto de você, filtrados por categoria (Aviso, Evento, Venda, Pets…) e priorizando o que estiver marcado como importante.',
+    title: '"Meu bairro" e "Perto de mim"',
+    desc: 'No topo do Início você escolhe entre "Meu bairro" (o bairro do seu cadastro) e "Perto de mim" (o bairro mais próximo da sua localização atual). Em qualquer um dos dois dá para ligar "Incluir redondezas" para ver também os bairros vizinhos. Some ao filtro por categoria (Aviso, Evento, Venda, Pets…) e à priorização do que estiver marcado como importante.',
+  },
+  {
+    icon: 'home',
+    title: 'O selo "Morador"',
+    desc: 'Os posts e comentários de quem realmente mora naquele bairro ganham o selo "Morador" ao lado do nome — assim fica claro quem é vizinho de fato e quem só está de passagem pelo bairro.',
   },
   {
     icon: 'add-circle-outline',
@@ -143,11 +148,19 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: 'Como o app sabe qual é o meu bairro? Posso trocar de bairro?',
-    a: 'O bairro é definido no seu cadastro e usado para montar o seu feed e o mapa. Ainda não é possível trocar de bairro sozinho pelo app — se você se mudou, abra um chamado em "Meus chamados".',
+    a: 'O bairro do seu cadastro é o que aparece em "Meu bairro" e é usado no mapa. Se você se mudou, dá para atualizá-lo a qualquer momento em Configurações > Editar perfil, no campo "Bairro". Para só dar uma olhada em outro bairro sem mudar seu cadastro, use a aba "Perto de mim" no Início — ela usa a localização atual do aparelho, sem alterar o que está salvo no seu perfil.',
+  },
+  {
+    q: 'Qual a diferença entre "Meu bairro", "Perto de mim" e "Incluir redondezas"?',
+    a: '"Meu bairro" mostra o feed do bairro salvo no seu cadastro. "Perto de mim" descobre pelo GPS o bairro mais próximo de onde você está agora e mostra o feed dele, útil quando você está de passagem por outro bairro. Em ambos, o switch "Incluir redondezas" amplia o feed trazendo também posts dos bairros vizinhos.',
+  },
+  {
+    q: 'O que significa o selo "Morador" em um post ou comentário?',
+    a: 'O selo aparece quando o autor mora de fato no bairro daquele post ou comentário — ajuda a diferenciar vizinhos de quem só está vendo aquele bairro pela aba "Perto de mim" ou por "Incluir redondezas".',
   },
   {
     q: 'Quem consegue ver o que eu publico?',
-    a: 'Posts e comentários ficam visíveis para vizinhos do mesmo bairro. Seu endereço exato nunca é exibido para ninguém — apenas o nome do bairro aparece no seu perfil.',
+    a: 'Posts e comentários ficam visíveis para quem está vendo o feed do seu bairro — inclusive quem chegou até ele pela aba "Perto de mim" ou com "Incluir redondezas" ligado. Seu endereço exato nunca é exibido para ninguém — apenas o nome do bairro aparece no seu perfil.',
   },
   {
     q: 'O que muda quando eu marco um post como "importante"?',

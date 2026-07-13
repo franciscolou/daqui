@@ -29,6 +29,7 @@ import ActionMenu from '../../components/ActionMenu';
 import ReportModal from '../../components/ReportModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import PostImageGallery from '../../components/PostImageGallery';
+import ResidentBadge from '../../components/ResidentBadge';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -294,6 +295,7 @@ export default function PostDetailScreen() {
                 {!!comment.author.username && (
                   <Text style={styles.commentUsername} numberOfLines={1}>@{comment.author.username}</Text>
                 )}
+                {comment.authorIsResident && <ResidentBadge />}
                 <Text style={styles.commentTime}>{formatPostTime(comment.createdAt)}</Text>
                 <TouchableOpacity
                   style={[styles.iconBtn, styles.commentMenuBtn]}
@@ -390,6 +392,7 @@ export default function PostDetailScreen() {
                 {!!post.author.username && (
                   <Text style={styles.authorUsername} numberOfLines={1}>@{post.author.username}</Text>
                 )}
+                {post.authorIsResident && <ResidentBadge />}
               </View>
               <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
             </View>

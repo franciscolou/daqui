@@ -49,6 +49,7 @@ export interface User {
 export interface Post {
   id: string;
   author: User;
+  authorIsResident?: boolean; // autor mora no bairro deste post (selo de Morador)
   category: PostCategory;
   title?: string;
   content: string;

@@ -78,6 +78,8 @@ class PostOut(BaseModel):
     pinned: bool
     created_at: datetime
     author: UserPublic
+    # True quando o bairro atual do autor é o mesmo do post — exibe o selo de Morador.
+    author_is_resident: bool = False
     liked: bool = False
     poll: Optional[PollOut] = None
 
