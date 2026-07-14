@@ -7,16 +7,20 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { NOTIF_ICONS } from '../../constants/notifications';
 import { notificationParts } from '../../components/NotificationText';
 import RemovedContentModal from '../../components/RemovedContentModal';
 import { api, AppNotification } from '../../lib/api';
+import { adsApi, Ad } from '../../lib/adsApi';
+import { getOrCreateAdViewerId } from '../../lib/storage';
+import { useAuth } from '../../lib/auth';
 import { useRealtime } from '../../lib/realtime';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -32,7 +36,10 @@ export default function NotificationsScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { subscribeNotifications } = useRealtime();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [ad, setAd] = useState<Ad | null>(null);
+  const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [removedPreview, setRemovedPreview] = useState<AppNotification | null>(null);
@@ -49,6 +56,36 @@ export default function NotificationsScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useEffect(() => {
+    getOrCreateAdViewerId().then(setAdViewerId);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      adsApi
+        .getAd('notification', {
+          neighborhood: user?.neighborhood,
+          engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+          viewerId: adViewerId,
+        })
+        .then(setAd)
+        .catch(() => setAd(null));
+    }, [user?.neighborhood, user?.interactionsCount, adViewerId]),
+  );
+
+  // Prepend do anúncio (se houver) — sem linha reservada quando não existe.
+  const displayNotifications = useMemo<AppNotification[]>(() => {
+    if (!ad) return notifications;
+    const adNotification: AppNotification = {
+      id: `ad-${ad.id}`,
+      type: 'ad',
+      content: ad.title,
+      time: 'Publicidade',
+      read: true,
+    };
+    return [adNotification, ...notifications];
+  }, [notifications, ad]);
 
   // Recarrega ao vivo quando o servidor avisa (via websocket) que chegou algo novo.
   useEffect(() => subscribeNotifications(load), [subscribeNotifications, load]);
@@ -77,7 +114,7 @@ export default function NotificationsScreen() {
 
       <FlatList
         ref={listRef}
-        data={notifications}
+        data={displayNotifications}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -98,7 +135,10 @@ export default function NotificationsScreen() {
         renderItem={({ item }) => {
           const style = NOTIF_ICONS[item.type] ?? NOTIF_ICONS.welcome;
           const onPress = () => {
-            if (REMOVED_TYPES.has(item.type) && item.snapshot) setRemovedPreview(item);
+            if (item.type === 'ad' && ad) {
+              adsApi.trackAdClick(ad.id, { viewerId: adViewerId, creativeId: ad.creativeId, format: 'notification' });
+              Linking.openURL(ad.targetUrl);
+            } else if (REMOVED_TYPES.has(item.type) && item.snapshot) setRemovedPreview(item);
             else if (item.postId) router.push(`/post/${item.postId}` as any);
             else if (item.actor) router.push(`/user/${item.actor.id}` as any);
           };

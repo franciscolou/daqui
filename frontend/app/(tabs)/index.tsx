@@ -16,16 +16,19 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { CATEGORIES, PostCategory, Post } from '../../data/mock';
 import { api } from '../../lib/api';
+import { adsApi, Ad } from '../../lib/adsApi';
+import { getOrCreateAdViewerId } from '../../lib/storage';
 import { getDeviceCoords, LocationError, Coords } from '../../lib/location';
 import { useAuth } from '../../lib/auth';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import PostCard from '../../components/PostCard';
+import AdPostCard from '../../components/AdPostCard';
 import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
 import MobileMenu from '../../components/MobileMenu';
@@ -33,6 +36,7 @@ import HomeNeighborhoodSetup from '../../components/HomeNeighborhoodSetup';
 
 type FilterKey = 'todos' | PostCategory;
 type ViewMode = 'meu' | 'perto';
+type FeedItem = { kind: 'post'; post: Post } | { kind: 'ad'; ad: Ad };
 
 const WIDE = 900;
 
@@ -46,10 +50,12 @@ export default function FeedScreen() {
   const [activeCategory, setActiveCategory] = useState<FilterKey>('todos');
   const [importantOnly, setImportantOnly] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [feedAd, setFeedAd] = useState<Ad | null>(null);
+  const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const listRef = useRef<FlatList<Post>>(null);
+  const listRef = useRef<FlatList<FeedItem>>(null);
 
   // Visualização ativa e preferência de "redondezas" por visualização.
   // Padrão "perto de mim": "Meu bairro" pode exigir configurar o bairro antes.
@@ -139,6 +145,27 @@ export default function FeedScreen() {
     }, [load]),
   );
 
+  const activeNeighborhood = viewMode === 'meu' ? user?.neighborhood : pertoNeighborhood ?? undefined;
+
+  useEffect(() => {
+    getOrCreateAdViewerId().then(setAdViewerId);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      adsApi
+        .getAd('post', {
+          neighborhood: activeNeighborhood ?? undefined,
+          viewMode: viewMode === 'meu' ? 'home' : 'nearby',
+          category: activeCategory !== 'todos' ? activeCategory : undefined,
+          engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+          viewerId: adViewerId,
+        })
+        .then(setFeedAd)
+        .catch(() => setFeedAd(null));
+    }, [activeNeighborhood, viewMode, activeCategory, user?.interactionsCount, adViewerId]),
+  );
+
   const switchView = useCallback((mode: ViewMode) => {
     if (mode === viewMode) {
       // Retoque na aba "Perto de mim" reobtém a localização.
@@ -183,6 +210,16 @@ export default function FeedScreen() {
       (activeCategory === 'todos' || p.category === activeCategory) &&
       (!importantOnly || p.important),
   );
+
+  // O anúncio (se houver) entra numa posição fixa da lista — sem vaga
+  // reservada quando não existe (feedAd null não altera o array).
+  const feedItems: FeedItem[] = feedAd
+    ? [
+        ...filteredPosts.slice(0, 2).map((post): FeedItem => ({ kind: 'post', post })),
+        { kind: 'ad', ad: feedAd },
+        ...filteredPosts.slice(2).map((post): FeedItem => ({ kind: 'post', post })),
+      ]
+    : filteredPosts.map((post): FeedItem => ({ kind: 'post', post }));
 
   // View tabs: "Meu bairro" | "Perto de mim" (desktop e mobile) — presente
   // tanto no feed quanto na configuração de "Meu bairro", para o usuário
@@ -331,11 +368,11 @@ export default function FeedScreen() {
     <Animated.View style={[styles.feedFill, contentStyle]}>
       <FlatList
         ref={listRef}
-        data={filteredPosts}
-        keyExtractor={(item) => item.id}
+        data={feedItems}
+        keyExtractor={(item) => (item.kind === 'post' ? item.post.id : `ad-${item.ad.id}`)}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={feedHeader}
-        renderItem={({ item }) => <PostCard post={item} />}
+        renderItem={({ item }) => (item.kind === 'post' ? <PostCard post={item.post} /> : <AdPostCard ad={item.ad} viewerId={adViewerId} />)}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />

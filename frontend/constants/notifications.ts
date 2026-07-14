@@ -10,4 +10,5 @@ export const NOTIF_ICONS: Record<string, { icon: string; bg: string; color: stri
   comment_removed: { icon: 'trash-outline', bg: '#FEE2E2', color: Colors.error },
   // Fallback para tipos antigos/desconhecidos
   welcome: { icon: 'sparkles', bg: Colors.accentLight, color: Colors.accent },
+  ad: { icon: 'megaphone', bg: Colors.accentLight, color: Colors.accent },
 };

@@ -38,6 +38,9 @@ export default function RootLayout() {
                 <Stack.Screen name="rate/index" />
                 <Stack.Screen name="help/index" />
                 <Stack.Screen name="forward/[postId]" />
+                <Stack.Screen name="anunciar/index" />
+                <Stack.Screen name="anunciar/personalizar" />
+                <Stack.Screen name="anunciar/checkout" />
                 <Stack.Screen name="settings" />
               </Stack>
             </ScrollToTopProvider>

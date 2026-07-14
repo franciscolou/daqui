@@ -12,15 +12,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { Post, User } from '../../data/mock';
 import { api, SearchType } from '../../lib/api';
+import { adsApi, Ad } from '../../lib/adsApi';
+import { getOrCreateAdViewerId } from '../../lib/storage';
+import { useAuth } from '../../lib/auth';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import PostCard from '../../components/PostCard';
 import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
+import AdSearchPoster from '../../components/AdSearchPoster';
 
 const WIDE = 900;
 
@@ -35,6 +39,7 @@ export default function SearchScreen() {
   const isWide = width >= WIDE;
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { user } = useAuth();
 
   const [query, setQuery] = useState('');
   const [type, setType] = useState<SearchType>('all');
@@ -42,6 +47,23 @@ export default function SearchScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [ad, setAd] = useState<Ad | null>(null);
+  const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    getOrCreateAdViewerId().then(setAdViewerId);
+  }, []);
+
+  useEffect(() => {
+    adsApi
+      .getAd('search_poster', {
+        neighborhood: user?.neighborhood,
+        engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+        viewerId: adViewerId,
+      })
+      .then(setAd)
+      .catch(() => setAd(null));
+  }, [user?.neighborhood, user?.interactionsCount, adViewerId]);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seq = useRef(0);
@@ -153,10 +175,13 @@ export default function SearchScreen() {
           <ActivityIndicator color={Colors.primary} />
         </View>
       ) : !query.trim() ? (
-        <View style={styles.state}>
-          <Ionicons name="search-outline" size={34} color={Colors.textTertiary} />
-          <Text style={styles.stateText}>Busque por posts e vizinhos.</Text>
-        </View>
+        <>
+          <View style={styles.state}>
+            <Ionicons name="search-outline" size={34} color={Colors.textTertiary} />
+            <Text style={styles.stateText}>Busque por posts e vizinhos.</Text>
+          </View>
+          {ad && <AdSearchPoster ad={ad} viewerId={adViewerId} />}
+        </>
       ) : searched && !hasResults ? (
         <View style={styles.state}>
           <Ionicons name="sad-outline" size={34} color={Colors.textTertiary} />

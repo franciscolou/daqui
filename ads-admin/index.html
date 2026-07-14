@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anúncios | Daqui</title>
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('daqui-ads-admin-theme');
+        var theme = stored === 'light' || stored === 'dark'
+          ? stored
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --primary: #22C55E; --primary-dark: #16A34A; --primary-tint: #DCFCE7; --gold: #F59E0B;
+      --bg: #F8FAFC; --surface: #FFFFFF; --border: #E2E8F0; --border-light: #F1F5F9;
+      --text: #0F172A; --text-2: #64748B; --text-3: #94A3B8;
+      --danger: #EF4444; --danger-bg: #FEF2F2;
+      --overlay: rgba(15,23,42,0.5);
+      --shadow-login: rgba(0,0,0,0.06); --shadow-card: rgba(0,0,0,0.04);
+    }
+    :root[data-theme="dark"] {
+      --primary-dark: #4ADE80; --primary-tint: rgba(34,197,94,0.18);
+      --bg: #0B1220; --surface: #111A2E; --border: #243049; --border-light: #1A2336;
+      --text: #F1F5F9; --text-2: #9FB0C3; --text-3: #6B7A90;
+      --danger: #F87171; --danger-bg: rgba(239,68,68,0.14);
+      --overlay: rgba(0,0,0,0.6);
+      --shadow-login: rgba(0,0,0,0.45); --shadow-card: rgba(0,0,0,0.3);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
+    .hidden { display: none !important; }
+    .theme-toggle { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-size: 15px; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
+
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; position: relative; }
+    .login-theme-toggle { position: absolute; top: 20px; right: 20px; }
+    .login-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px; box-shadow: 0 8px 30px var(--shadow-login); }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .brand .dot { width: 34px; height: 34px; border-radius: 11px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; }
+    .brand h1 { font-size: 22px; margin: 0; letter-spacing: -0.5px; }
+    .muted { color: var(--text-3); font-size: 13px; }
+    label { display:block; font-size: 13px; font-weight: 600; color: var(--text-2); margin: 14px 0 6px; }
+    input, select, textarea { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font-family: inherit; }
+    textarea { resize: vertical; min-height: 60px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+    button { cursor: pointer; font-family: inherit; }
+    .btn { width: 100%; margin-top: 18px; padding: 12px; font-size: 15px; font-weight: 700; color: #fff; background: var(--primary); border: none; border-radius: 12px; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .err { color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 12px; min-height: 16px; }
+
+    .layout { display: flex; min-height: 100vh; align-items: stretch; }
+    .sidebar { width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 18px 12px; }
+    .brand-mini { display: flex; align-items: center; gap: 9px; padding: 4px 10px 22px; font-weight: 800; font-size: 15px; }
+    .brand-mini .dot { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size: 13px; }
+    #nav { display: flex; flex-direction: column; gap: 3px; }
+    .navbtn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border-radius: 10px; border: none; background: none; font-size: 14px; font-weight: 600; color: var(--text-2); }
+    .navbtn .ic { font-size: 15px; width: 18px; text-align: center; }
+    .navbtn.active { background: var(--primary-tint); color: var(--primary-dark); }
+    .sidebar-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-light); }
+    .sidebar-footer .who { font-size: 12px; color: var(--text-3); margin-bottom: 8px; word-break: break-all; }
+    .main { flex: 1; min-width: 0; }
+    .topbar { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; }
+    .topbar h1 { font-size: 18px; margin: 0; }
+    .linkbtn { background: none; border: none; color: var(--text-2); font-size: 13px; font-weight: 600; padding: 0; }
+    .container { max-width: 760px; margin: 0 auto; padding: 20px; }
+
+    @media (max-width: 700px) {
+      .layout { flex-direction: column; }
+      .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; }
+      .brand-mini { padding: 0 14px 0 0; }
+      #nav { flex-direction: row; gap: 6px; }
+      .navbtn { width: auto; white-space: nowrap; }
+      .sidebar-footer { margin-top: 0; margin-left: auto; padding-top: 0; border-top: none; display: flex; align-items: center; gap: 10px; }
+      .sidebar-footer .who { margin-bottom: 0; }
+    }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+    .stat { background: var(--surface); border: 1px solid var(--border-light); border-radius: 14px; padding: 14px 16px; }
+    .stat .n { font-size: 22px; font-weight: 800; }
+    .stat .l { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .tab { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-2); }
+    .tab.active { background: var(--primary-tint); border-color: var(--primary-tint); color: var(--primary-dark); }
+
+    .card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px var(--shadow-card); }
+    .card .head { display: flex; align-items: center; gap: 12px; }
+    .head .name { font-weight: 700; font-size: 15px; }
+    .head .sub { font-size: 12px; color: var(--text-3); }
+    .head .when { margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+    .badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: .4px; }
+    .b-active { background: var(--primary-tint); color: var(--primary-dark); }
+    .b-pending_payment { background: rgba(245,158,11,0.18); color: #92400E; }
+    .b-paused { background: var(--border-light); color: var(--text-2); }
+    .b-expired, .b-rejected { background: var(--danger-bg); color: var(--danger); }
+    .formats { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+    .format-tag { font-size: 11px; font-weight: 700; color: var(--text-2); background: var(--border-light); padding: 3px 10px; border-radius: 999px; }
+    .comment { font-size: 14px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
+    .meta-row { font-size: 12px; color: var(--text-3); margin-top: 6px; }
+    .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+    .act { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 700; }
+    .act.approve { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .act.reject { background: var(--surface); border-color: var(--gold); color: #92400E; }
+    .act.danger { background: var(--surface); border-color: var(--danger); color: var(--danger); }
+    .b-hidden { background: var(--border-light); color: var(--text-2); }
+    .card.plan-hidden { opacity: .6; }
+    .card.plan-hidden:hover { opacity: 1; }
+    .empty-state { text-align: center; color: var(--text-3); padding: 60px 20px; }
+    .checks { display: flex; gap: 14px; flex-wrap: wrap; }
+    .checks label { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; margin: 0; }
+    .checks input { width: auto; }
+    .form-card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+    .form-card h2 { font-size: 15px; margin: 0 0 4px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 560px) { .stats { grid-template-columns: 1fr; } .row2 { grid-template-columns: 1fr; } }
+
+    .container-wide { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    .plans-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    .plans-layout .form-card { margin-bottom: 0; }
+    @media (max-width: 900px) { .plans-layout { grid-template-columns: 1fr; } }
+    .plan-preview-card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 20px; }
+    .plan-preview-card h2 { font-size: 15px; margin: 0 0 4px; }
+    .plan-preview-card .muted { margin-bottom: 14px; display: block; }
+
+    .advanced-toggle { margin-top: 16px; background: none; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; color: var(--text-2); width: 100%; text-align: left; }
+    .advanced-body { margin-top: 10px; padding: 14px; border: 1px dashed var(--border); border-radius: 12px; }
+    .details-toggle { background: none; border: none; color: var(--text-2); font-size: 12px; font-weight: 700; padding: 0; }
+    .details-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-light); }
+    .details-panel h3 { font-size: 13px; margin: 0 0 8px; }
+    .mini-stats { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+    .mini-stats .m { font-size: 12px; color: var(--text-2); }
+    .mini-stats .m b { font-size: 14px; color: var(--text); display: block; }
+    .bucket-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); margin-bottom: 3px; }
+    .bucket-row .bar-wrap { flex: 1; background: var(--border-light); border-radius: 999px; height: 8px; overflow: hidden; }
+    .bucket-row .bar { height: 100%; background: var(--primary); }
+    .creative-item { border: 1px solid var(--border-light); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; }
+    .creative-item .top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .creative-item .top b { font-size: 13px; }
+    .creative-item .sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+    /* ── Analytics ── */
+    .filters-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+    .filters-bar .fgroup { display: flex; flex-direction: column; gap: 4px; }
+    .filters-bar label { margin: 0; }
+    .filters-bar input, .filters-bar select { width: auto; min-width: 150px; }
+    .filters-bar .presets { display: flex; gap: 6px; }
+    .preset-btn { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12px; font-weight: 600; }
+    .preset-btn.active { background: var(--primary-tint); border-color: var(--primary-tint); color: var(--primary-dark); }
+    .apply-btn { padding: 9px 16px; border-radius: 10px; border: none; background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; }
+    .insights-card { background: var(--primary-tint); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
+    .insights-card h3 { font-size: 12px; margin: 0 0 8px; color: var(--primary-dark); text-transform: uppercase; letter-spacing: .4px; }
+    .insights-card ul { margin: 0; padding-left: 18px; }
+    .insights-card li { font-size: 13px; color: var(--text); margin-bottom: 4px; }
+    .chart-card { background: var(--surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 4px var(--shadow-card); }
+    .chart-card h3 { font-size: 13px; margin: 0 0 10px; }
+    .chart-legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); margin-bottom: 10px; align-items: center; }
+    .chart-legend .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+    .dot-imp { background: var(--primary); }
+    .dot-clk { background: var(--gold); }
+    .vchart { display: flex; align-items: flex-end; gap: 8px; height: 140px; overflow-x: auto; padding: 4px 2px 0; border-bottom: 1px solid var(--border-light); }
+    .vbar-col { display: flex; flex-direction: column; align-items: center; gap: 5px; flex-shrink: 0; }
+    .vbars { display: flex; align-items: flex-end; gap: 3px; height: 108px; }
+    .vbar { width: 11px; background: var(--primary); border-radius: 3px 3px 0 0; min-height: 2px; }
+    .vbar.clk { background: var(--gold); }
+    .vbar-label { font-size: 10px; color: var(--text-3); white-space: nowrap; }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 800px) { .charts-grid { grid-template-columns: 1fr; } }
+    .table-scroll { overflow-x: auto; }
+    .atable { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+    .atable th, .atable td { padding: 9px 12px; border-bottom: 1px solid var(--border-light); text-align: left; }
+    .atable th { color: var(--text-3); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+    .atable tbody tr:hover { background: var(--border-light); }
+  </style>
+</head>
+<body>
+  <div id="login" class="login-wrap">
+    <button class="theme-toggle login-theme-toggle" id="themeToggleLogin" title="Alternar tema"></button>
+    <div class="login-card">
+      <div class="brand"><div class="dot">d</div><h1>Anúncios Daqui</h1></div>
+      <p class="muted">Painel do time de anúncios. Login separado do app Daqui.</p>
+      <label>Servidor do ads-backend</label>
+      <input id="api" value="http://localhost:8001/api/v1" />
+      <label>E-mail</label>
+      <input id="email" type="email" placeholder="ads@daqui.com" autocomplete="username" />
+      <label>Senha</label>
+      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+      <button id="loginBtn" class="btn">Entrar</button>
+      <div id="loginErr" class="err"></div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="layout">
+      <nav class="sidebar">
+        <div class="brand-mini"><div class="dot">d</div><span>Anúncios</span></div>
+        <div id="nav"></div>
+        <div class="sidebar-footer">
+          <div class="who" id="who"></div>
+          <button class="theme-toggle" id="themeToggleApp" title="Alternar tema"></button>
+          <button class="linkbtn" id="logoutBtn">Sair</button>
+        </div>
+      </nav>
+
+      <div class="main">
+        <div class="topbar"><h1 id="sectionTitle"></h1></div>
+        <div class="container">
+          <div id="section-campaigns">
+            <div class="stats" id="campaignStats"></div>
+            <div class="tabs" id="campaignStatusTabs"></div>
+            <div id="campaignList"></div>
+          </div>
+
+          <div id="section-analytics" class="hidden">
+            <div class="filters-bar">
+              <div class="fgroup"><label>De</label><input id="anFrom" type="date" /></div>
+              <div class="fgroup"><label>Até</label><input id="anTo" type="date" /></div>
+              <div class="fgroup"><label>Anunciante</label><select id="anAdvertiser"><option value="">Todos</option></select></div>
+              <div class="fgroup"><label>Status</label><select id="anStatus"></select></div>
+              <div class="fgroup">
+                <label>Períodos rápidos</label>
+                <div class="presets" id="anPresets"></div>
+              </div>
+              <button class="apply-btn" id="anApplyBtn">Aplicar filtros</button>
+            </div>
+            <div id="anContent"></div>
+          </div>
+
+          <div id="section-new" class="hidden">
+            <div class="form-card">
+              <h2>Inserir proposta manual</h2>
+              <p class="muted">Para propostas negociadas por Instagram/WhatsApp/Gmail — entra direto como campanha ativa.</p>
+              <label>Anunciante</label>
+              <input id="newAdvertiserName" placeholder="Nome" />
+              <div class="row2">
+                <div><label>E-mail</label><input id="newAdvertiserEmail" type="email" /></div>
+                <div><label>Telefone</label><input id="newAdvertiserPhone" /></div>
+              </div>
+              <label>Formatos</label>
+              <div class="checks" id="newFormats"></div>
+              <div class="row2">
+                <div><label>Duração (dias)</label><input id="newDuration" type="number" value="15" min="1" /></div>
+                <div><label>Preço acordado (R$)</label><input id="newPrice" type="number" step="0.01" min="0" /></div>
+              </div>
+              <label><input type="checkbox" id="newCitywide" style="width:auto;display:inline-block;margin-right:6px;" /> Cidade toda</label>
+              <label>Bairros (separados por vírgula, se não for cidade toda)</label>
+              <input id="newNeighborhoods" placeholder="Pinheiros, Vila Madalena" />
+              <label>Título do anúncio</label>
+              <input id="newTitle" />
+              <label>Texto</label>
+              <textarea id="newContent"></textarea>
+              <div class="row2">
+                <div><label>URL da imagem (opcional)</label><input id="newImageUrl" /></div>
+                <div><label>Texto do botão (opcional)</label><input id="newCtaLabel" placeholder="Saiba mais" /></div>
+              </div>
+              <label>Link de destino (ao tocar no anúncio)</label>
+              <input id="newTargetUrl" placeholder="https://..." />
+              <div class="row2">
+                <div><label>Latitude (se formato "post")</label><input id="newLat" type="number" step="any" /></div>
+                <div><label>Longitude (se formato "post")</label><input id="newLng" type="number" step="any" /></div>
+              </div>
+
+              <button type="button" class="advanced-toggle" id="newAdvancedToggle">▸ Configurações avançadas</button>
+              <div class="advanced-body hidden" id="newAdvancedBody">
+                <div class="row2">
+                  <div><label>Objetivo</label><select id="newObjective"></select></div>
+                  <div><label>Prioridade (1-5)</label><input id="newPriority" type="number" min="1" max="5" value="3" /></div>
+                </div>
+                <div class="row2">
+                  <div><label>Peso na rotação</label><input id="newRotationWeight" type="number" step="0.1" value="1.0" /></div>
+                  <div><label>Pacing</label><select id="newPacing"><option value="asap">Entregar assim que possível</option><option value="even">Distribuir uniformemente (even)</option></select></div>
+                </div>
+                <div class="row2">
+                  <div><label>Limite diário de impressões (opcional)</label><input id="newDailyCap" type="number" min="1" /></div>
+                  <div><label>Limite por usuário (opcional)</label><input id="newPerUserCap" type="number" min="1" /></div>
+                </div>
+                <label>Segmentação extra</label>
+                <div class="row2">
+                  <div><label>Audiência</label><select id="newAudience"><option value="all">Todos</option><option value="residents">Só moradores</option><option value="visitors">Só visitantes atuais</option></select></div>
+                  <div><label>Usuários</label><select id="newRecency"><option value="all">Todos</option><option value="new">Só novos</option><option value="returning">Só antigos</option></select></div>
+                </div>
+                <label><input type="checkbox" id="newIncludeNearby" style="width:auto;display:inline-block;margin-right:6px;" /> Incluir bairros próximos</label>
+                <label><input type="checkbox" id="newEngagementActive" style="width:auto;display:inline-block;margin-right:6px;" /> Só usuários ativos (engajamento)</label>
+                <label>Categorias de post (opcional, separadas por vírgula)</label>
+                <input id="newCategories" placeholder="evento, venda" />
+                <label>Grupos alvo (IDs separados por vírgula, opcional)</label>
+                <input id="newGroupIds" placeholder="1, 4" />
+                <label>Agenda: horários (0-23, separados por vírgula; vazio = qualquer hora)</label>
+                <input id="newHours" placeholder="18, 19, 20, 21" />
+                <label>Agenda: dias da semana (0=seg...6=dom; vazio = qualquer dia)</label>
+                <input id="newDaysOfWeek" placeholder="5, 6" />
+                <label>Datas especiais (opcional, YYYY-MM-DD separadas por vírgula)</label>
+                <input id="newSpecialDates" placeholder="2026-12-25" />
+              </div>
+
+              <button class="act approve" id="newSubmitBtn" style="margin-top:16px;width:100%;">Criar campanha ativa</button>
+              <div id="newErr" class="err"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="section-plans" class="hidden container-wide">
+          <div class="plans-layout">
+            <div class="plan-preview-card">
+              <h2>Planos exibidos atualmente</h2>
+              <span class="muted">Como aparecem para o anunciante em "Anuncie no Daqui", por categoria.</span>
+              <div class="tabs" id="planCategoryTabs"></div>
+              <div id="planPreviewList"></div>
+            </div>
+            <div class="form-card">
+              <h2>Novo plano</h2>
+              <div class="row2">
+                <div><label>Nome</label><input id="planName" /></div>
+                <div><label>Slug</label><input id="planSlug" placeholder="ex.: bairro-basico" /></div>
+              </div>
+              <label>Descrição</label>
+              <textarea id="planDescription"></textarea>
+              <div class="row2">
+                <div><label>Preço (R$)</label><input id="planPrice" type="number" step="0.01" min="0" /></div>
+                <div><label>Duração (dias)</label><input id="planDuration" type="number" min="1" value="15" /></div>
+              </div>
+              <label>Formatos</label>
+              <div class="checks" id="planFormats"></div>
+              <div class="row2">
+                <div><label>Máx. de bairros (vazio = cidade toda)</label><input id="planMaxNeighborhoods" type="number" min="1" /></div>
+                <div><label>Ordem de exibição</label><input id="planSortOrder" type="number" value="0" /></div>
+              </div>
+              <div class="row2">
+                <div><label>Categoria (tela de anúncios)</label><select id="planCategory"><option value="">Sem categoria</option><option value="local_business">Comércio local</option><option value="event">Anuncie seu evento</option><option value="enterprise">Grandes empresas</option></select></div>
+                <div><label>Selo (opcional)</label><input id="planBadge" placeholder="Mais popular" /></div>
+              </div>
+              <button class="act approve" id="planSubmitBtn" style="margin-top:16px;width:100%;">Criar plano</button>
+              <div id="planErr" class="err"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let API = '';
+    let token = '';
+
+    const THEME_KEY = 'daqui-ads-admin-theme';
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem(THEME_KEY, theme);
+      const icon = theme === 'dark' ? '☀️' : '🌙';
+      document.querySelectorAll('.theme-toggle').forEach((btn) => { btn.textContent = icon; });
+    }
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    }
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+    $('themeToggleLogin').addEventListener('click', toggleTheme);
+    $('themeToggleApp').addEventListener('click', toggleTheme);
+
+    async function apiFetch(path, opts = {}) {
+      const res = await fetch(API + path, {
+        ...opts,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts.headers || {}) },
+      });
+      if (res.status === 204) return null;
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      if (!res.ok) throw new Error((data && data.detail) || ('Erro ' + res.status));
+      return data;
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function fmtDate(iso) {
+      if (!iso) return '—';
+      try { return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+      catch { return iso; }
+    }
+    function fmtMoney(cents) {
+      return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    const FORMAT_LABEL = {
+      post: 'Post + mapa',
+      conversation: 'Conversa (Mensagens)',
+      notification: 'Novidades',
+      search_poster: 'Poster de busca',
+    };
+    const ALL_FORMATS = Object.keys(FORMAT_LABEL);
+
+    const OBJECTIVE_LABEL = {
+      reach: 'Alcance',
+      clicks: 'Cliques',
+      profile_visits: 'Visitas ao perfil',
+      map_opens: 'Abertura do mapa',
+      whatsapp_opens: 'Abertura do WhatsApp',
+      instagram_opens: 'Abertura do Instagram',
+      website_opens: 'Abertura do site',
+    };
+    const WEEKDAY_SHORT = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const CATEGORY_LABEL = { local_business: 'Comércio local', event: 'Anuncie seu evento', enterprise: 'Grandes empresas', personalizado: 'Personalizado' };
+
+    function renderFormatChecks(container, prefix) {
+      container.innerHTML = ALL_FORMATS.map((f) =>
+        `<label><input type="checkbox" id="${prefix}_${f}" /> ${FORMAT_LABEL[f]}</label>`
+      ).join('');
+    }
+    renderFormatChecks($('newFormats'), 'newFmt');
+    renderFormatChecks($('planFormats'), 'planFmt');
+
+    function readFormats(prefix) {
+      return ALL_FORMATS.filter((f) => $(`${prefix}_${f}`).checked);
+    }
+
+    $('newObjective').innerHTML = Object.entries(OBJECTIVE_LABEL)
+      .map(([v, label]) => `<option value="${v}">${label}</option>`).join('');
+    $('newObjective').value = 'clicks';
+
+    $('newAdvancedToggle').addEventListener('click', () => {
+      const body = $('newAdvancedBody');
+      const open = body.classList.toggle('hidden') === false;
+      $('newAdvancedToggle').textContent = (open ? '▾' : '▸') + ' Configurações avançadas';
+    });
+
+    function parseCsvNumbers(raw) {
+      return String(raw || '').split(',').map((s) => s.trim()).filter(Boolean).map(Number).filter((n) => !Number.isNaN(n));
+    }
+    function parseCsvStrings(raw) {
+      return String(raw || '').split(',').map((s) => s.trim()).filter(Boolean);
+    }
+
+    // ── Login ──
+    $('loginBtn').addEventListener('click', login);
+    $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+
+    async function login() {
+      $('loginErr').textContent = '';
+      $('loginBtn').disabled = true;
+      API = $('api').value.trim().replace(/\/$/, '');
+      try {
+        const r = await fetch(API + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: $('email').value.trim(), password: $('password').value }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Falha no login');
+        token = data.access_token;
+        $('who').textContent = $('email').value.trim();
+        $('login').classList.add('hidden');
+        $('app').classList.remove('hidden');
+        renderNav();
+        await goToSection(SECTIONS[0].key);
+      } catch (e) {
+        $('loginErr').textContent = e.message;
+      } finally {
+        $('loginBtn').disabled = false;
+      }
+    }
+
+    $('logoutBtn').addEventListener('click', () => {
+      token = ''; $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+    });
+
+    const SECTIONS = [
+      { key: 'campaigns', label: 'Campanhas', icon: '◍', sectionId: 'section-campaigns', title: 'Campanhas', onShow: refreshCampaigns },
+      { key: 'analytics', label: 'Analytics', icon: '▤', sectionId: 'section-analytics', title: 'Analytics', onShow: refreshAnalytics },
+      { key: 'new', label: 'Nova proposta', icon: '✚', sectionId: 'section-new', title: 'Inserir proposta manual', onShow: () => {} },
+      { key: 'plans', label: 'Planos', icon: '☰', sectionId: 'section-plans', title: 'Planos', onShow: refreshPlans },
+    ];
+    let currentSection = SECTIONS[0].key;
+
+    function renderNav() {
+      const nav = $('nav');
+      nav.innerHTML = '';
+      for (const s of SECTIONS) {
+        const b = document.createElement('button');
+        b.className = 'navbtn' + (s.key === currentSection ? ' active' : '');
+        b.innerHTML = `<span class="ic">${s.icon}</span><span>${s.label}</span>`;
+        b.onclick = () => goToSection(s.key);
+        nav.appendChild(b);
+      }
+    }
+
+    async function goToSection(key) {
+      currentSection = key;
+      const section = SECTIONS.find((s) => s.key === key);
+      renderNav();
+      $('sectionTitle').textContent = section.title;
+      for (const s of SECTIONS) $(s.sectionId).classList.toggle('hidden', s.key !== key);
+      await section.onShow();
+    }
+
+    // ── Campanhas ──
+    let campaignStatusFilter = '';
+    const CAMPAIGN_STATUS_FILTERS = [
+      { key: '', label: 'Todas' },
+      { key: 'active', label: 'Ativas' },
+      { key: 'pending_payment', label: 'Aguardando pagamento' },
+      { key: 'paused', label: 'Pausadas' },
+      { key: 'expired', label: 'Expiradas' },
+      { key: 'rejected', label: 'Rejeitadas' },
+    ];
+    const CAMPAIGN_STATUS_LABEL = Object.fromEntries(CAMPAIGN_STATUS_FILTERS.filter((f) => f.key).map((f) => [f.key, f.label]));
+
+    function renderCampaignTabs() {
+      $('campaignStatusTabs').innerHTML = '';
+      for (const f of CAMPAIGN_STATUS_FILTERS) {
+        const b = document.createElement('button');
+        b.className = 'tab' + (f.key === campaignStatusFilter ? ' active' : '');
+        b.textContent = f.label;
+        b.onclick = () => { campaignStatusFilter = f.key; renderCampaignTabs(); refreshCampaigns(); };
+        $('campaignStatusTabs').appendChild(b);
+      }
+    }
+
+    async function refreshCampaigns() {
+      renderCampaignTabs();
+      const qs = campaignStatusFilter ? '?status=' + campaignStatusFilter : '';
+      try {
+        const list = await apiFetch('/admin/ads/campaigns' + qs);
+        renderCampaignStats(list);
+        renderCampaignList(list);
+      } catch (e) {
+        $('campaignList').innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderCampaignStats(list) {
+      const active = list.filter((c) => c.status === 'active').length;
+      const impressions = list.reduce((sum, c) => sum + c.impressions_count, 0);
+      const clicks = list.reduce((sum, c) => sum + c.clicks_count, 0);
+      $('campaignStats').innerHTML = `
+        <div class="stat"><div class="n">${active}</div><div class="l">ativas</div></div>
+        <div class="stat"><div class="n">${impressions}</div><div class="l">impressões</div></div>
+        <div class="stat"><div class="n">${clicks}</div><div class="l">cliques</div></div>`;
+    }
+
+    function renderCampaignList(list) {
+      if (!list.length) { $('campaignList').innerHTML = `<div class="empty-state">Nenhuma campanha encontrada.</div>`; return; }
+      $('campaignList').innerHTML = '';
+      for (const c of list) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const primary = c.creatives && c.creatives[0];
+        const title = primary ? primary.title : '(sem criativo)';
+        const content = primary ? primary.content : '';
+        const targeting = c.targeting.citywide ? 'Cidade toda' : ((c.targeting.neighborhoods || []).join(', ') || '—');
+        const formatsHtml = c.formats.map((f) => `<span class="format-tag">${FORMAT_LABEL[f] || f}</span>`).join('');
+        let actions = '';
+        if (c.status === 'active') actions += `<button class="act reject" data-act="pause">Pausar</button>`;
+        if (c.status === 'paused') actions += `<button class="act approve" data-act="activate">Reativar</button>`;
+        card.innerHTML = `
+          <div class="head">
+            <div>
+              <div class="name">${escapeHtml(title)}</div>
+              <div class="sub">${escapeHtml(c.advertiser_name)} · ${escapeHtml(c.advertiser_email)}</div>
+            </div>
+            <span class="badge b-${c.status}">${CAMPAIGN_STATUS_LABEL[c.status] || c.status}</span>
+          </div>
+          <div class="formats">${formatsHtml}<span class="format-tag">${OBJECTIVE_LABEL[c.objective] || c.objective}</span><span class="format-tag">prioridade ${c.priority}</span></div>
+          <div class="comment">${escapeHtml(content)}</div>
+          <div class="meta-row">${escapeHtml(targeting)} · ${fmtMoney(c.price_cents)} · ${fmtDate(c.starts_at)} → ${fmtDate(c.ends_at)}</div>
+          <div class="meta-row">${c.impressions_count} impressões · ${c.clicks_count} cliques</div>
+          <div class="actions">${actions}<button class="act details-toggle" data-act="details">Detalhes ▾</button></div>
+          <div class="details-panel hidden" data-details></div>`;
+        const pauseBtn = card.querySelector('[data-act="pause"]');
+        const activateBtn = card.querySelector('[data-act="activate"]');
+        const detailsBtn = card.querySelector('[data-act="details"]');
+        if (pauseBtn) pauseBtn.onclick = () => setCampaignStatus(c.id, 'paused');
+        if (activateBtn) activateBtn.onclick = () => setCampaignStatus(c.id, 'active');
+        detailsBtn.onclick = () => toggleDetails(c.id, card.querySelector('[data-details]'));
+        $('campaignList').appendChild(card);
+      }
+    }
+
+    async function setCampaignStatus(id, status) {
+      try { await apiFetch('/admin/ads/campaigns/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); await refreshCampaigns(); }
+      catch (e) { alert(e.message); }
+    }
+
+    // ── Detalhes: analytics + criativos por campanha ──
+    async function toggleDetails(campaignId, panel) {
+      const opening = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden');
+      if (!opening) return;
+      panel.innerHTML = '<div class="muted">Carregando…</div>';
+      try {
+        const [analytics, creatives] = await Promise.all([
+          apiFetch(`/admin/ads/campaigns/${campaignId}/analytics?group_by=hour`),
+          apiFetch(`/admin/ads/campaigns/${campaignId}/creatives`),
+        ]);
+        panel.innerHTML = '';
+        panel.appendChild(renderAnalytics(analytics));
+        panel.appendChild(renderCreatives(campaignId, creatives));
+      } catch (e) {
+        panel.innerHTML = `<div class="err">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderAnalytics(a) {
+      const wrap = document.createElement('div');
+      const s = a.summary;
+      const maxImp = Math.max(1, ...a.buckets.map((b) => b.impressions));
+      const bucketsHtml = a.buckets.map((b) => `
+        <div class="bucket-row">
+          <span style="width:34px;">${escapeHtml(b.key)}</span>
+          <div class="bar-wrap"><div class="bar" style="width:${Math.round((b.impressions / maxImp) * 100)}%"></div></div>
+          <span>${b.impressions} imp · ${(b.ctr * 100).toFixed(1)}% CTR</span>
+        </div>`).join('') || '<div class="muted">Sem eventos ainda.</div>';
+      const actionsHtml = Object.entries(a.actions || {}).map(([k, v]) => `<span class="format-tag">${escapeHtml(k)}: ${v}</span>`).join('') || '';
+      wrap.innerHTML = `
+        <h3>Analytics</h3>
+        <div class="mini-stats">
+          <div class="m"><b>${s.impressions}</b>impressões</div>
+          <div class="m"><b>${s.clicks}</b>cliques</div>
+          <div class="m"><b>${(s.ctr * 100).toFixed(1)}%</b>CTR</div>
+          <div class="m"><b>${s.cpc_cents != null ? fmtMoney(s.cpc_cents) : '—'}</b>CPC</div>
+          <div class="m"><b>${s.cpm_cents != null ? fmtMoney(s.cpm_cents) : '—'}</b>CPM</div>
+        </div>
+        <div class="muted" style="margin-bottom:6px;">Impressões por horário</div>
+        ${bucketsHtml}
+        ${actionsHtml ? `<div class="formats" style="margin-top:8px;">${actionsHtml}</div>` : ''}`;
+      return wrap;
+    }
+
+    function renderCreatives(campaignId, creatives) {
+      const wrap = document.createElement('div');
+      wrap.className = 'details-panel';
+      const itemsHtml = creatives.map((cr) => `
+        <div class="creative-item">
+          <div class="top">
+            <b>${escapeHtml(cr.title)}</b>
+            <button class="act" data-toggle-active="${cr.id}">${cr.is_active ? 'Pausar' : 'Ativar'}</button>
+          </div>
+          <div class="sub">${cr.format ? FORMAT_LABEL[cr.format] || cr.format : 'todos os formatos'} · peso ${cr.weight} · ${cr.impressions_count} imp · ${cr.clicks_count} cliques</div>
+        </div>`).join('') || '<div class="muted">Nenhum criativo.</div>';
+      wrap.innerHTML = `
+        <h3>Criativos / teste A-B</h3>
+        ${itemsHtml}
+        <label>Novo criativo — título</label>
+        <input data-cr="title" placeholder="Título" />
+        <label>Texto</label>
+        <textarea data-cr="content"></textarea>
+        <div class="row2">
+          <div><label>Link de destino</label><input data-cr="target_url" placeholder="https://..." /></div>
+          <div><label>Formato (vazio = todos)</label><input data-cr="format" placeholder="post" /></div>
+        </div>
+        <div class="row2">
+          <div><label>URL da imagem</label><input data-cr="image_url" /></div>
+          <div><label>Peso</label><input data-cr="weight" type="number" value="1" min="1" /></div>
+        </div>
+        <button class="act approve" data-add-creative style="margin-top:10px;">Adicionar criativo</button>
+        <div class="err" data-cr-err></div>`;
+
+      wrap.querySelectorAll('[data-toggle-active]').forEach((btn) => {
+        const creativeId = btn.getAttribute('data-toggle-active');
+        const creative = creatives.find((cr) => String(cr.id) === creativeId);
+        btn.onclick = async () => {
+          try {
+            await apiFetch(`/admin/ads/campaigns/${campaignId}/creatives/${creativeId}`, {
+              method: 'PATCH', body: JSON.stringify({ is_active: !creative.is_active }),
+            });
+            const updated = await apiFetch(`/admin/ads/campaigns/${campaignId}/creatives`);
+            wrap.replaceWith(renderCreatives(campaignId, updated));
+          } catch (e) { alert(e.message); }
+        };
+      });
+
+      wrap.querySelector('[data-add-creative]').onclick = async () => {
+        const errBox = wrap.querySelector('[data-cr-err]');
+        errBox.textContent = '';
+        const val = (name) => wrap.querySelector(`[data-cr="${name}"]`).value.trim();
+        const payload = {
+          title: val('title'),
+          content: val('content'),
+          target_url: val('target_url'),
+          format: val('format') || null,
+          image_url: val('image_url') || null,
+          weight: parseInt(wrap.querySelector('[data-cr="weight"]').value || '1', 10),
+        };
+        try {
+          await apiFetch(`/admin/ads/campaigns/${campaignId}/creatives`, { method: 'POST', body: JSON.stringify(payload) });
+          const updated = await apiFetch(`/admin/ads/campaigns/${campaignId}/creatives`);
+          wrap.replaceWith(renderCreatives(campaignId, updated));
+        } catch (e) { errBox.textContent = e.message; }
+      };
+
+      return wrap;
+    }
+
+    // ── Analytics (visão agregada de todas as campanhas) ──
+    const AN_PRESETS = [
+      { key: '7', label: '7 dias', days: 7 },
+      { key: '30', label: '30 dias', days: 30 },
+      { key: '90', label: '90 dias', days: 90 },
+      { key: 'all', label: 'Tudo', days: null },
+    ];
+    let anPreset = '30';
+
+    function isoDate(d) { return d.toISOString().slice(0, 10); }
+
+    function applyAnPreset(key) {
+      anPreset = key;
+      const preset = AN_PRESETS.find((p) => p.key === key);
+      if (preset && preset.days != null) {
+        const to = new Date();
+        const from = new Date();
+        from.setDate(from.getDate() - preset.days);
+        $('anFrom').value = isoDate(from);
+        $('anTo').value = isoDate(to);
+      } else {
+        $('anFrom').value = '';
+        $('anTo').value = '';
+      }
+      renderAnPresets();
+    }
+
+    function renderAnPresets() {
+      $('anPresets').innerHTML = '';
+      for (const p of AN_PRESETS) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'preset-btn' + (p.key === anPreset ? ' active' : '');
+        b.textContent = p.label;
+        b.onclick = () => { applyAnPreset(p.key); refreshAnalytics(); };
+        $('anPresets').appendChild(b);
+      }
+    }
+
+    $('anFrom').addEventListener('change', () => { anPreset = ''; renderAnPresets(); });
+    $('anTo').addEventListener('change', () => { anPreset = ''; renderAnPresets(); });
+    $('anApplyBtn').addEventListener('click', refreshAnalytics);
+
+    $('anStatus').innerHTML = CAMPAIGN_STATUS_FILTERS.map((f) => `<option value="${f.key}">${f.label}</option>`).join('');
+
+    let anAdvertisersLoaded = false;
+
+    async function refreshAnalytics() {
+      if (!$('anFrom').value && !$('anTo').value && anPreset === '30') applyAnPreset('30');
+      renderAnPresets();
+      const qs = new URLSearchParams();
+      if ($('anFrom').value) qs.set('date_from', $('anFrom').value);
+      if ($('anTo').value) qs.set('date_to', $('anTo').value);
+      if ($('anAdvertiser').value) qs.set('advertiser', $('anAdvertiser').value);
+      if ($('anStatus').value) qs.set('status', $('anStatus').value);
+      $('anContent').innerHTML = '<div class="muted">Carregando…</div>';
+      try {
+        const data = await apiFetch('/admin/ads/analytics?' + qs.toString());
+        if (!anAdvertisersLoaded) {
+          $('anAdvertiser').innerHTML = '<option value="">Todos</option>' +
+            data.advertisers.map((a) => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join('');
+          anAdvertisersLoaded = true;
+        }
+        renderAnalyticsContent(data);
+      } catch (e) {
+        $('anContent').innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderAnalyticsContent(data) {
+      const wrap = document.createElement('div');
+      const s = data.summary;
+
+      const stats = document.createElement('div');
+      stats.className = 'stats';
+      stats.innerHTML = `
+        <div class="stat"><div class="n">${fmtMoney(s.revenue_cents)}</div><div class="l">receita no período</div></div>
+        <div class="stat"><div class="n">${s.impressions}</div><div class="l">impressões</div></div>
+        <div class="stat"><div class="n">${s.clicks}</div><div class="l">cliques</div></div>
+        <div class="stat"><div class="n">${(s.ctr * 100).toFixed(1)}%</div><div class="l">CTR</div></div>
+        <div class="stat"><div class="n">${s.cpc_cents != null ? fmtMoney(s.cpc_cents) : '—'}</div><div class="l">CPC</div></div>
+        <div class="stat"><div class="n">${s.active_campaigns}/${s.campaigns_count}</div><div class="l">campanhas ativas</div></div>`;
+      wrap.appendChild(stats);
+
+      if (data.insights.length) {
+        const ins = document.createElement('div');
+        ins.className = 'insights-card';
+        ins.innerHTML = `<h3>Insights</h3><ul>${data.insights.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+        wrap.appendChild(ins);
+      }
+
+      const tsCard = document.createElement('div');
+      tsCard.className = 'chart-card';
+      tsCard.innerHTML = '<h3>Impressões e cliques por dia</h3>';
+      tsCard.appendChild(renderTimeseriesChart(data.timeseries));
+      wrap.appendChild(tsCard);
+
+      const grid = document.createElement('div');
+      grid.className = 'charts-grid';
+      grid.appendChild(renderBarCard('Por formato', data.by_format, (k) => FORMAT_LABEL[k] || k));
+      grid.appendChild(renderBarCard('Por objetivo', data.by_objective, (k) => OBJECTIVE_LABEL[k] || k));
+      grid.appendChild(renderBarCard('Por categoria', data.by_category, (k) => CATEGORY_LABEL[k] || k));
+      grid.appendChild(renderBarCard('Bairros com mais impressões', data.top_neighborhoods, (k) => k));
+      wrap.appendChild(grid);
+
+      const tableCard = document.createElement('div');
+      tableCard.className = 'chart-card';
+      tableCard.innerHTML = '<h3>Campanhas</h3>';
+      tableCard.appendChild(renderCampaignsTable(data.campaigns));
+      wrap.appendChild(tableCard);
+
+      $('anContent').innerHTML = '';
+      $('anContent').appendChild(wrap);
+    }
+
+    function renderTimeseriesChart(buckets) {
+      const wrap = document.createElement('div');
+      if (!buckets.length) { wrap.innerHTML = '<div class="muted">Sem eventos no período.</div>'; return wrap; }
+      const maxV = Math.max(1, ...buckets.map((b) => Math.max(b.impressions, b.clicks)));
+      wrap.innerHTML = `
+        <div class="chart-legend"><span><span class="dot dot-imp"></span>Impressões</span><span><span class="dot dot-clk"></span>Cliques</span></div>
+        <div class="vchart">${buckets.map((b) => `
+          <div class="vbar-col" title="${escapeHtml(b.key)}: ${b.impressions} impressões, ${b.clicks} cliques (${(b.ctr * 100).toFixed(1)}% CTR)">
+            <div class="vbars">
+              <div class="vbar" style="height:${Math.max(2, Math.round((b.impressions / maxV) * 108))}px"></div>
+              <div class="vbar clk" style="height:${Math.max(2, Math.round((b.clicks / maxV) * 108))}px"></div>
+            </div>
+            <div class="vbar-label">${escapeHtml(b.key.length === 10 ? b.key.slice(5) : b.key)}</div>
+          </div>`).join('')}
+        </div>`;
+      return wrap;
+    }
+
+    function renderBarCard(title, buckets, labelFor) {
+      const card = document.createElement('div');
+      card.className = 'chart-card';
+      const maxImp = Math.max(1, ...buckets.map((b) => b.impressions));
+      const rowsHtml = buckets
+        .slice()
+        .sort((a, b) => b.impressions - a.impressions)
+        .map((b) => `
+          <div class="bucket-row">
+            <span style="width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(labelFor(b.key))}</span>
+            <div class="bar-wrap"><div class="bar" style="width:${Math.round((b.impressions / maxImp) * 100)}%"></div></div>
+            <span style="white-space:nowrap;">${b.impressions} imp · ${(b.ctr * 100).toFixed(1)}% CTR</span>
+          </div>`).join('') || '<div class="muted">Sem dados.</div>';
+      card.innerHTML = `<h3>${escapeHtml(title)}</h3>${rowsHtml}`;
+      return card;
+    }
+
+    function renderCampaignsTable(rows) {
+      const wrap = document.createElement('div');
+      wrap.className = 'table-scroll';
+      if (!rows.length) { wrap.innerHTML = '<div class="empty-state">Nenhuma campanha encontrada.</div>'; return wrap; }
+      wrap.innerHTML = `
+        <table class="atable">
+          <thead><tr>
+            <th>Anunciante</th><th>Status</th><th>Categoria</th><th>Objetivo</th>
+            <th>Valor</th><th>Impressões</th><th>Cliques</th><th>CTR</th><th>CPC</th><th>Início</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map((r) => `
+              <tr>
+                <td>${escapeHtml(r.advertiser_name)}<br><span class="muted">${escapeHtml(r.advertiser_email)}</span></td>
+                <td><span class="badge b-${r.status}">${CAMPAIGN_STATUS_LABEL[r.status] || r.status}</span></td>
+                <td>${escapeHtml(CATEGORY_LABEL[r.category] || r.category)}</td>
+                <td>${escapeHtml(OBJECTIVE_LABEL[r.objective] || r.objective)}</td>
+                <td>${fmtMoney(r.price_cents)}</td>
+                <td>${r.impressions}</td>
+                <td>${r.clicks}</td>
+                <td>${(r.ctr * 100).toFixed(1)}%</td>
+                <td>${r.cpc_cents != null ? fmtMoney(r.cpc_cents) : '—'}</td>
+                <td>${fmtDate(r.starts_at)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+      return wrap;
+    }
+
+    // ── Nova proposta manual ──
+    $('newSubmitBtn').addEventListener('click', async () => {
+      $('newErr').textContent = '';
+      const formats = readFormats('newFmt');
+      const citywide = $('newCitywide').checked;
+      const neighborhoods = citywide ? [] : $('newNeighborhoods').value.split(',').map((s) => s.trim()).filter(Boolean);
+      const priceReais = parseFloat($('newPrice').value || '0');
+      const payload = {
+        formats,
+        duration_days: parseInt($('newDuration').value, 10),
+        neighborhoods,
+        citywide,
+        advertiser_name: $('newAdvertiserName').value.trim(),
+        advertiser_email: $('newAdvertiserEmail').value.trim(),
+        advertiser_phone: $('newAdvertiserPhone').value.trim(),
+        title: $('newTitle').value.trim(),
+        content: $('newContent').value.trim(),
+        image_url: $('newImageUrl').value.trim() || null,
+        cta_label: $('newCtaLabel').value.trim() || null,
+        target_url: $('newTargetUrl').value.trim(),
+        latitude: $('newLat').value ? parseFloat($('newLat').value) : null,
+        longitude: $('newLng').value ? parseFloat($('newLng').value) : null,
+        price_cents: Math.round(priceReais * 100),
+        objective: $('newObjective').value,
+        priority: parseInt($('newPriority').value || '3', 10),
+        rotation_weight: parseFloat($('newRotationWeight').value || '1'),
+        pacing: $('newPacing').value,
+        daily_impression_cap: $('newDailyCap').value ? parseInt($('newDailyCap').value, 10) : null,
+        per_user_impression_cap: $('newPerUserCap').value ? parseInt($('newPerUserCap').value, 10) : null,
+        targeting: {
+          citywide,
+          neighborhoods,
+          include_nearby: $('newIncludeNearby').checked,
+          audience: $('newAudience').value,
+          categories: parseCsvStrings($('newCategories').value),
+          group_ids: parseCsvNumbers($('newGroupIds').value),
+          user_recency: $('newRecency').value,
+          engagement: $('newEngagementActive').checked ? 'active' : 'any',
+        },
+        schedule: {
+          hours: $('newHours').value.trim() ? parseCsvNumbers($('newHours').value) : null,
+          days_of_week: $('newDaysOfWeek').value.trim() ? parseCsvNumbers($('newDaysOfWeek').value) : null,
+          special_dates: parseCsvStrings($('newSpecialDates').value),
+        },
+      };
+      try {
+        await apiFetch('/admin/ads/campaigns', { method: 'POST', body: JSON.stringify(payload) });
+        alert('Campanha criada e já ativa.');
+        goToSection('campaigns');
+      } catch (e) {
+        $('newErr').textContent = e.message;
+      }
+    });
+
+    // ── Planos ──
+    const PLAN_CATEGORIES = [
+      { key: 'local_business', label: 'Comércio local' },
+      { key: 'event', label: 'Anuncie seu evento' },
+      { key: 'enterprise', label: 'Grandes empresas' },
+    ];
+    let allPlans = [];
+    let activePlanCategory = PLAN_CATEGORIES[0].key;
+
+    async function refreshPlans() {
+      try {
+        allPlans = await apiFetch('/admin/ads/plans');
+        renderPlanCategoryTabs();
+        renderPlanPreview();
+      } catch (e) {
+        $('planPreviewList').innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderPlanCategoryTabs() {
+      const hasOther = allPlans.some((p) => !PLAN_CATEGORIES.some((c) => c.key === p.category));
+      const tabs = hasOther ? [...PLAN_CATEGORIES, { key: '__other', label: 'Outros' }] : PLAN_CATEGORIES;
+      if (!tabs.some((c) => c.key === activePlanCategory)) activePlanCategory = tabs[0].key;
+      $('planCategoryTabs').innerHTML = '';
+      for (const c of tabs) {
+        const btn = document.createElement('button');
+        btn.className = 'tab' + (c.key === activePlanCategory ? ' active' : '');
+        btn.textContent = c.label;
+        btn.addEventListener('click', () => { activePlanCategory = c.key; renderPlanCategoryTabs(); renderPlanPreview(); });
+        $('planCategoryTabs').appendChild(btn);
+      }
+    }
+
+    function renderPlanPreview() {
+      const list = activePlanCategory === '__other'
+        ? allPlans.filter((p) => !PLAN_CATEGORIES.some((c) => c.key === p.category))
+        : allPlans.filter((p) => p.category === activePlanCategory);
+      if (!list.length) { $('planPreviewList').innerHTML = `<div class="empty-state">Nenhum plano nesta categoria.</div>`; return; }
+      $('planPreviewList').innerHTML = '';
+      for (const p of list) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const formatsHtml = p.formats.map((f) => `<span class="format-tag">${FORMAT_LABEL[f] || f}</span>`).join('');
+        const badgeHtml = p.badge ? `<span class="badge b-active">${escapeHtml(p.badge)}</span>` : '';
+        const visibilityHtml = p.is_public ? '' : `<span class="badge b-hidden">Oculto</span>`;
+        card.className = 'card' + (p.is_public ? '' : ' plan-hidden');
+        card.innerHTML = `
+          <div class="head"><div class="name">${escapeHtml(p.name)}</div>${badgeHtml}${visibilityHtml}<div class="when">${fmtMoney(p.price_cents)}</div></div>
+          <div class="formats">${formatsHtml}</div>
+          <div class="comment">${escapeHtml(p.description)}</div>
+          <div class="meta-row">${p.duration_days} dias · ${p.max_neighborhoods ? p.max_neighborhoods + ' bairro(s)' : 'cidade toda'}</div>
+          <div class="actions">
+            <button class="act ${p.is_public ? 'reject' : 'approve'}" data-act="toggle">${p.is_public ? 'Ocultar' : 'Tornar visível'}</button>
+            <button class="act danger" data-act="delete">Excluir</button>
+          </div>`;
+        card.querySelector('[data-act="toggle"]').onclick = () => togglePlanVisibility(p);
+        card.querySelector('[data-act="delete"]').onclick = () => deletePlan(p);
+        $('planPreviewList').appendChild(card);
+      }
+    }
+
+    async function togglePlanVisibility(p) {
+      try {
+        await apiFetch('/admin/ads/plans/' + p.id, { method: 'PATCH', body: JSON.stringify({ is_public: !p.is_public }) });
+        await refreshPlans();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function deletePlan(p) {
+      if (!confirm(`Excluir o plano "${p.name}"? Essa ação não pode ser desfeita.`)) return;
+      try {
+        await apiFetch('/admin/ads/plans/' + p.id, { method: 'DELETE' });
+        await refreshPlans();
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    $('planSubmitBtn').addEventListener('click', async () => {
+      $('planErr').textContent = '';
+      const priceReais = parseFloat($('planPrice').value || '0');
+      const maxN = $('planMaxNeighborhoods').value ? parseInt($('planMaxNeighborhoods').value, 10) : null;
+      const payload = {
+        name: $('planName').value.trim(),
+        slug: $('planSlug').value.trim(),
+        description: $('planDescription').value.trim(),
+        price_cents: Math.round(priceReais * 100),
+        duration_days: parseInt($('planDuration').value, 10),
+        formats: readFormats('planFmt'),
+        max_neighborhoods: maxN,
+        sort_order: parseInt($('planSortOrder').value || '0', 10),
+        category: $('planCategory').value || null,
+        badge: $('planBadge').value.trim() || null,
+      };
+      try {
+        await apiFetch('/admin/ads/plans', { method: 'POST', body: JSON.stringify(payload) });
+        $('planName').value = ''; $('planSlug').value = ''; $('planDescription').value = ''; $('planPrice').value = '';
+        await refreshPlans();
+      } catch (e) {
+        $('planErr').textContent = e.message;
+      }
+    });
+  </script>
+</body>
+</html>

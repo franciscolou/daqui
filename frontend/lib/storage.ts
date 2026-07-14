@@ -33,3 +33,26 @@ export async function removeItem(key: string): Promise<void> {
   }
   memory.delete(key);
 }
+
+const AD_VIEWER_ID_KEY = 'daqui.adViewerId';
+
+function randomUuidV4(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Identificador anônimo e pseudônimo do dispositivo, usado só pelo
+ * `ads-backend` (caps de impressão por usuário) — não é o id real do
+ * usuário no Daqui, mantendo os dois backends desacoplados.
+ */
+export async function getOrCreateAdViewerId(): Promise<string> {
+  const existing = await getItem(AD_VIEWER_ID_KEY);
+  if (existing) return existing;
+  const id = randomUuidV4();
+  await setItem(AD_VIEWER_ID_KEY, id);
+  return id;
+}

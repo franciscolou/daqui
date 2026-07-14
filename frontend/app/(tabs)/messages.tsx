@@ -11,6 +11,7 @@ import {
   ScrollView,
   Modal,
   Pressable,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { User } from '../../data/mock';
+import { useAuth } from '../../lib/auth';
 import { useRealtime } from '../../lib/realtime';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -29,6 +31,8 @@ import {
   GroupConversation,
   MessageResult,
 } from '../../lib/api';
+import { adsApi, Ad } from '../../lib/adsApi';
+import { getOrCreateAdViewerId } from '../../lib/storage';
 import { formatConversationTime, formatPostTime } from '../../lib/time';
 import LeftSidebar from '../../components/LeftSidebar';
 import MobileMenu from '../../components/MobileMenu';
@@ -42,9 +46,11 @@ const DETAIL_W = 640;
 
 type Selected = ChatTarget & { messageId?: string };
 
-type InboxItem =
+type ConvInboxItem =
   | { kind: 'dm'; key: string; time: string; conversation: Conversation }
   | { kind: 'group'; key: string; time: string; conversation: GroupConversation };
+
+type InboxItem = ConvInboxItem | { kind: 'ad'; key: string; ad: Ad };
 
 type SearchTab = 'yours' | 'discover';
 
@@ -54,8 +60,11 @@ export default function MessagesScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { subscribeMessages } = useRealtime();
+  const { user } = useAuth();
 
   const [selected, setSelected] = useState<Selected | null>(null);
+  const [ad, setAd] = useState<Ad | null>(null);
+  const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [neighbors, setNeighbors] = useState<User[]>([]);
 
@@ -98,6 +107,23 @@ export default function MessagesScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  useEffect(() => {
+    getOrCreateAdViewerId().then(setAdViewerId);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      adsApi
+        .getAd('conversation', {
+          neighborhood: user?.neighborhood,
+          engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+          viewerId: adViewerId,
+        })
+        .then(setAd)
+        .catch(() => setAd(null));
+    }, [user?.neighborhood, user?.interactionsCount, adViewerId]),
+  );
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await load();
@@ -107,10 +133,10 @@ export default function MessagesScreen() {
   // Atualiza a lista de conversas ao vivo quando chega mensagem nova (via websocket).
   useEffect(() => subscribeMessages(() => load()), [subscribeMessages, load]);
 
-  const inbox = useMemo<InboxItem[]>(() => {
-    const items: InboxItem[] = [
-      ...conversations.map((c): InboxItem => ({ kind: 'dm', key: `u${c.user.id}`, time: c.time, conversation: c })),
-      ...groups.map((g): InboxItem => ({ kind: 'group', key: `g${g.group.id}`, time: g.time, conversation: g })),
+  const inbox = useMemo<ConvInboxItem[]>(() => {
+    const items: ConvInboxItem[] = [
+      ...conversations.map((c): ConvInboxItem => ({ kind: 'dm', key: `u${c.user.id}`, time: c.time, conversation: c })),
+      ...groups.map((g): ConvInboxItem => ({ kind: 'group', key: `g${g.group.id}`, time: g.time, conversation: g })),
     ];
     return items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   }, [conversations, groups]);
@@ -126,6 +152,13 @@ export default function MessagesScreen() {
         : it.conversation.group.name.toLowerCase().includes(q),
     );
   }, [inbox, searching, search]);
+
+  // O anúncio (se houver) é fixado no topo — só fora do modo de busca, e sem
+  // nenhuma linha reservada quando não existe campanha ativa para o formato.
+  const displayInbox = useMemo<InboxItem[]>(() => {
+    if (searching || !ad) return filteredInbox;
+    return [{ kind: 'ad', key: `ad-${ad.id}`, ad }, ...filteredInbox];
+  }, [filteredInbox, searching, ad]);
 
   const runSearch = (term: string) => {
     const id = ++seq.current;
@@ -230,7 +263,7 @@ export default function MessagesScreen() {
         {listHeader}
         <FlatList
           ref={listRef}
-          data={filteredInbox}
+          data={displayInbox}
           keyExtractor={(item) => item.key}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -238,6 +271,9 @@ export default function MessagesScreen() {
           }
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           renderItem={({ item }) => {
+            if (item.kind === 'ad') {
+              return <AdInboxRow ad={item.ad} viewerId={adViewerId} />;
+            }
             const active =
               item.kind === 'dm'
                 ? isActive('dm', item.conversation.user.id)
@@ -345,7 +381,7 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
   );
 }
 
-function InboxRow({ item, active, onPress }: { item: InboxItem; active: boolean; onPress: () => void }) {
+function InboxRow({ item, active, onPress }: { item: ConvInboxItem; active: boolean; onPress: () => void }) {
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const { typingDmUserIds, typingGroupUserIds } = useRealtime();
@@ -389,6 +425,37 @@ function InboxRow({ item, active, onPress }: { item: InboxItem; active: boolean;
             </View>
           )}
         </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function AdInboxRow({ ad, viewerId }: { ad: Ad; viewerId?: string }) {
+  const styles = useThemedStyles(makeStyles);
+  const Colors = useTheme();
+
+  const open = () => {
+    adsApi.trackAdClick(ad.id, { viewerId, creativeId: ad.creativeId, format: 'conversation' });
+    Linking.openURL(ad.targetUrl);
+  };
+
+  return (
+    <TouchableOpacity style={styles.msgRow} activeOpacity={0.85} onPress={open}>
+      {ad.imageUrl ? (
+        <Image source={{ uri: ad.imageUrl }} style={styles.msgAvatar} />
+      ) : (
+        <View style={[styles.msgAvatar, styles.groupAvatar]}>
+          <Ionicons name="megaphone" size={22} color={Colors.accent} />
+        </View>
+      )}
+      <View style={styles.msgContent}>
+        <View style={styles.msgHeader}>
+          <View style={styles.nameRow}>
+            <Text style={styles.msgName} numberOfLines={1}>{ad.title}</Text>
+          </View>
+          <Text style={styles.msgTime}>Anúncio</Text>
+        </View>
+        <Text style={styles.msgPreview} numberOfLines={1}>{ad.content}</Text>
       </View>
     </TouchableOpacity>
   );

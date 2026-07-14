@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,11 +15,14 @@ import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { CATEGORY_LABELS, CATEGORY_ICONS, PostCategory, Post } from '../../data/mock';
 import { api, NeighborhoodStats } from '../../lib/api';
+import { adsApi, Ad } from '../../lib/adsApi';
+import { getOrCreateAdViewerId } from '../../lib/storage';
 import { useAuth } from '../../lib/auth';
 import { formatDistance, haversineMeters } from '../../lib/location';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import LeafletMap from '../../components/LeafletMap';
 import FeedLayout from '../../components/FeedLayout';
+import { MapMarker } from '../../components/leafletHtml';
 
 const MAP_HEIGHT = 440;
 
@@ -44,6 +48,8 @@ export default function MapScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [stats, setStats] = useState<NeighborhoodStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ad, setAd] = useState<Ad | null>(null);
+  const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
   const scrollRef = useRef<ScrollView>(null);
 
   useRegisterScrollToTop('map', () => {
@@ -59,6 +65,21 @@ export default function MapScreen() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    getOrCreateAdViewerId().then(setAdViewerId);
+  }, []);
+
+  useEffect(() => {
+    adsApi
+      .getAd('post', {
+        neighborhood: user?.neighborhood,
+        engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+        viewerId: adViewerId,
+      })
+      .then(setAd)
+      .catch(() => setAd(null));
+  }, [user?.neighborhood, user?.interactionsCount, adViewerId]);
 
   const userCoords = useMemo(() => {
     if (user?.latitude != null && user?.longitude != null) {
@@ -84,21 +105,32 @@ export default function MapScreen() {
     return FALLBACK_CENTER;
   }, [focusCoords, userCoords, located]);
 
-  const markers = useMemo(
-    () =>
-      located.map((p) => ({
-        id: p.id,
-        latitude: p.latitude as number,
-        longitude: p.longitude as number,
-        color: p.important ? Colors.error : Colors.category[p.category] ?? Colors.primary,
-        title: p.title || p.content.slice(0, 60),
-        description: p.content,
-        authorName: p.author.name,
-        authorAvatar: p.author.avatar,
-        imageUrl: p.images?.[0],
-      })),
-    [located, Colors],
-  );
+  const markers = useMemo(() => {
+    const list: MapMarker[] = located.map((p) => ({
+      id: p.id,
+      latitude: p.latitude as number,
+      longitude: p.longitude as number,
+      color: p.important ? Colors.error : Colors.category[p.category] ?? Colors.primary,
+      title: p.title || p.content.slice(0, 60),
+      description: p.content,
+      authorName: p.author.name,
+      authorAvatar: p.author.avatar,
+      imageUrl: p.images?.[0],
+    }));
+    if (ad?.latitude != null && ad?.longitude != null) {
+      list.push({
+        id: `ad-${ad.id}`,
+        latitude: ad.latitude,
+        longitude: ad.longitude,
+        color: Colors.accent,
+        title: ad.title,
+        description: ad.content,
+        authorName: 'Anúncio',
+        imageUrl: ad.imageUrl,
+      });
+    }
+    return list;
+  }, [located, Colors, ad]);
 
   const nearby = useMemo(() => {
     const withDist = located.map((p) => ({
@@ -135,7 +167,14 @@ export default function MapScreen() {
               zoom={focusCoords ? 17 : 15}
               markers={markers}
               focusId={params.focus}
-              onSelectMarker={(id) => router.push(`/post/${id}` as any)}
+              onSelectMarker={(id) => {
+                if (ad && id === `ad-${ad.id}`) {
+                  adsApi.trackAdClick(ad.id, { viewerId: adViewerId, creativeId: ad.creativeId, format: 'post' });
+                  Linking.openURL(ad.targetUrl);
+                  return;
+                }
+                router.push(`/post/${id}` as any);
+              }}
               style={styles.map}
             />
           )}
