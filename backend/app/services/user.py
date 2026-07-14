@@ -78,6 +78,11 @@ def update_avatar(db: Session, user: User, base_url: str, data_url: str) -> User
     return user_dao.update(db, user, {"avatar_url": avatar_url})
 
 
+def update_cover(db: Session, user: User, base_url: str, data_url: str) -> User:
+    cover_url = save_data_url_image(base_url, data_url, prefix=f"{user.id}_cover")
+    return user_dao.update(db, user, {"cover_url": cover_url})
+
+
 # ── Moderação ─────────────────────────────────────────────────────────
 def _admin_out(u: User) -> UserAdminOut:
     base = UserPublic.model_validate(u)

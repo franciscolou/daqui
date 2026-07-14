@@ -13,7 +13,7 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 def create_checkout_session(
-    campaign_id: int, title: str, price_cents: int, currency: str
+    campaign_id: int, access_token: str, title: str, price_cents: int, currency: str
 ) -> str:
     session = stripe.checkout.Session.create(
         mode="payment",
@@ -28,7 +28,7 @@ def create_checkout_session(
                 "quantity": 1,
             }
         ],
-        success_url=f"{settings.STRIPE_SUCCESS_URL}?campaign_id={campaign_id}",
+        success_url=f"{settings.STRIPE_SUCCESS_URL}?token={access_token}",
         cancel_url=settings.STRIPE_CANCEL_URL,
         metadata={"campaign_id": str(campaign_id)},
     )

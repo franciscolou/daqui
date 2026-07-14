@@ -28,7 +28,7 @@ function toSharedPost(p: Post): SharedPost {
     category: p.category,
     title: p.title,
     content: p.content,
-    image: p.images?.[0],
+    image: p.media?.find((m) => m.type === 'image')?.url,
     createdAt: p.createdAt,
     author: p.author,
   };

@@ -52,7 +52,7 @@ def admin_reply(
     ticket = ticket_dao.get_by_id(db, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Chamado não encontrado")
-    detail = f"Chamado #{ticket.id} — {ticket.subject}"
+    detail = f"#{ticket.id} — {ticket.subject}"
     ticket = ticket_dao.reply(db, ticket, payload.response)
     audit_log_service.log(db, moderator, ACTION_TICKET_REPLY, ticket.user_id, detail)
     return _admin_out(ticket)

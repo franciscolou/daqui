@@ -18,6 +18,7 @@ router.get(  "/check-username",     response_model=UsernameAvailability)(user.ch
 router.get(  "/neighborhood-stats", response_model=NeighborhoodStats)(user.neighborhood_stats)
 router.patch("/me",                 response_model=UserPublic)(user.update_me)
 router.post( "/me/avatar",          response_model=UserPublic)(user.update_avatar)
+router.post( "/me/cover",           response_model=UserPublic)(user.update_cover)
 router.get(  "/{user_id}",          response_model=UserPublic)(user.get_user)
 router.get(  "/{user_id}/posts",    response_model=list[PostOut])(post.list_by_author)
 

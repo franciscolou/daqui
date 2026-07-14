@@ -63,11 +63,17 @@ class ScheduleIn(BaseModel):
 
 
 # ── Criativos ────────────────────────────────────────────────────────────
+class MediaUploadOut(BaseModel):
+    url: str
+    type: str  # "image" | "video"
+
+
 class CreativeIn(BaseModel):
     format: str | None = None
     title: str
     content: str = ""
     image_url: str | None = None
+    video_url: str | None = None
     cta_label: str | None = None
     target_url: str
     latitude: float | None = None
@@ -86,6 +92,7 @@ class CreativeUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
     image_url: str | None = None
+    video_url: str | None = None
     cta_label: str | None = None
     target_url: str | None = None
     latitude: float | None = None
@@ -101,6 +108,7 @@ class CreativeOut(BaseModel):
     title: str
     content: str
     image_url: str | None
+    video_url: str | None
     cta_label: str | None
     target_url: str
     latitude: float | None
@@ -242,6 +250,7 @@ class CampaignCreateBase(BaseModel):
     title: str | None = None
     content: str = ""
     image_url: str | None = None
+    video_url: str | None = None
     cta_label: str | None = None
     target_url: str | None = None
     latitude: float | None = None
@@ -279,6 +288,7 @@ class CampaignCreateBase(BaseModel):
                 title=self.title or "",
                 content=self.content,
                 image_url=self.image_url,
+                video_url=self.video_url,
                 cta_label=self.cta_label,
                 target_url=self.target_url or "",
                 latitude=self.latitude,
@@ -323,6 +333,7 @@ class CampaignAdminOut(BaseModel):
     id: int
     plan_id: int | None
     status: str
+    access_token: str
     advertiser_name: str
     advertiser_email: str
     advertiser_phone: str
@@ -362,6 +373,7 @@ class AdOut(BaseModel):
     title: str
     content: str
     image_url: str | None
+    video_url: str | None
     cta_label: str | None
     target_url: str
     latitude: float | None
@@ -395,6 +407,27 @@ class AnalyticsOut(BaseModel):
     summary: AnalyticsSummary
     buckets: list[AnalyticsBucket]
     actions: dict[str, int]
+
+
+# ── Painel do anunciante (público, autenticado só pelo access_token) ─────
+class MyCampaignOut(BaseModel):
+    """O que o próprio anunciante vê em `/anunciar/painel/{token}` — mesmos
+    dados de `CampaignAdminOut` + analytics, mas sem `access_token` (o token
+    já está na URL, não precisa voltar no corpo) nem nada de outras campanhas."""
+
+    id: int
+    status: str
+    advertiser_name: str
+    formats: list[str]
+    price_cents: int
+    currency: str
+    targeting: TargetingIn
+    duration_days: int
+    starts_at: datetime | None
+    ends_at: datetime | None
+    created_at: datetime
+    creatives: list[CreativeOut]
+    analytics: AnalyticsOut
 
 
 # ── Analytics agregado (visão do time de anúncios, todas as campanhas) ────

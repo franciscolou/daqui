@@ -10,7 +10,7 @@ import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import ActionMenu from './ActionMenu';
 import PollBlock from './PollBlock';
-import PostImageGallery from './PostImageGallery';
+import PostMediaGallery from './PostMediaGallery';
 import ReportModal from './ReportModal';
 import ResidentBadge from './ResidentBadge';
 
@@ -136,7 +136,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         <PostDetails post={post} styles={styles} Colors={Colors} />
 
         {/* Fotos */}
-        {!!post.images?.length && <PostImageGallery images={post.images} />}
+        {!!post.media?.length && <PostMediaGallery media={post.media} />}
 
         {/* Actions */}
         <View style={styles.actions}>

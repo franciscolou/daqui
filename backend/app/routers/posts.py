@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.controllers import post
-from app.schemas.post import PostFeed, PostOut
+from app.schemas.post import PostFeed, PostMediaItem, PostOut
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -19,6 +19,13 @@ router.get(
     "/map",
     response_model=list[PostOut],
 )(post.get_map_posts)
+
+# Estático antes de "/{post_id}", senão o FastAPI captura "media" como id.
+router.post(
+    "/media",
+    response_model=PostMediaItem,
+    status_code=201,
+)(post.upload_media)
 
 router.post(
     "/",

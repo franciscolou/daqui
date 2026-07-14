@@ -31,6 +31,7 @@ export interface User {
   name: string;          // nome de exibição livre
   bio?: string;
   avatar: string;
+  cover?: string;
   neighborhood: string;
   city?: string;
   state?: string;
@@ -46,6 +47,11 @@ export interface User {
   pendingNotice?: string;     // aviso de moderação (post/comentário removido), só em /auth/me
 }
 
+export interface PostMedia {
+  url: string;
+  type: 'image' | 'video';
+}
+
 export interface Post {
   id: string;
   author: User;
@@ -53,7 +59,7 @@ export interface Post {
   category: PostCategory;
   title?: string;
   content: string;
-  images?: string[];
+  media?: PostMedia[];
   createdAt: string;
   likesCount: number;
   commentsCount: number;
@@ -208,7 +214,7 @@ export const POSTS: Post[] = [
     title: 'Padaria incrível na Vila Madalena!',
     content:
       'Descobri a Padaria Levain na Rua Fradique Coutinho. O croissant de manteiga é de outro nível 🥐 Atendimento nota 10, aberta desde as 7h. Recomendo demais para o café da manhã!',
-    images: ['https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600'],
+    media: [{ url: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600', type: 'image' }],
     createdAt: '45m atrás',
     likesCount: 89,
     commentsCount: 23,
@@ -240,7 +246,7 @@ export const POSTS: Post[] = [
     title: 'Cachorro desaparecido 😢',
     content:
       'Meu Golden Retriever, Thor, desapareceu ontem perto do Parque Villa-Lobos. Ele usa coleira azul e tem uma mancha branca no focinho. Quem viu por favor me chama! Recompensa de R$500 💛',
-    images: ['https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600'],
+    media: [{ url: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600', type: 'image' }],
     createdAt: '2h atrás',
     likesCount: 203,
     commentsCount: 41,
@@ -272,7 +278,7 @@ export const POSTS: Post[] = [
     title: 'Sofá 3 lugares — R$ 800',
     content:
       'Vendo sofá 3 lugares, cor cinza, em ótimo estado. Só saio por mudança. Mede 2,10m. Retirada por conta do comprador. WhatsApp no direct! 🛋️',
-    images: ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600'],
+    media: [{ url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600', type: 'image' }],
     createdAt: '4h atrás',
     likesCount: 28,
     commentsCount: 9,
@@ -303,7 +309,7 @@ export const POSTS: Post[] = [
     title: 'Pôr do sol incrível hoje!',
     content:
       'Não tinha como não compartilhar — o pôr do sol da semana mais lindo que já vi por aqui! Tirei lá da minha varanda. A Vila Madalena é incrível 🌅',
-    images: ['https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600'],
+    media: [{ url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600', type: 'image' }],
     createdAt: '6h atrás',
     likesCount: 445,
     commentsCount: 52,

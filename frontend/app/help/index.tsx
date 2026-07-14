@@ -276,7 +276,10 @@ function TicketsSection() {
       const created = await api.submitSupportTicket(subject.trim(), message.trim());
       setTickets((prev) => [created, ...prev]);
       setComposing(false);
-      setFeedback({ ok: true, text: 'Chamado enviado! A resposta do suporte vai aparecer aqui.' });
+      setFeedback({
+        ok: true,
+        text: `#${created.id} enviado! A resposta do suporte vai aparecer aqui.`,
+      });
     } catch (e) {
       setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível enviar. Tente novamente.' });
     } finally {
@@ -374,9 +377,12 @@ function TicketsSection() {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.ticketDate}>
-                {new Date(t.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-              </Text>
+              <View style={styles.ticketMetaRow}>
+                <Text style={styles.ticketNumber}>#{t.id}</Text>
+                <Text style={styles.ticketDate}>
+                  {new Date(t.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                </Text>
+              </View>
               {expanded && (
                 <>
                   <Text style={styles.ticketMessage}>{t.message}</Text>
@@ -564,6 +570,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   ticketHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   ticketSubject: { flex: 1, fontSize: 14, fontWeight: '700', color: Colors.text },
+  ticketMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ticketNumber: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary },
   ticketDate: { fontSize: 11, color: Colors.textTertiary },
   statusBadge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999 },
   statusPending: { backgroundColor: Colors.borderLight },

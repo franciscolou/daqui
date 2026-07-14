@@ -5,6 +5,7 @@ from app.core.deps import get_current_moderator, get_current_user, get_db
 from app.models.user import User
 from app.schemas.user import (
     AvatarUpdate,
+    CoverUpdate,
     NeighborhoodStats,
     UserAdminOut,
     UsernameAvailability,
@@ -67,6 +68,15 @@ def update_avatar(
     current_user: User = Depends(get_current_user),
 ) -> UserPublic:
     return user.update_avatar(db, current_user, str(request.base_url), payload.image)
+
+
+def update_cover(
+    payload: CoverUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserPublic:
+    return user.update_cover(db, current_user, str(request.base_url), payload.image)
 
 
 # ── Moderador (app de moderação) ──────────────────────────────────────

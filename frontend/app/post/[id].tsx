@@ -28,7 +28,7 @@ import PollBlock from '../../components/PollBlock';
 import ActionMenu from '../../components/ActionMenu';
 import ReportModal from '../../components/ReportModal';
 import ConfirmModal from '../../components/ConfirmModal';
-import PostImageGallery from '../../components/PostImageGallery';
+import PostMediaGallery from '../../components/PostMediaGallery';
 import ResidentBadge from '../../components/ResidentBadge';
 
 export default function PostDetailScreen() {
@@ -421,7 +421,7 @@ export default function PostDetailScreen() {
             onChange={(poll) => setPost((p) => (p ? { ...p, poll } : p))}
           />
         )}
-        {!!post.images?.length && <PostImageGallery images={post.images} />}
+        {!!post.media?.length && <PostMediaGallery media={post.media} />}
 
         {(() => {
           const hasCoords = post.latitude != null && post.longitude != null;

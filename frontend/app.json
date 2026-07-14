@@ -33,7 +33,8 @@
         {
           "locationWhenInUsePermission": "O Daqui usa sua localização para descobrir e confirmar o seu bairro."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

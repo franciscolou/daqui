@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timezone
 
 from sqlalchemy import (
@@ -144,6 +145,14 @@ class AdCampaign(Base):
     advertiser_email: Mapped[str] = mapped_column(String(255), nullable=False)
     advertiser_phone: Mapped[str] = mapped_column(String(30), default="")
 
+    # Link de acesso do anunciante ao próprio painel (`/anunciar/painel/{token}`,
+    # ver routers/ads.py::"/my-campaign/{token}") — capability token em vez de
+    # login, já que não existe conta de anunciante neste sistema. Único segredo
+    # que dá acesso; nunca reexposto em nenhuma resposta pública além desta.
+    access_token: Mapped[str] = mapped_column(
+        String(64), unique=True, index=True, default=lambda: secrets.token_urlsafe(24)
+    )
+
     formats: Mapped[list[str]] = mapped_column(JSON, default=list)
     price_cents: Mapped[int] = mapped_column(Integer, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="BRL")
@@ -234,6 +243,7 @@ class AdCreative(Base):
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     content: Mapped[str] = mapped_column(Text, default="")
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    video_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     cta_label: Mapped[str | None] = mapped_column(String(60), nullable=True)
     target_url: Mapped[str] = mapped_column(String(500), nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)

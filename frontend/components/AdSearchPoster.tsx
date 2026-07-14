@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { Ad, adsApi } from '../lib/adsApi';
+import VideoPlayer from './VideoPlayer';
 
 // Poster mostrado só no estado vazio da aba Busca (antes do usuário digitar
 // algo) — desaparece completamente quando não há campanha ativa para o formato.
@@ -17,7 +18,11 @@ export default function AdSearchPoster({ ad, viewerId }: { ad: Ad; viewerId?: st
 
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={open}>
-      {!!ad.imageUrl && <Image source={{ uri: ad.imageUrl }} style={styles.image} />}
+      {!!ad.videoUrl ? (
+        <VideoPlayer uri={ad.videoUrl} style={styles.image} />
+      ) : (
+        !!ad.imageUrl && <Image source={{ uri: ad.imageUrl }} style={styles.image} />
+      )}
       <View style={styles.body}>
         <View style={styles.tag}>
           <Ionicons name="megaphone-outline" size={11} color={Colors.accent} />

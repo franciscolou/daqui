@@ -17,6 +17,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     bio: Mapped[str] = mapped_column(Text, default="")
     avatar_url: Mapped[str | None] = mapped_column(String(500))
+    cover_url: Mapped[str | None] = mapped_column(String(500))
     neighborhood: Mapped[str] = mapped_column(String(120), default="")
     city: Mapped[str] = mapped_column(String(120), default="São Paulo")
     state: Mapped[str] = mapped_column(String(2), default="SP")  # UF

@@ -71,6 +71,8 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE users ADD COLUMN verification_code_hash VARCHAR(255)"))
             if "verification_code_expires_at" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN verification_code_expires_at DATETIME"))
+            if "cover_url" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN cover_url VARCHAR(500)"))
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}
@@ -117,6 +119,19 @@ def _ensure_columns():
                 conn.execute(
                     text("UPDATE posts SET image_urls = '[]' WHERE image_urls IS NULL")
                 )
+            if "media" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN media JSON"))
+                # Backfill: migra a lista de imagens legada (image_urls) para a
+                # galeria mista [{"url":..., "type": "image"}, ...].
+                conn.execute(
+                    text(
+                        "UPDATE posts SET media = ("
+                        "  SELECT json_group_array(json_object('url', je.value, 'type', 'image'))"
+                        "  FROM json_each(posts.image_urls) je"
+                        ") WHERE image_urls IS NOT NULL AND image_urls != '[]'"
+                    )
+                )
+                conn.execute(text("UPDATE posts SET media = '[]' WHERE media IS NULL"))
 
     if "reviews" in tables:
         columns = {c["name"] for c in inspector.get_columns("reviews")}

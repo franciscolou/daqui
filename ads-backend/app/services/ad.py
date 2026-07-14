@@ -1,10 +1,11 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core import payments
+from app.core.uploads import save_upload_media
 from app.daos import ad as ad_dao
 from app.daos import settings as settings_dao
 from app.models.ad import (
@@ -35,6 +36,8 @@ from app.schemas.ad import (
     GlobalAnalyticsOut,
     GlobalAnalyticsSummary,
     ManualCampaignCreate,
+    MediaUploadOut,
+    MyCampaignOut,
     PriceFactor,
     QuoteRequest,
     QuoteResponse,
@@ -133,6 +136,11 @@ def quote(db: Session, payload: QuoteRequest) -> QuoteResponse:
     )
 
 
+def upload_media(base_url: str, file: UploadFile) -> MediaUploadOut:
+    url, media_type = save_upload_media(base_url, file, prefix="ad")
+    return MediaUploadOut(url=url, type=media_type)
+
+
 def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
     targeting = payload.effective_targeting()
     _check_targeting(targeting)
@@ -173,7 +181,7 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
     )
     title = campaign.creatives[0].title if campaign.creatives else "Anúncio"
     checkout_url = payments.create_checkout_session(
-        campaign.id, title, price_cents, campaign.currency
+        campaign.id, campaign.access_token, title, price_cents, campaign.currency
     )
     return CheckoutResponse(campaign_id=campaign.id, checkout_url=checkout_url)
 
@@ -225,6 +233,7 @@ def get_active_ad(db: Session, format: str, ctx: dict) -> AdOut | None:
         title=creative.title,
         content=creative.content,
         image_url=creative.image_url,
+        video_url=creative.video_url,
         cta_label=creative.cta_label,
         target_url=creative.target_url,
         latitude=creative.latitude,
@@ -367,11 +376,8 @@ def admin_update_creative(
     return CreativeOut.model_validate(creative)
 
 
-def admin_get_analytics(db: Session, campaign_id: int, group_by: str) -> AnalyticsOut:
-    campaign = ad_dao.get_campaign(db, campaign_id)
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campanha não encontrada")
-    events = ad_dao.list_events(db, campaign_id)
+def _campaign_analytics(db: Session, campaign: AdCampaign, group_by: str) -> AnalyticsOut:
+    events = ad_dao.list_events(db, campaign.id)
     impressions = [e for e in events if e.event_type == EVENT_IMPRESSION]
     clicks = [e for e in events if e.event_type == EVENT_CLICK]
     n_imp, n_clk = len(impressions), len(clicks)
@@ -426,6 +432,36 @@ def admin_get_analytics(db: Session, campaign_id: int, group_by: str) -> Analyti
             actions[e.objective_action] += 1
 
     return AnalyticsOut(summary=summary, buckets=buckets, actions=dict(actions))
+
+
+def admin_get_analytics(db: Session, campaign_id: int, group_by: str) -> AnalyticsOut:
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campanha não encontrada")
+    return _campaign_analytics(db, campaign, group_by)
+
+
+# ── Painel do anunciante (público, capability token) ────────────────────
+def get_my_campaign(db: Session, token: str, group_by: str) -> MyCampaignOut:
+    campaign = ad_dao.get_campaign_by_token(db, token)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
+    analytics = _campaign_analytics(db, campaign, group_by)
+    return MyCampaignOut(
+        id=campaign.id,
+        status=campaign.status,
+        advertiser_name=campaign.advertiser_name,
+        formats=campaign.formats,
+        price_cents=campaign.price_cents,
+        currency=campaign.currency,
+        targeting=campaign.targeting,
+        duration_days=campaign.duration_days,
+        starts_at=campaign.starts_at,
+        ends_at=campaign.ends_at,
+        created_at=campaign.created_at,
+        creatives=[CreativeOut.model_validate(c) for c in campaign.creatives],
+        analytics=analytics,
+    )
 
 
 def admin_get_global_analytics(

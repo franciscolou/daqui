@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { Ad, adsApi } from '../lib/adsApi';
+import VideoPlayer from './VideoPlayer';
 
 // Card de anúncio no feed — mesmo formato visual de um PostCard, mas com
 // dados de uma campanha (não um Post real) e link externo em vez de rota interna.
@@ -25,7 +26,11 @@ export default function AdPostCard({ ad, viewerId }: { ad: Ad; viewerId?: string
       </View>
       <Text style={styles.title}>{ad.title}</Text>
       <Text style={styles.body} numberOfLines={4}>{ad.content}</Text>
-      {!!ad.imageUrl && <Image source={{ uri: ad.imageUrl }} style={styles.image} />}
+      {!!ad.videoUrl ? (
+        <VideoPlayer uri={ad.videoUrl} style={styles.image} />
+      ) : (
+        !!ad.imageUrl && <Image source={{ uri: ad.imageUrl }} style={styles.image} />
+      )}
       <View style={styles.ctaRow}>
         <Text style={styles.ctaText}>{ad.ctaLabel || 'Saiba mais'}</Text>
         <Ionicons name="arrow-forward" size={14} color={Colors.primary} />

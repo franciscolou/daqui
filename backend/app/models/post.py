@@ -15,8 +15,13 @@ class Post(Base):
     category: Mapped[str] = mapped_column(String(30), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(200))
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    image_url: Mapped[Optional[str]] = mapped_column(String(500))  # legado; ver image_urls
-    image_urls: Mapped[Optional[list[str]]] = mapped_column(JSON, nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(String(500))  # legado; ver media
+    # legado; ver media — mantida só pela migração de backfill em database.py
+    _image_urls_legacy: Mapped[Optional[list[str]]] = mapped_column(
+        "image_urls", JSON, nullable=True
+    )
+    # Galeria mista de imagens/vídeos: [{"url": ..., "type": "image"|"video"}, ...]
+    media: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
     details: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     neighborhood: Mapped[str] = mapped_column(String(120), default="")
     # Local do post (endereço validado no bairro) + coordenadas p/ o mapa.
@@ -36,6 +41,12 @@ class Post(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+
+    @property
+    def image_urls(self) -> list[str]:
+        """Compat: só as imagens de `media` (usada por previews que não tocam
+        vídeo — snapshot de moderação, prévia de encaminhamento, pin do mapa)."""
+        return [m["url"] for m in (self.media or []) if m.get("type", "image") == "image"]
 
     author: Mapped["User"] = relationship("User", back_populates="posts")  # noqa: F821
     likes: Mapped[list["PostLike"]] = relationship(

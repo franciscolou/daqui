@@ -115,7 +115,7 @@ export default function MapScreen() {
       description: p.content,
       authorName: p.author.name,
       authorAvatar: p.author.avatar,
-      imageUrl: p.images?.[0],
+      imageUrl: p.media?.find((m) => m.type === 'image')?.url,
     }));
     if (ad?.latitude != null && ad?.longitude != null) {
       list.push({

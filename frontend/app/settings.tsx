@@ -169,13 +169,13 @@ type UsernameStatus = 'idle' | 'checking' | 'invalid' | 'taken' | 'available';
 function EditProfilePanel() {
   const { user, refresh } = useAuth();
   const styles = useThemedStyles(makeStyles);
-  const Colors = useTheme();
   const [username, setUsername] = useState(user?.username ?? '');
   const [name, setName] = useState(user?.name ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
   const [neighborhood, setNeighborhood] = useState(user?.neighborhood ?? '');
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
   const [uStatus, setUStatus] = useState<UsernameStatus>('idle');
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -230,6 +230,34 @@ function EditProfilePanel() {
     }
   };
 
+  const pickCover = async () => {
+    setFeedback(null);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setFeedback({ ok: false, text: 'Permita o acesso às fotos para trocar a capa.' });
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [3, 1],
+        quality: 0.7,
+        base64: true,
+      });
+      const asset = res.assets?.[0];
+      if (res.canceled || !asset?.base64) return;
+      setCoverBusy(true);
+      await api.updateCover(`data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`);
+      await refresh();
+      setFeedback({ ok: true, text: 'Foto de capa atualizada!' });
+    } catch (e) {
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível atualizar a capa.' });
+    } finally {
+      setCoverBusy(false);
+    }
+  };
+
   const save = async () => {
     setFeedback(null);
     const uname = username.trim().toLowerCase();
@@ -274,19 +302,39 @@ function EditProfilePanel() {
 
   return (
     <View style={styles.panelGroup}>
-      <View style={styles.avatarRow}>
-        <Image source={{ uri: user?.avatar }} style={styles.avatar} />
-        <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8} onPress={pickAvatar} disabled={avatarBusy}>
-          {avatarBusy ? (
-            <ActivityIndicator size="small" color={Colors.text} />
-          ) : (
-            <>
-              <Ionicons name="camera-outline" size={16} color={Colors.text} />
-              <Text style={styles.secondaryBtnText}>Alterar foto</Text>
-            </>
-          )}
-        </TouchableOpacity>
+      <View style={styles.coverEditWrap}>
+        {user?.cover ? (
+          <Image source={{ uri: user.cover }} style={styles.coverEditImage} />
+        ) : (
+          <View style={styles.coverEditPlaceholder} />
+        )}
+        <View style={styles.coverEditBtnWrap}>
+          <TouchableOpacity style={styles.coverEditBtn} activeOpacity={0.8} onPress={pickCover} disabled={coverBusy}>
+            {coverBusy ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="camera-outline" size={14} color="#fff" />
+                <Text style={styles.coverEditBtnText}>Alterar capa</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.coverEditAvatarWrap}>
+          <Image source={{ uri: user?.avatar }} style={styles.coverEditAvatar} />
+          <View style={styles.avatarEditBtnWrap}>
+            <TouchableOpacity style={styles.avatarEditBtn} activeOpacity={0.8} onPress={pickAvatar} disabled={avatarBusy}>
+              {avatarBusy ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Ionicons name="camera-outline" size={14} color="#fff" />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
+      <View style={styles.coverEditSpacer} />
 
       <Field
         label="Nome de usuário"
@@ -1059,8 +1107,65 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   rowFieldSmall: { width: 110 },
   rowFieldFlex: { flex: 1, minWidth: 0 },
 
-  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 8 },
-  avatar: { width: 72, height: 72, borderRadius: 20 },
+  coverEditWrap: {
+    height: 120,
+    borderRadius: 16,
+    overflow: 'visible',
+  },
+  coverEditImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+  },
+  coverEditPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    backgroundColor: Colors.primaryFaint,
+  },
+  coverEditBtnWrap: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+  coverEditBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  coverEditBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  coverEditAvatarWrap: {
+    position: 'absolute',
+    left: 16,
+    bottom: -28,
+  },
+  coverEditAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: Colors.surface,
+  },
+  avatarEditBtnWrap: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+  },
+  avatarEditBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+    borderWidth: 2,
+    borderColor: Colors.surface,
+  },
+  coverEditSpacer: { height: 40 },
   secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',

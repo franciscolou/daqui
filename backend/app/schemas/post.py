@@ -1,9 +1,16 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
 from app.schemas.user import UserPublic
+
+MAX_MEDIA_ITEMS = 10
+
+
+class PostMediaItem(BaseModel):
+    url: str
+    type: Literal["image", "video"]
 
 
 # ── Enquete ───────────────────────────────────────────────────────────
@@ -48,7 +55,8 @@ class PostCreate(BaseModel):
     category: str
     title: Optional[str] = None
     content: str
-    images: list[str] = []  # data URLs base64, até 10 fotos
+    # Já enviados via POST /posts/media (imagens e/ou vídeos), até 10 itens.
+    media: list[PostMediaItem] = []
     details: Optional[dict] = None  # campos específicos da categoria
     important: bool = False
     poll: Optional[PollCreate] = None
@@ -65,7 +73,8 @@ class PostOut(BaseModel):
     category: str
     title: Optional[str]
     content: str
-    image_urls: list[str] = []
+    media: list[PostMediaItem] = []
+    image_urls: list[str] = []  # compat: só as imagens de `media`
     details: Optional[dict] = None
     neighborhood: str
     location: Optional[str] = None

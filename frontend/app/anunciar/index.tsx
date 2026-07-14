@@ -286,7 +286,13 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
 
   sectionTitle: { fontSize: 16, fontWeight: '800', color: Colors.text, marginTop: 4 },
 
-  categoryRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
+  // alignItems: 'flex-start' — sem isso, o cross-axis padrão (stretch) força
+  // o wrapper clicável (PressableScale) de cada card a esticar até a altura
+  // do card mais alto da linha (o ativo, com tagline extra), enquanto a caixa
+  // visível do card (borda/fundo) só ocupa o próprio conteúdo — o hover
+  // (::after em globalStyles.web.ts) então pinta além do card visível nos
+  // inativos.
+  categoryRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' },
   categoryRowWide: { flexWrap: 'nowrap' },
   categoryCard: {
     minWidth: 150,

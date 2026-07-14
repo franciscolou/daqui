@@ -41,6 +41,8 @@ export default function RootLayout() {
                 <Stack.Screen name="anunciar/index" />
                 <Stack.Screen name="anunciar/personalizar" />
                 <Stack.Screen name="anunciar/checkout" />
+                <Stack.Screen name="anunciar/checkout/sucesso" />
+                <Stack.Screen name="anunciar/painel/[token]" />
                 <Stack.Screen name="settings" />
               </Stack>
             </ScrollToTopProvider>

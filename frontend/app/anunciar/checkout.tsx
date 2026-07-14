@@ -1,11 +1,13 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { adsApi, AdFormat, AdObjective, AdsApiError, CreativeInput } from '../../lib/adsApi';
+import VideoPlayer from '../../components/VideoPlayer';
 
 const MAX_CREATIVES = 3;
 
@@ -13,11 +15,14 @@ interface CreativeDraft {
   title: string;
   content: string;
   targetUrl: string;
-  imageUrl: string;
+  mediaUrl: string;
+  mediaType: 'image' | 'video' | '';
   ctaLabel: string;
 }
 
-const emptyCreative = (): CreativeDraft => ({ title: '', content: '', targetUrl: '', imageUrl: '', ctaLabel: '' });
+const emptyCreative = (): CreativeDraft => ({
+  title: '', content: '', targetUrl: '', mediaUrl: '', mediaType: '', ctaLabel: '',
+});
 
 function CreativeFields({
   draft,
@@ -32,13 +37,73 @@ function CreativeFields({
   styles: ReturnType<typeof makeStyles>;
   label: string;
 }) {
+  const [mediaUploading, setMediaUploading] = useState(false);
+  const [mediaError, setMediaError] = useState('');
+
+  const pickMedia = async () => {
+    setMediaError('');
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setMediaError('Permita o acesso às fotos para adicionar mídia.');
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images', 'videos'],
+        quality: 0.7,
+      });
+      if (res.canceled) return;
+      const asset = res.assets[0];
+      setMediaUploading(true);
+      const uploaded = await adsApi.uploadAdMedia({
+        uri: asset.uri,
+        mimeType: asset.mimeType ?? undefined,
+        fileName: asset.fileName ?? undefined,
+      });
+      onChange({ ...draft, mediaUrl: uploaded.url, mediaType: uploaded.type });
+    } catch {
+      setMediaError('Não foi possível enviar o arquivo.');
+    } finally {
+      setMediaUploading(false);
+    }
+  };
+
+  const removeMedia = () => onChange({ ...draft, mediaUrl: '', mediaType: '' });
+
   return (
     <View style={styles.creativeBlock}>
       <Text style={styles.sectionTitle}>{label}</Text>
       <TextInput style={styles.input} placeholder="Título" placeholderTextColor={Colors.textTertiary} value={draft.title} onChangeText={(v) => onChange({ ...draft, title: v })} />
       <TextInput style={[styles.input, styles.inputMultiline]} placeholder="Texto" placeholderTextColor={Colors.textTertiary} value={draft.content} onChangeText={(v) => onChange({ ...draft, content: v })} multiline />
       <TextInput style={styles.input} placeholder="Link de destino (ao tocar no anúncio)" placeholderTextColor={Colors.textTertiary} value={draft.targetUrl} onChangeText={(v) => onChange({ ...draft, targetUrl: v })} autoCapitalize="none" />
-      <TextInput style={styles.input} placeholder="URL da imagem (opcional)" placeholderTextColor={Colors.textTertiary} value={draft.imageUrl} onChangeText={(v) => onChange({ ...draft, imageUrl: v })} autoCapitalize="none" />
+
+      {draft.mediaUrl ? (
+        <View style={styles.mediaPreviewWrap}>
+          {draft.mediaType === 'video' ? (
+            <VideoPlayer uri={draft.mediaUrl} style={styles.mediaPreview} hideMuteToggle />
+          ) : (
+            <Image source={{ uri: draft.mediaUrl }} style={styles.mediaPreview} resizeMode="cover" />
+          )}
+          <View style={styles.removeMediaBtnWrap}>
+            <TouchableOpacity style={styles.removeMediaBtn} onPress={removeMedia}>
+              <Ionicons name="close" size={14} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.mediaPickerBtn} onPress={pickMedia} activeOpacity={0.8} disabled={mediaUploading}>
+          {mediaUploading ? (
+            <ActivityIndicator size="small" color={Colors.primary} />
+          ) : (
+            <>
+              <Ionicons name="image-outline" size={18} color={Colors.primary} />
+              <Text style={styles.mediaPickerText}>Adicionar foto ou vídeo (opcional)</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
+      {!!mediaError && <Text style={styles.errorText}>{mediaError}</Text>}
+
       <TextInput style={styles.input} placeholder="Texto do botão (opcional)" placeholderTextColor={Colors.textTertiary} value={draft.ctaLabel} onChangeText={(v) => onChange({ ...draft, ctaLabel: v })} />
     </View>
   );
@@ -97,7 +162,8 @@ export default function CheckoutScreen() {
         .map((c) => ({
           title: c.title.trim(),
           content: c.content.trim(),
-          imageUrl: c.imageUrl.trim() || undefined,
+          imageUrl: c.mediaType === 'image' ? c.mediaUrl : undefined,
+          videoUrl: c.mediaType === 'video' ? c.mediaUrl : undefined,
           ctaLabel: c.ctaLabel.trim() || undefined,
           targetUrl: c.targetUrl.trim(),
         }));
@@ -121,7 +187,8 @@ export default function CheckoutScreen() {
         advertiserPhone: advertiserPhone.trim(),
         title: primary.title.trim(),
         content: primary.content.trim(),
-        imageUrl: primary.imageUrl.trim() || undefined,
+        imageUrl: primary.mediaType === 'image' ? primary.mediaUrl : undefined,
+        videoUrl: primary.mediaType === 'video' ? primary.mediaUrl : undefined,
         ctaLabel: primary.ctaLabel.trim() || undefined,
         targetUrl: primary.targetUrl.trim(),
         latitude: latitude.trim() ? Number(latitude) : undefined,
@@ -233,6 +300,35 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
   row2: { flexDirection: 'row', gap: 10 },
   inputHalf: { flex: 1 },
+
+  mediaPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryFaint,
+  },
+  mediaPickerText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  mediaPreviewWrap: { position: 'relative' },
+  mediaPreview: { width: '100%', height: 160, borderRadius: 12, backgroundColor: Colors.borderLight },
+  removeMediaBtnWrap: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+  },
+  removeMediaBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   addVariantBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6 },
   addVariantText: { fontSize: 13, fontWeight: '700', color: Colors.primary },

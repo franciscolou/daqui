@@ -75,6 +75,10 @@ def get_campaign(db: Session, campaign_id: int) -> AdCampaign | None:
     return db.get(AdCampaign, campaign_id)
 
 
+def get_campaign_by_token(db: Session, token: str) -> AdCampaign | None:
+    return db.query(AdCampaign).filter(AdCampaign.access_token == token).first()
+
+
 def list_campaigns(db: Session, status: str | None = None) -> list[AdCampaign]:
     q = db.query(AdCampaign)
     if status:

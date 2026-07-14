@@ -1,10 +1,10 @@
 from datetime import date, datetime, timezone
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core import realtime_registry
-from app.core.uploads import save_data_url_image
+from app.core.uploads import save_upload_media
 from app.daos import notification as notification_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
@@ -13,12 +13,14 @@ from app.models.notification import TYPE_POST_REMOVED
 from app.models.post import Post
 from app.models.user import User
 from app.schemas.post import (
+    MAX_MEDIA_ITEMS,
     PollCreate,
     PollOptionOut,
     PollOut,
     PollUpdate,
     PostCreate,
     PostFeed,
+    PostMediaItem,
     PostOut,
     PostUpdate,
 )
@@ -60,6 +62,7 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
         category=post.category,
         title=post.title,
         content=post.content,
+        media=post.media or [],
         image_urls=post.image_urls or [],
         details=post.details,
         neighborhood=post.neighborhood,
@@ -242,6 +245,11 @@ def _validate_closes_at(closes_at: datetime) -> datetime:
     return closes_at
 
 
+def upload_media(user: User, base_url: str, file: UploadFile) -> PostMediaItem:
+    url, media_type = save_upload_media(base_url, file, prefix=f"post_{user.id}")
+    return PostMediaItem(url=url, type=media_type)
+
+
 def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> PostOut:
     is_poll = payload.category == "enquete"
     if is_poll and payload.poll is None:
@@ -255,9 +263,11 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
 
     details = None if is_poll else _build_details(payload.category, payload.details)
 
-    if len(payload.images) > 10:
-        raise HTTPException(status_code=400, detail="No máximo 10 fotos por post")
-    image_urls = [save_data_url_image(base_url, img, prefix="post") for img in payload.images]
+    if len(payload.media) > MAX_MEDIA_ITEMS:
+        raise HTTPException(
+            status_code=400, detail=f"No máximo {MAX_MEDIA_ITEMS} itens de mídia por post"
+        )
+    media = [m.model_dump() for m in payload.media]
 
     # Local: quando informado, precisa ser um endereço válido dentro do bairro.
     location = (details or {}).get("location") if details else None
@@ -273,7 +283,7 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         category=payload.category,
         title=payload.title,
         content=payload.content,
-        image_urls=image_urls,
+        media=media,
         details=details,
         important=payload.important,
         neighborhood=user.neighborhood,

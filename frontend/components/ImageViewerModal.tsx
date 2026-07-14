@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Image,
   View,
   Modal,
   PanResponder,
@@ -11,9 +12,15 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import VideoPlayer from './VideoPlayer';
+
+export interface MediaItem {
+  url: string;
+  type: 'image' | 'video';
+}
 
 interface ImageViewerModalProps {
-  images: string[];
+  media: MediaItem[];
   /** Índice inicial a exibir. */
   initialIndex?: number;
   visible: boolean;
@@ -22,9 +29,10 @@ interface ImageViewerModalProps {
 
 const SWIPE_THRESHOLD = 50;
 
-/** Visualizador de foto em tela cheia. Troca de foto por transposição
- * simples (crossfade), não por slide — via botões, teclado ou swipe. */
-export default function ImageViewerModal({ images, initialIndex = 0, visible, onClose }: ImageViewerModalProps) {
+/** Visualizador de mídia em tela cheia (fotos e vídeos, mesma interface pros
+ * dois). Troca de item por transposição simples (crossfade), não por slide —
+ * via botões, teclado ou swipe. */
+export default function ImageViewerModal({ media, initialIndex = 0, visible, onClose }: ImageViewerModalProps) {
   const { width, height } = useWindowDimensions();
   const [index, setIndex] = useState(initialIndex);
   const [opacity] = useState(() => new Animated.Value(1));
@@ -38,13 +46,13 @@ export default function ImageViewerModal({ images, initialIndex = 0, visible, on
 
   const goTo = useCallback(
     (newIndex: number) => {
-      const clamped = Math.max(0, Math.min(images.length - 1, newIndex));
+      const clamped = Math.max(0, Math.min(media.length - 1, newIndex));
       if (clamped === index) return;
       setIndex(clamped);
       opacity.setValue(0);
       Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }).start();
     },
-    [images.length, index, opacity],
+    [media.length, index, opacity],
   );
 
   useEffect(() => {
@@ -92,14 +100,16 @@ export default function ImageViewerModal({ images, initialIndex = 0, visible, on
     onClose();
   };
 
+  const current = media[index];
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} tabIndex={-1} />
 
         <View style={styles.header} pointerEvents="box-none">
-          {images.length > 1 && (
-            <Text style={styles.counter}>{index + 1} / {images.length}</Text>
+          {media.length > 1 && (
+            <Text style={styles.counter}>{index + 1} / {media.length}</Text>
           )}
           <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={12}>
             <Ionicons name="close" size={26} color="#fff" />
@@ -108,22 +118,24 @@ export default function ImageViewerModal({ images, initialIndex = 0, visible, on
 
         <View style={{ width, height }} {...panResponder.panHandlers}>
           <Pressable style={[styles.page, StyleSheet.absoluteFill]} onPress={handlePageTap} tabIndex={-1}>
-            <Animated.Image
-              source={{ uri: images[index] }}
-              style={[styles.image, { opacity }]}
-              resizeMode="contain"
-            />
+            <Animated.View style={[styles.image, { opacity }]}>
+              {current?.type === 'video' ? (
+                <VideoPlayer uri={current.url} style={StyleSheet.absoluteFill} contentFit="contain" />
+              ) : (
+                <Image source={{ uri: current?.url }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+              )}
+            </Animated.View>
           </Pressable>
         </View>
 
-        {images.length > 1 && index > 0 && (
+        {media.length > 1 && index > 0 && (
           <View style={[styles.navBtn, styles.navBtnLeft]} pointerEvents="box-none">
             <Pressable style={styles.navCircle} onPress={() => goTo(index - 1)} hitSlop={12}>
               <Ionicons name="chevron-back" size={26} color="#fff" />
             </Pressable>
           </View>
         )}
-        {images.length > 1 && index < images.length - 1 && (
+        {media.length > 1 && index < media.length - 1 && (
           <View style={[styles.navBtn, styles.navBtnRight]} pointerEvents="box-none">
             <Pressable style={styles.navCircle} onPress={() => goTo(index + 1)} hitSlop={12}>
               <Ionicons name="chevron-forward" size={26} color="#fff" />
@@ -131,9 +143,9 @@ export default function ImageViewerModal({ images, initialIndex = 0, visible, on
           </View>
         )}
 
-        {images.length > 1 && (
+        {media.length > 1 && (
           <View style={styles.dots} pointerEvents="none">
-            {images.map((_, i) => (
+            {media.map((_, i) => (
               <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
             ))}
           </View>

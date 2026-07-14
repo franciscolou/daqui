@@ -143,6 +143,13 @@
     .creative-item .top b { font-size: 13px; }
     .creative-item .sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 
+    /* ── Upload de mídia do criativo (imagem/vídeo) ── */
+    .media-picker-row { position: relative; }
+    .media-preview { margin-top: 8px; position: relative; width: 100%; max-width: 220px; border-radius: 10px; overflow: hidden; background: var(--border-light); }
+    .media-preview img, .media-preview video { display: block; width: 100%; max-height: 140px; object-fit: cover; }
+    .media-preview .muted { display: inline-block; padding: 10px; }
+    .media-remove-btn { margin-top: 6px; background: none; border: none; color: var(--danger); font-size: 12px; font-weight: 600; padding: 0; }
+
     /* ── Analytics ── */
     .filters-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
     .filters-bar .fgroup { display: flex; flex-direction: column; gap: 4px; }
@@ -254,7 +261,13 @@
               <label>Texto</label>
               <textarea id="newContent"></textarea>
               <div class="row2">
-                <div><label>URL da imagem (opcional)</label><input id="newImageUrl" /></div>
+                <div class="media-picker-row">
+                  <label>Foto ou vídeo (opcional)</label>
+                  <input type="file" id="newMediaFile" accept="image/*,video/*" />
+                  <div class="media-preview hidden" id="newMediaPreview"></div>
+                  <button type="button" class="media-remove-btn hidden" id="newMediaRemoveBtn">Remover</button>
+                  <div class="err hidden" id="newMediaErr"></div>
+                </div>
                 <div><label>Texto do botão (opcional)</label><input id="newCtaLabel" placeholder="Saiba mais" /></div>
               </div>
               <label>Link de destino (ao tocar no anúncio)</label>
@@ -359,6 +372,17 @@
     const $ = (id) => document.getElementById(id);
     let API = '';
     let token = '';
+    // App Daqui (frontend Expo web) — onde vive o painel do próprio
+    // anunciante (/anunciar/painel/{access_token}), ver renderCampaignList.
+    const APP_URL = 'http://localhost:8081';
+
+    function copyToClipboard(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.textContent;
+        btn.textContent = 'Copiado!';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      });
+    }
 
     const THEME_KEY = 'daqui-ads-admin-theme';
     function applyTheme(theme) {
@@ -385,6 +409,57 @@
       const data = text ? JSON.parse(text) : null;
       if (!res.ok) throw new Error((data && data.detail) || ('Erro ' + res.status));
       return data;
+    }
+
+    // Upload multipart (imagem/vídeo do criativo) — sem Content-Type manual,
+    // o boundary do FormData precisa vir do próprio fetch.
+    async function apiUploadMedia(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(API + '/ads/media', { method: 'POST', body: formData });
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : null;
+      if (!res.ok) throw new Error((data && data.detail) || ('Erro ' + res.status));
+      return data; // { url, type }
+    }
+
+    // Liga um <input type="file"> a um preview + upload automático; devolve
+    // um getter pro { url, type } atual (null enquanto não sobe nada).
+    function wireMediaPicker({ fileInput, preview, removeBtn, errBox }) {
+      let current = null;
+      function render() {
+        if (!current) {
+          preview.innerHTML = '';
+          preview.classList.add('hidden');
+          removeBtn.classList.add('hidden');
+          return;
+        }
+        preview.classList.remove('hidden');
+        removeBtn.classList.remove('hidden');
+        preview.innerHTML = current.type === 'video'
+          ? `<video src="${current.url}" muted loop autoplay playsinline></video>`
+          : `<img src="${current.url}" />`;
+      }
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        errBox.textContent = '';
+        errBox.classList.remove('hidden');
+        preview.innerHTML = '<span class="muted">Enviando…</span>';
+        preview.classList.remove('hidden');
+        try {
+          current = await apiUploadMedia(file);
+        } catch (e) {
+          current = null;
+          errBox.textContent = e.message;
+        } finally {
+          fileInput.value = '';
+          render();
+        }
+      });
+      removeBtn.addEventListener('click', () => { current = null; render(); });
+      render();
+      return { get: () => current };
     }
 
     function escapeHtml(s) {
@@ -582,14 +657,20 @@
           <div class="comment">${escapeHtml(content)}</div>
           <div class="meta-row">${escapeHtml(targeting)} · ${fmtMoney(c.price_cents)} · ${fmtDate(c.starts_at)} → ${fmtDate(c.ends_at)}</div>
           <div class="meta-row">${c.impressions_count} impressões · ${c.clicks_count} cliques</div>
+          <div class="meta-row">
+            <span class="muted">Painel do anunciante:</span>
+            <button class="act" data-copy-link>Copiar link</button>
+          </div>
           <div class="actions">${actions}<button class="act details-toggle" data-act="details">Detalhes ▾</button></div>
           <div class="details-panel hidden" data-details></div>`;
         const pauseBtn = card.querySelector('[data-act="pause"]');
         const activateBtn = card.querySelector('[data-act="activate"]');
         const detailsBtn = card.querySelector('[data-act="details"]');
+        const copyLinkBtn = card.querySelector('[data-copy-link]');
         if (pauseBtn) pauseBtn.onclick = () => setCampaignStatus(c.id, 'paused');
         if (activateBtn) activateBtn.onclick = () => setCampaignStatus(c.id, 'active');
         detailsBtn.onclick = () => toggleDetails(c.id, card.querySelector('[data-details]'));
+        copyLinkBtn.onclick = () => copyToClipboard(`${APP_URL}/anunciar/painel/${c.access_token}`, copyLinkBtn);
         $('campaignList').appendChild(card);
       }
     }
@@ -653,7 +734,7 @@
             <b>${escapeHtml(cr.title)}</b>
             <button class="act" data-toggle-active="${cr.id}">${cr.is_active ? 'Pausar' : 'Ativar'}</button>
           </div>
-          <div class="sub">${cr.format ? FORMAT_LABEL[cr.format] || cr.format : 'todos os formatos'} · peso ${cr.weight} · ${cr.impressions_count} imp · ${cr.clicks_count} cliques</div>
+          <div class="sub">${cr.video_url ? '🎬 vídeo · ' : cr.image_url ? '🖼️ imagem · ' : ''}${cr.format ? FORMAT_LABEL[cr.format] || cr.format : 'todos os formatos'} · peso ${cr.weight} · ${cr.impressions_count} imp · ${cr.clicks_count} cliques</div>
         </div>`).join('') || '<div class="muted">Nenhum criativo.</div>';
       wrap.innerHTML = `
         <h3>Criativos / teste A-B</h3>
@@ -667,11 +748,23 @@
           <div><label>Formato (vazio = todos)</label><input data-cr="format" placeholder="post" /></div>
         </div>
         <div class="row2">
-          <div><label>URL da imagem</label><input data-cr="image_url" /></div>
+          <div class="media-picker-row">
+            <label>Foto ou vídeo (opcional)</label>
+            <input type="file" data-cr-media accept="image/*,video/*" />
+            <div class="media-preview hidden" data-cr-media-preview></div>
+            <button type="button" class="media-remove-btn hidden" data-cr-media-remove>Remover</button>
+          </div>
           <div><label>Peso</label><input data-cr="weight" type="number" value="1" min="1" /></div>
         </div>
         <button class="act approve" data-add-creative style="margin-top:10px;">Adicionar criativo</button>
         <div class="err" data-cr-err></div>`;
+
+      const crMediaPicker = wireMediaPicker({
+        fileInput: wrap.querySelector('[data-cr-media]'),
+        preview: wrap.querySelector('[data-cr-media-preview]'),
+        removeBtn: wrap.querySelector('[data-cr-media-remove]'),
+        errBox: wrap.querySelector('[data-cr-err]'),
+      });
 
       wrap.querySelectorAll('[data-toggle-active]').forEach((btn) => {
         const creativeId = btn.getAttribute('data-toggle-active');
@@ -691,12 +784,14 @@
         const errBox = wrap.querySelector('[data-cr-err]');
         errBox.textContent = '';
         const val = (name) => wrap.querySelector(`[data-cr="${name}"]`).value.trim();
+        const crMedia = crMediaPicker.get();
         const payload = {
           title: val('title'),
           content: val('content'),
           target_url: val('target_url'),
           format: val('format') || null,
-          image_url: val('image_url') || null,
+          image_url: crMedia && crMedia.type === 'image' ? crMedia.url : null,
+          video_url: crMedia && crMedia.type === 'video' ? crMedia.url : null,
           weight: parseInt(wrap.querySelector('[data-cr="weight"]').value || '1', 10),
         };
         try {
@@ -889,12 +984,19 @@
     }
 
     // ── Nova proposta manual ──
+    const newMediaPicker = wireMediaPicker({
+      fileInput: $('newMediaFile'),
+      preview: $('newMediaPreview'),
+      removeBtn: $('newMediaRemoveBtn'),
+      errBox: $('newMediaErr'),
+    });
     $('newSubmitBtn').addEventListener('click', async () => {
       $('newErr').textContent = '';
       const formats = readFormats('newFmt');
       const citywide = $('newCitywide').checked;
       const neighborhoods = citywide ? [] : $('newNeighborhoods').value.split(',').map((s) => s.trim()).filter(Boolean);
       const priceReais = parseFloat($('newPrice').value || '0');
+      const media = newMediaPicker.get();
       const payload = {
         formats,
         duration_days: parseInt($('newDuration').value, 10),
@@ -905,7 +1007,8 @@
         advertiser_phone: $('newAdvertiserPhone').value.trim(),
         title: $('newTitle').value.trim(),
         content: $('newContent').value.trim(),
-        image_url: $('newImageUrl').value.trim() || null,
+        image_url: media && media.type === 'image' ? media.url : null,
+        video_url: media && media.type === 'video' ? media.url : null,
         cta_label: $('newCtaLabel').value.trim() || null,
         target_url: $('newTargetUrl').value.trim(),
         latitude: $('newLat').value ? parseFloat($('newLat').value) : null,

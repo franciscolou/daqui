@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import Body, Depends, Query, Request
+from fastapi import Body, Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin, get_db
@@ -21,6 +21,8 @@ from app.schemas.ad import (
     CreativeUpdate,
     GlobalAnalyticsOut,
     ManualCampaignCreate,
+    MediaUploadOut,
+    MyCampaignOut,
     QuoteRequest,
     QuoteResponse,
 )
@@ -53,6 +55,12 @@ def checkout(
     payload: CheckoutRequest, db: Session = Depends(get_db)
 ) -> CheckoutResponse:
     return ad_service.checkout(db, payload)
+
+
+def upload_media(request: Request, file: UploadFile = File(...)) -> MediaUploadOut:
+    # Público (mesmo contexto sem login do checkout self-service) — o time de
+    # anúncios também usa este endpoint ao inserir uma campanha manual.
+    return ad_service.upload_media(str(request.base_url), file)
 
 
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dict:
@@ -97,6 +105,16 @@ def track_click(
     db: Session = Depends(get_db),
 ) -> None:
     ad_service.track_click(db, campaign_id, payload)
+
+
+def get_my_campaign(
+    token: str,
+    group_by: str = Query("weekday"),
+    db: Session = Depends(get_db),
+) -> MyCampaignOut:
+    # Público — o token (não uma sessão de admin) é a própria autorização,
+    # ver `/anunciar/painel/[token].tsx` no frontend.
+    return ad_service.get_my_campaign(db, token, group_by)
 
 
 # ── Admin de anúncios ───────────────────────────────────────────────────

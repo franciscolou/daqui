@@ -1,5 +1,6 @@
+import { Platform } from 'react-native';
 import { getItem, removeItem, setItem } from './storage';
-import { Poll, Post, PostCategory, User } from '../data/mock';
+import { Poll, Post, PostCategory, PostMedia, User } from '../data/mock';
 
 // ─────────────────────────────────────────────────────────────
 // Configuração
@@ -77,6 +78,22 @@ export function triggerForceLogout(message: string): void {
   forceLogoutHandler?.(message);
 }
 
+async function handleResponse<T>(res: Response): Promise<T> {
+  if (res.status === 204) return undefined as T;
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    const detail =
+      (data && (data.detail || data.message)) || `Erro ${res.status}`;
+    const message = typeof detail === 'string' ? detail : 'Erro';
+    if (res.status === 423) triggerForceLogout(message);
+    throw new ApiError(res.status, message);
+  }
+  return data as T;
+}
+
 async function request<T>(
   path: string,
   options: { method?: string; body?: unknown; auth?: boolean } = {},
@@ -97,19 +114,51 @@ async function request<T>(
     throw new ApiError(0, 'Não foi possível conectar ao servidor.');
   }
 
-  if (res.status === 204) return undefined as T;
+  return handleResponse<T>(res);
+}
 
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+// Upload multipart (imagem/vídeo) — não usa o `request` acima porque o
+// Content-Type (com boundary) precisa ser definido pelo próprio fetch a
+// partir do FormData, não fixado como "application/json".
+export interface PickedMediaAsset {
+  uri: string;
+  mimeType?: string;
+  fileName?: string;
+}
 
-  if (!res.ok) {
-    const detail =
-      (data && (data.detail || data.message)) || `Erro ${res.status}`;
-    const message = typeof detail === 'string' ? detail : 'Erro';
-    if (res.status === 423) triggerForceLogout(message);
-    throw new ApiError(res.status, message);
+async function buildMediaFormData(asset: PickedMediaAsset): Promise<FormData> {
+  const formData = new FormData();
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(asset.uri)).blob();
+    formData.append('file', blob, asset.fileName || 'upload');
+  } else {
+    formData.append('file', {
+      uri: asset.uri,
+      name: asset.fileName || 'upload',
+      type: asset.mimeType || 'application/octet-stream',
+    } as any);
   }
-  return data as T;
+  return formData;
+}
+
+async function requestMultipart<T>(
+  path: string,
+  formData: FormData,
+  options: { auth?: boolean } = {},
+): Promise<T> {
+  const { auth = true } = options;
+  if (auth) await ensureTokenLoaded();
+  const headers: Record<string, string> = {};
+  if (auth && token) headers.Authorization = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { method: 'POST', headers, body: formData });
+  } catch {
+    throw new ApiError(0, 'Não foi possível conectar ao servidor.');
+  }
+
+  return handleResponse<T>(res);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -121,6 +170,7 @@ interface BackendUser {
   name: string;
   bio: string | null;
   avatar_url: string | null;
+  cover_url?: string | null;
   neighborhood: string;
   city?: string | null;
   state?: string | null;
@@ -152,11 +202,17 @@ interface BackendPoll {
   my_votes: number[];
 }
 
+interface BackendPostMedia {
+  url: string;
+  type: 'image' | 'video';
+}
+
 interface BackendPost {
   id: number;
   category: string;
   title: string | null;
   content: string;
+  media: BackendPostMedia[];
   image_urls: string[];
   details: Record<string, any> | null;
   neighborhood: string;
@@ -539,6 +595,7 @@ export function mapUser(u: BackendUser): User {
     name: u.name,
     bio: u.bio ?? undefined,
     avatar: u.avatar_url || FALLBACK_AVATAR,
+    cover: u.cover_url ?? undefined,
     neighborhood: u.neighborhood,
     city: u.city ?? undefined,
     state: u.state ?? undefined,
@@ -582,7 +639,7 @@ function mapPost(p: BackendPost): Post {
     category: p.category as PostCategory,
     title: p.title ?? undefined,
     content: p.content,
-    images: p.image_urls.length ? p.image_urls : undefined,
+    media: p.media.length ? p.media : undefined,
     createdAt: p.created_at, // ISO — formatado na renderização (lib/time)
     likesCount: p.likes_count,
     commentsCount: p.comments_count,
@@ -930,6 +987,15 @@ export const api = {
     );
   },
 
+  async updateCover(imageDataUrl: string): Promise<User> {
+    return mapUser(
+      await request<BackendUser>('/users/me/cover', {
+        method: 'POST',
+        body: { image: imageDataUrl },
+      }),
+    );
+  },
+
   async getNeighborhoodStats(): Promise<NeighborhoodStats> {
     return request<NeighborhoodStats>('/users/neighborhood-stats');
   },
@@ -1034,11 +1100,16 @@ export const api = {
     return mapPost(await request<BackendPost>(`/posts/${id}/like`, { method: 'POST' }));
   },
 
+  async uploadPostMedia(asset: PickedMediaAsset): Promise<PostMedia> {
+    const formData = await buildMediaFormData(asset);
+    return requestMultipart<PostMedia>('/posts/media', formData);
+  },
+
   async createPost(payload: {
     category: string;
     title?: string;
     content: string;
-    images?: string[]; // data URLs base64, até 10 fotos
+    media?: PostMedia[]; // já enviados via uploadPostMedia, até 10 itens
     details?: Record<string, any>;
     important?: boolean;
     poll?: { options: string[]; multiple: boolean; closes_at: string };

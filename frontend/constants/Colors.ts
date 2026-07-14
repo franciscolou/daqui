@@ -92,7 +92,7 @@ export const darkColors: typeof lightColors = {
 
   text: '#F1F5F9',
   textSecondary: '#9FB0C3',
-  textTertiary: '#6B7A90',
+  textTertiary: '#8697AD',
   textInverse: '#0B1220',
 
   shadow: {

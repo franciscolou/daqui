@@ -1,11 +1,11 @@
 from typing import Optional
 
-from fastapi import Depends, Query, Request
+from fastapi import Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_moderator, get_current_user, get_db
 from app.models.user import User
-from app.schemas.post import PollVoteIn, PostCreate, PostFeed, PostOut, PostUpdate
+from app.schemas.post import PollVoteIn, PostCreate, PostFeed, PostMediaItem, PostOut, PostUpdate
 from app.services import post
 
 
@@ -61,6 +61,14 @@ def get_post(
     current_user: User = Depends(get_current_user),
 ) -> PostOut:
     return post.get_post(db, post_id, current_user)
+
+
+def upload_media(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+) -> PostMediaItem:
+    return post.upload_media(current_user, str(request.base_url), file)
 
 
 def create_post(

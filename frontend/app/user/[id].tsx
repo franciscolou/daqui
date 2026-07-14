@@ -4,12 +4,10 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -20,6 +18,7 @@ import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import PostCard from '../../components/PostCard';
 import FeedLayout from '../../components/FeedLayout';
+import ProfileHeader from '../../components/ProfileHeader';
 import ActionMenu from '../../components/ActionMenu';
 import ReportModal from '../../components/ReportModal';
 
@@ -86,70 +85,35 @@ export default function UserScreen() {
 
   const content = (
     <>
-      {/* Hero */}
-      <LinearGradient
-        colors={['#0D2918', '#15803D', '#22C55E']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.hero, isWide && styles.heroWide]}
-      >
-        {/* Back button + menu */}
-        <View style={styles.heroTopRow}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
-          </TouchableOpacity>
-          {!isMe && (
-            <TouchableOpacity style={styles.backBtn} onPress={() => setMenuVisible(true)}>
-              <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={styles.profileCenter}>
-          <Image source={{ uri: user.avatar }} style={styles.avatar} />
-          <View style={styles.nameBadgeRow}>
-            <Text style={styles.name}>{user.name}</Text>
-          </View>
-          {user.username && <Text style={styles.username}>@{user.username}</Text>}
-          <View style={styles.neighborhoodRow}>
-            <Ionicons
-              name={user.locked ? 'lock-closed' : 'location'}
-              size={13}
-              color="rgba(255,255,255,0.8)"
-            />
-            <Text style={styles.neighborhood}>
-              {user.locked
-                ? 'Vizinho de outro bairro'
-                : [
-                    user.neighborhood,
-                    [user.city, user.state].filter(Boolean).join(' - '),
-                  ]
-                    .filter(Boolean)
-                    .join(', ')}
-            </Text>
-          </View>
-          {!user.locked && !!user.joinedAt && (
-            <Text style={styles.joinedText}>Membro desde {user.joinedAt}</Text>
-          )}
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>{user.postsCount}</Text>
-            <Text style={styles.statLabel}>Posts</Text>
-          </View>
-          {!user.locked && (
-            <>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNum}>{user.interactionsCount}</Text>
-                <Text style={styles.statLabel}>Interações</Text>
-              </View>
-            </>
-          )}
-        </View>
-      </LinearGradient>
+      <ProfileHeader
+        user={user}
+        isWide={isWide}
+        onBack={() => router.back()}
+        onMenu={!isMe ? () => setMenuVisible(true) : undefined}
+        actions={
+          !user.locked ? (
+            isMe ? (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnPrimary]}
+                onPress={() => router.push('/(tabs)/profile')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="settings-outline" size={16} color="#fff" />
+                <Text style={styles.actionBtnPrimaryText}>Editar perfil</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnPrimary]}
+                activeOpacity={0.85}
+                onPress={() => router.push(`/messages/${user.id}` as any)}
+              >
+                <Ionicons name="chatbubble-outline" size={16} color="#fff" />
+                <Text style={styles.actionBtnPrimaryText}>Enviar mensagem</Text>
+              </TouchableOpacity>
+            )
+          ) : undefined
+        }
+      />
 
       {user.locked ? (
         /* Perfil bloqueado: de outro bairro. Só nome, @username, foto e nº de
@@ -178,29 +142,6 @@ export default function UserScreen() {
         </View>
       ) : (
         <>
-          {/* Action buttons */}
-          <View style={styles.actionRow}>
-            {isMe ? (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnPrimary]}
-                onPress={() => router.push('/(tabs)/profile')}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="settings-outline" size={16} color="#fff" />
-                <Text style={styles.actionBtnPrimaryText}>Editar perfil</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnPrimary]}
-                activeOpacity={0.85}
-                onPress={() => router.push(`/messages/${user.id}` as any)}
-              >
-                <Ionicons name="chatbubble-outline" size={16} color="#fff" />
-                <Text style={styles.actionBtnPrimaryText}>Enviar mensagem</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
           {/* Posts — timeline */}
           <View style={styles.timelineSection}>
             <Text style={styles.timelineTitle}>
@@ -269,83 +210,15 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   backBtnCenterText: { color: Colors.primary, fontWeight: '700' },
 
-  hero: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 24,
-  },
-  heroWide: {
-    borderRadius: 20,
-    marginTop: 20,
-    marginHorizontal: 20,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  profileCenter: { alignItems: 'center', marginBottom: 20 },
-  avatar: {
-    width: 88,
-    height: 88,
-    borderRadius: 26,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.5)',
-    marginBottom: 12,
-  },
-  nameBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    marginBottom: 4,
-  },
-  name: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
-  username: { fontSize: 13, color: 'rgba(255,255,255,0.75)', fontWeight: '500', marginTop: 2 },
-  neighborhoodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 10,
-  },
-  neighborhood: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '500' },
-  joinedText: { fontSize: 11, color: 'rgba(255,255,255,0.55)', fontWeight: '500', marginBottom: 10 },
-  statsRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 16,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  statItem: { flex: 1, alignItems: 'center' },
-  statNum: { fontSize: 20, fontWeight: '800', color: '#fff' },
-  statLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
-  statDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.2)', alignSelf: 'center' },
-
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 4,
-  },
   actionBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    paddingVertical: 12,
-    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    ...Colors.shadow.sm,
   },
   actionBtnPrimary: {
     backgroundColor: Colors.primary,

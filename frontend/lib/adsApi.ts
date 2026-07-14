@@ -2,6 +2,8 @@
 // (ver plano de infraestrutura de anunciantes). Por isso este arquivo, e não
 // lib/api.ts: aqui há literalmente dois backends distintos.
 
+import { Platform } from 'react-native';
+
 export const ADS_API_URL =
   process.env.EXPO_PUBLIC_ADS_API_URL?.replace(/\/$/, '') ??
   'http://localhost:8001/api/v1';
@@ -42,6 +44,33 @@ async function request<T>(
   return data as T;
 }
 
+// Upload multipart (imagem/vídeo do criativo) — não passa pelo `request`
+// acima porque o Content-Type (com boundary) precisa vir do próprio fetch
+// a partir do FormData, não fixado como "application/json".
+export interface PickedAdMediaAsset {
+  uri: string;
+  mimeType?: string;
+  fileName?: string;
+}
+
+async function requestMultipart<T>(path: string, formData: FormData): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${ADS_API_URL}${path}`, { method: 'POST', body: formData });
+  } catch {
+    throw new AdsApiError(0, 'Não foi possível conectar ao servidor de anúncios.');
+  }
+
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    const detail = (data && (data.detail || data.message)) || `Erro ${res.status}`;
+    throw new AdsApiError(res.status, typeof detail === 'string' ? detail : 'Erro');
+  }
+  return data as T;
+}
+
 // ─────────────────────────────────────────────────────────────
 // Tipos
 // ─────────────────────────────────────────────────────────────
@@ -62,6 +91,7 @@ interface BackendAd {
   title: string;
   content: string;
   image_url: string | null;
+  video_url: string | null;
   cta_label: string | null;
   target_url: string;
   latitude: number | null;
@@ -75,6 +105,7 @@ export interface Ad {
   title: string;
   content: string;
   imageUrl?: string;
+  videoUrl?: string;
   ctaLabel?: string;
   targetUrl: string;
   latitude?: number;
@@ -89,6 +120,7 @@ function mapAd(b: BackendAd): Ad {
     title: b.title,
     content: b.content,
     imageUrl: b.image_url ?? undefined,
+    videoUrl: b.video_url ?? undefined,
     ctaLabel: b.cta_label ?? undefined,
     targetUrl: b.target_url,
     latitude: b.latitude ?? undefined,
@@ -216,6 +248,7 @@ export interface CreativeInput {
   title: string;
   content?: string;
   imageUrl?: string;
+  videoUrl?: string;
   ctaLabel?: string;
   targetUrl: string;
   latitude?: number;
@@ -234,6 +267,7 @@ export interface CheckoutParams extends QuoteParams {
   title: string;
   content: string;
   imageUrl?: string;
+  videoUrl?: string;
   ctaLabel?: string;
   targetUrl: string;
   latitude?: number;
@@ -247,11 +281,132 @@ function creativeBody(c: CreativeInput) {
     title: c.title,
     content: c.content ?? '',
     image_url: c.imageUrl ?? null,
+    video_url: c.videoUrl ?? null,
     cta_label: c.ctaLabel ?? null,
     target_url: c.targetUrl,
     latitude: c.latitude ?? null,
     longitude: c.longitude ?? null,
     weight: c.weight ?? 1,
+  };
+}
+
+// ── Painel do anunciante (`/anunciar/painel/[token]`) ──────────────────
+export type CampaignStatus = 'pending_payment' | 'active' | 'paused' | 'expired' | 'rejected';
+
+export interface MyCampaignCreative {
+  id: number;
+  title: string;
+  content: string;
+  imageUrl?: string;
+  videoUrl?: string;
+  ctaLabel?: string;
+  targetUrl: string;
+  isActive: boolean;
+  impressionsCount: number;
+  clicksCount: number;
+}
+
+export interface AnalyticsBucket {
+  key: string;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+}
+
+export interface MyCampaign {
+  id: number;
+  status: CampaignStatus;
+  advertiserName: string;
+  formats: AdFormat[];
+  priceCents: number;
+  currency: string;
+  citywide: boolean;
+  neighborhoods: string[];
+  durationDays: number;
+  startsAt?: string;
+  endsAt?: string;
+  createdAt: string;
+  creatives: MyCampaignCreative[];
+  analytics: {
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    cpcCents: number | null;
+    cpmCents: number | null;
+    buckets: AnalyticsBucket[];
+  };
+}
+
+interface BackendMyCampaign {
+  id: number;
+  status: CampaignStatus;
+  advertiser_name: string;
+  formats: AdFormat[];
+  price_cents: number;
+  currency: string;
+  targeting: { citywide: boolean; neighborhoods: string[] };
+  duration_days: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  creatives: {
+    id: number;
+    title: string;
+    content: string;
+    image_url: string | null;
+    video_url: string | null;
+    cta_label: string | null;
+    target_url: string;
+    is_active: boolean;
+    impressions_count: number;
+    clicks_count: number;
+  }[];
+  analytics: {
+    summary: {
+      impressions: number;
+      clicks: number;
+      ctr: number;
+      cpc_cents: number | null;
+      cpm_cents: number | null;
+    };
+    buckets: AnalyticsBucket[];
+  };
+}
+
+function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
+  return {
+    id: b.id,
+    status: b.status,
+    advertiserName: b.advertiser_name,
+    formats: b.formats,
+    priceCents: b.price_cents,
+    currency: b.currency,
+    citywide: b.targeting.citywide,
+    neighborhoods: b.targeting.neighborhoods,
+    durationDays: b.duration_days,
+    startsAt: b.starts_at ?? undefined,
+    endsAt: b.ends_at ?? undefined,
+    createdAt: b.created_at,
+    creatives: b.creatives.map((c) => ({
+      id: c.id,
+      title: c.title,
+      content: c.content,
+      imageUrl: c.image_url ?? undefined,
+      videoUrl: c.video_url ?? undefined,
+      ctaLabel: c.cta_label ?? undefined,
+      targetUrl: c.target_url,
+      isActive: c.is_active,
+      impressionsCount: c.impressions_count,
+      clicksCount: c.clicks_count,
+    })),
+    analytics: {
+      impressions: b.analytics.summary.impressions,
+      clicks: b.analytics.summary.clicks,
+      ctr: b.analytics.summary.ctr,
+      cpcCents: b.analytics.summary.cpc_cents,
+      cpmCents: b.analytics.summary.cpm_cents,
+      buckets: b.analytics.buckets,
+    },
   };
 }
 
@@ -329,6 +484,7 @@ export const adsApi = {
       title: params.title,
       content: params.content,
       imageUrl: params.imageUrl,
+      videoUrl: params.videoUrl,
       ctaLabel: params.ctaLabel,
       targetUrl: params.targetUrl,
       latitude: params.latitude,
@@ -360,6 +516,7 @@ export const adsApi = {
         title: params.title,
         content: params.content,
         image_url: params.imageUrl ?? null,
+        video_url: params.videoUrl ?? null,
         cta_label: params.ctaLabel ?? null,
         target_url: params.targetUrl,
         latitude: params.latitude ?? null,
@@ -368,6 +525,28 @@ export const adsApi = {
       },
     });
     return { campaignId: r.campaign_id, checkoutUrl: r.checkout_url };
+  },
+
+  async uploadAdMedia(asset: PickedAdMediaAsset): Promise<{ url: string; type: 'image' | 'video' }> {
+    const formData = new FormData();
+    if (Platform.OS === 'web') {
+      const blob = await (await fetch(asset.uri)).blob();
+      formData.append('file', blob, asset.fileName || 'upload');
+    } else {
+      formData.append('file', {
+        uri: asset.uri,
+        name: asset.fileName || 'upload',
+        type: asset.mimeType || 'application/octet-stream',
+      } as any);
+    }
+    return requestMultipart('/ads/media', formData);
+  },
+
+  async getMyCampaign(token: string, groupBy: 'hour' | 'weekday' | 'neighborhood' = 'weekday'): Promise<MyCampaign> {
+    const r = await request<BackendMyCampaign>(
+      `/ads/my-campaign/${encodeURIComponent(token)}?group_by=${groupBy}`,
+    );
+    return mapMyCampaign(r);
   },
 
   async trackAdClick(

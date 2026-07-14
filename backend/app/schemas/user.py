@@ -15,6 +15,7 @@ class UserPublic(BaseModel):
     name: str
     bio: str | None
     avatar_url: str | None
+    cover_url: str | None = None
     neighborhood: str
     city: str | None = None
     state: str | None = None
@@ -67,6 +68,10 @@ class NeighborhoodStats(BaseModel):
 
 
 class AvatarUpdate(BaseModel):
+    image: str  # data URL base64: "data:image/png;base64,...."
+
+
+class CoverUpdate(BaseModel):
     image: str  # data URL base64: "data:image/png;base64,...."
 
 

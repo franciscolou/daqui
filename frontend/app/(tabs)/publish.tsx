@@ -52,7 +52,14 @@ LocaleConfig.locales['pt-br'] = {
 LocaleConfig.defaultLocale = 'pt-br';
 
 const CREATE_CATEGORIES = CATEGORIES.filter((c) => c.key !== 'todos');
-const MAX_IMAGES = 10;
+const MAX_MEDIA = 10;
+
+interface DraftMedia {
+  localUri: string;
+  type: 'image' | 'video';
+  url?: string; // preenchido quando o upload termina
+  uploading: boolean;
+}
 
 // Máscara de moeda BR: trata a entrada como centavos e formata com vírgula.
 function maskPrice(input: string): string {
@@ -89,7 +96,7 @@ export default function PublishScreen() {
   const [eventTime, setEventTime] = useState('');
   const [price, setPrice] = useState('');
   const [priceNegotiable, setPriceNegotiable] = useState(false);
-  const [images, setImages] = useState<string[]>([]); // data URLs, até 10 fotos
+  const [media, setMedia] = useState<DraftMedia[]>([]); // até 10 fotos/vídeos
   const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
 
   // Ao editar o endereço, o status de validação anterior deixa de valer.
@@ -155,12 +162,14 @@ export default function PublishScreen() {
 
   const canPublish =
     !!selectedCategory && titleValid && contentValid && categoryValid &&
-    locationStatus !== 'invalid' && locationStatus !== 'checking' && !publishing;
+    locationStatus !== 'invalid' && locationStatus !== 'checking' &&
+    !media.some((m) => m.uploading) && !publishing;
 
   // Mensagem explicando por que o botão está desabilitado (ajuda o usuário).
   const disabledReason = (() => {
     if (!selectedCategory) return 'Selecione uma categoria';
     if (!titleValid) return 'Informe o nome do evento';
+    if (media.some((m) => m.uploading)) return 'Aguarde o envio das fotos/vídeos terminar';
     if (selectedCategory === 'evento' && eventDates.length === 0)
       return 'Selecione ao menos uma data para o evento';
     if (selectedCategory === 'venda' && !priceValid)
@@ -172,35 +181,59 @@ export default function PublishScreen() {
     return null;
   })();
 
-  const pickImages = async () => {
+  const pickMedia = async () => {
     setError(null);
-    const remaining = MAX_IMAGES - images.length;
+    const remaining = MAX_MEDIA - media.length;
     if (remaining <= 0) return;
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        setError('Permita o acesso às fotos para adicionar imagens.');
+        setError('Permita o acesso às fotos para adicionar imagens ou vídeos.');
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ['images', 'videos'],
         allowsMultipleSelection: true,
         selectionLimit: remaining,
         quality: 0.7,
-        base64: true,
       });
       if (res.canceled) return;
-      const picked = res.assets
-        .filter((a) => !!a.base64)
-        .map((a) => `data:${a.mimeType ?? 'image/jpeg'};base64,${a.base64}`);
-      setImages((prev) => [...prev, ...picked].slice(0, MAX_IMAGES));
+
+      const picked = res.assets.slice(0, remaining);
+      const drafts: DraftMedia[] = picked.map((a) => ({
+        localUri: a.uri,
+        type: a.type === 'video' ? 'video' : 'image',
+        uploading: true,
+      }));
+      setMedia((prev) => [...prev, ...drafts]);
+
+      await Promise.all(
+        picked.map(async (asset, i) => {
+          const localUri = drafts[i].localUri;
+          try {
+            const uploaded = await api.uploadPostMedia({
+              uri: asset.uri,
+              mimeType: asset.mimeType ?? undefined,
+              fileName: asset.fileName ?? undefined,
+            });
+            setMedia((prev) =>
+              prev.map((m) =>
+                m.localUri === localUri ? { ...m, url: uploaded.url, uploading: false } : m,
+              ),
+            );
+          } catch {
+            setMedia((prev) => prev.filter((m) => m.localUri !== localUri));
+            setError('Não foi possível enviar um dos arquivos.');
+          }
+        }),
+      );
     } catch {
-      setError('Não foi possível carregar as imagens.');
+      setError('Não foi possível carregar as imagens ou vídeos.');
     }
   };
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
+  const removeMedia = (localUri: string) => {
+    setMedia((prev) => prev.filter((m) => m.localUri !== localUri));
   };
 
   const buildDetails = (): Record<string, any> | undefined => {
@@ -239,7 +272,7 @@ export default function PublishScreen() {
         category: selectedCategory,
         title: title.trim() || undefined,
         content: content.trim(),
-        images,
+        media: media.filter((m) => m.url).map((m) => ({ url: m.url as string, type: m.type })),
         details: buildDetails(),
         important: isImportant,
         poll:
@@ -485,29 +518,46 @@ export default function PublishScreen() {
             </View>
           )}
 
-          {/* Fotos (opcional, até 10; não se aplica a enquetes) */}
+          {/* Fotos e vídeos (opcional, até 10; não se aplica a enquetes) */}
           {!!selectedCategory && selectedCategory !== 'enquete' && (
             <View style={styles.section}>
               <FieldLabel styles={styles} optional>
-                {`${selectedCategory === 'venda' ? 'Fotos do produto' : 'Fotos'} (${images.length}/${MAX_IMAGES})`}
+                {`${selectedCategory === 'venda' ? 'Fotos e vídeos do produto' : 'Fotos e vídeos'} (${media.length}/${MAX_MEDIA})`}
               </FieldLabel>
-              {images.length === 0 ? (
-                <TouchableOpacity style={styles.imagePicker} onPress={pickImages} activeOpacity={0.8}>
+              {media.length === 0 ? (
+                <TouchableOpacity style={styles.imagePicker} onPress={pickMedia} activeOpacity={0.8}>
                   <Ionicons name="image-outline" size={22} color={Colors.primary} />
-                  <Text style={styles.imagePickerText}>Adicionar fotos</Text>
+                  <Text style={styles.imagePickerText}>Adicionar fotos ou vídeos</Text>
                 </TouchableOpacity>
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageThumbRow}>
-                  {images.map((uri, i) => (
-                    <View key={i} style={styles.imageThumbWrap}>
-                      <Image source={{ uri }} style={styles.imageThumb} resizeMode="cover" />
-                      <TouchableOpacity style={styles.removeImageBtn} onPress={() => removeImage(i)}>
-                        <Ionicons name="close" size={14} color="#fff" />
-                      </TouchableOpacity>
+                  {media.map((m) => (
+                    <View key={m.localUri} style={styles.imageThumbWrap}>
+                      {m.type === 'video' ? (
+                        <View style={[styles.imageThumb, styles.videoThumb]}>
+                          <Ionicons name="videocam" size={22} color="#fff" />
+                        </View>
+                      ) : (
+                        <Image source={{ uri: m.localUri }} style={styles.imageThumb} resizeMode="cover" />
+                      )}
+                      {m.uploading && (
+                        <View style={styles.thumbUploadingOverlay}>
+                          <ActivityIndicator color="#fff" size="small" />
+                        </View>
+                      )}
+                      <View style={styles.removeImageBtnWrap}>
+                        <TouchableOpacity
+                          style={styles.removeImageBtn}
+                          onPress={() => removeMedia(m.localUri)}
+                          disabled={m.uploading}
+                        >
+                          <Ionicons name="close" size={14} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))}
-                  {images.length < MAX_IMAGES && (
-                    <TouchableOpacity style={styles.addImageThumb} onPress={pickImages} activeOpacity={0.8}>
+                  {media.length < MAX_MEDIA && (
+                    <TouchableOpacity style={styles.addImageThumb} onPress={pickMedia} activeOpacity={0.8}>
                       <Ionicons name="add" size={26} color={Colors.primary} />
                     </TouchableOpacity>
                   )}
@@ -991,6 +1041,18 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   imageThumbRow: { flexDirection: 'row', gap: 10, paddingRight: 4 },
   imageThumbWrap: { position: 'relative' },
   imageThumb: { width: 92, height: 92, borderRadius: 14, backgroundColor: Colors.border },
+  videoThumb: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#111' },
+  thumbUploadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   addImageThumb: {
     width: 92,
     height: 92,
@@ -1002,10 +1064,12 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: Colors.primary,
   },
-  removeImageBtn: {
+  removeImageBtnWrap: {
     position: 'absolute',
     top: -6,
     right: -6,
+  },
+  removeImageBtn: {
     width: 24,
     height: 24,
     borderRadius: 12,
