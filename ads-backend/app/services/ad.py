@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core import payments
 from app.daos import ad as ad_dao
+from app.daos import settings as settings_dao
 from app.models.ad import (
     EVENT_CLICK,
     EVENT_IMPRESSION,
@@ -40,6 +41,7 @@ from app.schemas.ad import (
     ScheduleIn,
     TargetingIn,
 )
+from app.schemas.settings import AdSettingsOut, AdSettingsUpdate
 from app.services import ad_pricing
 
 WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
@@ -90,12 +92,21 @@ def _quote_breakdown(
         daily_impression_cap=daily_impression_cap,
         per_user_impression_cap=per_user_impression_cap,
         competing_count=competing_count,
+        market_multiplier=settings_dao.get(db).price_multiplier,
     )
 
 
 # ── Público (site do anunciante) ───────────────────────────────────────
 def list_public_plans(db: Session) -> list[AdPlanOut]:
-    return [AdPlanOut.model_validate(p) for p in ad_dao.list_public_plans(db)]
+    # Preço de exibição já com o multiplicador geral aplicado (ver
+    # "Configurações" no painel) — o preço base cadastrado no plano continua
+    # intacto no banco, só a exibição/cobrança final escala com o mercado.
+    multiplier = settings_dao.get(db).price_multiplier
+    plans = []
+    for p in ad_dao.list_public_plans(db):
+        out = AdPlanOut.model_validate(p)
+        plans.append(out.model_copy(update={"price_cents": round(p.price_cents * multiplier)}))
+    return plans
 
 
 def quote(db: Session, payload: QuoteRequest) -> QuoteResponse:
@@ -242,6 +253,16 @@ def track_click(db: Session, campaign_id: int, payload: ClickIn | None) -> None:
 
 
 # ── Admin de anúncios ───────────────────────────────────────────────────
+def admin_get_settings(db: Session) -> AdSettingsOut:
+    return AdSettingsOut.model_validate(settings_dao.get(db))
+
+
+def admin_update_settings(db: Session, payload: AdSettingsUpdate) -> AdSettingsOut:
+    current = settings_dao.get(db)
+    updated = settings_dao.update(db, current, **payload.model_dump())
+    return AdSettingsOut.model_validate(updated)
+
+
 def admin_create_plan(db: Session, payload: AdPlanCreate) -> AdPlanOut:
     plan = ad_dao.create_plan(db, **payload.model_dump())
     return AdPlanOut.model_validate(plan)

@@ -20,7 +20,7 @@ import { api, ApiError } from '../../lib/api';
 import { submitOnEnter } from '../../lib/keyboard';
 import { useAvailability, AvailabilityState } from '../../lib/useAvailability';
 
-const STEPS = ['Conta', 'Pronto'];
+const STEPS = ['Conta', 'Verificar', 'Pronto'];
 
 const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
 
@@ -35,7 +35,7 @@ function AvailabilityIcon({ state }: { state: AvailabilityState }) {
 export default function SignupScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
-  const { signup } = useAuth();
+  const { signup, verifyEmailCode, resendVerification } = useAuth();
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
@@ -50,9 +50,16 @@ export default function SignupScreen() {
   const emailCheck = useAvailability(email, api.checkSignupEmail, { ready: emailLooksReady });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Verificação do e-mail (código de 6 dígitos, válido por 10min): ticket
+  // identifica essa verificação pendente (devolvido pelo cadastro/reenvio).
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [code, setCode] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   // Cria a conta (sem localização — o bairro é configurado depois, em "Meu
-  // bairro"; o usuário entra direto vendo "Perto de mim").
+  // bairro"; o usuário entra direto vendo "Perto de mim"). A conta só fica
+  // utilizável depois de confirmar o código enviado por e-mail (step 1).
   const createAccount = async () => {
     setError(null);
     if (!name.trim() || !username.trim() || !email.trim() || !password) {
@@ -73,12 +80,14 @@ export default function SignupScreen() {
     }
     setSubmitting(true);
     try {
-      await signup({
+      const t = await signup({
         name: name.trim(),
         username: username.trim(),
         email: email.trim(),
         password,
       });
+      setTicket(t);
+      setCode('');
       setStep(1);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
@@ -87,8 +96,45 @@ export default function SignupScreen() {
     }
   };
 
-  const headerTitle = step === 0 ? 'Crie sua conta' : 'Tudo certo!';
-  const headerSubtitle = step === 0 ? 'Junte-se a milhares de vizinhos' : 'Sua conta foi criada com sucesso';
+  const handleVerify = async () => {
+    if (submitting || !ticket) return;
+    setError(null);
+    if (code.trim().length < 6) {
+      setError('Digite o código de 6 dígitos que enviamos por e-mail.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await verifyEmailCode(ticket, code.trim());
+      setStep(2);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível verificar o código.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resending || !ticket) return;
+    setError(null);
+    setResent(false);
+    setResending(true);
+    try {
+      setTicket(await resendVerification(ticket));
+      setCode('');
+      setResent(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível reenviar o código.');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const headerTitle = step === 0 ? 'Crie sua conta' : step === 1 ? 'Confirme seu e-mail' : 'Tudo certo!';
+  const headerSubtitle =
+    step === 0 ? 'Junte-se a milhares de vizinhos'
+    : step === 1 ? 'Enviamos um código de 6 dígitos para você'
+    : 'Sua conta foi criada com sucesso';
 
   return (
     <KeyboardAvoidingView
@@ -109,7 +155,14 @@ export default function SignupScreen() {
           >
             <TouchableOpacity
               style={styles.backBtn}
-              onPress={() => (step > 0 ? setStep(step - 1) : router.back())}
+              onPress={() => {
+                // Depois de criar a conta não dá pra voltar a editar o cadastro
+                // (já existe no backend) — volta pro login, de onde dá pra
+                // completar a verificação de novo a qualquer momento.
+                if (step === 1) router.replace('/(auth)/login');
+                else if (step > 0) setStep(step - 1);
+                else router.back();
+              }}
             >
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
@@ -230,6 +283,43 @@ export default function SignupScreen() {
             )}
 
             {step === 1 && (
+              <View>
+                <View style={styles.twoFaIntro}>
+                  <Ionicons name="mail-open-outline" size={22} color={Colors.primary} />
+                  <Text style={styles.twoFaText}>
+                    Enviamos um código de 6 dígitos para <Text style={{ fontWeight: '700' }}>{email.trim()}</Text>.
+                    Ele vale por 10 minutos.
+                  </Text>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Código de verificação</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="000000"
+                      placeholderTextColor={Colors.textTertiary}
+                      value={code}
+                      onChangeText={(t) => { setCode(t.replace(/[^0-9]/g, '').slice(0, 6)); setResent(false); }}
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      autoFocus
+                      onKeyPress={submitOnEnter(handleVerify)}
+                      onSubmitEditing={handleVerify}
+                    />
+                  </View>
+                </View>
+
+                <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.altRow}>
+                  <Text style={styles.altLink}>
+                    {resending ? 'Reenviando…' : resent ? 'Código reenviado ✓' : 'Reenviar código'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {step === 2 && (
               <View style={styles.successArea}>
                 <View style={styles.successIconWrap}>
                   <LinearGradient colors={Colors.gradient.primary} style={styles.successIcon}>
@@ -255,7 +345,11 @@ export default function SignupScreen() {
             {/* CTA — comportamento por step */}
             <TouchableOpacity
               style={[styles.btnPrimary, submitting && styles.btnDisabled]}
-              onPress={step === 0 ? createAccount : () => router.replace('/(tabs)')}
+              onPress={
+                step === 0 ? createAccount
+                : step === 1 ? handleVerify
+                : () => router.replace('/(tabs)')
+              }
               activeOpacity={0.85}
               disabled={submitting}
             >
@@ -270,9 +364,13 @@ export default function SignupScreen() {
                 ) : (
                   <>
                     <Text style={styles.btnText}>
-                      {step === 0 ? 'Continuar' : 'Começar a usar o Daqui'}
+                      {step === 0 ? 'Continuar' : step === 1 ? 'Verificar' : 'Começar a usar o Daqui'}
                     </Text>
-                    <Ionicons name={step === 0 ? 'arrow-forward' : 'navigate'} size={18} color="#fff" />
+                    <Ionicons
+                      name={step === 2 ? 'navigate' : 'arrow-forward'}
+                      size={18}
+                      color="#fff"
+                    />
                   </>
                 )}
               </LinearGradient>
@@ -436,7 +534,19 @@ const styles = StyleSheet.create({
   },
   eyeBtn: { padding: 4, borderRadius: 8 },
 
-  // Sucesso (step 1)
+  // Verificação de e-mail (step 1)
+  twoFaIntro: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: Colors.primaryFaint,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+  },
+  twoFaText: { flex: 1, fontSize: 13, color: Colors.primaryDark, lineHeight: 18 },
+
+  // Sucesso (step 2)
   successArea: {
     alignItems: 'center',
     paddingTop: 8,

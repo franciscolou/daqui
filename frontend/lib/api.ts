@@ -392,10 +392,13 @@ export interface UsernameAvailability {
   available: boolean;
 }
 
-// Resultado de login: token direto, ou pedido de 2º fator (A2F) com um ticket.
+// Resultado de login: token direto, pedido de 2º fator (A2F), ou e-mail ainda
+// não confirmado — nos dois últimos casos vem um ticket pra completar em
+// /auth/login/2fa ou /auth/verify-email respectivamente.
 export type LoginResult =
   | { status: 'ok'; token: string }
-  | { status: '2fa'; ticket: string };
+  | { status: '2fa'; ticket: string }
+  | { status: 'verify'; ticket: string };
 
 export interface TwoFactorSetup {
   secret: string;
@@ -767,18 +770,55 @@ function mapSupportTicket(t: BackendSupportTicket): SupportTicket {
 // Endpoints
 // ─────────────────────────────────────────────────────────────
 export const api = {
+  // Cadastro não loga direto: devolve um ticket p/ confirmar o código de 6
+  // dígitos enviado por e-mail em /auth/verify-email (ver `verifyEmailCode`).
   async signup(payload: {
     name: string;
     username: string;
     email: string;
     password: string;
   }): Promise<string> {
-    const r = await request<{ access_token: string }>('/auth/signup', {
+    const r = await request<{ ticket: string }>('/auth/signup', {
       method: 'POST',
       body: payload,
       auth: false,
     });
+    return r.ticket;
+  },
+
+  async verifyEmailCode(ticket: string, code: string): Promise<string> {
+    const r = await request<{ access_token: string }>('/auth/verify-email', {
+      method: 'POST',
+      body: { ticket, code },
+      auth: false,
+    });
     return r.access_token;
+  },
+
+  // Reenvia o código de 6 dígitos (novo ticket, novo prazo de 10min).
+  async resendVerification(ticket: string): Promise<string> {
+    const r = await request<{ ticket: string }>('/auth/resend-verification', {
+      method: 'POST',
+      body: { ticket },
+      auth: false,
+    });
+    return r.ticket;
+  },
+
+  async forgotPassword(email: string): Promise<void> {
+    await request<void>('/auth/forgot-password', {
+      method: 'POST',
+      body: { email },
+      auth: false,
+    });
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await request<void>('/auth/reset-password', {
+      method: 'POST',
+      body: { token, new_password: newPassword },
+      auth: false,
+    });
   },
 
   // Checagens públicas de disponibilidade no cadastro (formato + já em uso).
@@ -798,6 +838,7 @@ export const api = {
 
   async login(email: string, password: string): Promise<LoginResult> {
     const r = await request<{
+      requires_verification: boolean;
       requires_2fa: boolean;
       ticket: string | null;
       access_token: string | null;
@@ -806,6 +847,7 @@ export const api = {
       body: { email, password },
       auth: false,
     });
+    if (r.requires_verification && r.ticket) return { status: 'verify', ticket: r.ticket };
     if (r.requires_2fa && r.ticket) return { status: '2fa', ticket: r.ticket };
     return { status: 'ok', token: r.access_token! };
   },

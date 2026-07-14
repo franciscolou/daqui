@@ -24,6 +24,7 @@ from app.schemas.ad import (
     QuoteRequest,
     QuoteResponse,
 )
+from app.schemas.settings import AdSettingsOut, AdSettingsUpdate
 from app.services import ad as ad_service
 
 
@@ -99,6 +100,21 @@ def track_click(
 
 
 # ── Admin de anúncios ───────────────────────────────────────────────────
+def admin_get_settings(
+    db: Session = Depends(get_db),
+    _admin: AdAdmin = Depends(get_current_admin),
+) -> AdSettingsOut:
+    return ad_service.admin_get_settings(db)
+
+
+def admin_update_settings(
+    payload: AdSettingsUpdate,
+    db: Session = Depends(get_db),
+    _admin: AdAdmin = Depends(get_current_admin),
+) -> AdSettingsOut:
+    return ad_service.admin_update_settings(db, payload)
+
+
 def admin_list_campaigns(
     status: str | None = Query(None),
     db: Session = Depends(get_db),

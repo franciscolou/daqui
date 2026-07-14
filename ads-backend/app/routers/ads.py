@@ -11,6 +11,7 @@ from app.schemas.ad import (
     GlobalAnalyticsOut,
     QuoteResponse,
 )
+from app.schemas.settings import AdSettingsOut
 
 # Público: site do anunciante (planos/quote/checkout) e telas do app Daqui
 # (servir/clicar num anúncio ativo).
@@ -26,6 +27,8 @@ router.post("/{campaign_id}/click", status_code=204)(ad.track_click)
 # via /auth/login deste mesmo serviço (get_current_admin), sem relação com
 # o backend/moderador do Daqui.
 admin_router = APIRouter(prefix="/admin/ads", tags=["ads-admin"])
+admin_router.get("/settings", response_model=AdSettingsOut)(ad.admin_get_settings)
+admin_router.put("/settings", response_model=AdSettingsOut)(ad.admin_update_settings)
 admin_router.get("/campaigns", response_model=list[CampaignAdminOut])(
     ad.admin_list_campaigns
 )

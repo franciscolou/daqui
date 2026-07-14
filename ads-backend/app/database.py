@@ -14,6 +14,6 @@ class Base(DeclarativeBase):
 
 
 def create_tables():
-    from app.models import ad, admin  # noqa: F401
+    from app.models import ad, admin, settings  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

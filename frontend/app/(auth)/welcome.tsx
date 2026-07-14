@@ -325,7 +325,7 @@ export default function WelcomeScreen() {
       </View>
 
       <Text style={styles.terms}>
-        Ao continuar você aceita os{' '}
+        Ao continuar, você aceita os{' '}
         <Text style={styles.termsLink}>Termos de Uso</Text>
         {' '}e a{' '}
         <Text style={styles.termsLink}>Política de Privacidade</Text>
@@ -724,7 +724,7 @@ export default function WelcomeScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.mobileTerms}>
-            Ao continuar você aceita os <Text style={styles.mobileTermsLink}>Termos de Uso</Text> e a <Text style={styles.mobileTermsLink}>Política de Privacidade</Text>
+            Ao continuar, você aceita os <Text style={styles.mobileTermsLink}>Termos de Uso</Text> e a <Text style={styles.mobileTermsLink}>Política de Privacidade</Text>
           </Text>
         </ScrollView>
       </LinearGradient>

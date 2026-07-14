@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 dias
     ENVIRONMENT: str = "development"
 
+    # E-mail transacional (código de verificação, link de redefinição de senha).
+    # Em development, core/email.py não chama o Resend: só loga no console.
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "Daqui <onboarding@resend.dev>"
+    # Usado para montar o link de redefinição de senha enviado por e-mail.
+    FRONTEND_URL: str = "http://localhost:8081"
+
     class Config:
         env_file = ".env"
 

@@ -33,7 +33,10 @@ class TokenResponse(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    # Login sem A2F: vem com access_token. Com A2F: requires_2fa=True + ticket.
+    # Login "limpo": vem com access_token. E-mail ainda não confirmado:
+    # requires_verification=True + ticket (completa em /auth/verify-email).
+    # Com A2F: requires_2fa=True + ticket (completa em /auth/login/2fa).
+    requires_verification: bool = False
     requires_2fa: bool = False
     ticket: str | None = None
     access_token: str | None = None
@@ -56,4 +59,30 @@ class TwoFactorCodeRequest(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
+    new_password: str
+
+
+# ── Verificação de e-mail (cadastro) ────────────────────────────────────
+class VerificationTicketResponse(BaseModel):
+    # Devolvido no cadastro e no reenvio: identifica a verificação pendente,
+    # sem autenticar (ver create_email_verify_ticket).
+    ticket: str
+
+
+class VerifyEmailRequest(BaseModel):
+    ticket: str
+    code: str
+
+
+class ResendVerificationRequest(BaseModel):
+    ticket: str
+
+
+# ── Redefinição de senha ─────────────────────────────────────────────────
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
     new_password: str

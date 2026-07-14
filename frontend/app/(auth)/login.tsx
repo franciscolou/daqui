@@ -22,16 +22,21 @@ import { submitOnEnter } from '../../lib/keyboard';
 export default function LoginScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
-  const { login, verifyLogin2fa } = useAuth();
+  const { login, verifyLogin2fa, verifyEmailCode, resendVerification } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Quando a conta tem A2F, guardamos o ticket e pedimos o código de 6 dígitos.
+  // 'login': formulário normal. 'verify'/'2fa': senha certa, mas falta um
+  // segundo passo — guardamos o ticket devolvido e pedimos o código de 6 dígitos
+  // (por e-mail não confirmado, ou por A2F, respectivamente).
+  const [mode, setMode] = useState<'login' | 'verify' | '2fa'>('login');
   const [ticket, setTicket] = useState<string | null>(null);
   const [code, setCode] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   const handleLogin = async () => {
     if (submitting) return;
@@ -43,7 +48,8 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       const result = await login(email.trim(), password);
-      if (result.status === '2fa') {
+      if (result.status === '2fa' || result.status === 'verify') {
+        setMode(result.status);
         setTicket(result.ticket);
         setCode('');
       } else {
@@ -56,16 +62,21 @@ export default function LoginScreen() {
     }
   };
 
-  const handleVerify2fa = async () => {
+  const handleVerify = async () => {
     if (submitting) return;
     setError(null);
     if (code.trim().length < 6) {
-      setError('Digite o código de 6 dígitos do seu app autenticador.');
+      setError(
+        mode === '2fa'
+          ? 'Digite o código de 6 dígitos do seu app autenticador.'
+          : 'Digite o código de 6 dígitos que enviamos por e-mail.',
+      );
       return;
     }
     setSubmitting(true);
     try {
-      await verifyLogin2fa(ticket!, code.trim());
+      if (mode === '2fa') await verifyLogin2fa(ticket!, code.trim());
+      else await verifyEmailCode(ticket!, code.trim());
       router.replace('/(tabs)');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível verificar o código.');
@@ -74,7 +85,24 @@ export default function LoginScreen() {
     }
   };
 
-  const cancel2fa = () => {
+  const handleResend = async () => {
+    if (resending || !ticket) return;
+    setError(null);
+    setResent(false);
+    setResending(true);
+    try {
+      setTicket(await resendVerification(ticket));
+      setCode('');
+      setResent(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível reenviar o código.');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const cancelSecondStep = () => {
+    setMode('login');
     setTicket(null);
     setCode('');
     setError(null);
@@ -109,22 +137,31 @@ export default function LoginScreen() {
             </View>
 
             <Text style={styles.headerTitle}>
-              {ticket ? 'Verificação em duas etapas' : 'Bem-vindo de volta'}
+              {mode === '2fa' ? 'Verificação em duas etapas'
+                : mode === 'verify' ? 'Confirme seu e-mail'
+                : 'Bem-vindo de volta'}
             </Text>
             <Text style={styles.headerSubtitle}>
-              {ticket ? 'Confirme sua identidade' : 'Entre na sua conta'}
+              {mode === '2fa' ? 'Confirme sua identidade'
+                : mode === 'verify' ? 'Enviamos um código de 6 dígitos para você'
+                : 'Entre na sua conta'}
             </Text>
           </LinearGradient>
 
           {/* Formulário */}
           <View style={styles.form}>
-            {ticket ? (
+            {mode !== 'login' ? (
               <View>
                 <View style={styles.twoFaIntro}>
-                  <Ionicons name="shield-checkmark" size={22} color={Colors.primary} />
+                  <Ionicons
+                    name={mode === '2fa' ? 'shield-checkmark' : 'mail-open-outline'}
+                    size={22}
+                    color={Colors.primary}
+                  />
                   <Text style={styles.twoFaText}>
-                    Digite o código de 6 dígitos gerado pelo seu app autenticador
-                    (Google Authenticator, Authy, etc.).
+                    {mode === '2fa'
+                      ? 'Digite o código de 6 dígitos gerado pelo seu app autenticador (Google Authenticator, Authy, etc.).'
+                      : 'Digite o código de 6 dígitos que enviamos por e-mail. Ele vale por 10 minutos.'}
                   </Text>
                 </View>
 
@@ -137,15 +174,23 @@ export default function LoginScreen() {
                       placeholder="000000"
                       placeholderTextColor={Colors.textTertiary}
                       value={code}
-                      onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                      onChangeText={(t) => { setCode(t.replace(/[^0-9]/g, '').slice(0, 6)); setResent(false); }}
                       keyboardType="number-pad"
                       maxLength={6}
                       autoFocus
-                      onKeyPress={submitOnEnter(handleVerify2fa)}
-                      onSubmitEditing={handleVerify2fa}
+                      onKeyPress={submitOnEnter(handleVerify)}
+                      onSubmitEditing={handleVerify}
                     />
                   </View>
                 </View>
+
+                {mode === 'verify' && (
+                  <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.forgotBtn}>
+                    <Text style={styles.forgotText}>
+                      {resending ? 'Reenviando…' : resent ? 'Código reenviado ✓' : 'Reenviar código'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
                 {error && (
                   <View style={styles.errorBox}>
@@ -156,7 +201,7 @@ export default function LoginScreen() {
 
                 <TouchableOpacity
                   style={[styles.btnPrimary, submitting && styles.btnDisabled]}
-                  onPress={handleVerify2fa}
+                  onPress={handleVerify}
                   activeOpacity={0.85}
                   disabled={submitting}
                 >
@@ -177,7 +222,7 @@ export default function LoginScreen() {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.altRow} onPress={cancel2fa}>
+                <TouchableOpacity style={styles.altRow} onPress={cancelSecondStep}>
                   <Text style={styles.altLink}>Voltar ao login</Text>
                 </TouchableOpacity>
               </View>
@@ -227,7 +272,7 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.forgotBtn}>
+            <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/esqueci-senha')}>
               <Text style={styles.forgotText}>Esqueceu a senha?</Text>
             </TouchableOpacity>
 

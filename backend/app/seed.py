@@ -80,7 +80,7 @@ def seed():
     users = []
     for u in USERS:
         pw = u.pop("password")
-        user = User(**u, hashed_password=hash_password(pw))
+        user = User(**u, hashed_password=hash_password(pw), email_verified=True)
         db.add(user)
         users.append(user)
     db.flush()

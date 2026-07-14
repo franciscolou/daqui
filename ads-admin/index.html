@@ -304,6 +304,18 @@
 
         </div>
 
+        <div id="section-settings" class="hidden">
+          <div class="form-card">
+            <h2>Multiplicador geral</h2>
+            <p class="muted">Aplicado ao fim do cálculo de preço de todos os planos e cotações — use para tornar os preços proporcionais ao desempenho do Daqui (ex.: 1.1 = +10% em cima de tudo, 0.9 = -10%).</p>
+            <label>Multiplicador</label>
+            <input id="settingsMultiplier" type="number" step="0.01" min="0.01" />
+            <button class="act approve" id="settingsSaveBtn" style="margin-top:16px;width:100%;">Salvar</button>
+            <div id="settingsErr" class="err"></div>
+            <div id="settingsOk" class="muted"></div>
+          </div>
+        </div>
+
         <div id="section-plans" class="hidden container-wide">
           <div class="plans-layout">
             <div class="plan-preview-card">
@@ -474,6 +486,7 @@
       { key: 'analytics', label: 'Analytics', icon: '▤', sectionId: 'section-analytics', title: 'Analytics', onShow: refreshAnalytics },
       { key: 'new', label: 'Nova proposta', icon: '✚', sectionId: 'section-new', title: 'Inserir proposta manual', onShow: () => {} },
       { key: 'plans', label: 'Planos', icon: '☰', sectionId: 'section-plans', title: 'Planos', onShow: refreshPlans },
+      { key: 'settings', label: 'Configurações', icon: '⚙', sectionId: 'section-settings', title: 'Configurações', onShow: refreshSettings },
     ];
     let currentSection = SECTIONS[0].key;
 
@@ -1031,6 +1044,32 @@
         await refreshPlans();
       } catch (e) {
         $('planErr').textContent = e.message;
+      }
+    });
+
+    // ── Configurações ──
+    async function refreshSettings() {
+      $('settingsOk').textContent = '';
+      $('settingsErr').textContent = '';
+      try {
+        const s = await apiFetch('/admin/ads/settings');
+        $('settingsMultiplier').value = s.price_multiplier;
+      } catch (e) {
+        $('settingsErr').textContent = e.message;
+      }
+    }
+
+    $('settingsSaveBtn').addEventListener('click', async () => {
+      $('settingsErr').textContent = '';
+      $('settingsOk').textContent = '';
+      const value = parseFloat($('settingsMultiplier').value);
+      if (!(value > 0)) { $('settingsErr').textContent = 'Informe um multiplicador maior que zero.'; return; }
+      try {
+        const s = await apiFetch('/admin/ads/settings', { method: 'PUT', body: JSON.stringify({ price_multiplier: value }) });
+        $('settingsMultiplier').value = s.price_multiplier;
+        $('settingsOk').textContent = 'Salvo.';
+      } catch (e) {
+        $('settingsErr').textContent = e.message;
       }
     });
   </script>

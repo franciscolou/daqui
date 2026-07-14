@@ -63,6 +63,14 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE users ADD COLUMN suspended_until DATETIME"))
             if "suspension_reason" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN suspension_reason TEXT DEFAULT ''"))
+            if "email_verified" not in columns:
+                # DEFAULT 1: contas já existentes (criadas antes da verificação por
+                # e-mail existir) continuam podendo logar sem passar pelo código.
+                conn.execute(text("ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT 1 NOT NULL"))
+            if "verification_code_hash" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN verification_code_hash VARCHAR(255)"))
+            if "verification_code_expires_at" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN verification_code_expires_at DATETIME"))
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}

@@ -38,6 +38,7 @@ def seed_moderator():
             badge="lider",
             verified=True,
             is_moderator=True,
+            email_verified=True,
         )
         db.add(user)
         db.commit()

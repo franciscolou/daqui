@@ -16,16 +16,22 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   signedIn: boolean;
-  // Retorna { status: 'ok' } quando a sessão foi criada, ou { status: '2fa' }
-  // quando ainda falta o código do segundo fator (completar com verifyLogin2fa).
+  // Retorna { status: 'ok' } quando a sessão foi criada, { status: '2fa' }
+  // quando falta o código do segundo fator, ou { status: 'verify' } quando o
+  // e-mail ainda não foi confirmado (os dois últimos completam com o ticket
+  // devolvido, via verifyLogin2fa ou verifyEmailCode).
   login: (email: string, password: string) => Promise<LoginResult>;
   verifyLogin2fa: (ticket: string, code: string) => Promise<void>;
+  // Cadastro não loga direto: devolve o ticket da verificação de e-mail
+  // pendente (completar com verifyEmailCode).
   signup: (payload: {
     name: string;
     username: string;
     email: string;
     password: string;
-  }) => Promise<void>;
+  }) => Promise<string>;
+  verifyEmailCode: (ticket: string, code: string) => Promise<void>;
+  resendVerification: (ticket: string) => Promise<string>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -104,12 +110,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: string;
       password: string;
     }) => {
-      const token = await api.signup(payload);
-      await setToken(token);
-      setUser(await api.me());
+      return api.signup(payload);
     },
     [],
   );
+
+  const verifyEmailCode = useCallback(async (ticket: string, code: string) => {
+    const token = await api.verifyEmailCode(ticket, code);
+    await setToken(token);
+    const u = await api.me();
+    setUser(u);
+    showPendingNotice(u);
+  }, [showPendingNotice]);
+
+  const resendVerification = useCallback(async (ticket: string) => {
+    return api.resendVerification(ticket);
+  }, []);
 
   const logout = useCallback(async () => {
     await setToken(null);
@@ -128,10 +144,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       verifyLogin2fa,
       signup,
+      verifyEmailCode,
+      resendVerification,
       logout,
       refresh,
     }),
-    [user, loading, login, verifyLogin2fa, signup, logout, refresh],
+    [user, loading, login, verifyLogin2fa, signup, verifyEmailCode, resendVerification, logout, refresh],
   );
 
   return (

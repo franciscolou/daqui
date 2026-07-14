@@ -6,13 +6,18 @@ from app.models.user import User
 from app.schemas.auth import (
     AvailabilityResponse,
     ChangePasswordRequest,
+    ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
+    ResendVerificationRequest,
+    ResetPasswordRequest,
     SignupRequest,
     TokenResponse,
     TwoFactorCodeRequest,
     TwoFactorLoginRequest,
     TwoFactorSetupResponse,
+    VerificationTicketResponse,
+    VerifyEmailRequest,
 )
 from app.schemas.session import SessionOut
 from app.schemas.user import UserMe
@@ -23,8 +28,30 @@ def _client_ip(request: Request) -> str | None:
     return request.client.host if request.client else None
 
 
-def signup(payload: SignupRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+def signup(
+    payload: SignupRequest, request: Request, db: Session = Depends(get_db)
+) -> VerificationTicketResponse:
     return auth.signup(db, payload, request.headers.get("user-agent", ""), _client_ip(request))
+
+
+def verify_email(
+    payload: VerifyEmailRequest, request: Request, db: Session = Depends(get_db)
+) -> TokenResponse:
+    return auth.verify_email(db, payload, request.headers.get("user-agent", ""), _client_ip(request))
+
+
+def resend_verification(
+    payload: ResendVerificationRequest, db: Session = Depends(get_db)
+) -> VerificationTicketResponse:
+    return auth.resend_verification(db, payload)
+
+
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)) -> None:
+    auth.forgot_password(db, payload)
+
+
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> None:
+    auth.reset_password(db, payload)
 
 
 def check_username(username: str, db: Session = Depends(get_db)) -> AvailabilityResponse:

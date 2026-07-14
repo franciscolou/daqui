@@ -115,8 +115,15 @@ def quote(
     daily_impression_cap: int | None = None,
     per_user_impression_cap: int | None = None,
     competing_count: int = 0,
+    market_multiplier: float = 1.0,
 ) -> dict:
-    """Retorna `{price_cents, base_cents, factors: [(label, multiplier), ...]}`."""
+    """Retorna `{price_cents, base_cents, factors: [(label, multiplier), ...]}`.
+
+    `market_multiplier` é o único fator configurável fora desta engine (ver
+    "Configurações" no painel — `models/settings.py::AdSettings`), aplicado
+    por último para deixar todos os preços proporcionais ao desempenho do
+    Daqui sem precisar reajustar cada fator individualmente.
+    """
     base_daily = sum(FORMAT_DAILY_RATE_CENTS[f] for f in formats)
     base_cents = round(base_daily * duration_days)
 
@@ -132,6 +139,7 @@ def quote(
             frequency_multiplier(daily_impression_cap, per_user_impression_cap),
         ),
         ("Desconto por duração", duration_discount(duration_days)),
+        ("Ajuste de mercado", market_multiplier),
     ]
 
     price = base_cents

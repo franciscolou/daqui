@@ -25,6 +25,13 @@ class User(Base):
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     badge: Mapped[str | None] = mapped_column(String(30))  # lider | comerciante | morador
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    # E-mail confirmado via código de 6 dígitos no cadastro (ver services/auth.py).
+    # Não confundir com `verified` acima (selo de perfil confiável).
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    verification_code_hash: Mapped[str | None] = mapped_column(String(255))
+    verification_code_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     # Moderador: acessa o app de moderação (analisa as avaliações do Daqui).
     is_moderator: Mapped[bool] = mapped_column(Boolean, default=False)
     # Suspensão de conta pela moderação: suspended_until=None + is_suspended=True

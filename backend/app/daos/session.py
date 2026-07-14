@@ -47,3 +47,12 @@ def list_active_for_user(db: Session, user_id: int) -> list[UserSession]:
 def revoke(db: Session, session: UserSession) -> None:
     session.revoked_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def revoke_all_for_user(db: Session, user_id: int) -> None:
+    """Encerra todas as sessões ativas — usado após redefinição de senha."""
+    now = datetime.now(timezone.utc)
+    db.query(UserSession).filter(
+        UserSession.user_id == user_id, UserSession.revoked_at.is_(None)
+    ).update({"revoked_at": now})
+    db.commit()

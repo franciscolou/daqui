@@ -69,7 +69,7 @@ def seed():
     ]
     neighbors = {}
     for d in neighbors_data:
-        u = User(**d, hashed_password=hash_password("senha123"))
+        u = User(**d, hashed_password=hash_password("senha123"), email_verified=True)
         db.add(u)
         neighbors[d["name"].split()[0].lower()] = u
     db.flush()
