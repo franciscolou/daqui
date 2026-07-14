@@ -456,8 +456,8 @@ export default function GroupInfoScreen() {
         animationType="fade"
         onRequestClose={() => setPendingRemove(null)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setPendingRemove(null)}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
+        <Pressable style={styles.modalOverlay} onPress={() => setPendingRemove(null)} tabIndex={-1}>
+          <Pressable style={styles.modalCard} onPress={() => {}} tabIndex={-1}>
             <View style={styles.modalIcon}>
               <Ionicons name="person-remove" size={26} color={Colors.error} />
             </View>

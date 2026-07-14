@@ -49,8 +49,8 @@ export default function MobileMenu({
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
-          <Pressable style={[styles.panel, { paddingTop: insets.top }]} onPress={() => {}}>
+        <Pressable style={styles.overlay} onPress={() => setOpen(false)} tabIndex={-1}>
+          <Pressable style={[styles.panel, { paddingTop: insets.top }]} onPress={() => {}} tabIndex={-1}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <LeftSidebar
                 onNavigate={() => setOpen(false)}

@@ -32,8 +32,8 @@ export default function ConfirmModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={loading ? undefined : onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable style={styles.overlay} onPress={loading ? undefined : onClose} tabIndex={-1}>
+        <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           <Text style={styles.title}>{title}</Text>
           {!!message && <Text style={styles.message}>{message}</Text>}
           <View style={styles.actions}>

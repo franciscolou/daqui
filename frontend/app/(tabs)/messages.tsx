@@ -511,8 +511,8 @@ function NewConversationModal({
   const Colors = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => {}}>
+      <Pressable style={styles.modalOverlay} onPress={onClose} tabIndex={-1}>
+        <Pressable style={styles.modalCard} onPress={() => {}} tabIndex={-1}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Nova conversa</Text>
             <TouchableOpacity onPress={onClose} hitSlop={8}>

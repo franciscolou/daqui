@@ -84,8 +84,8 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
-      <Pressable style={styles.overlay} onPress={close}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable style={styles.overlay} onPress={close} tabIndex={-1}>
+        <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{TITLES[targetType]}</Text>
             <TouchableOpacity onPress={close} hitSlop={8}>

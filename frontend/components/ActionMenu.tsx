@@ -26,8 +26,8 @@ export default function ActionMenu({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable style={styles.overlay} onPress={onClose} tabIndex={-1}>
+        <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           {options.map((opt, i) => (
             <TouchableOpacity
               key={opt.key}
