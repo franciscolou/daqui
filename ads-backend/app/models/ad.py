@@ -185,6 +185,19 @@ class AdCampaign(Base):
         ForeignKey("ad_admins.id"), nullable=True
     )
 
+    # Cadeia de renovação: "reativar" uma campanha cria uma NOVA linha (novo
+    # período, novo access_token) apontando pra anterior via renewed_from_id.
+    # root_campaign_id sempre resolve pro ancestral mais antigo da cadeia
+    # (== o próprio id se nunca foi renovada) — permite buscar "todos os
+    # períodos da família" com um WHERE plano em vez de recursão (ver
+    # daos/ad.py::list_campaign_family).
+    renewed_from_id: Mapped[int | None] = mapped_column(
+        ForeignKey("ad_campaigns.id"), nullable=True, index=True
+    )
+    root_campaign_id: Mapped[int | None] = mapped_column(
+        ForeignKey("ad_campaigns.id"), nullable=True, index=True
+    )
+
     payment_provider: Mapped[str | None] = mapped_column(String(30), nullable=True)
     payment_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(
@@ -248,6 +261,12 @@ class AdCreative(Base):
     target_url: Mapped[str] = mapped_column(String(500), nullable=False)
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Conta do Daqui vinculada (só faz sentido no formato "post"): id de
+    # User em backend/ — banco separado, zero cross-import, então esse valor
+    # é opaco aqui e nunca validado; só é ecoado no AdOut/CreativeOut pro
+    # frontend resolver via api.getUser(id) e renderizar como post real.
+    linked_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     weight: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

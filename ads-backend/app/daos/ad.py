@@ -64,6 +64,11 @@ def create_campaign(db: Session, *, creatives: list[dict], **fields) -> AdCampai
     campaign = AdCampaign(**fields)
     db.add(campaign)
     db.flush()  # garante campaign.id antes de criar os criativos filhos
+    if campaign.root_campaign_id is None:
+        # Toda campanha é sua própria raiz até ser renovada — se o caller
+        # (ver services/ad.py::checkout()/admin_create_manual_campaign())
+        # já resolveu um root_campaign_id (renovação), não sobrescreve.
+        campaign.root_campaign_id = campaign.id
     for creative_fields in creatives:
         db.add(AdCreative(campaign_id=campaign.id, **creative_fields))
     db.commit()
@@ -77,6 +82,22 @@ def get_campaign(db: Session, campaign_id: int) -> AdCampaign | None:
 
 def get_campaign_by_token(db: Session, token: str) -> AdCampaign | None:
     return db.query(AdCampaign).filter(AdCampaign.access_token == token).first()
+
+
+def list_campaign_family(db: Session, root_campaign_id: int) -> list[AdCampaign]:
+    """Todos os períodos (renovações) de uma "campanha lógica", incluindo o
+    ancestral em si — ver AdCampaign.root_campaign_id."""
+    return (
+        db.query(AdCampaign)
+        .filter(
+            or_(
+                AdCampaign.root_campaign_id == root_campaign_id,
+                AdCampaign.id == root_campaign_id,
+            )
+        )
+        .order_by(AdCampaign.created_at.asc())
+        .all()
+    )
 
 
 def list_campaigns(db: Session, status: str | None = None) -> list[AdCampaign]:
@@ -137,6 +158,31 @@ def update_creative(db: Session, creative: AdCreative, **fields) -> AdCreative:
     db.commit()
     db.refresh(creative)
     return creative
+
+
+def upsert_creatives_by_format(
+    db: Session, campaign: AdCampaign, creatives: list[dict]
+) -> None:
+    """Substitui o conjunto de criativos por-formato do anunciante: casa por
+    `format` (chave natural do editor — um bloco fixo por formato, sem teste
+    A/B), preserva id/contadores do que já existe naquele formato, cria o que
+    falta, remove o que saiu do payload."""
+    existing_by_format = {c.format: c for c in campaign.creatives}
+    incoming_formats: set[str | None] = set()
+    for fields in creatives:
+        fmt = fields.get("format")
+        incoming_formats.add(fmt)
+        existing = existing_by_format.get(fmt)
+        if existing:
+            for key, value in fields.items():
+                setattr(existing, key, value)
+        else:
+            db.add(AdCreative(campaign_id=campaign.id, **fields))
+    for fmt, existing in existing_by_format.items():
+        if fmt not in incoming_formats:
+            db.delete(existing)
+    db.commit()
+    db.refresh(campaign)
 
 
 def pick_creative(campaign: AdCampaign, format: str) -> AdCreative | None:

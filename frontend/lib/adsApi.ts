@@ -96,6 +96,7 @@ interface BackendAd {
   target_url: string;
   latitude: number | null;
   longitude: number | null;
+  linked_user_id: number | null;
 }
 
 export interface Ad {
@@ -110,6 +111,9 @@ export interface Ad {
   targetUrl: string;
   latitude?: number;
   longitude?: number;
+  // Conta do Daqui vinculada (só formato "post") — id de User, resolvido
+  // pelo frontend via api.getUser(id) pra renderizar como um post real.
+  linkedUserId?: number;
 }
 
 function mapAd(b: BackendAd): Ad {
@@ -125,6 +129,7 @@ function mapAd(b: BackendAd): Ad {
     targetUrl: b.target_url,
     latitude: b.latitude ?? undefined,
     longitude: b.longitude ?? undefined,
+    linkedUserId: b.linked_user_id ?? undefined,
   };
 }
 
@@ -253,6 +258,7 @@ export interface CreativeInput {
   targetUrl: string;
   latitude?: number;
   longitude?: number;
+  linkedUserId?: number;
   weight?: number;
 }
 
@@ -263,16 +269,10 @@ export interface CheckoutParams extends QuoteParams {
   advertiserPhone: string;
   rotationWeight?: number;
   pacing?: 'asap' | 'even';
-  // Criativo principal (retrocompatível) + variantes extras (teste A/B).
-  title: string;
-  content: string;
-  imageUrl?: string;
-  videoUrl?: string;
-  ctaLabel?: string;
-  targetUrl: string;
-  latitude?: number;
-  longitude?: number;
-  extraCreatives?: CreativeInput[];
+  // Um bloco fixo por formato (sem teste A/B — ver AdCreativeEditor).
+  creatives: CreativeInput[];
+  // Se preenchido, esta contratação é uma reativação da campanha desse token.
+  renewedFromToken?: string;
 }
 
 function creativeBody(c: CreativeInput) {
@@ -286,6 +286,7 @@ function creativeBody(c: CreativeInput) {
     target_url: c.targetUrl,
     latitude: c.latitude ?? null,
     longitude: c.longitude ?? null,
+    linked_user_id: c.linkedUserId ?? null,
     weight: c.weight ?? 1,
   };
 }
@@ -295,12 +296,16 @@ export type CampaignStatus = 'pending_payment' | 'active' | 'paused' | 'expired'
 
 export interface MyCampaignCreative {
   id: number;
+  format?: AdFormat;
   title: string;
   content: string;
   imageUrl?: string;
   videoUrl?: string;
   ctaLabel?: string;
   targetUrl: string;
+  latitude?: number;
+  longitude?: number;
+  linkedUserId?: number;
   isActive: boolean;
   impressionsCount: number;
   clicksCount: number;
@@ -313,15 +318,35 @@ export interface AnalyticsBucket {
   ctr: number;
 }
 
+export interface CampaignHistoryPeriod {
+  id: number;
+  accessToken: string;
+  status: CampaignStatus;
+  startsAt?: string;
+  endsAt?: string;
+  createdAt: string;
+  impressionsCount: number;
+  clicksCount: number;
+  priceCents: number;
+}
+
 export interface MyCampaign {
   id: number;
   status: CampaignStatus;
   advertiserName: string;
+  advertiserEmail: string;
+  advertiserPhone: string;
   formats: AdFormat[];
   priceCents: number;
   currency: string;
   citywide: boolean;
   neighborhoods: string[];
+  objective: AdObjective;
+  priority: number;
+  rotationWeight: number;
+  pacing: 'asap' | 'even';
+  dailyImpressionCap?: number;
+  perUserImpressionCap?: number;
   durationDays: number;
   startsAt?: string;
   endsAt?: string;
@@ -335,28 +360,41 @@ export interface MyCampaign {
     cpmCents: number | null;
     buckets: AnalyticsBucket[];
   };
+  history: CampaignHistoryPeriod[];
 }
 
 interface BackendMyCampaign {
   id: number;
   status: CampaignStatus;
   advertiser_name: string;
+  advertiser_email: string;
+  advertiser_phone: string;
   formats: AdFormat[];
   price_cents: number;
   currency: string;
   targeting: { citywide: boolean; neighborhoods: string[] };
+  objective: AdObjective;
+  priority: number;
+  rotation_weight: number;
+  pacing: 'asap' | 'even';
+  daily_impression_cap: number | null;
+  per_user_impression_cap: number | null;
   duration_days: number;
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
   creatives: {
     id: number;
+    format: AdFormat | null;
     title: string;
     content: string;
     image_url: string | null;
     video_url: string | null;
     cta_label: string | null;
     target_url: string;
+    latitude: number | null;
+    longitude: number | null;
+    linked_user_id: number | null;
     is_active: boolean;
     impressions_count: number;
     clicks_count: number;
@@ -371,6 +409,17 @@ interface BackendMyCampaign {
     };
     buckets: AnalyticsBucket[];
   };
+  history: {
+    id: number;
+    access_token: string;
+    status: CampaignStatus;
+    starts_at: string | null;
+    ends_at: string | null;
+    created_at: string;
+    impressions_count: number;
+    clicks_count: number;
+    price_cents: number;
+  }[];
 }
 
 function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
@@ -378,23 +427,35 @@ function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
     id: b.id,
     status: b.status,
     advertiserName: b.advertiser_name,
+    advertiserEmail: b.advertiser_email,
+    advertiserPhone: b.advertiser_phone,
     formats: b.formats,
     priceCents: b.price_cents,
     currency: b.currency,
     citywide: b.targeting.citywide,
     neighborhoods: b.targeting.neighborhoods,
+    objective: b.objective,
+    priority: b.priority,
+    rotationWeight: b.rotation_weight,
+    pacing: b.pacing,
+    dailyImpressionCap: b.daily_impression_cap ?? undefined,
+    perUserImpressionCap: b.per_user_impression_cap ?? undefined,
     durationDays: b.duration_days,
     startsAt: b.starts_at ?? undefined,
     endsAt: b.ends_at ?? undefined,
     createdAt: b.created_at,
     creatives: b.creatives.map((c) => ({
       id: c.id,
+      format: c.format ?? undefined,
       title: c.title,
       content: c.content,
       imageUrl: c.image_url ?? undefined,
       videoUrl: c.video_url ?? undefined,
       ctaLabel: c.cta_label ?? undefined,
       targetUrl: c.target_url,
+      latitude: c.latitude ?? undefined,
+      longitude: c.longitude ?? undefined,
+      linkedUserId: c.linked_user_id ?? undefined,
       isActive: c.is_active,
       impressionsCount: c.impressions_count,
       clicksCount: c.clicks_count,
@@ -407,6 +468,17 @@ function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
       cpmCents: b.analytics.summary.cpm_cents,
       buckets: b.analytics.buckets,
     },
+    history: b.history.map((h) => ({
+      id: h.id,
+      accessToken: h.access_token,
+      status: h.status,
+      startsAt: h.starts_at ?? undefined,
+      endsAt: h.ends_at ?? undefined,
+      createdAt: h.created_at,
+      impressionsCount: h.impressions_count,
+      clicksCount: h.clicks_count,
+      priceCents: h.price_cents,
+    })),
   };
 }
 
@@ -578,20 +650,6 @@ export const adsApi = {
   },
 
   async createAdCheckout(params: CheckoutParams): Promise<{ campaignId: number; checkoutUrl: string }> {
-    const primary: CreativeInput = {
-      title: params.title,
-      content: params.content,
-      imageUrl: params.imageUrl,
-      videoUrl: params.videoUrl,
-      ctaLabel: params.ctaLabel,
-      targetUrl: params.targetUrl,
-      latitude: params.latitude,
-      longitude: params.longitude,
-    };
-    const creatives = params.extraCreatives?.length
-      ? [primary, ...params.extraCreatives].map(creativeBody)
-      : undefined;
-
     const r = await request<{ campaign_id: number; checkout_url: string }>('/ads/checkout', {
       method: 'POST',
       body: {
@@ -611,15 +669,8 @@ export const adsApi = {
         advertiser_name: params.advertiserName,
         advertiser_email: params.advertiserEmail,
         advertiser_phone: params.advertiserPhone,
-        title: params.title,
-        content: params.content,
-        image_url: params.imageUrl ?? null,
-        video_url: params.videoUrl ?? null,
-        cta_label: params.ctaLabel ?? null,
-        target_url: params.targetUrl,
-        latitude: params.latitude ?? null,
-        longitude: params.longitude ?? null,
-        creatives,
+        creatives: params.creatives.map(creativeBody),
+        renewed_from_token: params.renewedFromToken ?? null,
       },
     });
     return { campaignId: r.campaign_id, checkoutUrl: r.checkout_url };
@@ -644,6 +695,27 @@ export const adsApi = {
     const r = await request<BackendMyCampaign>(
       `/ads/my-campaign/${encodeURIComponent(token)}?group_by=${groupBy}`,
     );
+    return mapMyCampaign(r);
+  },
+
+  async updateMyCampaign(
+    token: string,
+    payload: {
+      advertiserName?: string;
+      advertiserEmail?: string;
+      advertiserPhone?: string;
+      creatives?: CreativeInput[];
+    },
+  ): Promise<MyCampaign> {
+    const r = await request<BackendMyCampaign>(`/ads/my-campaign/${encodeURIComponent(token)}`, {
+      method: 'PATCH',
+      body: {
+        advertiser_name: payload.advertiserName ?? null,
+        advertiser_email: payload.advertiserEmail ?? null,
+        advertiser_phone: payload.advertiserPhone ?? null,
+        creatives: payload.creatives ? payload.creatives.map(creativeBody) : null,
+      },
+    });
     return mapMyCampaign(r);
   },
 

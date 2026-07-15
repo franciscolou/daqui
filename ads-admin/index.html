@@ -240,7 +240,7 @@
           <div id="section-new" class="hidden">
             <div class="form-card">
               <h2>Inserir proposta manual</h2>
-              <p class="muted">Para propostas negociadas por Instagram/WhatsApp/Gmail — entra direto como campanha ativa.</p>
+              <p class="muted">Para propostas negociadas por Instagram/WhatsApp/Gmail — nasce "aguardando pagamento", com link de pagamento gerado na hora. Use "Marcar como paga" na lista de campanhas pra confirmar um pagamento combinado por fora (ou testar sem Stripe real).</p>
               <label>Anunciante</label>
               <input id="newAdvertiserName" placeholder="Nome" />
               <div class="row2">
@@ -251,7 +251,11 @@
               <div class="checks" id="newFormats"></div>
               <div class="row2">
                 <div><label>Duração (dias)</label><input id="newDuration" type="number" value="15" min="1" /></div>
-                <div><label>Preço acordado (R$)</label><input id="newPrice" type="number" step="0.01" min="0" /></div>
+                <div>
+                  <label>Preço acordado (R$) — deixe em branco pra usar o sugerido</label>
+                  <input id="newPrice" type="number" step="0.01" min="0" placeholder="Sugerido: —" />
+                  <div class="muted" id="newSuggestedPrice" style="margin-top:4px;"></div>
+                </div>
               </div>
               <label><input type="checkbox" id="newCitywide" style="width:auto;display:inline-block;margin-right:6px;" /> Cidade toda</label>
               <label>Bairros (separados por vírgula, se não for cidade toda)</label>
@@ -310,8 +314,13 @@
                 <input id="newSpecialDates" placeholder="2026-12-25" />
               </div>
 
-              <button class="act approve" id="newSubmitBtn" style="margin-top:16px;width:100%;">Criar campanha ativa</button>
+              <button class="act approve" id="newSubmitBtn" style="margin-top:16px;width:100%;">Criar proposta</button>
               <div id="newErr" class="err"></div>
+              <div id="newResult" class="hidden" style="margin-top:14px;padding:12px;border-radius:10px;background:var(--primary-tint);">
+                <div style="font-weight:700;margin-bottom:6px;">Proposta criada — aguardando pagamento</div>
+                <div class="muted" style="margin-bottom:8px;">Envie o link de pagamento pro anunciante, ou confirme manualmente em "Campanhas" quando o pagamento cair.</div>
+                <button class="act" id="newCopyCheckoutBtn">Copiar link de pagamento</button>
+              </div>
             </div>
           </div>
 
@@ -645,6 +654,9 @@
         let actions = '';
         if (c.status === 'active') actions += `<button class="act reject" data-act="pause">Pausar</button>`;
         if (c.status === 'paused') actions += `<button class="act approve" data-act="activate">Reativar</button>`;
+        if (c.status === 'pending_payment') actions += `<button class="act approve" data-act="mark-paid">Marcar como paga</button>`;
+        const renewedNote = c.renewed_from_id
+          ? `<div class="meta-row">↻ Renovação da campanha #${c.renewed_from_id}</div>` : '';
         card.innerHTML = `
           <div class="head">
             <div>
@@ -657,6 +669,7 @@
           <div class="comment">${escapeHtml(content)}</div>
           <div class="meta-row">${escapeHtml(targeting)} · ${fmtMoney(c.price_cents)} · ${fmtDate(c.starts_at)} → ${fmtDate(c.ends_at)}</div>
           <div class="meta-row">${c.impressions_count} impressões · ${c.clicks_count} cliques</div>
+          ${renewedNote}
           <div class="meta-row">
             <span class="muted">Painel do anunciante:</span>
             <button class="act" data-copy-link>Copiar link</button>
@@ -665,10 +678,12 @@
           <div class="details-panel hidden" data-details></div>`;
         const pauseBtn = card.querySelector('[data-act="pause"]');
         const activateBtn = card.querySelector('[data-act="activate"]');
+        const markPaidBtn = card.querySelector('[data-act="mark-paid"]');
         const detailsBtn = card.querySelector('[data-act="details"]');
         const copyLinkBtn = card.querySelector('[data-copy-link]');
         if (pauseBtn) pauseBtn.onclick = () => setCampaignStatus(c.id, 'paused');
         if (activateBtn) activateBtn.onclick = () => setCampaignStatus(c.id, 'active');
+        if (markPaidBtn) markPaidBtn.onclick = () => markCampaignPaid(c.id);
         detailsBtn.onclick = () => toggleDetails(c.id, card.querySelector('[data-details]'));
         copyLinkBtn.onclick = () => copyToClipboard(`${APP_URL}/anunciar/painel/${c.access_token}`, copyLinkBtn);
         $('campaignList').appendChild(card);
@@ -677,6 +692,11 @@
 
     async function setCampaignStatus(id, status) {
       try { await apiFetch('/admin/ads/campaigns/' + id, { method: 'PATCH', body: JSON.stringify({ status }) }); await refreshCampaigns(); }
+      catch (e) { alert(e.message); }
+    }
+
+    async function markCampaignPaid(id) {
+      try { await apiFetch(`/admin/ads/campaigns/${id}/mark-paid`, { method: 'POST' }); await refreshCampaigns(); }
       catch (e) { alert(e.message); }
     }
 
@@ -990,14 +1010,14 @@
       removeBtn: $('newMediaRemoveBtn'),
       errBox: $('newMediaErr'),
     });
-    $('newSubmitBtn').addEventListener('click', async () => {
-      $('newErr').textContent = '';
+
+    function buildNewCampaignPayload() {
       const formats = readFormats('newFmt');
       const citywide = $('newCitywide').checked;
       const neighborhoods = citywide ? [] : $('newNeighborhoods').value.split(',').map((s) => s.trim()).filter(Boolean);
-      const priceReais = parseFloat($('newPrice').value || '0');
       const media = newMediaPicker.get();
-      const payload = {
+      const priceRaw = $('newPrice').value.trim();
+      return {
         formats,
         duration_days: parseInt($('newDuration').value, 10),
         neighborhoods,
@@ -1013,7 +1033,8 @@
         target_url: $('newTargetUrl').value.trim(),
         latitude: $('newLat').value ? parseFloat($('newLat').value) : null,
         longitude: $('newLng').value ? parseFloat($('newLng').value) : null,
-        price_cents: Math.round(priceReais * 100),
+        // Vazio = engine calcula (ver newSuggestedPrice); preenchido = admin sobrescreve.
+        price_cents: priceRaw ? Math.round(parseFloat(priceRaw) * 100) : null,
         objective: $('newObjective').value,
         priority: parseInt($('newPriority').value || '3', 10),
         rotation_weight: parseFloat($('newRotationWeight').value || '1'),
@@ -1036,10 +1057,48 @@
           special_dates: parseCsvStrings($('newSpecialDates').value),
         },
       };
+    }
+
+    // Preço sugerido pela engine, recalculado ao mudar formatos/duração/
+    // segmentação/objetivo — mesmo padrão de cotação em tempo real do
+    // personalizar.tsx no app, só que via debounce simples aqui.
+    let newQuoteTimer = null;
+    function scheduleNewQuote() {
+      clearTimeout(newQuoteTimer);
+      newQuoteTimer = setTimeout(updateNewQuote, 400);
+    }
+    async function updateNewQuote() {
+      const payload = buildNewCampaignPayload();
+      if (!payload.formats.length || !payload.duration_days) {
+        $('newSuggestedPrice').textContent = '';
+        return;
+      }
       try {
-        await apiFetch('/admin/ads/campaigns', { method: 'POST', body: JSON.stringify(payload) });
-        alert('Campanha criada e já ativa.');
-        goToSection('campaigns');
+        const q = await apiFetch('/ads/quote', { method: 'POST', body: JSON.stringify(payload) });
+        $('newSuggestedPrice').textContent = `Sugerido: ${fmtMoney(q.price_cents)}`;
+        $('newPrice').placeholder = `Sugerido: ${fmtMoney(q.price_cents)}`;
+      } catch (e) {
+        $('newSuggestedPrice').textContent = '';
+      }
+    }
+    [
+      'newDuration', 'newCitywide', 'newNeighborhoods', 'newObjective', 'newPriority',
+      'newDailyCap', 'newPerUserCap',
+    ].forEach((id) => { $(id).addEventListener('change', scheduleNewQuote); $(id).addEventListener('input', scheduleNewQuote); });
+    ALL_FORMATS.forEach((f) => $(`newFmt_${f}`).addEventListener('change', scheduleNewQuote));
+
+    $('newCopyCheckoutBtn').addEventListener('click', (e) => {
+      copyToClipboard($('newCopyCheckoutBtn').dataset.url || '', e.currentTarget);
+    });
+
+    $('newSubmitBtn').addEventListener('click', async () => {
+      $('newErr').textContent = '';
+      $('newResult').classList.add('hidden');
+      const payload = buildNewCampaignPayload();
+      try {
+        const { checkout_url } = await apiFetch('/admin/ads/campaigns', { method: 'POST', body: JSON.stringify(payload) });
+        $('newCopyCheckoutBtn').dataset.url = checkout_url;
+        $('newResult').classList.remove('hidden');
       } catch (e) {
         $('newErr').textContent = e.message;
       }

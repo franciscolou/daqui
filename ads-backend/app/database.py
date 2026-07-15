@@ -32,6 +32,11 @@ def _ensure_columns():
         if "video_url" not in columns:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE ad_creatives ADD COLUMN video_url VARCHAR(500)"))
+        if "linked_user_id" not in columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE ad_creatives ADD COLUMN linked_user_id INTEGER")
+                )
 
     if "ad_campaigns" in tables:
         columns = {c["name"] for c in inspector.get_columns("ad_campaigns")}
@@ -54,5 +59,29 @@ def _ensure_columns():
                     text(
                         "CREATE UNIQUE INDEX IF NOT EXISTS ix_ad_campaigns_access_token "
                         "ON ad_campaigns (access_token)"
+                    )
+                )
+        if "renewed_from_id" not in columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE ad_campaigns ADD COLUMN renewed_from_id INTEGER")
+                )
+        if "root_campaign_id" not in columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE ad_campaigns ADD COLUMN root_campaign_id INTEGER")
+                )
+                ids = [row[0] for row in conn.execute(text("SELECT id FROM ad_campaigns"))]
+                for campaign_id in ids:
+                    conn.execute(
+                        text(
+                            "UPDATE ad_campaigns SET root_campaign_id = :id WHERE id = :id"
+                        ),
+                        {"id": campaign_id},
+                    )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_ad_campaigns_root_campaign_id "
+                        "ON ad_campaigns (root_campaign_id)"
                     )
                 )

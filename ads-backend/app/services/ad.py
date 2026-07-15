@@ -26,6 +26,7 @@ from app.schemas.ad import (
     AnalyticsSummary,
     CampaignAdminOut,
     CampaignAnalyticsRow,
+    CampaignHistoryPeriod,
     CampaignUpdate,
     CheckoutRequest,
     CheckoutResponse,
@@ -37,8 +38,10 @@ from app.schemas.ad import (
     GlobalAnalyticsSummary,
     HasCampaignsOut,
     ManualCampaignCreate,
+    ManualCampaignCreateOut,
     MediaUploadOut,
     MyCampaignOut,
+    MyCampaignUpdate,
     PriceFactor,
     QuoteRequest,
     QuoteResponse,
@@ -159,6 +162,7 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
     )
     price_cents = result["price_cents"]
     creatives = [c.model_dump() for c in payload.effective_creatives()]
+    renewed_from_id, root_campaign_id = _resolve_renewal(db, payload.renewed_from_token)
     campaign = ad_dao.create_campaign(
         db,
         creatives=creatives,
@@ -179,6 +183,8 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
         pacing=payload.pacing,
         schedule=schedule.model_dump(),
         payment_provider="stripe",
+        renewed_from_id=renewed_from_id,
+        root_campaign_id=root_campaign_id,
     )
     title = campaign.creatives[0].title if campaign.creatives else "Anúncio"
     checkout_url = payments.create_checkout_session(
@@ -187,17 +193,37 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
     return CheckoutResponse(campaign_id=campaign.id, checkout_url=checkout_url)
 
 
-def _activate(db: Session, campaign: AdCampaign, payment_reference: str | None) -> None:
+def _resolve_renewal(
+    db: Session, renewed_from_token: str | None
+) -> tuple[int | None, int | None]:
+    """Se a criação referencia uma campanha anterior (reativação), resolve
+    `renewed_from_id`/`root_campaign_id` a partir do token dela — usado tanto
+    pelo checkout self-service quanto pela criação manual do admin."""
+    if not renewed_from_token:
+        return None, None
+    prior = ad_dao.get_campaign_by_token(db, renewed_from_token)
+    if not prior:
+        raise HTTPException(status_code=404, detail="Campanha anterior não encontrada")
+    return prior.id, (prior.root_campaign_id or prior.id)
+
+
+def _activate(
+    db: Session,
+    campaign: AdCampaign,
+    payment_reference: str | None,
+    payment_provider: str | None = None,
+) -> None:
     now = datetime.now(timezone.utc)
-    ad_dao.update_campaign(
-        db,
-        campaign,
+    fields = dict(
         status=STATUS_ACTIVE,
         starts_at=now,
         ends_at=now + timedelta(days=campaign.duration_days),
         paid_at=now,
         payment_reference=payment_reference,
     )
+    if payment_provider is not None:
+        fields["payment_provider"] = payment_provider
+    ad_dao.update_campaign(db, campaign, **fields)
 
 
 def handle_stripe_webhook(db: Session, payload: bytes, signature: str) -> None:
@@ -239,6 +265,7 @@ def get_active_ad(db: Session, format: str, ctx: dict) -> AdOut | None:
         target_url=creative.target_url,
         latitude=creative.latitude,
         longitude=creative.longitude,
+        linked_user_id=creative.linked_user_id,
     )
 
 
@@ -306,22 +333,41 @@ def admin_list_campaigns(db: Session, status: str | None) -> list[CampaignAdminO
 
 def admin_create_manual_campaign(
     db: Session, admin: AdAdmin, payload: ManualCampaignCreate
-) -> CampaignAdminOut:
+) -> ManualCampaignCreateOut:
+    """Proposta negociada por fora: preço sugerido pela engine (ou o valor
+    que o admin sobrescrever), nasce `pending_payment` com um link de
+    pagamento real gerado na hora — mesmo fluxo do checkout self-service, só
+    que iniciado pelo admin. Ativa via webhook do Stripe ou via
+    `admin_mark_campaign_paid` (confirmação manual/teste sem Stripe real)."""
     targeting = payload.effective_targeting()
     _check_targeting(targeting)
     schedule = payload.schedule or ScheduleIn()
-    starts_at = payload.starts_at or datetime.now(timezone.utc)
+    price_cents = payload.price_cents
+    if price_cents is None:
+        result = _quote_breakdown(
+            db,
+            formats=payload.formats,
+            duration_days=payload.duration_days,
+            targeting=targeting,
+            schedule=schedule,
+            objective=payload.objective,
+            priority=payload.priority,
+            daily_impression_cap=payload.daily_impression_cap,
+            per_user_impression_cap=payload.per_user_impression_cap,
+        )
+        price_cents = result["price_cents"]
     creatives = [c.model_dump() for c in payload.effective_creatives()]
+    renewed_from_id, root_campaign_id = _resolve_renewal(db, payload.renewed_from_token)
     campaign = ad_dao.create_campaign(
         db,
         creatives=creatives,
         plan_id=payload.plan_id,
-        status=STATUS_ACTIVE,
+        status=STATUS_PENDING_PAYMENT,
         advertiser_name=payload.advertiser_name,
         advertiser_email=payload.advertiser_email,
         advertiser_phone=payload.advertiser_phone,
         formats=payload.formats,
-        price_cents=payload.price_cents,
+        price_cents=price_cents,
         targeting=targeting.model_dump(),
         duration_days=payload.duration_days,
         objective=payload.objective,
@@ -331,12 +377,35 @@ def admin_create_manual_campaign(
         per_user_impression_cap=payload.per_user_impression_cap,
         pacing=payload.pacing,
         schedule=schedule.model_dump(),
-        starts_at=starts_at,
-        ends_at=starts_at + timedelta(days=payload.duration_days),
         created_by_admin_id=admin.id,
-        payment_provider="manual",
-        paid_at=starts_at,
+        payment_provider="stripe",
+        renewed_from_id=renewed_from_id,
+        root_campaign_id=root_campaign_id,
     )
+    title = campaign.creatives[0].title if campaign.creatives else "Anúncio"
+    checkout_url = payments.create_checkout_session(
+        campaign.id, campaign.access_token, title, price_cents, campaign.currency
+    )
+    return ManualCampaignCreateOut(
+        campaign=CampaignAdminOut.model_validate(campaign), checkout_url=checkout_url
+    )
+
+
+def admin_mark_campaign_paid(db: Session, campaign_id: int) -> CampaignAdminOut:
+    """Confirma manualmente o pagamento de uma campanha `pending_payment` —
+    pra pagamentos combinados por fora (PIX/transferência) ou pra testar o
+    fluxo sem depender de uma chave Stripe real (gap documentado no
+    CLAUDE.md). Reaproveita `_activate`, o mesmo caminho do webhook, só
+    marcando `payment_provider` como confirmação manual pra auditoria."""
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campanha não encontrada")
+    if campaign.status != STATUS_PENDING_PAYMENT:
+        raise HTTPException(
+            status_code=400, detail="Campanha não está aguardando pagamento"
+        )
+    _activate(db, campaign, payment_reference=None, payment_provider="manual_confirmation")
+    db.refresh(campaign)
     return CampaignAdminOut.model_validate(campaign)
 
 
@@ -448,21 +517,54 @@ def get_my_campaign(db: Session, token: str, group_by: str) -> MyCampaignOut:
     if not campaign:
         raise HTTPException(status_code=404, detail="Anúncio não encontrado")
     analytics = _campaign_analytics(db, campaign, group_by)
+    family = ad_dao.list_campaign_family(db, campaign.root_campaign_id or campaign.id)
+    history = [CampaignHistoryPeriod.model_validate(c) for c in family]
     return MyCampaignOut(
         id=campaign.id,
         status=campaign.status,
         advertiser_name=campaign.advertiser_name,
+        advertiser_email=campaign.advertiser_email,
+        advertiser_phone=campaign.advertiser_phone,
         formats=campaign.formats,
         price_cents=campaign.price_cents,
         currency=campaign.currency,
         targeting=campaign.targeting,
+        schedule=campaign.schedule,
+        objective=campaign.objective,
+        priority=campaign.priority,
+        rotation_weight=campaign.rotation_weight,
+        pacing=campaign.pacing,
+        daily_impression_cap=campaign.daily_impression_cap,
+        per_user_impression_cap=campaign.per_user_impression_cap,
         duration_days=campaign.duration_days,
         starts_at=campaign.starts_at,
         ends_at=campaign.ends_at,
         created_at=campaign.created_at,
         creatives=[CreativeOut.model_validate(c) for c in campaign.creatives],
         analytics=analytics,
+        history=history,
     )
+
+
+def update_my_campaign(
+    db: Session, token: str, payload: MyCampaignUpdate
+) -> MyCampaignOut:
+    """Edição de conteúdo pelo próprio anunciante — contato + criativos
+    (por-formato). Termos comerciais não passam por aqui (ver MyCampaignUpdate)."""
+    campaign = ad_dao.get_campaign_by_token(db, token)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
+    contact = {
+        k: v
+        for k, v in payload.model_dump(exclude={"creatives"}).items()
+        if v is not None
+    }
+    if contact:
+        campaign = ad_dao.update_campaign(db, campaign, **contact)
+    if payload.creatives is not None:
+        creatives = [c.model_dump() for c in payload.creatives]
+        ad_dao.upsert_creatives_by_format(db, campaign, creatives)
+    return get_my_campaign(db, token, "weekday")
 
 
 def admin_get_global_analytics(

@@ -155,6 +155,13 @@ export default function NotificationsScreen() {
                     <Ionicons name={style.icon as any} size={10} color={style.color} />
                   </View>
                 </View>
+              ) : item.type === 'ad' && ad?.imageUrl ? (
+                <View style={styles.notifAvatarWrapper}>
+                  <Image source={{ uri: ad.imageUrl }} style={styles.notifAvatar} />
+                  <View style={[styles.notifTypeBadge, { backgroundColor: style.bg }]}>
+                    <Ionicons name={style.icon as any} size={10} color={style.color} />
+                  </View>
+                </View>
               ) : (
                 <View style={[styles.notifIconBox, { backgroundColor: style.bg }]}>
                   <Ionicons name={style.icon as any} size={20} color={style.color} />

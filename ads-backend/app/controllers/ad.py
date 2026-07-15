@@ -22,8 +22,10 @@ from app.schemas.ad import (
     GlobalAnalyticsOut,
     HasCampaignsOut,
     ManualCampaignCreate,
+    ManualCampaignCreateOut,
     MediaUploadOut,
     MyCampaignOut,
+    MyCampaignUpdate,
     QuoteRequest,
     QuoteResponse,
 )
@@ -118,6 +120,16 @@ def get_my_campaign(
     return ad_service.get_my_campaign(db, token, group_by)
 
 
+def update_my_campaign(
+    token: str,
+    payload: MyCampaignUpdate,
+    db: Session = Depends(get_db),
+) -> MyCampaignOut:
+    # Público, mesma autorização por token — edição de conteúdo pelo próprio
+    # anunciante (ver services::update_my_campaign sobre o que é editável).
+    return ad_service.update_my_campaign(db, token, payload)
+
+
 def get_my_campaigns_exists(
     email: str = Query(...),
     db: Session = Depends(get_db),
@@ -174,8 +186,16 @@ def admin_create_manual_campaign(
     payload: ManualCampaignCreate,
     db: Session = Depends(get_db),
     admin: AdAdmin = Depends(get_current_admin),
-) -> CampaignAdminOut:
+) -> ManualCampaignCreateOut:
     return ad_service.admin_create_manual_campaign(db, admin, payload)
+
+
+def admin_mark_campaign_paid(
+    campaign_id: int,
+    db: Session = Depends(get_db),
+    _admin: AdAdmin = Depends(get_current_admin),
+) -> CampaignAdminOut:
+    return ad_service.admin_mark_campaign_paid(db, campaign_id)
 
 
 def admin_update_campaign(

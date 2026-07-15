@@ -78,6 +78,7 @@ class CreativeIn(BaseModel):
     target_url: str
     latitude: float | None = None
     longitude: float | None = None
+    linked_user_id: int | None = None
     weight: int = 1
 
     @field_validator("format")
@@ -97,6 +98,7 @@ class CreativeUpdate(BaseModel):
     target_url: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    linked_user_id: int | None = None
     weight: int | None = None
     is_active: bool | None = None
 
@@ -113,6 +115,7 @@ class CreativeOut(BaseModel):
     target_url: str
     latitude: float | None
     longitude: float | None
+    linked_user_id: int | None
     weight: int
     is_active: bool
     impressions_count: int
@@ -244,6 +247,12 @@ class CampaignCreateBase(BaseModel):
     advertiser_email: str
     advertiser_phone: str = ""
 
+    # Se preenchido, esta campanha é uma renovação/reativação de uma
+    # anterior (identificada pelo access_token dela) — ver
+    # services/ad.py::checkout()/admin_create_manual_campaign() pra como
+    # renewed_from_id/root_campaign_id são resolvidos a partir daqui.
+    renewed_from_token: str | None = None
+
     # Criativo: aceita uma lista `creatives`, ou (retrocompatibilidade com o
     # app já publicado) os campos soltos de um único criativo.
     creatives: list[CreativeIn] | None = None
@@ -308,10 +317,12 @@ class CheckoutResponse(BaseModel):
 
 class ManualCampaignCreate(CampaignCreateBase):
     """Proposta negociada por fora (Instagram/WhatsApp/Gmail), inserida manualmente
-    pelo time de anúncios — já entra como campanha ativa, sem checkout."""
+    pelo time de anúncios. Nasce `pending_payment` como o checkout self-service —
+    o admin pode sobrescrever o preço sugerido pela engine, mas a ativação só
+    acontece via link de pagamento ou confirmação manual (ver
+    services/ad.py::admin_mark_campaign_paid)."""
 
-    price_cents: int
-    starts_at: datetime | None = None
+    price_cents: int | None = None
 
 
 class CampaignUpdate(BaseModel):
@@ -352,6 +363,8 @@ class CampaignAdminOut(BaseModel):
     starts_at: datetime | None
     ends_at: datetime | None
     payment_provider: str | None
+    renewed_from_id: int | None
+    root_campaign_id: int | None
     impressions_count: int
     clicks_count: int
     created_at: datetime
@@ -359,6 +372,16 @@ class CampaignAdminOut(BaseModel):
     creatives: list[CreativeOut]
 
     model_config = {"from_attributes": True}
+
+
+class ManualCampaignCreateOut(BaseModel):
+    """Resposta da criação manual: a campanha nasce `pending_payment` e um
+    link de pagamento real já é gerado (ver services/ad.py::admin_create_manual_campaign)
+    — o admin copia/envia esse link, ou usa "Marcar como paga" (mark-paid)
+    pra confirmar um pagamento combinado por fora / testar sem Stripe real."""
+
+    campaign: CampaignAdminOut
+    checkout_url: str
 
 
 class AdOut(BaseModel):
@@ -378,6 +401,7 @@ class AdOut(BaseModel):
     target_url: str
     latitude: float | None
     longitude: float | None
+    linked_user_id: int | None
 
 
 class ClickIn(BaseModel):
@@ -410,24 +434,64 @@ class AnalyticsOut(BaseModel):
 
 
 # ── Painel do anunciante (público, autenticado só pelo access_token) ─────
+class CampaignHistoryPeriod(BaseModel):
+    """Um período da "família" de renovações de uma campanha (ver
+    daos/ad.py::list_campaign_family) — resultados resumidos de cada vez que
+    ela esteve ativa, incluindo o período atualmente visualizado."""
+
+    id: int
+    access_token: str
+    status: str
+    starts_at: datetime | None
+    ends_at: datetime | None
+    created_at: datetime
+    impressions_count: int
+    clicks_count: int
+    price_cents: int
+
+    model_config = {"from_attributes": True}
+
+
+class MyCampaignUpdate(BaseModel):
+    """Edição de conteúdo pelo próprio anunciante (via access_token) — só
+    contato + criativos. Termos comerciais (preço/duração/segmentação/
+    formatos) continuam fixos após a compra, editáveis só pelo admin."""
+
+    advertiser_name: str | None = None
+    advertiser_email: str | None = None
+    advertiser_phone: str | None = None
+    creatives: list[CreativeIn] | None = None
+
+
 class MyCampaignOut(BaseModel):
     """O que o próprio anunciante vê em `/anunciar/painel/{token}` — mesmos
-    dados de `CampaignAdminOut` + analytics, mas sem `access_token` (o token
-    já está na URL, não precisa voltar no corpo) nem nada de outras campanhas."""
+    dados de `CampaignAdminOut` + analytics + histórico de renovações, mas
+    sem `access_token` (o token já está na URL, não precisa voltar no corpo)
+    nem nada de outras campanhas."""
 
     id: int
     status: str
     advertiser_name: str
+    advertiser_email: str
+    advertiser_phone: str
     formats: list[str]
     price_cents: int
     currency: str
     targeting: TargetingIn
+    schedule: ScheduleIn
+    objective: str
+    priority: int
+    rotation_weight: float
+    pacing: str
+    daily_impression_cap: int | None
+    per_user_impression_cap: int | None
     duration_days: int
     starts_at: datetime | None
     ends_at: datetime | None
     created_at: datetime
     creatives: list[CreativeOut]
     analytics: AnalyticsOut
+    history: list[CampaignHistoryPeriod]
 
 
 # ── Analytics agregado (visão do time de anúncios, todas as campanhas —

@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { adsApi, AdFormat, AdObjective, PriceFactor } from '../../lib/adsApi';
@@ -30,15 +30,40 @@ function formatMoney(cents: number) {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+interface ReactivatePrefill {
+  formats?: AdFormat[];
+  durationDays?: number;
+  citywide?: boolean;
+  neighborhoods?: string[];
+  objective?: AdObjective;
+  priority?: number;
+  rotationWeight?: number;
+  pacing?: 'asap' | 'even';
+  dailyImpressionCap?: number;
+  perUserImpressionCap?: number;
+  includeNearby?: boolean;
+  audience?: 'all' | 'residents' | 'visitors';
+  categories?: string[];
+  hours?: number[] | null;
+  daysOfWeek?: number[] | null;
+  specialDates?: string[];
+}
+
 export default function PersonalizarScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const params = useLocalSearchParams<{ planId?: string }>();
+  const params = useLocalSearchParams<{ planId?: string; prefill?: string; renewedFromToken?: string }>();
+  // Vem do botão "Reativar campanha" (painel/[token].tsx) — pré-preenche o
+  // ponto de partida a partir da campanha anterior; tudo continua editável.
+  const prefillData = useMemo<ReactivatePrefill | null>(
+    () => (params.prefill ? JSON.parse(params.prefill) : null),
+    [params.prefill],
+  );
 
-  const [formats, setFormats] = useState<AdFormat[]>(['post']);
-  const [durationDays, setDurationDays] = useState(15);
-  const [citywide, setCitywide] = useState(false);
-  const [neighborhoodsText, setNeighborhoodsText] = useState('');
+  const [formats, setFormats] = useState<AdFormat[]>(prefillData?.formats ?? ['post']);
+  const [durationDays, setDurationDays] = useState(prefillData?.durationDays ?? 15);
+  const [citywide, setCitywide] = useState(prefillData?.citywide ?? false);
+  const [neighborhoodsText, setNeighborhoodsText] = useState(prefillData?.neighborhoods?.join(', ') ?? '');
   const [priceCents, setPriceCents] = useState<number | null>(null);
   const [factors, setFactors] = useState<PriceFactor[]>([]);
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -46,20 +71,21 @@ export default function PersonalizarScreen() {
 
   // "Configurações avançadas": recolhida por padrão — quem nunca abre tem a
   // mesma experiência simples de sempre (todo campo abaixo já nasce com o
-  // valor que reproduz o comportamento atual).
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [objective, setObjective] = useState<AdObjective>('clicks');
-  const [priority, setPriority] = useState('3');
-  const [rotationWeight, setRotationWeight] = useState('1.0');
-  const [pacing, setPacing] = useState<'asap' | 'even'>('asap');
-  const [dailyCap, setDailyCap] = useState('');
-  const [perUserCap, setPerUserCap] = useState('');
-  const [includeNearby, setIncludeNearby] = useState(false);
-  const [audience, setAudience] = useState<'all' | 'residents' | 'visitors'>('all');
-  const [categoriesText, setCategoriesText] = useState('');
-  const [hoursText, setHoursText] = useState('');
-  const [daysOfWeekText, setDaysOfWeekText] = useState('');
-  const [specialDatesText, setSpecialDatesText] = useState('');
+  // valor que reproduz o comportamento atual). Numa reativação, já abre pra
+  // mostrar o que veio da campanha anterior.
+  const [showAdvanced, setShowAdvanced] = useState(!!prefillData);
+  const [objective, setObjective] = useState<AdObjective>(prefillData?.objective ?? 'clicks');
+  const [priority, setPriority] = useState(String(prefillData?.priority ?? 3));
+  const [rotationWeight, setRotationWeight] = useState(String(prefillData?.rotationWeight ?? 1.0));
+  const [pacing, setPacing] = useState<'asap' | 'even'>(prefillData?.pacing ?? 'asap');
+  const [dailyCap, setDailyCap] = useState(prefillData?.dailyImpressionCap != null ? String(prefillData.dailyImpressionCap) : '');
+  const [perUserCap, setPerUserCap] = useState(prefillData?.perUserImpressionCap != null ? String(prefillData.perUserImpressionCap) : '');
+  const [includeNearby, setIncludeNearby] = useState(prefillData?.includeNearby ?? false);
+  const [audience, setAudience] = useState<'all' | 'residents' | 'visitors'>(prefillData?.audience ?? 'all');
+  const [categoriesText, setCategoriesText] = useState(prefillData?.categories?.join(', ') ?? '');
+  const [hoursText, setHoursText] = useState(prefillData?.hours?.join(', ') ?? '');
+  const [daysOfWeekText, setDaysOfWeekText] = useState(prefillData?.daysOfWeek?.join(', ') ?? '');
+  const [specialDatesText, setSpecialDatesText] = useState(prefillData?.specialDates?.join(', ') ?? '');
 
   useEffect(() => {
     if (!params.planId) return;
@@ -150,6 +176,8 @@ export default function PersonalizarScreen() {
           daysOfWeek: daysOfWeekText.trim() ? parseCsvNumbers(daysOfWeekText) : null,
           specialDates: parseCsvStrings(specialDatesText),
         }),
+        prefill: params.prefill ?? '',
+        renewedFromToken: params.renewedFromToken ?? '',
       },
     });
   };
