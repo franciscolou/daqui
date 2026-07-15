@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, Easing,
+  useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -70,8 +70,10 @@ export default function FeedScreen() {
 
   const nearbyActive = viewMode === 'meu' ? nearbyMeu : nearbyPerto;
 
-  // Animação de slide ao alternar as abas.
+  // Animação de slide ao alternar as abas. Aplicada só ao conteúdo (posts),
+  // não ao header/abas — ver uso em `renderItem` do FlatList.
   const contentX = useSharedValue(0);
+  const contentOpacity = useSharedValue(1);
   const indicator = useSharedValue(1); // 0 = "meu", 1 = "perto" (padrão: "perto")
   const [tabsWidth, setTabsWidth] = useState(0);
 
@@ -173,15 +175,14 @@ export default function FeedScreen() {
       return;
     }
     const dir = mode === 'perto' ? 1 : -1;
-    contentX.value = dir * 60;
-    contentX.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
-    indicator.value = withTiming(mode === 'perto' ? 1 : 0, {
-      duration: 220,
-      easing: Easing.inOut(Easing.cubic),
-    });
+    contentX.value = dir * 28;
+    contentOpacity.value = 0.4;
+    contentX.value = withSpring(0, { damping: 20, stiffness: 220, mass: 0.6 });
+    contentOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
+    indicator.value = withSpring(mode === 'perto' ? 1 : 0, { damping: 20, stiffness: 220, mass: 0.6 });
     setViewMode(mode);
     if (mode === 'perto') fetchPertoLocation();
-  }, [viewMode, fetchPertoLocation, contentX, indicator]);
+  }, [viewMode, fetchPertoLocation, contentX, contentOpacity, indicator]);
 
   const onIncludeNearbyChange = useCallback(
     (value: boolean) => {
@@ -200,6 +201,7 @@ export default function FeedScreen() {
 
   const contentStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: contentX.value }],
+    opacity: contentOpacity.value,
   }));
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: indicator.value * (tabsWidth / 2) }],
@@ -357,29 +359,37 @@ export default function FeedScreen() {
   // cadastro, com escolha de redondezas) em vez do feed.
   const needsHomeSetup = viewMode === 'meu' && !user?.neighborhood;
 
+  // O slide anima só o conteúdo (posts/setup), não o header nem as abas —
+  // por isso o transform vai no `Animated.View` de cada item/conteúdo, nunca
+  // num wrapper que também contenha `viewTabsBlock`/`feedHeader`.
   const feed = needsHomeSetup ? (
-    <Animated.View style={[styles.feedFill, contentStyle]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
-        {viewTabsBlock}
-        <HomeNeighborhoodSetup />
-      </ScrollView>
-    </Animated.View>
+    <View style={styles.feedFill}>
+      {viewTabsBlock}
+      <Animated.View style={[styles.feedFill, contentStyle]}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.listContent}>
+          <HomeNeighborhoodSetup />
+        </ScrollView>
+      </Animated.View>
+    </View>
   ) : (
-    <Animated.View style={[styles.feedFill, contentStyle]}>
-      <FlatList
-        ref={listRef}
-        data={feedItems}
-        keyExtractor={(item) => (item.kind === 'post' ? item.post.id : `ad-${item.ad.id}`)}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={feedHeader}
-        renderItem={({ item }) => (item.kind === 'post' ? <PostCard post={item.post} /> : <AdPostCard ad={item.ad} viewerId={adViewerId} />)}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
-        }
-        ListEmptyComponent={renderEmpty}
-      />
-    </Animated.View>
+    <FlatList
+      ref={listRef}
+      style={styles.feedFill}
+      data={feedItems}
+      keyExtractor={(item) => (item.kind === 'post' ? item.post.id : `ad-${item.ad.id}`)}
+      showsVerticalScrollIndicator={false}
+      ListHeaderComponent={feedHeader}
+      renderItem={({ item }) => (
+        <Animated.View style={contentStyle}>
+          {item.kind === 'post' ? <PostCard post={item.post} /> : <AdPostCard ad={item.ad} viewerId={adViewerId} />}
+        </Animated.View>
+      )}
+      contentContainerStyle={styles.listContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+      }
+      ListEmptyComponent={renderEmpty}
+    />
   );
 
   return (
