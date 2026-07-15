@@ -9,6 +9,7 @@ from app.schemas.ad import (
     CheckoutResponse,
     CreativeOut,
     GlobalAnalyticsOut,
+    HasCampaignsOut,
     MediaUploadOut,
     MyCampaignOut,
     QuoteResponse,
@@ -27,6 +28,14 @@ router.get("/active/{format}", response_model=AdOut | None)(ad.get_active_ad)
 # Painel do anunciante (link com token, ver /anunciar/painel/[token].tsx) —
 # rota estática ("my-campaign") declarada antes de "/{campaign_id}/click".
 router.get("/my-campaign/{token}", response_model=MyCampaignOut)(ad.get_my_campaign)
+# "Meus anúncios" na sidebar do app Daqui (usuário logado, escopado por
+# e-mail) — dashboard comparativo entre as campanhas do próprio anunciante.
+router.get("/my-campaigns/exists", response_model=HasCampaignsOut)(
+    ad.get_my_campaigns_exists
+)
+router.get("/my-campaigns", response_model=GlobalAnalyticsOut)(
+    ad.get_my_campaigns_analytics
+)
 router.post("/{campaign_id}/click", status_code=204)(ad.track_click)
 
 # Painel de anúncios (ads-admin/): gerido pelo time interno, autenticado

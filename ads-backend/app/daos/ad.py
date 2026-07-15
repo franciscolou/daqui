@@ -366,6 +366,24 @@ def list_events(db: Session, campaign_id: int) -> list[AdEvent]:
 
 
 # ── Analytics agregado (admin) ───────────────────────────────────────────
+def list_campaigns_by_email(db: Session, email: str) -> list[AdCampaign]:
+    """Campanhas do próprio anunciante, vistas de dentro do app Daqui (sidebar
+    "Meus anúncios"/"Anuncie conosco") — filtro por igualdade exata de e-mail
+    (não `ilike` parcial como `list_campaigns_filtered`, que é busca livre do
+    time interno), já que aqui o e-mail vem do usuário logado no Daqui, não
+    de um texto digitado por um admin."""
+    return (
+        db.query(AdCampaign)
+        .filter(AdCampaign.advertiser_email == email)
+        .order_by(AdCampaign.created_at.desc())
+        .all()
+    )
+
+
+def count_campaigns_by_email(db: Session, email: str) -> int:
+    return db.query(AdCampaign).filter(AdCampaign.advertiser_email == email).count()
+
+
 def list_campaigns_filtered(
     db: Session, *, advertiser: str | None = None, status: str | None = None
 ) -> list[AdCampaign]:

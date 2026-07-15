@@ -612,6 +612,7 @@ export function mapUser(u: BackendUser): User {
     locked: u.locked ?? false,
     twoFactorEnabled: u.two_factor_enabled,
     pendingNotice: u.pending_notice ?? undefined,
+    email: u.email ?? undefined,
   };
 }
 

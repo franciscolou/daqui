@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, Image, Switch, useWindowDimensions } from 'react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing,
 } from 'react-native-reanimated';
@@ -9,6 +9,7 @@ import { router, usePathname } from 'expo-router';
 import { Palette } from '../constants/Colors';
 import { BRAND_FONT } from '../constants/BrandFont';
 import { CATEGORIES, PostCategory } from '../data/mock';
+import { adsApi } from '../lib/adsApi';
 import { useAuth } from '../lib/auth';
 import { useRealtime } from '../lib/realtime';
 import { useScrollToTop } from '../lib/scrollToTop';
@@ -81,6 +82,14 @@ export default function LeftSidebar({
   const { mode, toggle } = useThemeMode();
   const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
+  // "Anuncie conosco" vira "Meus anúncios" (e leva pro dashboard comparativo
+  // em vez da tela de planos) assim que o usuário já teve alguma campanha —
+  // checado 1x por sessão pelo e-mail do próprio usuário logado.
+  const [hasMyAds, setHasMyAds] = useState(false);
+  useEffect(() => {
+    if (!user?.email) return;
+    adsApi.hasMyCampaigns(user.email).then(setHasMyAds).catch(() => {});
+  }, [user?.email]);
 
   // Colapso fluido das categorias: anima altura (medida) + opacidade da lista extra
   // e a rotação da setinha. Usamos shared values explícitos (padrão do welcome.tsx),
@@ -298,31 +307,37 @@ export default function LeftSidebar({
       {/* App */}
       <Text style={styles.groupTitle}>Sobre</Text>
       <View style={styles.group}>
-        {APP_ITEMS.map((item) => (
-          <Pressable
-            key={item.key}
-            style={({ hovered }) => [styles.navItem, hovered && styles.navItemHover]}
-            onPress={() => {
-              if (item.key === 'rate') {
-                // No desktop abre como modal; no mobile, o modal aninhado dentro do
-                // drawer do MobileMenu não funciona direito — vai para tela cheia.
-                if (isWide) {
-                  setRateOpen(true);
-                  onNavigate?.();
+        {APP_ITEMS.map((item) => {
+          const isAds = item.key === 'ads';
+          const label = isAds ? (hasMyAds ? 'Meus anúncios' : item.label) : item.label;
+          const route = isAds ? (hasMyAds ? '/anunciar/painel' : item.route) : item.route;
+          const icon = isAds && hasMyAds ? 'stats-chart-outline' : item.icon;
+          return (
+            <Pressable
+              key={item.key}
+              style={({ hovered }) => [styles.navItem, hovered && styles.navItemHover]}
+              onPress={() => {
+                if (item.key === 'rate') {
+                  // No desktop abre como modal; no mobile, o modal aninhado dentro do
+                  // drawer do MobileMenu não funciona direito — vai para tela cheia.
+                  if (isWide) {
+                    setRateOpen(true);
+                    onNavigate?.();
+                  } else {
+                    navigate('/rate');
+                  }
+                } else if (route) {
+                  navigate(route);
                 } else {
-                  navigate('/rate');
+                  onNavigate?.();
                 }
-              } else if (item.route) {
-                navigate(item.route);
-              } else {
-                onNavigate?.();
-              }
-            }}
-          >
-            <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
-            <Text style={styles.navLabel}>{item.label}</Text>
-          </Pressable>
-        ))}
+              }}
+            >
+              <Ionicons name={icon} size={17} color={Colors.textSecondary} />
+              <Text style={styles.navLabel}>{label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <View style={styles.divider} />

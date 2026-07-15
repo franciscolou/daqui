@@ -20,6 +20,7 @@ from app.schemas.ad import (
     CreativeOut,
     CreativeUpdate,
     GlobalAnalyticsOut,
+    HasCampaignsOut,
     ManualCampaignCreate,
     MediaUploadOut,
     MyCampaignOut,
@@ -115,6 +116,34 @@ def get_my_campaign(
     # Público — o token (não uma sessão de admin) é a própria autorização,
     # ver `/anunciar/painel/[token].tsx` no frontend.
     return ad_service.get_my_campaign(db, token, group_by)
+
+
+def get_my_campaigns_exists(
+    email: str = Query(...),
+    db: Session = Depends(get_db),
+) -> HasCampaignsOut:
+    # Público — usado pela sidebar do app Daqui (usuário logado) pra decidir
+    # entre rotular o item "Meus anúncios" ou "Anuncie conosco". O e-mail vem
+    # do próprio usuário autenticado no app, não é um dado sensível de terceiro.
+    return ad_service.has_my_campaigns(db, email)
+
+
+def get_my_campaigns_analytics(
+    email: str = Query(...),
+    campaign_ids: str | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    db: Session = Depends(get_db),
+) -> GlobalAnalyticsOut:
+    # Público, escopado por e-mail exato (ver services::get_my_campaigns_analytics
+    # sobre por que isso é seguro mesmo sem login de anunciante).
+    return ad_service.get_my_campaigns_analytics(
+        db,
+        email,
+        campaign_ids=_parse_ids(campaign_ids) if campaign_ids else None,
+        date_from=_parse_date(date_from, end_of_day=False),
+        date_to=_parse_date(date_to, end_of_day=True),
+    )
 
 
 # ── Admin de anúncios ───────────────────────────────────────────────────

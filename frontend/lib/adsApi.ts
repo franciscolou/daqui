@@ -410,6 +410,104 @@ function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
   };
 }
 
+// ── "Meus anúncios" (sidebar do app, usuário logado — escopado por e-mail) ──
+export interface CampaignSummary {
+  id: number;
+  accessToken: string;
+  title: string;
+  status: CampaignStatus;
+  formats: AdFormat[];
+  priceCents: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  cpcCents: number | null;
+  startsAt?: string;
+  endsAt?: string;
+  createdAt: string;
+}
+
+export interface MyCampaignsAnalytics {
+  summary: {
+    campaignsCount: number;
+    activeCampaigns: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    revenueCents: number;
+    cpcCents: number | null;
+    cpmCents: number | null;
+  };
+  timeseries: AnalyticsBucket[];
+  byFormat: AnalyticsBucket[];
+  campaigns: CampaignSummary[];
+  insights: string[];
+}
+
+interface BackendMyCampaignsAnalytics {
+  summary: {
+    campaigns_count: number;
+    active_campaigns: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    revenue_cents: number;
+    cpc_cents: number | null;
+    cpm_cents: number | null;
+  };
+  timeseries: AnalyticsBucket[];
+  by_format: AnalyticsBucket[];
+  campaigns: {
+    id: number;
+    access_token: string;
+    title: string;
+    status: CampaignStatus;
+    formats: AdFormat[];
+    price_cents: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    cpc_cents: number | null;
+    starts_at: string | null;
+    ends_at: string | null;
+    created_at: string;
+  }[];
+  insights: string[];
+}
+
+function mapMyCampaignsAnalytics(b: BackendMyCampaignsAnalytics): MyCampaignsAnalytics {
+  return {
+    summary: {
+      campaignsCount: b.summary.campaigns_count,
+      activeCampaigns: b.summary.active_campaigns,
+      impressions: b.summary.impressions,
+      clicks: b.summary.clicks,
+      ctr: b.summary.ctr,
+      revenueCents: b.summary.revenue_cents,
+      cpcCents: b.summary.cpc_cents,
+      cpmCents: b.summary.cpm_cents,
+    },
+    timeseries: b.timeseries,
+    byFormat: b.by_format,
+    campaigns: b.campaigns.map((c) => ({
+      id: c.id,
+      accessToken: c.access_token,
+      title: c.title,
+      status: c.status,
+      formats: c.formats,
+      priceCents: c.price_cents,
+      impressions: c.impressions,
+      clicks: c.clicks,
+      ctr: c.ctr,
+      cpcCents: c.cpc_cents,
+      startsAt: c.starts_at ?? undefined,
+      endsAt: c.ends_at ?? undefined,
+      createdAt: c.created_at,
+    })),
+    insights: b.insights,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────
 // API
 // ─────────────────────────────────────────────────────────────
@@ -547,6 +645,25 @@ export const adsApi = {
       `/ads/my-campaign/${encodeURIComponent(token)}?group_by=${groupBy}`,
     );
     return mapMyCampaign(r);
+  },
+
+  async hasMyCampaigns(email: string): Promise<boolean> {
+    const r = await request<{ has_campaigns: boolean }>(
+      `/ads/my-campaigns/exists?email=${encodeURIComponent(email)}`,
+    );
+    return r.has_campaigns;
+  },
+
+  async getMyCampaignsAnalytics(
+    email: string,
+    params: { campaignIds?: number[]; dateFrom?: string; dateTo?: string } = {},
+  ): Promise<MyCampaignsAnalytics> {
+    const qs = new URLSearchParams({ email });
+    if (params.campaignIds?.length) qs.set('campaign_ids', params.campaignIds.join(','));
+    if (params.dateFrom) qs.set('date_from', params.dateFrom);
+    if (params.dateTo) qs.set('date_to', params.dateTo);
+    const r = await request<BackendMyCampaignsAnalytics>(`/ads/my-campaigns?${qs.toString()}`);
+    return mapMyCampaignsAnalytics(r);
   },
 
   async trackAdClick(

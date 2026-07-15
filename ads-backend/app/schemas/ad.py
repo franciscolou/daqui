@@ -430,9 +430,13 @@ class MyCampaignOut(BaseModel):
     analytics: AnalyticsOut
 
 
-# ── Analytics agregado (visão do time de anúncios, todas as campanhas) ────
+# ── Analytics agregado (visão do time de anúncios, todas as campanhas —
+# reaproveitado também pelo painel "Meus anúncios" do próprio anunciante,
+# ver `services/ad.py::get_my_campaigns_analytics`) ────────────────────
 class CampaignAnalyticsRow(BaseModel):
     id: int
+    access_token: str
+    title: str
     advertiser_name: str
     advertiser_email: str
     status: str
@@ -472,3 +476,7 @@ class GlobalAnalyticsOut(BaseModel):
     campaigns: list[CampaignAnalyticsRow]
     advertisers: list[str]
     insights: list[str]
+
+
+class HasCampaignsOut(BaseModel):
+    has_campaigns: bool

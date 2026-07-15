@@ -35,6 +35,7 @@ from app.schemas.ad import (
     CreativeUpdate,
     GlobalAnalyticsOut,
     GlobalAnalyticsSummary,
+    HasCampaignsOut,
     ManualCampaignCreate,
     MediaUploadOut,
     MyCampaignOut,
@@ -477,6 +478,41 @@ def admin_get_global_analytics(
     fonte de verdade (`AdEvent`) do analytics por campanha, só que agregada.
     """
     campaigns = ad_dao.list_campaigns_filtered(db, advertiser=advertiser, status=status)
+    return _campaigns_analytics(db, campaigns, date_from=date_from, date_to=date_to)
+
+
+# ── "Meus anúncios" (dentro do app Daqui, sidebar) ──────────────────────
+def has_my_campaigns(db: Session, email: str) -> HasCampaignsOut:
+    return HasCampaignsOut(has_campaigns=ad_dao.count_campaigns_by_email(db, email) > 0)
+
+
+def get_my_campaigns_analytics(
+    db: Session,
+    email: str,
+    *,
+    campaign_ids: list[int] | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+) -> GlobalAnalyticsOut:
+    """Mesmo motor de `admin_get_global_analytics`, mas escopado às campanhas
+    do próprio anunciante logado no Daqui — a igualdade exata de e-mail (não
+    um `campaign_ids` cru vindo do cliente) é o que garante que ninguém veja
+    analytics de campanha alheia: mesmo que `campaign_ids` seja adulterado,
+    o filtro final é sempre a interseção com as campanhas do próprio e-mail."""
+    owned = ad_dao.list_campaigns_by_email(db, email)
+    if campaign_ids is not None:
+        wanted = set(campaign_ids)
+        owned = [c for c in owned if c.id in wanted]
+    return _campaigns_analytics(db, owned, date_from=date_from, date_to=date_to)
+
+
+def _campaigns_analytics(
+    db: Session,
+    campaigns: list[AdCampaign],
+    *,
+    date_from: datetime | None,
+    date_to: datetime | None,
+) -> GlobalAnalyticsOut:
     campaign_ids = [c.id for c in campaigns]
     campaigns_by_id = {c.id: c for c in campaigns}
     events = ad_dao.list_events_for_campaigns(db, campaign_ids, date_from, date_to)
@@ -587,6 +623,8 @@ def admin_get_global_analytics(
     rows = [
         CampaignAnalyticsRow(
             id=c.id,
+            access_token=c.access_token,
+            title=c.creatives[0].title if c.creatives else "Anúncio",
             advertiser_name=c.advertiser_name,
             advertiser_email=c.advertiser_email,
             status=c.status,
@@ -630,14 +668,14 @@ def admin_get_global_analytics(
     if rows:
         top_revenue = max(rows, key=lambda r: r.price_cents)
         insights.append(
-            f"Maior campanha por valor: {top_revenue.advertiser_name} — "
+            f"Maior campanha por valor: {top_revenue.title} — "
             f"{_fmt_brl(top_revenue.price_cents)}"
         )
         scored_rows = [r for r in rows if r.impressions >= 10]
         if scored_rows:
             top_ctr_row = max(scored_rows, key=lambda r: r.ctr)
             insights.append(
-                f"Melhor CTR entre campanhas com volume: {top_ctr_row.advertiser_name} "
+                f"Melhor CTR entre campanhas com volume: {top_ctr_row.title} "
                 f"({top_ctr_row.ctr:.1%})"
             )
     if summary.active_campaigns == 0:
