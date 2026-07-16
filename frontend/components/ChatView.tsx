@@ -18,6 +18,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, withDelay, withRepeat, withSequence, Easing,
 } from 'react-native-reanimated';
 import { Palette } from '../constants/Colors';
+import { GROUP_PRIVACY_INFO } from '../constants/groups';
 import { User } from '../data/mock';
 import { api, ChatMessage, GroupDetail } from '../lib/api';
 import { formatDayDivider, formatMessageTime } from '../lib/time';
@@ -503,7 +504,7 @@ export default function ChatView({
     kind === 'dm'
     ? other?.neighborhood
     : group
-    ? `${group.membersCount} ${group.membersCount === 1 ? 'membro' : 'membros'}${group.isOpen ? ' · Aberto' : ' · Fechado'}`
+    ? `${group.membersCount} ${group.membersCount === 1 ? 'membro' : 'membros'} · ${GROUP_PRIVACY_INFO[group.privacy].shortLabel}`
     : '';
 
   return (

@@ -7,7 +7,6 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
-  Switch,
   Modal,
   Pressable,
 } from 'react-native';
@@ -16,11 +15,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../../constants/Colors';
-import { api, GroupDetail, GroupMember } from '../../../lib/api';
+import { GROUP_PRIVACY_INFO } from '../../../constants/groups';
+import { api, GroupDetail, GroupMember, GroupPrivacy } from '../../../lib/api';
 import { User } from '../../../data/mock';
 import { useAuth } from '../../../lib/auth';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import FeedLayout from '../../../components/FeedLayout';
+
+const PRIVACY_OPTIONS: GroupPrivacy[] = ['public', 'request', 'closed'];
 
 export default function GroupInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,7 +36,7 @@ export default function GroupInfoScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
+  const [privacy, setPrivacy] = useState<GroupPrivacy>('closed');
   const [saving, setSaving] = useState(false);
 
   const [busyId, setBusyId] = useState<string | null>(null); // membro em ação
@@ -48,7 +50,7 @@ export default function GroupInfoScreen() {
     setGroup(g);
     setName(g.name);
     setDescription(g.description);
-    setIsOpen(g.isOpen);
+    setPrivacy(g.privacy);
   }, []);
 
   const load = useCallback(async () => {
@@ -76,13 +78,13 @@ export default function GroupInfoScreen() {
     !!group &&
     (name.trim() !== group.name ||
       description.trim() !== group.description ||
-      isOpen !== group.isOpen);
+      privacy !== group.privacy);
 
   const save = async () => {
     if (!group || !dirty || !name.trim()) return;
     setSaving(true);
     try {
-      apply(await api.updateGroup(group.id, { name: name.trim(), description: description.trim(), isOpen }));
+      apply(await api.updateGroup(group.id, { name: name.trim(), description: description.trim(), privacy }));
     } catch {
       // mantém edição
     } finally {
@@ -168,6 +170,43 @@ export default function GroupInfoScreen() {
     }
   };
 
+  const cancelRequest = async () => {
+    if (!group) return;
+    setSaving(true);
+    try {
+      await api.cancelJoinRequest(group.id);
+      setGroup({ ...group, myRequestPending: false });
+    } catch {
+      // mantém pendente
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const approveRequest = async (userId: string) => {
+    if (!group) return;
+    setBusyId(userId);
+    try {
+      apply(await api.approveGroupJoinRequest(group.id, userId));
+    } catch {
+      // ignora
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const rejectRequest = async (userId: string) => {
+    if (!group) return;
+    setBusyId(userId);
+    try {
+      apply(await api.rejectGroupJoinRequest(group.id, userId));
+    } catch {
+      // ignora
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const leave = async () => {
     if (!group) return;
     try {
@@ -237,12 +276,14 @@ export default function GroupInfoScreen() {
             </View>
             <View style={styles.privacyPill}>
               <Ionicons
-                name={group.isOpen ? 'earth' : 'lock-closed'}
+                name={GROUP_PRIVACY_INFO[group.privacy].icon as any}
                 size={13}
-                color={group.isOpen ? Colors.primaryDark : Colors.textSecondary}
+                color={group.privacy !== 'closed' ? Colors.primaryDark : Colors.textSecondary}
               />
-              <Text style={[styles.privacyPillText, group.isOpen && styles.privacyPillTextOpen]}>
-                {group.isOpen ? 'Aberto' : 'Fechado'}
+              <Text
+                style={[styles.privacyPillText, group.privacy !== 'closed' && styles.privacyPillTextOpen]}
+              >
+                {GROUP_PRIVACY_INFO[group.privacy].shortLabel}
               </Text>
             </View>
             <Text style={styles.membersCount}>
@@ -265,21 +306,35 @@ export default function GroupInfoScreen() {
                 placeholderTextColor={Colors.textTertiary}
                 multiline
               />
-              <View style={styles.privacyRow}>
-                <View style={styles.flex}>
-                  <Text style={styles.privacyTitle}>Grupo aberto</Text>
-                  <Text style={styles.privacyDesc}>
-                    {isOpen
-                      ? 'Aparece no Descobrir; qualquer um pode entrar.'
-                      : 'Invisível no Descobrir; entrada só por convite.'}
-                  </Text>
-                </View>
-                <Switch
-                  value={isOpen}
-                  onValueChange={setIsOpen}
-                  trackColor={{ false: Colors.border, true: Colors.primary }}
-                  thumbColor="#fff"
-                />
+              <Text style={styles.label}>Privacidade</Text>
+              <View style={styles.privacyGroup}>
+                {PRIVACY_OPTIONS.map((option) => {
+                  const info = GROUP_PRIVACY_INFO[option];
+                  const optSelected = privacy === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      style={[styles.privacyOption, optSelected && styles.privacyOptionSelected]}
+                      activeOpacity={0.8}
+                      onPress={() => setPrivacy(option)}
+                    >
+                      <Ionicons
+                        name={info.icon as any}
+                        size={18}
+                        color={optSelected ? Colors.primary : Colors.textTertiary}
+                      />
+                      <View style={styles.flex}>
+                        <Text style={styles.privacyTitle}>{info.label}</Text>
+                        <Text style={styles.privacyDesc}>{info.description}</Text>
+                      </View>
+                      <Ionicons
+                        name={optSelected ? 'radio-button-on' : 'radio-button-off'}
+                        size={18}
+                        color={optSelected ? Colors.primary : Colors.border}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
               {dirty && (
                 <TouchableOpacity
@@ -301,6 +356,49 @@ export default function GroupInfoScreen() {
               <Text style={styles.groupName}>{group.name}</Text>
               {!!group.description && <Text style={styles.groupDesc}>{group.description}</Text>}
             </View>
+          )}
+
+          {/* Solicitações de entrada pendentes (grupo "request") */}
+          {canManage && group.joinRequests.length > 0 && (
+            <>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>
+                  Solicitações pendentes ({group.joinRequests.length})
+                </Text>
+              </View>
+              <View style={styles.addPanel}>
+                {group.joinRequests.map((r) => (
+                  <View key={r.user.id} style={styles.memberRow}>
+                    <Image source={{ uri: r.user.avatar }} style={styles.memberAvatar} />
+                    <View style={styles.flex}>
+                      <Text style={styles.memberName} numberOfLines={1}>{r.user.name}</Text>
+                      <Text style={styles.memberSub} numberOfLines={1}>@{r.user.username}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.iconBtn}
+                      onPress={() => rejectRequest(r.user.id)}
+                      disabled={busyId === r.user.id}
+                      accessibilityLabel={`Recusar ${r.user.name}`}
+                    >
+                      <Ionicons name="close-circle-outline" size={22} color={Colors.error} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.addBtn}
+                      onPress={() => approveRequest(r.user.id)}
+                      disabled={busyId === r.user.id}
+                      activeOpacity={0.85}
+                      accessibilityLabel={`Aprovar ${r.user.name}`}
+                    >
+                      {busyId === r.user.id ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Ionicons name="checkmark" size={18} color="#fff" />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            </>
           )}
 
           {/* Membros */}
@@ -407,7 +505,7 @@ export default function GroupInfoScreen() {
 
           {/* Ações finais */}
           <View style={styles.footer}>
-            {!isMember && group.isOpen && (
+            {!isMember && group.privacy === 'public' && (
               <TouchableOpacity style={styles.primaryAction} onPress={join} disabled={saving} activeOpacity={0.85}>
                 {saving ? (
                   <ActivityIndicator color="#fff" size="small" />
@@ -415,6 +513,37 @@ export default function GroupInfoScreen() {
                   <>
                     <Ionicons name="enter-outline" size={18} color="#fff" />
                     <Text style={styles.primaryActionText}>Entrar no grupo</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {!isMember && group.privacy === 'request' && !group.myRequestPending && (
+              <TouchableOpacity style={styles.primaryAction} onPress={join} disabled={saving} activeOpacity={0.85}>
+                {saving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="paper-plane-outline" size={18} color="#fff" />
+                    <Text style={styles.primaryActionText}>Solicitar entrada</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {!isMember && group.privacy === 'request' && group.myRequestPending && (
+              <TouchableOpacity
+                style={styles.pendingAction}
+                onPress={cancelRequest}
+                disabled={saving}
+                activeOpacity={0.85}
+              >
+                {saving ? (
+                  <ActivityIndicator color={Colors.primaryDark} size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="time-outline" size={18} color={Colors.primaryDark} />
+                    <Text style={styles.pendingActionText}>Solicitação enviada · toque para cancelar</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -569,7 +698,18 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     outlineStyle: 'none',
   } as any,
   inputMultiline: { minHeight: 64, textAlignVertical: 'top' },
-  privacyRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 },
+  privacyGroup: { gap: 8, marginTop: 6 },
+  privacyOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    backgroundColor: Colors.background,
+  },
+  privacyOptionSelected: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
   privacyTitle: { fontSize: 15, fontWeight: '700', color: Colors.text },
   privacyDesc: { fontSize: 12, color: Colors.textTertiary, marginTop: 2 },
   saveBtn: {
@@ -604,7 +744,14 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     padding: 8,
     marginBottom: 8,
   },
-  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 4 },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
   memberAvatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.border },
   memberName: { fontSize: 15, fontWeight: '600', color: Colors.text },
   memberSub: { fontSize: 12, color: Colors.textTertiary, marginTop: 1 },
@@ -637,6 +784,18 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     height: 48,
   },
   primaryActionText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  pendingAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primaryLight,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderRadius: 12,
+    height: 48,
+  },
+  pendingActionText: { color: Colors.primaryDark, fontSize: 15, fontWeight: '700' },
   dangerAction: {
     flexDirection: 'row',
     alignItems: 'center',

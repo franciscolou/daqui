@@ -4,6 +4,7 @@ from app.controllers import group
 from app.schemas.group import (
     GroupConversationOut,
     GroupDetailOut,
+    GroupJoinRequestOut,
     GroupMessageOut,
     GroupOut,
 )
@@ -21,7 +22,12 @@ router.post("/{group_id}/avatar", response_model=GroupDetailOut)(group.set_group
 router.delete("/{group_id}", status_code=204)(group.delete_group)
 
 router.post("/{group_id}/join", response_model=GroupDetailOut)(group.join_group)
+router.delete("/{group_id}/join", status_code=204)(group.cancel_join_request)
 router.post("/{group_id}/leave", status_code=204)(group.leave_group)
+
+router.get("/{group_id}/join-requests", response_model=list[GroupJoinRequestOut])(group.list_join_requests)
+router.post("/{group_id}/join-requests/{user_id}/approve", response_model=GroupDetailOut)(group.approve_join_request)
+router.post("/{group_id}/join-requests/{user_id}/reject", response_model=GroupDetailOut)(group.reject_join_request)
 
 router.post("/{group_id}/members", response_model=GroupDetailOut)(group.add_member)
 router.delete("/{group_id}/members/{user_id}", response_model=GroupDetailOut)(group.remove_member)

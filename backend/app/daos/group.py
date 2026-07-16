@@ -2,10 +2,13 @@ from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
 from app.models.group import (
+    PRIVACY_PUBLIC,
+    PRIVACY_REQUEST,
     ROLE_ADMIN,
     ROLE_MEMBER,
     ROLE_OWNER,
     Group,
+    GroupJoinRequest,
     GroupMember,
     GroupMessage,
 )
@@ -24,7 +27,7 @@ def create_group(
     *,
     name: str,
     description: str,
-    is_open: bool,
+    privacy: str,
     avatar_url: str | None,
     owner_id: int,
     neighborhood: str,
@@ -32,7 +35,7 @@ def create_group(
     group = Group(
         name=name,
         description=description,
-        is_open=is_open,
+        privacy=privacy,
         avatar_url=avatar_url,
         owner_id=owner_id,
         neighborhood=neighborhood,
@@ -77,13 +80,14 @@ def list_user_groups(db: Session, user_id: int) -> list[Group]:
 def discover_open(
     db: Session, query: str, user_id: int, neighborhood: str, limit: int = 30
 ) -> list[Group]:
-    # Grupos abertos do bairro do usuário, que casam com a busca e dos quais ele
-    # ainda não participa (só é possível entrar em grupos do próprio bairro).
+    # Grupos visíveis no Descobrir (public ou request, nunca closed) do bairro
+    # do usuário, que casam com a busca e dos quais ele ainda não participa
+    # (só é possível entrar em grupos do próprio bairro).
     member_group_ids = db.query(GroupMember.group_id).filter(
         GroupMember.user_id == user_id
     )
     q = db.query(Group).filter(
-        Group.is_open.is_(True),
+        Group.privacy.in_([PRIVACY_PUBLIC, PRIVACY_REQUEST]),
         Group.neighborhood == neighborhood,
         Group.id.notin_(member_group_ids),
     )
@@ -135,6 +139,37 @@ def set_role(db: Session, member: GroupMember, role: str) -> GroupMember:
     db.commit()
     db.refresh(member)
     return member
+
+
+# ── Solicitações de entrada (privacy="request") ──────────────────────
+def get_join_request(db: Session, group_id: int, user_id: int) -> GroupJoinRequest | None:
+    return (
+        db.query(GroupJoinRequest)
+        .filter(GroupJoinRequest.group_id == group_id, GroupJoinRequest.user_id == user_id)
+        .first()
+    )
+
+
+def list_join_requests(db: Session, group_id: int) -> list[GroupJoinRequest]:
+    return (
+        db.query(GroupJoinRequest)
+        .filter(GroupJoinRequest.group_id == group_id)
+        .order_by(GroupJoinRequest.created_at)
+        .all()
+    )
+
+
+def create_join_request(db: Session, group_id: int, user_id: int) -> GroupJoinRequest:
+    request = GroupJoinRequest(group_id=group_id, user_id=user_id)
+    db.add(request)
+    db.commit()
+    db.refresh(request)
+    return request
+
+
+def delete_join_request(db: Session, request: GroupJoinRequest) -> None:
+    db.delete(request)
+    db.commit()
 
 
 # ── Mensagens ─────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ from app.schemas.group import (
     GroupConversationOut,
     GroupCreate,
     GroupDetailOut,
+    GroupJoinRequestOut,
     GroupMemberAdd,
     GroupMessageCreate,
     GroupMessageOut,
@@ -91,6 +92,40 @@ def leave_group(
     current_user: User = Depends(get_current_user),
 ) -> None:
     group_service.leave(db, current_user, group_id)
+
+
+def cancel_join_request(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    group_service.cancel_join_request(db, current_user, group_id)
+
+
+def list_join_requests(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[GroupJoinRequestOut]:
+    return group_service.list_join_requests(db, current_user, group_id)
+
+
+def approve_join_request(
+    group_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> GroupDetailOut:
+    return group_service.approve_join_request(db, current_user, group_id, user_id)
+
+
+def reject_join_request(
+    group_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> GroupDetailOut:
+    return group_service.reject_join_request(db, current_user, group_id, user_id)
 
 
 def add_member(

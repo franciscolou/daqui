@@ -5,6 +5,8 @@ from app.core.uploads import save_data_url_image
 from app.daos import group as group_dao
 from app.daos import user as user_dao
 from app.models.group import (
+    PRIVACY_CLOSED,
+    PRIVACY_REQUEST,
     ROLE_ADMIN,
     ROLE_MEMBER,
     ROLE_OWNER,
@@ -17,6 +19,7 @@ from app.schemas.group import (
     GroupConversationOut,
     GroupCreate,
     GroupDetailOut,
+    GroupJoinRequestOut,
     GroupMemberOut,
     GroupMessageOut,
     GroupOut,
@@ -47,17 +50,29 @@ def _require_manager(db: Session, group: Group, user: User) -> GroupMember:
 
 
 # ── Serialização ──────────────────────────────────────────────────────
-def _to_out(group: Group, my_role: str | None) -> GroupOut:
+def _to_out(group: Group, my_role: str | None, my_request_pending: bool = False) -> GroupOut:
     out = GroupOut.model_validate(group)
     out.my_role = my_role
+    out.my_request_pending = my_request_pending
     return out
 
 
-def _detail_out(db: Session, group: Group, my_role: str | None) -> GroupDetailOut:
+def _detail_out(
+    db: Session,
+    group: Group,
+    user: User,
+    my_role: str | None,
+) -> GroupDetailOut:
     members = group_dao.list_members(db, group.id)
     out = GroupDetailOut.model_validate(group)
     out.my_role = my_role
     out.members = [GroupMemberOut.model_validate(m) for m in members]
+    if my_role in (ROLE_OWNER, ROLE_ADMIN):
+        requests = group_dao.list_join_requests(db, group.id)
+        out.join_requests = [GroupJoinRequestOut.model_validate(r) for r in requests]
+    elif my_role is None:
+        pending = group_dao.get_join_request(db, group.id, user.id)
+        out.my_request_pending = pending is not None
     return out
 
 
@@ -79,7 +94,7 @@ def create_group(db: Session, user: User, payload: GroupCreate) -> GroupDetailOu
         db,
         name=name,
         description=payload.description.strip(),
-        is_open=payload.is_open,
+        privacy=payload.privacy,
         avatar_url=payload.avatar_url,
         owner_id=user.id,
         neighborhood=user.neighborhood,
@@ -98,16 +113,16 @@ def create_group(db: Session, user: User, payload: GroupCreate) -> GroupDetailOu
         group_dao.add_member(db, group.id, uid, ROLE_MEMBER)
 
     db.refresh(group)
-    return _detail_out(db, group, ROLE_OWNER)
+    return _detail_out(db, group, user, ROLE_OWNER)
 
 
 def get_group(db: Session, user: User, group_id: int) -> GroupDetailOut:
     group = _require_group(db, group_id)
     member = group_dao.get_membership(db, group.id, user.id)
     # Grupo fechado só é visível para membros.
-    if member is None and not group.is_open:
+    if member is None and group.privacy == PRIVACY_CLOSED:
         raise HTTPException(status_code=403, detail="Grupo fechado")
-    return _detail_out(db, group, member.role if member else None)
+    return _detail_out(db, group, user, member.role if member else None)
 
 
 def update_group(
@@ -124,14 +139,14 @@ def update_group(
         data["name"] = name
     if payload.description is not None:
         data["description"] = payload.description.strip()
-    if payload.is_open is not None:
-        data["is_open"] = payload.is_open
+    if payload.privacy is not None:
+        data["privacy"] = payload.privacy
     if payload.avatar_url is not None:
         data["avatar_url"] = payload.avatar_url or None
 
     if data:
         group = group_dao.update_group(db, group, data)
-    return _detail_out(db, group, member.role)
+    return _detail_out(db, group, user, member.role)
 
 
 def set_avatar(
@@ -141,7 +156,7 @@ def set_avatar(
     member = _require_manager(db, group, user)  # dono ou admin
     avatar_url = save_data_url_image(base_url, image, prefix=f"group{group.id}")
     group = group_dao.update_group(db, group, {"avatar_url": avatar_url})
-    return _detail_out(db, group, member.role)
+    return _detail_out(db, group, user, member.role)
 
 
 def delete_group(db: Session, user: User, group_id: int) -> None:
@@ -174,22 +189,68 @@ def list_conversations(db: Session, user: User) -> list[GroupConversationOut]:
 
 def discover(db: Session, user: User, query: str) -> list[GroupOut]:
     groups = group_dao.discover_open(db, query, user.id, user.neighborhood)
-    return [_to_out(g, None) for g in groups]
+    return [
+        _to_out(g, None, my_request_pending=group_dao.get_join_request(db, g.id, user.id) is not None)
+        for g in groups
+    ]
 
 
 # ── Membros ───────────────────────────────────────────────────────────
 def join(db: Session, user: User, group_id: int) -> GroupDetailOut:
     group = _require_group(db, group_id)
-    if not group.is_open:
+    if group.privacy == PRIVACY_CLOSED:
         raise HTTPException(status_code=403, detail="Grupo fechado: entrada só por convite")
     if user.neighborhood != group.neighborhood:
         raise HTTPException(
             status_code=403, detail="Este grupo é de outro bairro"
         )
-    if group_dao.get_membership(db, group.id, user.id):
-        return _detail_out(db, group, group_dao.get_membership(db, group.id, user.id).role)
+    existing = group_dao.get_membership(db, group.id, user.id)
+    if existing:
+        return _detail_out(db, group, user, existing.role)
+
+    if group.privacy == PRIVACY_REQUEST:
+        if not group_dao.get_join_request(db, group.id, user.id):
+            group_dao.create_join_request(db, group.id, user.id)
+        return _detail_out(db, group, user, None)
+
     group_dao.add_member(db, group.id, user.id, ROLE_MEMBER)
-    return _detail_out(db, group, ROLE_MEMBER)
+    return _detail_out(db, group, user, ROLE_MEMBER)
+
+
+def cancel_join_request(db: Session, user: User, group_id: int) -> None:
+    group = _require_group(db, group_id)
+    request = group_dao.get_join_request(db, group.id, user.id)
+    if request:
+        group_dao.delete_join_request(db, request)
+
+
+def list_join_requests(db: Session, user: User, group_id: int) -> list[GroupJoinRequestOut]:
+    group = _require_group(db, group_id)
+    _require_manager(db, group, user)
+    requests = group_dao.list_join_requests(db, group.id)
+    return [GroupJoinRequestOut.model_validate(r) for r in requests]
+
+
+def approve_join_request(db: Session, user: User, group_id: int, target_id: int) -> GroupDetailOut:
+    group = _require_group(db, group_id)
+    manager = _require_manager(db, group, user)
+    request = group_dao.get_join_request(db, group.id, target_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    group_dao.delete_join_request(db, request)
+    if not group_dao.get_membership(db, group.id, target_id):
+        group_dao.add_member(db, group.id, target_id, ROLE_MEMBER)
+    return _detail_out(db, group, user, manager.role)
+
+
+def reject_join_request(db: Session, user: User, group_id: int, target_id: int) -> GroupDetailOut:
+    group = _require_group(db, group_id)
+    manager = _require_manager(db, group, user)
+    request = group_dao.get_join_request(db, group.id, target_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    group_dao.delete_join_request(db, request)
+    return _detail_out(db, group, user, manager.role)
 
 
 def leave(db: Session, user: User, group_id: int) -> None:
@@ -216,7 +277,7 @@ def add_member(db: Session, user: User, group_id: int, target_id: int) -> GroupD
     if group_dao.get_membership(db, group.id, target_id):
         raise HTTPException(status_code=400, detail="Usuário já é membro")
     group_dao.add_member(db, group.id, target_id, ROLE_MEMBER)
-    return _detail_out(db, group, manager.role)
+    return _detail_out(db, group, user, manager.role)
 
 
 def remove_member(db: Session, user: User, group_id: int, target_id: int) -> GroupDetailOut:
@@ -231,7 +292,7 @@ def remove_member(db: Session, user: User, group_id: int, target_id: int) -> Gro
     if target.role == ROLE_ADMIN and manager.role != ROLE_OWNER:
         raise HTTPException(status_code=403, detail="Só o dono pode remover um administrador")
     group_dao.remove_member(db, target)
-    return _detail_out(db, group, manager.role)
+    return _detail_out(db, group, user, manager.role)
 
 
 def set_admin(
@@ -246,7 +307,7 @@ def set_admin(
     if target.role == ROLE_OWNER:
         raise HTTPException(status_code=400, detail="O dono já administra o grupo")
     group_dao.set_role(db, target, ROLE_ADMIN if make_admin else ROLE_MEMBER)
-    return _detail_out(db, group, ROLE_OWNER)
+    return _detail_out(db, group, user, ROLE_OWNER)
 
 
 # ── Mensagens ─────────────────────────────────────────────────────────

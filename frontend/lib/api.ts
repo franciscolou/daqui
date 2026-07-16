@@ -333,12 +333,13 @@ interface BackendGroup {
   name: string;
   description: string;
   avatar_url: string | null;
-  is_open: boolean;
+  privacy: 'public' | 'request' | 'closed';
   owner_id: number;
   neighborhood: string;
   members_count: number;
   created_at: string;
   my_role: string | null;
+  my_request_pending: boolean | null;
 }
 
 interface BackendGroupMember {
@@ -347,8 +348,14 @@ interface BackendGroupMember {
   joined_at: string;
 }
 
+interface BackendGroupJoinRequest {
+  user: BackendUser;
+  created_at: string;
+}
+
 interface BackendGroupDetail extends BackendGroup {
   members: BackendGroupMember[];
+  join_requests: BackendGroupJoinRequest[];
 }
 
 interface BackendGroupConversation {
@@ -503,17 +510,23 @@ export interface GeocodeResult {
 
 export type GroupRole = 'owner' | 'admin' | 'member';
 
+// public: qualquer um entra na hora. request: aparece no Descobrir mas
+// entrar exige aprovação de um admin/dono. closed: só entra quem for
+// adicionado direto por um admin.
+export type GroupPrivacy = 'public' | 'request' | 'closed';
+
 export interface Group {
   id: string;
   name: string;
   description: string;
   avatar?: string;
-  isOpen: boolean;
+  privacy: GroupPrivacy;
   ownerId: string;
   neighborhood: string;
   membersCount: number;
   createdAt: string;
   myRole: GroupRole | null; // papel do usuário logado (null se não for membro)
+  myRequestPending: boolean; // já pedi entrada e ainda não fui aprovado/recusado
 }
 
 export interface GroupMember {
@@ -522,8 +535,14 @@ export interface GroupMember {
   joinedAt: string;
 }
 
+export interface GroupJoinRequest {
+  user: User;
+  createdAt: string;
+}
+
 export interface GroupDetail extends Group {
   members: GroupMember[];
+  joinRequests: GroupJoinRequest[];
 }
 
 export interface GroupConversation {
@@ -764,12 +783,13 @@ function mapGroup(g: BackendGroup): Group {
     name: g.name,
     description: g.description,
     avatar: g.avatar_url ?? undefined,
-    isOpen: g.is_open,
+    privacy: g.privacy,
     ownerId: String(g.owner_id),
     neighborhood: g.neighborhood,
     membersCount: g.members_count,
     createdAt: g.created_at,
     myRole: (g.my_role as GroupRole | null) ?? null,
+    myRequestPending: g.my_request_pending ?? false,
   };
 }
 
@@ -777,8 +797,16 @@ function mapGroupMember(m: BackendGroupMember): GroupMember {
   return { user: mapUser(m.user), role: m.role as GroupRole, joinedAt: m.joined_at };
 }
 
+function mapGroupJoinRequest(r: BackendGroupJoinRequest): GroupJoinRequest {
+  return { user: mapUser(r.user), createdAt: r.created_at };
+}
+
 function mapGroupDetail(g: BackendGroupDetail): GroupDetail {
-  return { ...mapGroup(g), members: (g.members ?? []).map(mapGroupMember) };
+  return {
+    ...mapGroup(g),
+    members: (g.members ?? []).map(mapGroupMember),
+    joinRequests: (g.join_requests ?? []).map(mapGroupJoinRequest),
+  };
 }
 
 function mapGroupConversation(c: BackendGroupConversation): GroupConversation {
@@ -1313,7 +1341,7 @@ export const api = {
   async createGroup(payload: {
     name: string;
     description?: string;
-    isOpen: boolean;
+    privacy: GroupPrivacy;
     memberIds?: string[];
   }): Promise<GroupDetail> {
     return mapGroupDetail(
@@ -1322,7 +1350,7 @@ export const api = {
         body: {
           name: payload.name,
           description: payload.description ?? '',
-          is_open: payload.isOpen,
+          privacy: payload.privacy,
           member_ids: (payload.memberIds ?? []).map(Number),
         },
       }),
@@ -1347,7 +1375,7 @@ export const api = {
 
   async updateGroup(
     id: string,
-    payload: { name?: string; description?: string; isOpen?: boolean },
+    payload: { name?: string; description?: string; privacy?: GroupPrivacy },
   ): Promise<GroupDetail> {
     return mapGroupDetail(
       await request<BackendGroupDetail>(`/groups/${id}`, {
@@ -1355,7 +1383,7 @@ export const api = {
         body: {
           name: payload.name,
           description: payload.description,
-          is_open: payload.isOpen,
+          privacy: payload.privacy,
         },
       }),
     );
@@ -1375,14 +1403,37 @@ export const api = {
     );
   },
 
+  // Grupo público: entra na hora. Grupo "request": cria/reusa uma solicitação
+  // pendente (GroupDetail volta com myRequestPending=true e myRole=null).
   async joinGroup(id: string): Promise<GroupDetail> {
     return mapGroupDetail(
       await request<BackendGroupDetail>(`/groups/${id}/join`, { method: 'POST' }),
     );
   },
 
+  // Cancela uma solicitação de entrada pendente (grupo "request").
+  async cancelJoinRequest(id: string): Promise<void> {
+    await request<void>(`/groups/${id}/join`, { method: 'DELETE' });
+  },
+
   async leaveGroup(id: string): Promise<void> {
     await request<void>(`/groups/${id}/leave`, { method: 'POST' });
+  },
+
+  async approveGroupJoinRequest(id: string, userId: string): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/${id}/join-requests/${userId}/approve`, {
+        method: 'POST',
+      }),
+    );
+  },
+
+  async rejectGroupJoinRequest(id: string, userId: string): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/${id}/join-requests/${userId}/reject`, {
+        method: 'POST',
+      }),
+    );
   },
 
   async addGroupMember(id: string, userId: string): Promise<GroupDetail> {

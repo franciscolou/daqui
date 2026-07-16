@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
-    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -20,6 +19,14 @@ ROLE_OWNER = "owner"
 ROLE_ADMIN = "admin"
 ROLE_MEMBER = "member"
 
+# Privacidade do grupo. "public": qualquer um entra na hora e o grupo aparece
+# no "Descobrir". "request": aparece no "Descobrir", mas entrar exige
+# aprovação de um admin/dono (fica pendente em GroupJoinRequest). "closed":
+# não aparece no "Descobrir", só entra quem for adicionado direto por um admin.
+PRIVACY_PUBLIC = "public"
+PRIVACY_REQUEST = "request"
+PRIVACY_CLOSED = "closed"
+
 
 class Group(Base):
     __tablename__ = "groups"
@@ -28,8 +35,7 @@ class Group(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    # Aberto: qualquer um entra e o grupo aparece no "Descobrir". Fechado: só por convite.
-    is_open: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    privacy: Mapped[str] = mapped_column(String(20), default=PRIVACY_CLOSED, nullable=False)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     # Bairro do criador — usado como metadado exibido no Descobrir.
     neighborhood: Mapped[str] = mapped_column(String(120), default="")
@@ -59,6 +65,23 @@ class GroupMember(Base):
     )
 
     group: Mapped["Group"] = relationship("Group", back_populates="members")
+    user: Mapped["User"] = relationship("User", foreign_keys=[user_id])  # noqa: F821
+
+
+class GroupJoinRequest(Base):
+    """Solicitação de entrada pendente num grupo com privacy="request"."""
+
+    __tablename__ = "group_join_requests"
+    __table_args__ = (UniqueConstraint("group_id", "user_id", name="uq_group_join_request"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    group: Mapped["Group"] = relationship("Group")
     user: Mapped["User"] = relationship("User", foreign_keys=[user_id])  # noqa: F821
 
 

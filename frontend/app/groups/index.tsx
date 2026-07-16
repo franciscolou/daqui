@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Palette } from '../../constants/Colors';
+import { GROUP_PRIVACY_INFO } from '../../constants/groups';
 import { api, Group } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -24,9 +25,11 @@ export default function GroupsDiscoverScreen() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState<string | null>(null);
+  // Ids marcados como "solicitação enviada" nesta sessão (grupos privacy="request").
+  const [requested, setRequested] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
-    // Grupos abertos do bairro que o usuário ainda não explorou (não participa).
+    // Grupos abertos (public ou request) do bairro que o usuário ainda não participa.
     api.discoverGroups('')
       .then(setGroups)
       .catch(() => setGroups([]))
@@ -39,9 +42,14 @@ export default function GroupsDiscoverScreen() {
     setJoining(g.id);
     try {
       await api.joinGroup(g.id);
-      // Some da lista de "não explorados" e abre o chat (já vira conversa em Mensagens).
-      setGroups((prev) => prev.filter((x) => x.id !== g.id));
-      router.push(`/groups/${g.id}` as any);
+      if (g.privacy === 'request') {
+        // Fica pendente até um admin aprovar — permanece na lista, só trava o botão.
+        setRequested((prev) => new Set(prev).add(g.id));
+      } else {
+        // Some da lista de "não explorados" e abre o chat (já vira conversa em Mensagens).
+        setGroups((prev) => prev.filter((x) => x.id !== g.id));
+        router.push(`/groups/${g.id}` as any);
+      }
     } catch {
       // ignora
     } finally {
@@ -77,43 +85,58 @@ export default function GroupsDiscoverScreen() {
             </Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardTop}>
-              {item.avatar ? (
-                <Image source={{ uri: item.avatar }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarGroup]}>
-                  <Ionicons name="people" size={26} color={Colors.primary} />
+        renderItem={({ item }) => {
+          const pending = item.myRequestPending || requested.has(item.id);
+          return (
+            <View style={styles.card}>
+              <View style={styles.cardTop}>
+                {item.avatar ? (
+                  <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarGroup]}>
+                    <Ionicons name="people" size={26} color={Colors.primary} />
+                  </View>
+                )}
+                <View style={styles.cardInfo}>
+                  <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+                  <Text style={styles.cardMeta} numberOfLines={1}>
+                    {item.membersCount} {item.membersCount === 1 ? 'membro' : 'membros'}
+                    {item.privacy === 'request' ? ` · ${GROUP_PRIVACY_INFO.request.shortLabel}` : ''}
+                  </Text>
                 </View>
-              )}
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.cardMeta} numberOfLines={1}>
-                  {item.membersCount} {item.membersCount === 1 ? 'membro' : 'membros'}
-                </Text>
               </View>
-            </View>
-            {!!item.description && (
-              <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-            )}
-            <TouchableOpacity
-              style={styles.enterBtn}
-              activeOpacity={0.85}
-              disabled={joining === item.id}
-              onPress={() => enter(item)}
-            >
-              {joining === item.id ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="enter-outline" size={17} color="#fff" />
-                  <Text style={styles.enterBtnText}>Entrar</Text>
-                </>
+              {!!item.description && (
+                <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
               )}
-            </TouchableOpacity>
-          </View>
-        )}
+              <TouchableOpacity
+                style={[styles.enterBtn, pending && styles.enterBtnPending]}
+                activeOpacity={0.85}
+                disabled={joining === item.id || pending}
+                onPress={() => enter(item)}
+              >
+                {joining === item.id ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : pending ? (
+                  <>
+                    <Ionicons name="time-outline" size={17} color={Colors.primaryDark} />
+                    <Text style={styles.enterBtnPendingText}>Solicitação enviada</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons
+                      name={item.privacy === 'request' ? 'paper-plane-outline' : 'enter-outline'}
+                      size={17}
+                      color="#fff"
+                    />
+                    <Text style={styles.enterBtnText}>
+                      {item.privacy === 'request' ? 'Solicitar' : 'Entrar'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          );
+        }}
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator color={Colors.primary} style={styles.loader} />
@@ -191,6 +214,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     marginTop: 'auto',
   },
   enterBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  enterBtnPending: { backgroundColor: Colors.primaryLight, borderWidth: 1, borderColor: Colors.primary },
+  enterBtnPendingText: { color: Colors.primaryDark, fontSize: 14, fontWeight: '700' },
   loader: { marginTop: 60 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: Colors.text },

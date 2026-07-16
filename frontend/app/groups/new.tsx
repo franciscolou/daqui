@@ -7,16 +7,18 @@ import {
   TextInput,
   ActivityIndicator,
   ScrollView,
-  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../constants/Colors';
-import { api } from '../../lib/api';
+import { GROUP_PRIVACY_INFO } from '../../constants/groups';
+import { api, GroupPrivacy } from '../../lib/api';
 import { User } from '../../data/mock';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
+
+const PRIVACY_OPTIONS: GroupPrivacy[] = ['public', 'request', 'closed'];
 
 export default function NewGroupScreen() {
   const Colors = useTheme();
@@ -24,7 +26,7 @@ export default function NewGroupScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
+  const [privacy, setPrivacy] = useState<GroupPrivacy>('closed');
   const [neighbors, setNeighbors] = useState<User[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
@@ -56,7 +58,7 @@ export default function NewGroupScreen() {
       const group = await api.createGroup({
         name: name.trim(),
         description: description.trim(),
-        isOpen,
+        privacy,
         memberIds: [...selected],
       });
       router.replace(`/groups/${group.id}` as any);
@@ -108,24 +110,37 @@ export default function NewGroupScreen() {
           multiline
         />
 
-        <View style={styles.privacyRow}>
-          <View style={styles.privacyIcon}>
-            <Ionicons name={isOpen ? 'earth' : 'lock-closed'} size={20} color={Colors.primary} />
-          </View>
-          <View style={styles.flex}>
-            <Text style={styles.privacyTitle}>{isOpen ? 'Aberto' : 'Fechado'}</Text>
-            <Text style={styles.privacyDesc}>
-              {isOpen
-                ? 'Qualquer pessoa pode encontrar no Descobrir e entrar.'
-                : 'Só quem for adicionado pelos administradores participa.'}
-            </Text>
-          </View>
-          <Switch
-            value={isOpen}
-            onValueChange={setIsOpen}
-            trackColor={{ false: Colors.border, true: Colors.primary }}
-            thumbColor="#fff"
-          />
+        <Text style={styles.label}>Privacidade</Text>
+        <View style={styles.privacyGroup}>
+          {PRIVACY_OPTIONS.map((option) => {
+            const info = GROUP_PRIVACY_INFO[option];
+            const selected = privacy === option;
+            return (
+              <TouchableOpacity
+                key={option}
+                style={[styles.privacyRow, selected && styles.privacyRowSelected]}
+                activeOpacity={0.8}
+                onPress={() => setPrivacy(option)}
+              >
+                <View style={[styles.privacyIcon, selected && styles.privacyIconSelected]}>
+                  <Ionicons
+                    name={info.icon as any}
+                    size={20}
+                    color={selected ? Colors.primary : Colors.textTertiary}
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.privacyTitle}>{info.label}</Text>
+                  <Text style={styles.privacyDesc}>{info.description}</Text>
+                </View>
+                <Ionicons
+                  name={selected ? 'radio-button-on' : 'radio-button-off'}
+                  size={20}
+                  color={selected ? Colors.primary : Colors.border}
+                />
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <Text style={styles.label}>
@@ -213,25 +228,27 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     outlineStyle: 'none',
   } as any,
   inputMultiline: { minHeight: 72, textAlignVertical: 'top' },
+  privacyGroup: { gap: 10 },
   privacyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 18,
     padding: 14,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 12,
   },
+  privacyRowSelected: { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
   privacyIcon: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: Colors.primaryLight,
+    backgroundColor: Colors.borderLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  privacyIconSelected: { backgroundColor: Colors.surface },
   privacyTitle: { fontSize: 15, fontWeight: '700', color: Colors.text },
   privacyDesc: { fontSize: 12, color: Colors.textTertiary, marginTop: 2 },
   emptyNeighbors: { fontSize: 13, color: Colors.textTertiary, paddingVertical: 8 },
@@ -240,6 +257,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
   },
   memberAvatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: Colors.border },
   memberName: { fontSize: 15, fontWeight: '600', color: Colors.text },

@@ -139,6 +139,21 @@ def _ensure_columns():
             if "quoted_comment_id" not in columns:
                 conn.execute(text("ALTER TABLE posts ADD COLUMN quoted_comment_id INTEGER REFERENCES comments(id)"))
 
+    if "groups" in tables:
+        columns = {c["name"] for c in inspector.get_columns("groups")}
+        with engine.begin() as conn:
+            if "privacy" not in columns:
+                conn.execute(text("ALTER TABLE groups ADD COLUMN privacy VARCHAR(20)"))
+                # Backfill: grupos antigos só tinham aberto (is_open=1) ou fechado.
+                conn.execute(
+                    text(
+                        "UPDATE groups SET privacy = CASE WHEN is_open = 1 "
+                        "THEN 'public' ELSE 'closed' END"
+                    )
+                )
+            if "is_open" in columns:
+                conn.execute(text("ALTER TABLE groups DROP COLUMN is_open"))
+
     if "reviews" in tables:
         columns = {c["name"] for c in inspector.get_columns("reviews")}
         # Avaliação não passa mais por aprovação/rejeição da moderação.
