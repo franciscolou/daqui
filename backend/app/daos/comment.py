@@ -1,7 +1,8 @@
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from app.models.comment import Comment, CommentLike
+from app.models.comment import Comment, CommentLike, CommentRepost
+from app.models.post import Post
 
 
 def list_for_post(db: Session, post_id: int) -> list[Comment]:
@@ -108,3 +109,42 @@ def liked_ids_among(db: Session, comment_ids: list[int], user_id: int) -> set[in
         .all()
     )
     return {r[0] for r in rows}
+
+
+# ── Repost simples (sem citação) ─────────────────────────────────────
+def get_repost(db: Session, comment_id: int, user_id: int) -> CommentRepost | None:
+    return (
+        db.query(CommentRepost)
+        .filter(CommentRepost.comment_id == comment_id, CommentRepost.user_id == user_id)
+        .first()
+    )
+
+
+def add_repost(db: Session, comment_id: int, user_id: int) -> None:
+    db.add(CommentRepost(comment_id=comment_id, user_id=user_id))
+
+
+def remove_repost(db: Session, repost: CommentRepost) -> None:
+    db.delete(repost)
+
+
+def reposted_ids_among(db: Session, comment_ids: list[int], user_id: int) -> set[int]:
+    """Ids repostados (simples) pelo usuário dentre um conjunto de comentários."""
+    if not comment_ids:
+        return set()
+    rows = (
+        db.query(CommentRepost.comment_id)
+        .filter(CommentRepost.comment_id.in_(comment_ids), CommentRepost.user_id == user_id)
+        .all()
+    )
+    return {r[0] for r in rows}
+
+
+def count_quotes_by_author(db: Session, comment_id: int, author_id: int) -> int:
+    """Quantas vezes o usuário já citou este comentário (posts próprios com
+    quoted_comment_id apontando pra ele) — usado só pra decidir o estado do botão."""
+    return (
+        db.query(Post)
+        .filter(Post.quoted_comment_id == comment_id, Post.author_id == author_id)
+        .count()
+    )

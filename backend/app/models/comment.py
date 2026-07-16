@@ -19,12 +19,15 @@ class Comment(Base):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     likes_count: Mapped[int] = mapped_column(Integer, default=0)
+    reposts_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     author: Mapped["User"] = relationship("User")  # noqa: F821
-    post: Mapped["Post"] = relationship("Post", back_populates="comments")  # noqa: F821
+    post: Mapped["Post"] = relationship(  # noqa: F821
+        "Post", back_populates="comments", foreign_keys=[post_id]
+    )
     # Respostas: apagar um comentário apaga a sub-thread inteira (cascade).
     replies: Mapped[list["Comment"]] = relationship(
         "Comment",
@@ -51,3 +54,16 @@ class CommentLike(Base):
     )
 
     comment: Mapped["Comment"] = relationship("Comment", back_populates="likes")
+
+
+class CommentRepost(Base):
+    """Repost simples (sem citação) de um comentário — 1 por usuário por comentário."""
+
+    __tablename__ = "comment_reposts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("comments.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )

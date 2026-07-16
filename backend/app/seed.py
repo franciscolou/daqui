@@ -43,7 +43,7 @@ USERS = [
 POSTS = [
     dict(author_idx=1, category="aviso", title="Atenção: Obra na Rua Gustavo Sampaio",
          content="Pessoal, a prefeitura vai iniciar obras na Rua Gustavo Sampaio amanhã às 8h. Previsão de 15 dias. Trânsito será desviado pela Av. Prefeito Mendes de Morais.",
-         neighborhood="Leme", location="Rua Gustavo Sampaio, Leme", latitude=-22.9625, longitude=-43.1668, pinned=True),
+         neighborhood="Leme", location="Rua Gustavo Sampaio, Leme", latitude=-22.9625, longitude=-43.1668),
     dict(author_idx=3, category="recomendacao", title="Padaria incrível no Leme!",
          content="Descobri uma padaria na Rua General Ribeiro da Costa. O croissant de manteiga é de outro nível 🥐 Recomendo demais!",
          media=[{"url": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600", "type": "image"}],

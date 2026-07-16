@@ -80,6 +80,14 @@ def update_cover(
 
 
 # ── Moderador (app de moderação) ──────────────────────────────────────
+def admin_get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> UserAdminOut:
+    return user.admin_get(db, user_id)
+
+
 def admin_search_users(
     q: str = Query("", description="Nome ou @username"),
     db: Session = Depends(get_db),

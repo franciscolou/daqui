@@ -1,7 +1,7 @@
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
-from app.models.post import PollOption, PollVote, Post, PostLike
+from app.models.post import PollOption, PollVote, Post, PostLike, PostRepost
 from app.models.user import User
 
 
@@ -106,6 +106,8 @@ def create(
     location: str | None = None,
     latitude: float | None = None,
     longitude: float | None = None,
+    quoted_post_id: int | None = None,
+    quoted_comment_id: int | None = None,
 ) -> Post:
     post = Post(
         author_id=author_id,
@@ -119,6 +121,8 @@ def create(
         location=location,
         latitude=latitude,
         longitude=longitude,
+        quoted_post_id=quoted_post_id,
+        quoted_comment_id=quoted_comment_id,
     )
     db.add(post)
     db.commit()
@@ -145,6 +149,33 @@ def add_like(db: Session, post_id: int, user_id: int) -> None:
 
 def remove_like(db: Session, like: PostLike) -> None:
     db.delete(like)
+
+
+# ── Repost simples (sem citação) ─────────────────────────────────────
+def get_repost(db: Session, post_id: int, user_id: int) -> PostRepost | None:
+    return (
+        db.query(PostRepost)
+        .filter(PostRepost.post_id == post_id, PostRepost.user_id == user_id)
+        .first()
+    )
+
+
+def add_repost(db: Session, post_id: int, user_id: int) -> None:
+    db.add(PostRepost(post_id=post_id, user_id=user_id))
+
+
+def remove_repost(db: Session, repost: PostRepost) -> None:
+    db.delete(repost)
+
+
+def count_quotes_by_author(db: Session, post_id: int, author_id: int) -> int:
+    """Quantas vezes o usuário já citou este post (posts próprios com
+    quoted_post_id apontando pra ele) — usado só pra decidir o estado do botão."""
+    return (
+        db.query(Post)
+        .filter(Post.quoted_post_id == post_id, Post.author_id == author_id)
+        .count()
+    )
 
 
 # ── Enquete ───────────────────────────────────────────────────────────

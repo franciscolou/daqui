@@ -8,6 +8,8 @@ import {
   ScrollView,
   ActivityIndicator,
   useWindowDimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,23 +49,88 @@ export default function SearchScreen() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [ad, setAd] = useState<Ad | null>(null);
+  // Mais de um anúncio, carregados aos poucos conforme o usuário rola (ver
+  // handleScroll) — o pool elegível pode repetir quando esgota, então a
+  // rolagem nunca "acaba" de verdade enquanto houver ao menos 1 campanha ativa.
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [loadingMoreAds, setLoadingMoreAds] = useState(false);
+  const [noMoreAds, setNoMoreAds] = useState(false);
   const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
+  // Altura do viewport de rolagem vs. do conteúdo — com poucos anúncios curtos
+  // a lista inteira cabe na tela e nenhum evento de scroll chega a disparar
+  // (ver handleScroll); esse par cobre esse caso completando a página até
+  // sobrar o suficiente pra rolar.
+  const [scrollViewportHeight, setScrollViewportHeight] = useState(0);
+  const [scrollContentHeight, setScrollContentHeight] = useState(0);
 
   useEffect(() => {
     getOrCreateAdViewerId().then(setAdViewerId);
   }, []);
 
   useEffect(() => {
+    setAds([]);
+    setNoMoreAds(false);
     adsApi
-      .getAd('search_poster', {
+      .getAds('search_poster', {
         neighborhood: user?.neighborhood,
         engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
         viewerId: adViewerId,
+        limit: 3,
       })
-      .then(setAd)
-      .catch(() => setAd(null));
+      .then((r) => {
+        setAds(r);
+        if (r.length === 0) setNoMoreAds(true);
+      })
+      .catch(() => setNoMoreAds(true));
   }, [user?.neighborhood, user?.interactionsCount, adViewerId]);
+
+  // Ref (não state) porque precisa valer já na próxima chamada síncrona —
+  // handleScroll e o efeito de auto-completar podem disparar loadMoreAds no
+  // mesmo tick, antes do re-render que refletiria loadingMoreAds (state).
+  const loadingMoreAdsRef = useRef(false);
+
+  const loadMoreAds = () => {
+    if (loadingMoreAdsRef.current || noMoreAds) return;
+    loadingMoreAdsRef.current = true;
+    setLoadingMoreAds(true);
+    adsApi
+      .getAds('search_poster', {
+        neighborhood: user?.neighborhood,
+        engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+        viewerId: adViewerId,
+        excludeIds: ads.map((a) => a.id),
+        limit: 3,
+      })
+      .then((r) => {
+        if (r.length === 0) {
+          setNoMoreAds(true);
+          return;
+        }
+        // Defesa extra contra duplicata (o backend já não repete campanhas
+        // de exclude_ids, mas nunca renderiza 2x o mesmo id de qualquer jeito).
+        setAds((prev) => {
+          const seen = new Set(prev.map((a) => a.id));
+          const fresh = r.filter((a) => !seen.has(a.id));
+          return fresh.length ? [...prev, ...fresh] : prev;
+        });
+      })
+      .catch(() => setNoMoreAds(true))
+      .finally(() => {
+        loadingMoreAdsRef.current = false;
+        setLoadingMoreAds(false);
+      });
+  };
+
+  // Completa a página com mais anúncios enquanto ela não encher a tela (senão
+  // não haveria scroll pra disparar handleScroll e a rolagem "infinita" nunca
+  // começaria com poucos anúncios curtos).
+  useEffect(() => {
+    if (query.trim() || noMoreAds || loadingMoreAds) return;
+    if (scrollViewportHeight > 0 && scrollContentHeight > 0 && scrollContentHeight <= scrollViewportHeight) {
+      loadMoreAds();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ads, scrollViewportHeight, scrollContentHeight, query, noMoreAds, loadingMoreAds]);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seq = useRef(0);
@@ -119,6 +186,16 @@ export default function SearchScreen() {
     setPosts([]);
     setUsers([]);
     setSearched(false);
+  };
+
+  // Anúncios só existem no estado vazio (sem busca) — carrega mais conforme
+  // o usuário se aproxima do fim da rolagem.
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (query.trim()) return;
+    const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
+    if (contentOffset.y + layoutMeasurement.height > contentSize.height - 300) {
+      loadMoreAds();
+    }
   };
 
   const showUsers = type !== 'posts';
@@ -180,7 +257,14 @@ export default function SearchScreen() {
             <Ionicons name="search-outline" size={34} color={Colors.textTertiary} />
             <Text style={styles.stateText}>Busque por posts e vizinhos.</Text>
           </View>
-          {ad && <AdSearchPoster ad={ad} viewerId={adViewerId} />}
+          {ads.map((a) => (
+            <AdSearchPoster key={a.id} ad={a} viewerId={adViewerId} />
+          ))}
+          {loadingMoreAds && (
+            <View style={styles.adsLoading}>
+              <ActivityIndicator color={Colors.primary} size="small" />
+            </View>
+          )}
         </>
       ) : searched && !hasResults ? (
         <View style={styles.state}>
@@ -240,7 +324,15 @@ export default function SearchScreen() {
           <ScrollView style={styles.leftCol} showsVerticalScrollIndicator={false}>
             <LeftSidebar />
           </ScrollView>
-          <ScrollView ref={scrollRef} style={styles.centerCol} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.centerCol}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={200}
+            onLayout={(e) => setScrollViewportHeight(e.nativeEvent.layout.height)}
+            onContentSizeChange={(_w, h) => setScrollContentHeight(h)}
+          >
             {content}
           </ScrollView>
           <ScrollView style={styles.rightCol} showsVerticalScrollIndicator={false}>
@@ -253,6 +345,10 @@ export default function SearchScreen() {
           style={styles.mobileBody}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={200}
+          onLayout={(e) => setScrollViewportHeight(e.nativeEvent.layout.height)}
+          onContentSizeChange={(_w, h) => setScrollContentHeight(h)}
         >
           {content}
         </ScrollView>
@@ -336,6 +432,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   hairline: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
 
   state: { alignItems: 'center', gap: 10, paddingVertical: 56, paddingHorizontal: 24 },
+  adsLoading: { paddingVertical: 20, alignItems: 'center' },
   stateText: { fontSize: 14, color: Colors.textTertiary, textAlign: 'center' },
 
   section: { paddingTop: 14 },

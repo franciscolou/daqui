@@ -94,6 +94,13 @@ def _admin_out(u: User) -> UserAdminOut:
     )
 
 
+def admin_get(db: Session, user_id: int) -> UserAdminOut:
+    target = user_dao.get_by_id(db, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return _admin_out(target)
+
+
 def admin_search(db: Session, query: str) -> list[UserAdminOut]:
     query = query.strip()
     if not query:

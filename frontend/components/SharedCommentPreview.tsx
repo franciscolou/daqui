@@ -3,8 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Palette } from '../constants/Colors';
 import { SharedComment } from '../lib/api';
-import { formatPostTime } from '../lib/time';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import HoverTime from './HoverTime';
 
 interface Props {
   comment: SharedComment;
@@ -30,7 +30,7 @@ export default function SharedCommentPreview({ comment, static: isStatic }: Prop
           <Text style={styles.authorUsername} numberOfLines={1}>@{comment.author.username}</Text>
         )}
         <Text style={styles.dot}>·</Text>
-        <Text style={styles.time}>{formatPostTime(comment.createdAt)}</Text>
+        <HoverTime iso={comment.createdAt} style={styles.time} />
       </View>
 
       {!!comment.content && <Text style={styles.body} numberOfLines={4}>{comment.content}</Text>}

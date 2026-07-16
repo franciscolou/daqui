@@ -58,6 +58,11 @@ router.post(
     response_model=PostOut,
 )(post.toggle_like)
 
+router.post(
+    "/{post_id}/repost",
+    response_model=PostOut,
+)(post.toggle_repost)
+
 router.delete(
     "/{post_id}",
     status_code=204,

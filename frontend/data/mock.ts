@@ -1,3 +1,7 @@
+// import type: só tipos, sem ciclo em tempo de execução (lib/api.ts importa
+// `Post` daqui — ver SharedPost/SharedComment usados em Post.quotedPost/quotedComment).
+import type { SharedComment, SharedPost } from '../lib/api';
+
 export type PostCategory =
   | 'geral'
   | 'aviso'
@@ -70,6 +74,11 @@ export interface Post {
   latitude?: number;          // coordenadas do local do post (quando validado no bairro)
   longitude?: number;
   liked: boolean;
+  reposted?: boolean;
+  // Preenchidos quando este post é uma citação (repost com comentário, estilo
+  // Twitter) — no máximo um dos dois.
+  quotedPost?: SharedPost;
+  quotedComment?: SharedComment;
   pinned?: boolean;
   important?: boolean;
   // Campos específicos por categoria (vindos de `details` no backend)

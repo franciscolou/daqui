@@ -241,6 +241,12 @@ def get_active_ad(db: Session, format: str, ctx: dict) -> AdOut | None:
     campaign = ad_dao.get_active_for_format(db, format, ctx)
     if not campaign:
         return None
+    return _campaign_to_ad_out(db, campaign, format, ctx)
+
+
+def _campaign_to_ad_out(
+    db: Session, campaign: AdCampaign, format: str, ctx: dict
+) -> AdOut | None:
     creative = ad_dao.pick_creative(campaign, format)
     if not creative:
         return None
@@ -267,6 +273,18 @@ def get_active_ad(db: Session, format: str, ctx: dict) -> AdOut | None:
         longitude=creative.longitude,
         linked_user_id=creative.linked_user_id,
     )
+
+
+def get_active_ad_list(
+    db: Session, format: str, ctx: dict, exclude_ids: list[int], limit: int
+) -> list[AdOut]:
+    campaigns = ad_dao.get_active_list_for_format(db, format, ctx, exclude_ids, limit)
+    ads = []
+    for campaign in campaigns:
+        ad = _campaign_to_ad_out(db, campaign, format, ctx)
+        if ad:
+            ads.append(ad)
+    return ads
 
 
 def track_click(db: Session, campaign_id: int, payload: ClickIn | None) -> None:

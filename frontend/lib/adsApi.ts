@@ -615,6 +615,45 @@ export const adsApi = {
     return r ? mapAd(r) : null;
   },
 
+  // Vários anúncios do mesmo formato (rolagem infinita — ver Busca): prefere
+  // campanhas ainda não mostradas (`excludeIds`); quando o pool elegível
+  // esgota, o backend volta a sortear entre todas, então a lista nunca "acaba"
+  // pra quem continua rolando, só repete.
+  async getAds(
+    format: AdFormat,
+    params: {
+      neighborhood?: string;
+      nearbyNeighborhoods?: string[];
+      lat?: number;
+      lng?: number;
+      viewMode?: 'home' | 'nearby';
+      category?: string;
+      groupIds?: number[];
+      engagement?: 'any' | 'active';
+      recency?: 'new' | 'returning';
+      viewerId?: string;
+      excludeIds?: number[];
+      limit?: number;
+    } = {},
+  ): Promise<Ad[]> {
+    const qs = new URLSearchParams();
+    if (params.neighborhood) qs.set('neighborhood', params.neighborhood);
+    if (params.nearbyNeighborhoods?.length) qs.set('nearby_neighborhoods', params.nearbyNeighborhoods.join(','));
+    if (params.lat != null) qs.set('lat', String(params.lat));
+    if (params.lng != null) qs.set('lng', String(params.lng));
+    if (params.viewMode) qs.set('view_mode', params.viewMode);
+    if (params.category) qs.set('category', params.category);
+    if (params.groupIds?.length) qs.set('group_ids', params.groupIds.join(','));
+    if (params.engagement) qs.set('engagement', params.engagement);
+    if (params.recency) qs.set('recency', params.recency);
+    if (params.viewerId) qs.set('viewer_id', params.viewerId);
+    if (params.excludeIds?.length) qs.set('exclude_ids', params.excludeIds.join(','));
+    if (params.limit != null) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    const r = await request<BackendAd[]>(`/ads/active/${format}/list${query ? `?${query}` : ''}`);
+    return r.map(mapAd);
+  },
+
   async getAdPlans(): Promise<AdPlan[]> {
     const r = await request<BackendAdPlan[]>('/ads/plans');
     return r.map(mapAdPlan);

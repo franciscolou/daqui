@@ -114,6 +114,14 @@ def toggle_like(
     return post.toggle_like(db, post_id, current_user)
 
 
+def toggle_repost(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PostOut:
+    return post.toggle_repost(db, post_id, current_user)
+
+
 def delete_post(
     post_id: int,
     db: Session = Depends(get_db),

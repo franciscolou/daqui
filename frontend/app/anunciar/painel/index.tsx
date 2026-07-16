@@ -8,6 +8,8 @@ import { Palette } from '../../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import { useAuth } from '../../../lib/auth';
 import { adsApi, CampaignSummary, MyCampaignsAnalytics } from '../../../lib/adsApi';
+import TimeseriesChart from '../../../components/charts/TimeseriesChart';
+import RankedBarChart from '../../../components/charts/RankedBarChart';
 
 const FORMAT_LABEL: Record<string, string> = {
   post: 'Post + mapa',
@@ -64,9 +66,6 @@ export default function MyCampaignsDashboard() {
   const toggleCampaign = (id: number) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
-
-  const maxTimeseries = analytics ? Math.max(1, ...analytics.timeseries.map((b) => b.impressions)) : 1;
-  const maxFormat = analytics ? Math.max(1, ...analytics.byFormat.map((b) => b.impressions)) : 1;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -174,16 +173,12 @@ export default function MyCampaignsDashboard() {
               {analytics.timeseries.length > 0 && (
                 <>
                   <Text style={styles.sectionTitle}>Ao longo do tempo</Text>
-                  <View style={styles.buckets}>
-                    {analytics.timeseries.map((b) => (
-                      <View key={b.key} style={styles.bucketRow}>
-                        <Text style={styles.bucketKey}>{formatDayLabel(b.key)}</Text>
-                        <View style={styles.bucketBarTrack}>
-                          <View style={[styles.bucketBarFill, { width: `${(b.impressions / maxTimeseries) * 100}%` }]} />
-                        </View>
-                        <Text style={styles.bucketValue}>{b.impressions} imp · {b.clicks} cliques</Text>
-                      </View>
-                    ))}
+                  <View style={styles.chartCard}>
+                    <TimeseriesChart
+                      data={analytics.timeseries.map((b) => ({ key: b.key, label: formatDayLabel(b.key), a: b.impressions, b: b.clicks }))}
+                      seriesALabel="Impressões"
+                      seriesBLabel="Cliques"
+                    />
                   </View>
                 </>
               )}
@@ -191,16 +186,15 @@ export default function MyCampaignsDashboard() {
               {analytics.byFormat.length > 0 && (
                 <>
                   <Text style={styles.sectionTitle}>Por formato</Text>
-                  <View style={styles.buckets}>
-                    {analytics.byFormat.map((b) => (
-                      <View key={b.key} style={styles.bucketRow}>
-                        <Text style={styles.bucketKey}>{FORMAT_LABEL[b.key] ?? b.key}</Text>
-                        <View style={styles.bucketBarTrack}>
-                          <View style={[styles.bucketBarFill, { width: `${(b.impressions / maxFormat) * 100}%` }]} />
-                        </View>
-                        <Text style={styles.bucketValue}>{b.impressions} imp · {(b.ctr * 100).toFixed(1)}% CTR</Text>
-                      </View>
-                    ))}
+                  <View style={styles.chartCard}>
+                    <RankedBarChart
+                      data={analytics.byFormat.map((b) => ({
+                        key: b.key,
+                        label: FORMAT_LABEL[b.key] ?? b.key,
+                        value: b.impressions,
+                        sublabel: `${(b.ctr * 100).toFixed(1)}% CTR`,
+                      }))}
+                    />
                   </View>
                 </>
               )}
@@ -290,12 +284,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   insightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   insightText: { flex: 1, fontSize: 13, color: Colors.text, lineHeight: 18 },
 
-  buckets: { gap: 8 },
-  bucketRow: { gap: 3 },
-  bucketKey: { fontSize: 12, fontWeight: '700', color: Colors.text },
-  bucketBarTrack: { height: 6, borderRadius: 3, backgroundColor: Colors.borderLight, overflow: 'hidden' },
-  bucketBarFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 3 },
-  bucketValue: { fontSize: 11, color: Colors.textTertiary },
+  chartCard: { borderWidth: 1, borderColor: Colors.borderLight, borderRadius: 14, padding: 14, backgroundColor: Colors.surface },
 
   campaignCard: { borderWidth: 1, borderColor: Colors.borderLight, borderRadius: 14, padding: 12, gap: 4, backgroundColor: Colors.surface },
   campaignCardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

@@ -24,7 +24,9 @@ def _visible_post_or_404(db: Session, post_id: int, viewer: User):
     return post
 
 
-def _to_schema(comment: Comment, liked: bool, replies_count: int = 0) -> CommentOut:
+def _to_schema(
+    comment: Comment, liked: bool, replies_count: int = 0, reposted: bool = False
+) -> CommentOut:
     # Morador: o bairro atual do autor é o mesmo do post comentado (mesma regra do post).
     post_neighborhood = comment.post.neighborhood if comment.post else ""
     author_is_resident = bool(post_neighborhood) and comment.author.neighborhood == post_neighborhood
@@ -38,6 +40,8 @@ def _to_schema(comment: Comment, liked: bool, replies_count: int = 0) -> Comment
         author_is_resident=author_is_resident,
         likes_count=comment.likes_count,
         liked=liked,
+        reposts_count=comment.reposts_count,
+        reposted=reposted,
         replies_count=replies_count,
     )
 
@@ -46,9 +50,11 @@ def _serialize_many(db: Session, comments: list[Comment], viewer: User) -> list[
     """Serializa uma lista de comentários já com `liked` e a contagem de respostas."""
     ids = [c.id for c in comments]
     liked_ids = comment_dao.liked_ids_among(db, ids, viewer.id)
+    reposted_ids = comment_dao.reposted_ids_among(db, ids, viewer.id)
     reply_counts = comment_dao.reply_counts(db, ids)
     return [
-        _to_schema(c, c.id in liked_ids, reply_counts.get(c.id, 0)) for c in comments
+        _to_schema(c, c.id in liked_ids, reply_counts.get(c.id, 0), c.id in reposted_ids)
+        for c in comments
     ]
 
 
@@ -95,7 +101,10 @@ def get(db: Session, comment_id: int, viewer: User) -> CommentOut:
     if not comment:
         raise HTTPException(status_code=404, detail="Comentário não encontrado")
     liked = comment_dao.get_like(db, comment_id, viewer.id) is not None
-    return _to_schema(comment, liked)
+    reposted = comment_dao.get_repost(db, comment_id, viewer.id) is not None or (
+        comment_dao.count_quotes_by_author(db, comment_id, viewer.id) > 0
+    )
+    return _to_schema(comment, liked, reposted=reposted)
 
 
 def toggle_like(db: Session, comment_id: int, user: User) -> CommentOut:
@@ -116,6 +125,27 @@ def toggle_like(db: Session, comment_id: int, user: User) -> CommentOut:
     db.commit()
     db.refresh(comment)
     return _to_schema(comment, liked)
+
+
+def toggle_repost(db: Session, comment_id: int, user: User) -> CommentOut:
+    comment = comment_dao.get_by_id(db, comment_id)
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comentário não encontrado")
+
+    existing = comment_dao.get_repost(db, comment_id, user.id)
+    if existing:
+        comment_dao.remove_repost(db, existing)
+        comment.reposts_count = max(0, comment.reposts_count - 1)
+        reposted = False
+    else:
+        comment_dao.add_repost(db, comment_id, user.id)
+        comment.reposts_count += 1
+        reposted = True
+
+    db.commit()
+    db.refresh(comment)
+    liked = comment_dao.get_like(db, comment_id, user.id) is not None
+    return _to_schema(comment, liked, reposted=reposted)
 
 
 def delete(db: Session, comment_id: int, user: User) -> None:

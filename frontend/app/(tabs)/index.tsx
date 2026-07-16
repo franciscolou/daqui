@@ -103,41 +103,96 @@ export default function FeedScreen() {
     }
   }, []);
 
-  const load = useCallback(async () => {
-    try {
-      setError(null);
-      let feed: Post[];
+  const PAGE_SIZE = 20;
+
+  // Monta os parâmetros de busca do feed pra visualização ativa, ou `null`
+  // quando ainda falta pré-requisito (bairro configurado / localização
+  // resolvida) — mesma checagem usada tanto na carga inicial quanto no "load
+  // more" da rolagem infinita.
+  const feedParams = useCallback(
+    (pageNum: number) => {
       if (viewMode === 'meu') {
-        // Sem "Meu bairro" configurado ainda: a UI mostra a configuração.
-        if (!user?.neighborhood) {
-          setPosts([]);
-          return;
-        }
-        feed = await api.getFeed({
+        if (!user?.neighborhood) return null;
+        return {
           includeNearby: nearbyMeu,
           latitude: user?.latitude,
           longitude: user?.longitude,
-        });
-      } else {
-        // Sem localização resolvida ainda: a UI mostra o estado de localização.
-        if (!pertoNeighborhood || !pertoCoords) {
-          setPosts([]);
-          return;
-        }
-        feed = await api.getFeed({
-          neighborhood: pertoNeighborhood,
-          latitude: pertoCoords.latitude,
-          longitude: pertoCoords.longitude,
-          includeNearby: nearbyPerto,
-        });
+          page: pageNum,
+          pageSize: PAGE_SIZE,
+        };
       }
-      setPosts(feed);
+      if (!pertoNeighborhood || !pertoCoords) return null;
+      return {
+        neighborhood: pertoNeighborhood,
+        latitude: pertoCoords.latitude,
+        longitude: pertoCoords.longitude,
+        includeNearby: nearbyPerto,
+        page: pageNum,
+        pageSize: PAGE_SIZE,
+      };
+    },
+    [viewMode, nearbyMeu, nearbyPerto, pertoCoords, pertoNeighborhood, user],
+  );
+
+  const [page, setPage] = useState(1);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const [loadingMorePosts, setLoadingMorePosts] = useState(false);
+  // Sequência da carga atual — invalida uma resposta de "load more" que
+  // chegue atrasada depois que o usuário já trocou de visualização/bairro
+  // (senão ela apareceria colada num feed que já é de outro contexto).
+  const feedSeq = useRef(0);
+  const loadingMorePostsRef = useRef(false);
+
+  const load = useCallback(async () => {
+    const seq = ++feedSeq.current;
+    try {
+      setError(null);
+      const params = feedParams(1);
+      if (!params) {
+        setPosts([]);
+        setTotalPosts(0);
+        setPage(1);
+        return;
+      }
+      const feed = await api.getFeed(params);
+      if (seq !== feedSeq.current) return;
+      setPosts(feed.items);
+      setTotalPosts(feed.total);
+      setPage(1);
     } catch {
+      if (seq !== feedSeq.current) return;
       setError('Não foi possível carregar o feed.');
     } finally {
-      setLoading(false);
+      if (seq === feedSeq.current) setLoading(false);
     }
-  }, [viewMode, nearbyMeu, nearbyPerto, pertoCoords, pertoNeighborhood, user]);
+  }, [feedParams]);
+
+  const loadMorePosts = useCallback(() => {
+    if (loadingMorePostsRef.current || posts.length >= totalPosts) return;
+    const nextPage = page + 1;
+    const params = feedParams(nextPage);
+    if (!params) return;
+    const seq = feedSeq.current;
+    loadingMorePostsRef.current = true;
+    setLoadingMorePosts(true);
+    api
+      .getFeed(params)
+      .then((feed) => {
+        if (seq !== feedSeq.current) return;
+        setPosts((prev) => {
+          const seen = new Set(prev.map((p) => p.id));
+          const fresh = feed.items.filter((p) => !seen.has(p.id));
+          return fresh.length ? [...prev, ...fresh] : prev;
+        });
+        setTotalPosts(feed.total);
+        setPage(nextPage);
+      })
+      .catch(() => {})
+      .finally(() => {
+        loadingMorePostsRef.current = false;
+        setLoadingMorePosts(false);
+      });
+  }, [feedParams, page, posts, totalPosts]);
 
   // Recarrega ao focar a tela e sempre que a visualização/preferências mudam
   // (reflete novos posts, curtidas e comentários).
@@ -145,6 +200,33 @@ export default function FeedScreen() {
     useCallback(() => {
       load();
     }, [load]),
+  );
+
+  // "Perto de mim" é a visualização padrão ao abrir o app, mas bairro/coords
+  // só eram resolvidos ao tocar na aba (switchView) — sem isso, `load()`
+  // ficava esperando pra sempre (posts=[]) e só o anúncio aparecia, até o
+  // usuário trocar pra "Meu bairro" e voltar (o que finalmente disparava
+  // fetchPertoLocation). Aqui resolve automaticamente assim que a tela foca
+  // com "perto" ativo e ainda sem localização. `autoLocFetchedRef` garante
+  // só 1 tentativa automática: sem ele, uma falha (GPS negado etc.) dispararia
+  // um loop de retentativas, já que o estado continua "sem localização" a
+  // cada vez que este efeito reavalia após locLoading voltar a false. Retoque
+  // manual na aba ou o botão "Tentar novamente" continuam chamando
+  // fetchPertoLocation direto, sem passar por essa trava.
+  const autoLocFetchedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        viewMode === 'perto' &&
+        !pertoCoords &&
+        !pertoNeighborhood &&
+        !locLoading &&
+        !autoLocFetchedRef.current
+      ) {
+        autoLocFetchedRef.current = true;
+        fetchPertoLocation();
+      }
+    }, [viewMode, pertoCoords, pertoNeighborhood, locLoading, fetchPertoLocation]),
   );
 
   const activeNeighborhood = viewMode === 'meu' ? user?.neighborhood : pertoNeighborhood ?? undefined;
@@ -261,7 +343,11 @@ export default function FeedScreen() {
     <>
       {/* Compose box */}
       <View style={styles.composeBox}>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.composeAvatarBtn}
+          onPress={() => router.push('/(tabs)/profile')}
+          activeOpacity={0.8}
+        >
           <Image source={{ uri: user?.avatar }} style={styles.composeAvatar} />
         </TouchableOpacity>
         <TouchableOpacity
@@ -389,6 +475,15 @@ export default function FeedScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
       }
       ListEmptyComponent={renderEmpty}
+      onEndReached={loadMorePosts}
+      onEndReachedThreshold={0.6}
+      ListFooterComponent={
+        loadingMorePosts ? (
+          <View style={styles.feedFooterLoading}>
+            <ActivityIndicator color={Colors.primary} size="small" />
+          </View>
+        ) : null
+      }
     />
   );
 
@@ -506,6 +601,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: Colors.surface,
   },
+  // composeBox usa alignItems:"center" (não stretch), então já fica do
+  // tamanho do conteúdo — só falta o borderRadius pro hover não vazar quadrado.
+  composeAvatarBtn: { borderRadius: 20 },
   composeAvatar: {
     width: 40,
     height: 40,
@@ -593,6 +691,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
 
   listContent: { paddingBottom: 24 },
+  feedFooterLoading: { paddingVertical: 20, alignItems: 'center' },
   feedState: {
     alignItems: 'center',
     justifyContent: 'center',

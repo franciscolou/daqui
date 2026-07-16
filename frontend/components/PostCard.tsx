@@ -4,15 +4,17 @@ import { router } from 'expo-router';
 import { Palette } from '../constants/Colors';
 import { Post, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/mock';
 import { api } from '../lib/api';
-import { formatPostTime } from '../lib/time';
 import { useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import ActionMenu from './ActionMenu';
+import HoverTime from './HoverTime';
 import PollBlock from './PollBlock';
 import PostMediaGallery from './PostMediaGallery';
 import ReportModal from './ReportModal';
 import ResidentBadge from './ResidentBadge';
+import SharedCommentPreview from './SharedCommentPreview';
+import SharedPostPreview from './SharedPostPreview';
 
 interface PostCardProps {
   post: Post;
@@ -25,8 +27,12 @@ export default function PostCard({ post, onPress }: PostCardProps) {
   const { user } = useAuth();
   const [liked, setLiked] = useState(post.liked);
   const [likesCount, setLikesCount] = useState(post.likesCount);
+  const [reposted, setReposted] = useState(!!post.reposted);
+  const [sharesCount, setSharesCount] = useState(post.sharesCount);
   const [busy, setBusy] = useState(false);
+  const [repostBusy, setRepostBusy] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const catColor = Colors.category[post.category] ?? Colors.primary;
   const isOwnPost = !!user && user.id === post.author.id;
@@ -52,6 +58,27 @@ export default function PostCard({ post, onPress }: PostCardProps) {
       setBusy(false);
     }
   };
+
+  const toggleRepost = async () => {
+    if (repostBusy) return;
+    const prevReposted = reposted;
+    const prevCount = sharesCount;
+    setReposted(!prevReposted);
+    setSharesCount(prevReposted ? prevCount - 1 : prevCount + 1);
+    setRepostBusy(true);
+    try {
+      const updated = await api.toggleRepost(post.id);
+      setReposted(!!updated.reposted);
+      setSharesCount(updated.sharesCount);
+    } catch {
+      setReposted(prevReposted);
+      setSharesCount(prevCount);
+    } finally {
+      setRepostBusy(false);
+    }
+  };
+
+  const quote = () => router.push(`/quote/${post.id}` as any);
 
   return (
     <>
@@ -79,7 +106,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             )}
             {post.authorIsResident && <ResidentBadge />}
             <Text style={styles.dot}>·</Text>
-            <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
+            <HoverTime iso={post.createdAt} style={styles.time} />
             {!!post.distance && (
               <>
                 <Text style={styles.dot}>·</Text>
@@ -138,6 +165,13 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         {/* Fotos */}
         {!!post.media?.length && <PostMediaGallery media={post.media} />}
 
+        {/* Citação (repost com comentário, estilo Twitter) */}
+        {post.quotedComment ? (
+          <SharedCommentPreview comment={post.quotedComment} />
+        ) : post.quotedPost ? (
+          <SharedPostPreview post={post.quotedPost} />
+        ) : null}
+
         {/* Actions */}
         <View style={styles.actions}>
           <TouchableOpacity style={styles.actionBtn} onPress={toggleLike}>
@@ -156,9 +190,15 @@ export default function PostCard({ post, onPress }: PostCardProps) {
             <Text style={styles.actionCount}>{post.commentsCount}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionBtn}>
-            <Ionicons name="repeat-outline" size={19} color={Colors.textTertiary} />
-            <Text style={styles.actionCount}>{post.sharesCount}</Text>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setRepostMenuVisible(true)}>
+            <Ionicons
+              name="repeat-outline"
+              size={19}
+              color={reposted ? Colors.primary : Colors.textTertiary}
+            />
+            <Text style={[styles.actionCount, reposted && { color: Colors.primary }]}>
+              {sharesCount}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -187,6 +227,24 @@ export default function PostCard({ post, onPress }: PostCardProps) {
           icon: 'flag-outline',
           destructive: true,
           onPress: () => setReportVisible(true),
+        },
+      ]}
+    />
+    <ActionMenu
+      visible={repostMenuVisible}
+      onClose={() => setRepostMenuVisible(false)}
+      options={[
+        {
+          key: 'repost',
+          label: reposted ? 'Desfazer repost' : 'Repostar',
+          icon: 'repeat-outline',
+          onPress: toggleRepost,
+        },
+        {
+          key: 'quote',
+          label: 'Citar',
+          icon: 'create-outline',
+          onPress: quote,
         },
       ]}
     />

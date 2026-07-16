@@ -31,6 +31,11 @@ router.post(
     response_model=CommentOut,
 )(comment.toggle_comment_like)
 
+router.post(
+    "/comments/{comment_id}/repost",
+    response_model=CommentOut,
+)(comment.toggle_comment_repost)
+
 router.delete(
     "/comments/{comment_id}",
     status_code=204,

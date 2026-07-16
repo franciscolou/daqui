@@ -26,6 +26,10 @@ router.post("/checkout", response_model=CheckoutResponse)(ad.checkout)
 router.post("/media", response_model=MediaUploadOut, status_code=201)(ad.upload_media)
 router.post("/webhook/stripe")(ad.stripe_webhook)
 router.get("/active/{format}", response_model=AdOut | None)(ad.get_active_ad)
+# Rolagem infinita da Busca (mais de um anúncio, repetindo o pool elegível
+# quando esgota) — rota estática "/list" depois do path param "format" não
+# conflita com "/active/{format}" (segmentos diferentes).
+router.get("/active/{format}/list", response_model=list[AdOut])(ad.get_active_ad_list)
 # Painel do anunciante (link com token, ver /anunciar/painel/[token].tsx) —
 # rota estática ("my-campaign") declarada antes de "/{campaign_id}/click".
 router.get("/my-campaign/{token}", response_model=MyCampaignOut)(ad.get_my_campaign)

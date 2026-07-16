@@ -17,7 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { CATEGORY_ICONS, CATEGORY_LABELS, Post } from '../../data/mock';
 import { api, Comment } from '../../lib/api';
-import { formatExactDateTime, formatPostTime } from '../../lib/time';
+import { formatExactDateTime } from '../../lib/time';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { submitOnEnter } from '../../lib/keyboard';
@@ -26,10 +26,13 @@ const MAX_INDENT_DEPTH = 4; // além disso, não indenta mais (evita "escada" in
 import WideLayout from '../../components/WideLayout';
 import PollBlock from '../../components/PollBlock';
 import ActionMenu from '../../components/ActionMenu';
+import HoverTime from '../../components/HoverTime';
 import ReportModal from '../../components/ReportModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import PostMediaGallery from '../../components/PostMediaGallery';
 import ResidentBadge from '../../components/ResidentBadge';
+import SharedCommentPreview from '../../components/SharedCommentPreview';
+import SharedPostPreview from '../../components/SharedPostPreview';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,6 +47,10 @@ export default function PostDetailScreen() {
   const [sending, setSending] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
+  const [reposted, setReposted] = useState(false);
+  const [sharesCount, setSharesCount] = useState(0);
+  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
+  const [repostMenuComment, setRepostMenuComment] = useState<Comment | null>(null);
   const [commentMenu, setCommentMenu] = useState<Comment | null>(null);
   const [reportComment, setReportComment] = useState<Comment | null>(null);
   const [postMenuVisible, setPostMenuVisible] = useState(false);
@@ -68,6 +75,8 @@ export default function PostDetailScreen() {
       setPost(p);
       setLiked(p.liked);
       setLikesCount(p.likesCount);
+      setReposted(!!p.reposted);
+      setSharesCount(p.sharesCount);
       setComments(c); // apenas comentários de topo; respostas vêm sob demanda
       setCommentCount(p.commentsCount);
       // Recarga completa da tela zera o estado das respostas expandidas.
@@ -98,6 +107,31 @@ export default function PostDetailScreen() {
       setLiked(prevLiked);
       setLikesCount(prevCount);
     }
+  };
+
+  const toggleRepost = async () => {
+    if (!post) return;
+    const prevReposted = reposted;
+    const prevCount = sharesCount;
+    setReposted(!prevReposted);
+    setSharesCount(prevReposted ? prevCount - 1 : prevCount + 1);
+    try {
+      const updated = await api.toggleRepost(post.id);
+      setReposted(!!updated.reposted);
+      setSharesCount(updated.sharesCount);
+    } catch {
+      setReposted(prevReposted);
+      setSharesCount(prevCount);
+    }
+  };
+
+  const quotePost = () => {
+    if (!post) return;
+    router.push(`/quote/${post.id}` as any);
+  };
+
+  const quoteComment = (comment: Comment) => {
+    router.push(`/quote/${comment.postId}?commentId=${comment.id}` as any);
   };
 
   // Atualiza um comentário onde quer que ele esteja (topo ou dentro das respostas).
@@ -207,6 +241,30 @@ export default function PostDetailScreen() {
     }
   };
 
+  const toggleCommentRepost = async (comment: Comment) => {
+    const nextReposted = !comment.reposted;
+    // Atualização otimista.
+    updateComment(comment.id, (c) => ({
+      ...c,
+      reposted: nextReposted,
+      repostsCount: c.repostsCount + (nextReposted ? 1 : -1),
+    }));
+    try {
+      const updated = await api.toggleCommentRepost(comment.id);
+      updateComment(comment.id, (c) => ({
+        ...c,
+        reposted: updated.reposted,
+        repostsCount: updated.repostsCount,
+      }));
+    } catch {
+      updateComment(comment.id, (c) => ({
+        ...c,
+        reposted: comment.reposted,
+        repostsCount: comment.repostsCount,
+      }));
+    }
+  };
+
   const isPostAuthor = !!post && post.author.id === user?.id;
   // Pode excluir um comentário: seu autor OU o autor do post (qualquer comentário).
   // Ser autor do comentário-pai não conta — só o autor do post remove respostas alheias.
@@ -285,18 +343,27 @@ export default function PostDetailScreen() {
       <View key={comment.id}>
         <View style={[styles.comment, { paddingLeft: 16 + indent }]}>
           {depth > 0 && <View style={styles.threadLine} />}
-          <TouchableOpacity onPress={() => router.push(`/user/${comment.author.id}` as any)}>
+          <TouchableOpacity
+            style={styles.commentAvatarBtn}
+            onPress={() => router.push(`/user/${comment.author.id}` as any)}
+          >
             <Image source={{ uri: comment.author.avatar }} style={styles.commentAvatar} />
           </TouchableOpacity>
           <View style={styles.commentMain}>
             <View style={styles.commentBubble}>
               <View style={styles.commentHead}>
-                <Text style={styles.commentAuthor} numberOfLines={1}>{comment.author.name}</Text>
+                <TouchableOpacity
+                  onPress={() => router.push(`/user/${comment.author.id}` as any)}
+                  activeOpacity={0.7}
+                  focusable={false}
+                >
+                  <Text style={styles.commentAuthor} numberOfLines={1}>{comment.author.name}</Text>
+                </TouchableOpacity>
                 {!!comment.author.username && (
                   <Text style={styles.commentUsername} numberOfLines={1}>@{comment.author.username}</Text>
                 )}
                 {comment.authorIsResident && <ResidentBadge />}
-                <Text style={styles.commentTime}>{formatPostTime(comment.createdAt)}</Text>
+                <HoverTime iso={comment.createdAt} style={styles.commentTime} />
                 <TouchableOpacity
                   style={[styles.iconBtn, styles.commentMenuBtn]}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -332,6 +399,22 @@ export default function PostDetailScreen() {
               >
                 <Ionicons name="chatbubble-outline" size={14} color={Colors.textTertiary} />
                 <Text style={styles.commentActionText}>Responder</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.commentAction}
+                onPress={() => setRepostMenuComment(comment)}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Ionicons
+                  name="repeat-outline"
+                  size={15}
+                  color={comment.reposted ? Colors.primary : Colors.textTertiary}
+                />
+                {comment.repostsCount > 0 && (
+                  <Text style={[styles.commentActionText, comment.reposted && { color: Colors.primary }]}>
+                    {comment.repostsCount}
+                  </Text>
+                )}
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.commentAction}
@@ -394,7 +477,7 @@ export default function PostDetailScreen() {
                 )}
                 {post.authorIsResident && <ResidentBadge />}
               </View>
-              <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
+              <HoverTime iso={post.createdAt} style={styles.time} />
             </View>
           </TouchableOpacity>
           <View style={[styles.catTag, { backgroundColor: catColor + '18' }]}>
@@ -422,6 +505,13 @@ export default function PostDetailScreen() {
           />
         )}
         {!!post.media?.length && <PostMediaGallery media={post.media} />}
+
+        {/* Citação (repost com comentário, estilo Twitter) */}
+        {post.quotedComment ? (
+          <SharedCommentPreview comment={post.quotedComment} />
+        ) : post.quotedPost ? (
+          <SharedPostPreview post={post.quotedPost} />
+        ) : null}
 
         {(() => {
           const hasCoords = post.latitude != null && post.longitude != null;
@@ -464,6 +554,16 @@ export default function PostDetailScreen() {
             <Ionicons name="chatbubble-outline" size={18} color={Colors.textTertiary} />
             <Text style={styles.actionCount}>{commentCount}</Text>
           </View>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setRepostMenuVisible(true)}>
+            <Ionicons
+              name="repeat-outline"
+              size={19}
+              color={reposted ? Colors.primary : Colors.textTertiary}
+            />
+            <Text style={[styles.actionCount, reposted && { color: Colors.primary }]}>
+              {sharesCount}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionBtn}
             onPress={() => router.push(`/forward/${post.id}` as any)}
@@ -604,6 +704,44 @@ export default function PostDetailScreen() {
         loading={deleting}
         onConfirm={doDeleteComment}
         onClose={() => setConfirmDeleteComment(null)}
+      />
+
+      <ActionMenu
+        visible={!!repostMenuComment}
+        onClose={() => setRepostMenuComment(null)}
+        options={[
+          {
+            key: 'repost',
+            label: repostMenuComment?.reposted ? 'Desfazer repost' : 'Repostar',
+            icon: 'repeat-outline',
+            onPress: () => repostMenuComment && toggleCommentRepost(repostMenuComment),
+          },
+          {
+            key: 'quote',
+            label: 'Citar',
+            icon: 'create-outline',
+            onPress: () => repostMenuComment && quoteComment(repostMenuComment),
+          },
+        ]}
+      />
+
+      <ActionMenu
+        visible={repostMenuVisible}
+        onClose={() => setRepostMenuVisible(false)}
+        options={[
+          {
+            key: 'repost',
+            label: reposted ? 'Desfazer repost' : 'Repostar',
+            icon: 'repeat-outline',
+            onPress: toggleRepost,
+          },
+          {
+            key: 'quote',
+            label: 'Citar',
+            icon: 'create-outline',
+            onPress: quotePost,
+          },
+        ]}
       />
 
       <ActionMenu
@@ -755,6 +893,12 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.border,
     borderRadius: 1,
   },
+  // borderRadius aqui (não só na Image filha) é o que evita o hover vazar
+  // quadrado por fora do avatar redondo — mesma lógica do commentAction.
+  // alignSelf: sem isso o TouchableOpacity esticava pra altura inteira da
+  // linha (alignItems padrão da row é "stretch"), então o círculo virava uma
+  // cápsula alta (34 de largura por ~100+ de altura) em vez de um círculo.
+  commentAvatarBtn: { borderRadius: 17, alignSelf: 'flex-start' },
   commentAvatar: { width: 34, height: 34, borderRadius: 17 },
   commentMain: { flex: 1, minWidth: 0 },
   commentBubble: {
@@ -771,13 +915,21 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   commentActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 18,
-    paddingLeft: 4,
+    marginLeft: -8,
     paddingTop: 6,
   },
   // Empurra os "..." para o fim do espaço horizontal do comentário.
   commentMenuBtn: { marginLeft: 'auto' },
-  commentAction: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  // borderRadius aqui (não só num filho) é o que dá o hover redondo — ver
+  // nota em lib/globalStyles.web.ts sobre `div[tabindex="0"]::after`.
+  commentAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
   commentActionText: { fontSize: 12, color: Colors.textTertiary, fontWeight: '600' },
   repliesToggle: {
     flexDirection: 'row',

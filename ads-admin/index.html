@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Anúncios | Daqui</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     (function () {
       try {
@@ -35,7 +37,7 @@
     * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
     .hidden { display: none !important; }
-    .theme-toggle { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); font-size: 15px; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
+    .theme-toggle { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; }
 
     .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; position: relative; }
     .login-theme-toggle { position: absolute; top: 20px; right: 20px; }
@@ -59,7 +61,7 @@
     .brand-mini .dot { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size: 13px; }
     #nav { display: flex; flex-direction: column; gap: 3px; }
     .navbtn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border-radius: 10px; border: none; background: none; font-size: 14px; font-weight: 600; color: var(--text-2); }
-    .navbtn .ic { font-size: 15px; width: 18px; text-align: center; }
+    .navbtn .ic { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .navbtn.active { background: var(--primary-tint); color: var(--primary-dark); }
     .sidebar-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-light); }
     .sidebar-footer .who { font-size: 12px; color: var(--text-3); margin-bottom: 8px; word-break: break-all; }
@@ -84,6 +86,9 @@
     .stat .n { font-size: 22px; font-weight: 800; }
     .stat .l { font-size: 12px; color: var(--text-3); margin-top: 2px; }
 
+    .search-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .search-row input { flex: 1; min-width: 200px; }
+
     .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
     .tab { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; font-weight: 600; color: var(--text-2); }
     .tab.active { background: var(--primary-tint); border-color: var(--primary-tint); color: var(--primary-dark); }
@@ -107,6 +112,7 @@
     .act.approve { background: var(--primary); border-color: var(--primary); color: #fff; }
     .act.reject { background: var(--surface); border-color: var(--gold); color: #92400E; }
     .act.danger { background: var(--surface); border-color: var(--danger); color: var(--danger); }
+    .act.icon-btn { padding: 8px 10px; display: inline-flex; align-items: center; justify-content: center; }
     .b-hidden { background: var(--border-light); color: var(--text-2); }
     .card.plan-hidden { opacity: .6; }
     .card.plan-hidden:hover { opacity: 1; }
@@ -142,6 +148,42 @@
     .creative-item .top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
     .creative-item .top b { font-size: 13px; }
     .creative-item .sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+    /* ── Bairros: chip-picker com autocomplete (OSM/Nominatim) ── */
+    .chip-picker { border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--surface); position: relative; }
+    .chip-picker:focus-within { border-color: var(--primary); }
+    .chip-picker.disabled { opacity: .5; pointer-events: none; }
+    .chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip-list:not(:empty) { margin-bottom: 6px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px; background: var(--primary-tint); color: var(--primary-dark);
+      font-size: 12px; font-weight: 700; padding: 5px 6px 5px 10px; border-radius: 999px;
+    }
+    .chip.unverified { background: var(--border-light); color: var(--text-2); }
+    .chip .chip-remove {
+      background: none; border: none; padding: 0; width: 16px; height: 16px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; color: inherit; font-size: 13px; line-height: 1; opacity: .7;
+    }
+    .chip .chip-remove:hover { opacity: 1; background: rgba(0,0,0,0.08); }
+    .chip-picker input { width: 100%; border: none; background: transparent; padding: 4px 2px; }
+    .chip-picker input:focus { outline: none; }
+    .chip-hint { font-size: 11px; color: var(--text-3); margin-top: 6px; }
+    .chip-suggestions {
+      position: absolute; left: 0; right: 0; top: 100%; margin-top: 4px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px var(--shadow-card);
+      z-index: 20; max-height: 220px; overflow-y: auto;
+    }
+    .chip-suggestion { padding: 9px 12px; font-size: 13px; cursor: pointer; }
+    .chip-suggestion:hover { background: var(--border-light); }
+
+    /* ── Localização: busca de endereço + mapa (Leaflet/OSM) ── */
+    .location-picker { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: var(--surface); }
+    .location-search-row { position: relative; margin-bottom: 8px; }
+    .location-search-row input { padding: 10px 12px; }
+    .location-map { width: 100%; height: 260px; border-radius: 10px; overflow: hidden; background: var(--border-light); }
+    .location-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+    .location-footer .muted { font-size: 12px; }
+    .location-footer .linkbtn { flex-shrink: 0; }
 
     /* ── Upload de mídia do criativo (imagem/vídeo) ── */
     .media-picker-row { position: relative; }
@@ -218,6 +260,10 @@
         <div class="container">
           <div id="section-campaigns">
             <div class="stats" id="campaignStats"></div>
+            <div class="search-row">
+              <input id="campaignSearchAdvertiser" placeholder="Buscar por anunciante (nome ou e-mail)..." />
+              <input id="campaignSearchTitle" placeholder="Buscar por título da campanha..." />
+            </div>
             <div class="tabs" id="campaignStatusTabs"></div>
             <div id="campaignList"></div>
           </div>
@@ -258,8 +304,8 @@
                 </div>
               </div>
               <label><input type="checkbox" id="newCitywide" style="width:auto;display:inline-block;margin-right:6px;" /> Cidade toda</label>
-              <label>Bairros (separados por vírgula, se não for cidade toda)</label>
-              <input id="newNeighborhoods" placeholder="Pinheiros, Vila Madalena" />
+              <label>Bairros (se não for cidade toda)</label>
+              <div class="chip-picker" id="newNeighborhoodsPicker"></div>
               <label>Título do anúncio</label>
               <input id="newTitle" />
               <label>Texto</label>
@@ -276,9 +322,19 @@
               </div>
               <label>Link de destino (ao tocar no anúncio)</label>
               <input id="newTargetUrl" placeholder="https://..." />
-              <div class="row2">
-                <div><label>Latitude (se formato "post")</label><input id="newLat" type="number" step="any" /></div>
-                <div><label>Longitude (se formato "post")</label><input id="newLng" type="number" step="any" /></div>
+              <label>Localização no mapa (se formato "post")</label>
+              <div class="location-picker">
+                <div class="location-search-row">
+                  <input id="newLocationSearch" placeholder="Buscar endereço ou local..." autocomplete="off" />
+                  <div class="chip-suggestions hidden" id="newLocationSuggestions"></div>
+                </div>
+                <div id="newLocationMap" class="location-map"></div>
+                <div class="location-footer">
+                  <span class="muted" id="newLocationLabel">Nenhum local selecionado — toque no mapa ou busque um endereço.</span>
+                  <button type="button" class="linkbtn hidden" id="newLocationClearBtn">Limpar</button>
+                </div>
+                <input type="hidden" id="newLat" />
+                <input type="hidden" id="newLng" />
               </div>
 
               <button type="button" class="advanced-toggle" id="newAdvancedToggle">▸ Configurações avançadas</button>
@@ -326,8 +382,8 @@
 
         </div>
 
-        <div id="section-settings" class="hidden">
-          <div class="form-card">
+        <div id="section-settings" class="hidden container">
+          <div class="form-card" style="max-width:420px;">
             <h2>Multiplicador geral</h2>
             <p class="muted">Aplicado ao fim do cálculo de preço de todos os planos e cotações — use para tornar os preços proporcionais ao desempenho do Daqui (ex.: 1.1 = +10% em cima de tudo, 0.9 = -10%).</p>
             <label>Multiplicador</label>
@@ -393,12 +449,33 @@
       });
     }
 
+    // ── Ícones (SVG inline, estilo Feather) ──
+    // Nada de emoji/glyphs Unicode como ícone: em várias combinações de SO/
+    // fonte (ex.: Noto Color Emoji cobrindo blocos de símbolos além dos
+    // emojis "de verdade") eles renderizam coloridos e destoam do resto da
+    // UI. Só SVG dá controle total do traço em qualquer ambiente.
+    const ICONS = {
+      grid: '<rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>',
+      barChart: '<line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line>',
+      plusCircle: '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line>',
+      list: '<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>',
+      settings: '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>',
+      sun: '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>',
+      moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>',
+      eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>',
+      eyeOff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>',
+      trash: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>',
+    };
+    function svgIcon(name, size = 16) {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+    }
+
     const THEME_KEY = 'daqui-ads-admin-theme';
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
       localStorage.setItem(THEME_KEY, theme);
-      const icon = theme === 'dark' ? '☀️' : '🌙';
-      document.querySelectorAll('.theme-toggle').forEach((btn) => { btn.textContent = icon; });
+      const icon = svgIcon(theme === 'dark' ? 'sun' : 'moon', 16);
+      document.querySelectorAll('.theme-toggle').forEach((btn) => { btn.innerHTML = icon; });
     }
     function toggleTheme() {
       const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -566,11 +643,11 @@
     });
 
     const SECTIONS = [
-      { key: 'campaigns', label: 'Campanhas', icon: '◍', sectionId: 'section-campaigns', title: 'Campanhas', onShow: refreshCampaigns },
-      { key: 'analytics', label: 'Analytics', icon: '▤', sectionId: 'section-analytics', title: 'Analytics', onShow: refreshAnalytics },
-      { key: 'new', label: 'Nova proposta', icon: '✚', sectionId: 'section-new', title: 'Inserir proposta manual', onShow: () => {} },
-      { key: 'plans', label: 'Planos', icon: '☰', sectionId: 'section-plans', title: 'Planos', onShow: refreshPlans },
-      { key: 'settings', label: 'Configurações', icon: '⚙', sectionId: 'section-settings', title: 'Configurações', onShow: refreshSettings },
+      { key: 'campaigns', label: 'Campanhas', icon: 'grid', sectionId: 'section-campaigns', title: 'Campanhas', onShow: refreshCampaigns },
+      { key: 'analytics', label: 'Analytics', icon: 'barChart', sectionId: 'section-analytics', title: 'Analytics', onShow: refreshAnalytics },
+      { key: 'new', label: 'Nova proposta', icon: 'plusCircle', sectionId: 'section-new', title: 'Inserir proposta manual', onShow: () => ensureNewLocationMap() },
+      { key: 'plans', label: 'Planos', icon: 'list', sectionId: 'section-plans', title: 'Planos', onShow: refreshPlans },
+      { key: 'settings', label: 'Configurações', icon: 'settings', sectionId: 'section-settings', title: 'Configurações', onShow: refreshSettings },
     ];
     let currentSection = SECTIONS[0].key;
 
@@ -580,7 +657,7 @@
       for (const s of SECTIONS) {
         const b = document.createElement('button');
         b.className = 'navbtn' + (s.key === currentSection ? ' active' : '');
-        b.innerHTML = `<span class="ic">${s.icon}</span><span>${s.label}</span>`;
+        b.innerHTML = `<span class="ic">${svgIcon(s.icon, 16)}</span><span>${s.label}</span>`;
         b.onclick = () => goToSection(s.key);
         nav.appendChild(b);
       }
@@ -597,6 +674,9 @@
 
     // ── Campanhas ──
     let campaignStatusFilter = '';
+    let campaignSearchAdvertiser = '';
+    let campaignSearchTitle = '';
+    let campaignRawList = [];
     const CAMPAIGN_STATUS_FILTERS = [
       { key: '', label: 'Todas' },
       { key: 'active', label: 'Ativas' },
@@ -622,13 +702,42 @@
       renderCampaignTabs();
       const qs = campaignStatusFilter ? '?status=' + campaignStatusFilter : '';
       try {
-        const list = await apiFetch('/admin/ads/campaigns' + qs);
-        renderCampaignStats(list);
-        renderCampaignList(list);
+        campaignRawList = await apiFetch('/admin/ads/campaigns' + qs);
+        renderCampaignStats(campaignRawList);
+        applyCampaignSearch();
       } catch (e) {
         $('campaignList').innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
       }
     }
+
+    // Busca por anunciante (nome/e-mail) e por título de campanha — filtrada em
+    // memória sobre a lista já carregada (não paginada, sem necessidade de ida
+    // ao servidor a cada tecla).
+    function applyCampaignSearch() {
+      const advQ = campaignSearchAdvertiser.trim().toLowerCase();
+      const titleQ = campaignSearchTitle.trim().toLowerCase();
+      const filtered = campaignRawList.filter((c) => {
+        if (advQ) {
+          const hay = `${c.advertiser_name} ${c.advertiser_email}`.toLowerCase();
+          if (!hay.includes(advQ)) return false;
+        }
+        if (titleQ) {
+          const titles = (c.creatives || []).map((cr) => cr.title || '').join(' ').toLowerCase();
+          if (!titles.includes(titleQ)) return false;
+        }
+        return true;
+      });
+      renderCampaignList(filtered);
+    }
+
+    $('campaignSearchAdvertiser').addEventListener('input', () => {
+      campaignSearchAdvertiser = $('campaignSearchAdvertiser').value;
+      applyCampaignSearch();
+    });
+    $('campaignSearchTitle').addEventListener('input', () => {
+      campaignSearchTitle = $('campaignSearchTitle').value;
+      applyCampaignSearch();
+    });
 
     function renderCampaignStats(list) {
       const active = list.filter((c) => c.status === 'active').length;
@@ -754,7 +863,7 @@
             <b>${escapeHtml(cr.title)}</b>
             <button class="act" data-toggle-active="${cr.id}">${cr.is_active ? 'Pausar' : 'Ativar'}</button>
           </div>
-          <div class="sub">${cr.video_url ? '🎬 vídeo · ' : cr.image_url ? '🖼️ imagem · ' : ''}${cr.format ? FORMAT_LABEL[cr.format] || cr.format : 'todos os formatos'} · peso ${cr.weight} · ${cr.impressions_count} imp · ${cr.clicks_count} cliques</div>
+          <div class="sub">${cr.video_url ? 'Vídeo · ' : cr.image_url ? 'Imagem · ' : ''}${cr.format ? FORMAT_LABEL[cr.format] || cr.format : 'todos os formatos'} · peso ${cr.weight} · ${cr.impressions_count} imp · ${cr.clicks_count} cliques</div>
         </div>`).join('') || '<div class="muted">Nenhum criativo.</div>';
       wrap.innerHTML = `
         <h3>Criativos / teste A-B</h3>
@@ -1003,6 +1112,223 @@
       return wrap;
     }
 
+    // ── Bairros: chip-picker genérico com autocomplete via Nominatim/OSM ──
+    // Sem lista fixa de bairros no app (são texto livre nos modelos), então a
+    // sugestão vem direto do geocoder público do OpenStreetMap — mesma fonte
+    // já usada pelo mapa (ver leafletHtml.ts no frontend), sem chave nem
+    // dependência do backend. Um bairro digitado que não bate com nenhuma
+    // sugestão ainda pode ser adicionado (chip "não verificado").
+    function debounce(fn, wait) {
+      let t = null;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+    }
+
+    async function searchNeighborhoodSuggestions(query) {
+      const q = query.trim();
+      if (q.length < 2) return [];
+      try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=br&q=' +
+          encodeURIComponent(q + ', São Paulo, SP, Brasil');
+        const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const seen = new Set();
+        const out = [];
+        for (const item of data) {
+          const a = item.address || {};
+          const name = a.suburb || a.neighbourhood || a.quarter || a.city_district || a.town
+            || (item.display_name || '').split(',')[0];
+          if (!name || seen.has(name)) continue;
+          seen.add(name);
+          out.push(name);
+        }
+        return out;
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function createChipPicker({ container, searchFn, placeholder, onChange }) {
+      let chips = [];
+
+      container.innerHTML = `
+        <div class="chip-list"></div>
+        <input type="text" autocomplete="off" placeholder="${escapeHtml(placeholder || '')}" />
+        <div class="chip-suggestions hidden"></div>
+      `;
+      const chipList = container.querySelector('.chip-list');
+      const input = container.querySelector('input');
+      const suggBox = container.querySelector('.chip-suggestions');
+
+      function emit() { if (onChange) onChange(chips.map((c) => c.label)); }
+
+      function renderChips() {
+        chipList.innerHTML = chips.map((c, i) => `
+          <span class="chip${c.verified ? '' : ' unverified'}" title="${c.verified ? 'Reconhecido pelo mapa' : 'Não verificado — não encontramos esse local no mapa'}">
+            ${escapeHtml(c.label)}
+            <button type="button" class="chip-remove" data-i="${i}" aria-label="Remover ${escapeHtml(c.label)}">×</button>
+          </span>`).join('');
+        chipList.querySelectorAll('.chip-remove').forEach((btn) => {
+          btn.onclick = () => { chips.splice(parseInt(btn.dataset.i, 10), 1); renderChips(); emit(); };
+        });
+      }
+
+      function addChip(label, verified) {
+        const norm = label.trim();
+        if (!norm || chips.some((c) => c.label.toLowerCase() === norm.toLowerCase())) return;
+        chips.push({ label: norm, verified });
+        renderChips();
+        emit();
+      }
+
+      function closeSuggestions() {
+        suggBox.classList.add('hidden');
+        suggBox.innerHTML = '';
+      }
+
+      function renderSuggestions(items) {
+        if (!items.length) { closeSuggestions(); return; }
+        suggBox.innerHTML = items.map((s, i) => `<div class="chip-suggestion" data-i="${i}">${escapeHtml(s)}</div>`).join('');
+        suggBox.classList.remove('hidden');
+        suggBox.querySelectorAll('.chip-suggestion').forEach((el) => {
+          el.onclick = () => {
+            addChip(items[parseInt(el.dataset.i, 10)], true);
+            input.value = '';
+            closeSuggestions();
+            input.focus();
+          };
+        });
+      }
+
+      const runSearch = debounce(async () => {
+        const q = input.value;
+        if (q.trim().length < 2) { closeSuggestions(); return; }
+        renderSuggestions(await searchFn(q));
+      }, 400);
+
+      input.addEventListener('input', runSearch);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          if (input.value.trim()) { addChip(input.value, false); input.value = ''; closeSuggestions(); }
+        } else if (e.key === 'Backspace' && !input.value && chips.length) {
+          chips.pop(); renderChips(); emit();
+        } else if (e.key === 'Escape') {
+          closeSuggestions();
+        }
+      });
+      input.addEventListener('blur', () => setTimeout(closeSuggestions, 150));
+
+      renderChips();
+      return {
+        getChips: () => chips.map((c) => c.label),
+        setEnabled: (enabled) => { input.disabled = !enabled; container.classList.toggle('disabled', !enabled); },
+      };
+    }
+
+    const newNeighborhoodsPicker = createChipPicker({
+      container: $('newNeighborhoodsPicker'),
+      searchFn: searchNeighborhoodSuggestions,
+      placeholder: 'Digite o nome de um bairro...',
+      onChange: () => scheduleNewQuote(),
+    });
+    $('newCitywide').addEventListener('change', () => {
+      newNeighborhoodsPicker.setEnabled(!$('newCitywide').checked);
+    });
+
+    // ── Localização (lat/lng): busca de endereço + mapa Leaflet/OSM ──
+    // Mesma stack do mapa do app (Leaflet + tiles OSM direto, sem chave — ver
+    // frontend/components/leafletHtml.ts), só que embutida direto no DOM em
+    // vez de dentro de um WebView/iframe, já que aqui é uma página comum.
+    let newLocationMap = null;
+    let newLocationMarker = null;
+
+    function ensureNewLocationMap() {
+      if (newLocationMap) { setTimeout(() => newLocationMap.invalidateSize(), 0); return; }
+      newLocationMap = L.map('newLocationMap').setView([-23.5505, -46.6333], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap',
+      }).addTo(newLocationMap);
+      newLocationMap.on('click', (e) => setNewLocation(e.latlng.lat, e.latlng.lng, { reverseGeocode: true }));
+    }
+
+    async function reverseGeocodeLocation(lat, lng) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+        const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+        const data = await res.json();
+        $('newLocationLabel').textContent = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      } catch (e) {
+        $('newLocationLabel').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      }
+    }
+
+    function setNewLocation(lat, lng, { label, reverseGeocode } = {}) {
+      ensureNewLocationMap();
+      $('newLat').value = lat;
+      $('newLng').value = lng;
+      if (!newLocationMarker) newLocationMarker = L.marker([lat, lng]).addTo(newLocationMap);
+      else newLocationMarker.setLatLng([lat, lng]);
+      newLocationMap.setView([lat, lng], Math.max(newLocationMap.getZoom(), 15));
+      $('newLocationClearBtn').classList.remove('hidden');
+      if (label) $('newLocationLabel').textContent = label;
+      else if (reverseGeocode) { $('newLocationLabel').textContent = 'Localizando endereço…'; reverseGeocodeLocation(lat, lng); }
+      scheduleNewQuote();
+    }
+
+    function clearNewLocation() {
+      $('newLat').value = '';
+      $('newLng').value = '';
+      if (newLocationMarker) { newLocationMap.removeLayer(newLocationMarker); newLocationMarker = null; }
+      $('newLocationLabel').textContent = 'Nenhum local selecionado — toque no mapa ou busque um endereço.';
+      $('newLocationClearBtn').classList.add('hidden');
+      scheduleNewQuote();
+    }
+    $('newLocationClearBtn').addEventListener('click', clearNewLocation);
+
+    let newLocationSuggestionResults = [];
+    function closeLocationSuggestions() {
+      $('newLocationSuggestions').classList.add('hidden');
+      $('newLocationSuggestions').innerHTML = '';
+    }
+    function renderLocationSuggestions(results) {
+      newLocationSuggestionResults = results;
+      const box = $('newLocationSuggestions');
+      if (!results.length) { closeLocationSuggestions(); return; }
+      box.innerHTML = results.map((r, i) => `<div class="chip-suggestion" data-i="${i}">${escapeHtml(r.label)}</div>`).join('');
+      box.classList.remove('hidden');
+      box.querySelectorAll('.chip-suggestion').forEach((el) => {
+        el.onclick = () => {
+          const r = newLocationSuggestionResults[parseInt(el.dataset.i, 10)];
+          setNewLocation(r.lat, r.lng, { label: r.label });
+          $('newLocationSearch').value = '';
+          closeLocationSuggestions();
+        };
+      });
+    }
+    async function searchPlaceSuggestions(query) {
+      const q = query.trim();
+      if (q.length < 3) return [];
+      try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=br&q=' +
+          encodeURIComponent(q + ', São Paulo, Brasil');
+        const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.map((item) => ({ label: item.display_name, lat: parseFloat(item.lat), lng: parseFloat(item.lon) }));
+      } catch (e) {
+        return [];
+      }
+    }
+    const runLocationSearch = debounce(async () => {
+      const q = $('newLocationSearch').value;
+      if (q.trim().length < 3) { closeLocationSuggestions(); return; }
+      renderLocationSuggestions(await searchPlaceSuggestions(q));
+    }, 400);
+    $('newLocationSearch').addEventListener('input', runLocationSearch);
+    $('newLocationSearch').addEventListener('blur', () => setTimeout(closeLocationSuggestions, 150));
+
     // ── Nova proposta manual ──
     const newMediaPicker = wireMediaPicker({
       fileInput: $('newMediaFile'),
@@ -1014,7 +1340,7 @@
     function buildNewCampaignPayload() {
       const formats = readFormats('newFmt');
       const citywide = $('newCitywide').checked;
-      const neighborhoods = citywide ? [] : $('newNeighborhoods').value.split(',').map((s) => s.trim()).filter(Boolean);
+      const neighborhoods = citywide ? [] : newNeighborhoodsPicker.getChips();
       const media = newMediaPicker.get();
       const priceRaw = $('newPrice').value.trim();
       return {
@@ -1082,7 +1408,7 @@
       }
     }
     [
-      'newDuration', 'newCitywide', 'newNeighborhoods', 'newObjective', 'newPriority',
+      'newDuration', 'newCitywide', 'newObjective', 'newPriority',
       'newDailyCap', 'newPerUserCap',
     ].forEach((id) => { $(id).addEventListener('change', scheduleNewQuote); $(id).addEventListener('input', scheduleNewQuote); });
     ALL_FORMATS.forEach((f) => $(`newFmt_${f}`).addEventListener('change', scheduleNewQuote));
@@ -1156,8 +1482,8 @@
           <div class="comment">${escapeHtml(p.description)}</div>
           <div class="meta-row">${p.duration_days} dias · ${p.max_neighborhoods ? p.max_neighborhoods + ' bairro(s)' : 'cidade toda'}</div>
           <div class="actions">
-            <button class="act ${p.is_public ? 'reject' : 'approve'}" data-act="toggle">${p.is_public ? 'Ocultar' : 'Tornar visível'}</button>
-            <button class="act danger" data-act="delete">Excluir</button>
+            <button class="act icon-btn ${p.is_public ? 'reject' : 'approve'}" data-act="toggle" title="${p.is_public ? 'Ocultar' : 'Tornar visível'}" aria-label="${p.is_public ? 'Ocultar' : 'Tornar visível'}">${svgIcon(p.is_public ? 'eyeOff' : 'eye', 15)}</button>
+            <button class="act icon-btn danger" data-act="delete" title="Excluir" aria-label="Excluir">${svgIcon('trash', 15)}</button>
           </div>`;
         card.querySelector('[data-act="toggle"]').onclick = () => togglePlanVisibility(p);
         card.querySelector('[data-act="delete"]').onclick = () => deletePlan(p);

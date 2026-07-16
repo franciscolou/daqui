@@ -25,6 +25,7 @@ router.get(  "/{user_id}/posts",    response_model=list[PostOut])(post.list_by_a
 # App de moderação: buscar usuários, inspecionar posts/comentários e suspender contas.
 admin_router = APIRouter(prefix="/admin/users", tags=["moderation"])
 admin_router.get("/search", response_model=list[UserAdminOut])(user.admin_search_users)
+admin_router.get("/{user_id}", response_model=UserAdminOut)(user.admin_get_user)
 admin_router.get("/{user_id}/posts", response_model=list[PostOut])(post.admin_list_by_author)
 admin_router.get("/{user_id}/comments", response_model=list[CommentOut])(comment.admin_list_by_author)
 admin_router.post("/{user_id}/suspend", response_model=UserAdminOut)(user.admin_suspend_user)

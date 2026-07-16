@@ -260,8 +260,9 @@ export default function LeftSidebar({
               </View>
             </Animated.View>
             <Pressable
-              style={({ hovered }) => [styles.importantRow, hovered && styles.navItemHover]}
+              style={styles.importantRow}
               onPress={() => onImportantChange?.(!importantOnly)}
+              tabIndex={-1}
             >
               <View style={[styles.checkbox, importantOnly && styles.checkboxChecked]}>
                 {importantOnly && <Ionicons name="checkmark" size={14} color="#fff" />}

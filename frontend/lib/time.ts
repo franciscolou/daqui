@@ -46,6 +46,17 @@ export function formatExactDateTime(iso: string): string {
   return `${date} às ${d.toLocaleTimeString('pt-BR', HHMM)}`;
 }
 
+const MONTHS_ABBR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+/** Horário exato pro tooltip de hover das contagens compactas (`formatPostTime`).
+ * Mesmo dia: "23:59". Dias anteriores: "29 Jan 2026, 23:59". */
+export function formatHoverTime(iso: string): string {
+  const d = parseDate(iso);
+  const time = d.toLocaleTimeString('pt-BR', HHMM);
+  if (calendarDaysAgo(d) <= 0) return time;
+  return `${d.getDate()} ${MONTHS_ABBR[d.getMonth()]} ${d.getFullYear()}, ${time}`;
+}
+
 /** Mensagens: "agora" (<1min) ou hora exata "12:43". */
 export function formatMessageTime(iso: string): string {
   const d = parseDate(iso);

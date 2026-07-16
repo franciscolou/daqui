@@ -6,9 +6,9 @@ import { useEffect, useState } from 'react';
 import { Palette } from '../constants/Colors';
 import { Post, User } from '../data/mock';
 import { api, NeighborhoodStats } from '../lib/api';
-import { formatPostTime } from '../lib/time';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import HoverTime from './HoverTime';
 import LeafletMap from './LeafletMap';
 
 export default function RightSidebar() {
@@ -140,7 +140,8 @@ export default function RightSidebar() {
             <Text style={styles.alertAuthorName} numberOfLines={1}>
               {importantPost.author.name}
             </Text>
-            <Text style={styles.alertAuthorTime}>· {formatPostTime(importantPost.createdAt)}</Text>
+            <Text style={styles.alertAuthorTime}>·</Text>
+            <HoverTime iso={importantPost.createdAt} style={styles.alertAuthorTime} />
           </View>
         </Pressable>
       )}

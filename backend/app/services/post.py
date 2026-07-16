@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core import realtime_registry
 from app.core.uploads import save_upload_media
+from app.daos import comment as comment_dao
 from app.daos import notification as notification_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
@@ -12,6 +13,7 @@ from app.models.audit_log import ACTION_POST_DELETE
 from app.models.notification import TYPE_POST_REMOVED
 from app.models.post import Post
 from app.models.user import User
+from app.schemas.message import SharedCommentOut, SharedPostOut
 from app.schemas.post import (
     MAX_MEDIA_ITEMS,
     PollCreate,
@@ -54,6 +56,11 @@ def _poll_schema(post: Post, viewer: User, db: Session) -> PollOut | None:
 
 def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
     liked = post_dao.get_like(db, post.id, viewer.id) is not None
+    # "Repostado" cobre tanto o repost simples quanto já ter citado este post
+    # (estilo Twitter: o ícone acende nos dois casos).
+    reposted = post_dao.get_repost(db, post.id, viewer.id) is not None or (
+        post_dao.count_quotes_by_author(db, post.id, viewer.id) > 0
+    )
     # Morador: o bairro atual do autor ainda é o mesmo em que o post foi publicado
     # (se o autor mudar de bairro depois, o selo some dos posts antigos).
     author_is_resident = bool(post.neighborhood) and post.author.neighborhood == post.neighborhood
@@ -78,6 +85,11 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
         author=post.author,
         author_is_resident=author_is_resident,
         liked=liked,
+        reposted=reposted,
+        quoted_post=SharedPostOut.model_validate(post.quoted_post) if post.quoted_post else None,
+        quoted_comment=(
+            SharedCommentOut.model_validate(post.quoted_comment) if post.quoted_comment else None
+        ),
         poll=_poll_schema(post, viewer, db),
     )
 
@@ -255,6 +267,19 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
     if is_poll and payload.poll is None:
         raise HTTPException(status_code=400, detail="Configure a enquete")
 
+    # Repost com citação: no máximo um dos dois, e o alvo precisa existir.
+    if payload.quoted_post_id is not None and payload.quoted_comment_id is not None:
+        raise HTTPException(status_code=400, detail="Cite um post ou um comentário, não os dois")
+    quoted_post = quoted_comment = None
+    if payload.quoted_post_id is not None:
+        quoted_post = post_dao.get_by_id(db, payload.quoted_post_id)
+        if not quoted_post:
+            raise HTTPException(status_code=404, detail="Post citado não encontrado")
+    if payload.quoted_comment_id is not None:
+        quoted_comment = comment_dao.get_by_id(db, payload.quoted_comment_id)
+        if not quoted_comment:
+            raise HTTPException(status_code=404, detail="Comentário citado não encontrado")
+
     poll_options = poll_closes_at = poll_multiple = None
     if is_poll:
         poll_options = _clean_options(payload.poll.options)
@@ -290,7 +315,16 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         location=location,
         latitude=latitude,
         longitude=longitude,
+        quoted_post_id=quoted_post.id if quoted_post else None,
+        quoted_comment_id=quoted_comment.id if quoted_comment else None,
     )
+
+    # Citar conta como repost pro alvo (mesmo contador do repost simples).
+    # Commitado mais abaixo, junto do recount de posts_count do autor.
+    if quoted_post:
+        quoted_post.shares_count += 1
+    if quoted_comment:
+        quoted_comment.reposts_count += 1
 
     if is_poll:
         post.poll_multiple = poll_multiple
@@ -435,12 +469,40 @@ def toggle_like(db: Session, post_id: int, user: User) -> PostOut:
     return _to_schema(post, user, db)
 
 
+def toggle_repost(db: Session, post_id: int, user: User) -> PostOut:
+    post = post_dao.get_by_id(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+
+    existing = post_dao.get_repost(db, post_id, user.id)
+    if existing:
+        post_dao.remove_repost(db, existing)
+        post.shares_count = max(0, post.shares_count - 1)
+    else:
+        post_dao.add_repost(db, post_id, user.id)
+        post.shares_count += 1
+
+    db.commit()
+    db.refresh(post)
+    return _to_schema(post, user, db)
+
+
 def delete_post(db: Session, post_id: int, user: User) -> None:
     post = post_dao.get_by_id(db, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
     if post.author_id != user.id:
         raise HTTPException(status_code=403, detail="Sem permissão")
+
+    # Se este post era uma citação, desfaz a contagem de repost no alvo.
+    if post.quoted_post_id is not None:
+        target = post_dao.get_by_id(db, post.quoted_post_id)
+        if target:
+            target.shares_count = max(0, target.shares_count - 1)
+    if post.quoted_comment_id is not None:
+        target_comment = comment_dao.get_by_id(db, post.quoted_comment_id)
+        if target_comment:
+            target_comment.reposts_count = max(0, target_comment.reposts_count - 1)
 
     post_dao.delete(db, post)
     user_dao.update(db, user, {"posts_count": post_dao.count_by_author(db, user.id)})

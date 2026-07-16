@@ -91,6 +91,8 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"))
             if "likes_count" not in columns:
                 conn.execute(text("ALTER TABLE comments ADD COLUMN likes_count INTEGER DEFAULT 0 NOT NULL"))
+            if "reposts_count" not in columns:
+                conn.execute(text("ALTER TABLE comments ADD COLUMN reposts_count INTEGER DEFAULT 0 NOT NULL"))
 
     if "group_messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("group_messages")}
@@ -132,6 +134,10 @@ def _ensure_columns():
                     )
                 )
                 conn.execute(text("UPDATE posts SET media = '[]' WHERE media IS NULL"))
+            if "quoted_post_id" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN quoted_post_id INTEGER REFERENCES posts(id)"))
+            if "quoted_comment_id" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN quoted_comment_id INTEGER REFERENCES comments(id)"))
 
     if "reviews" in tables:
         columns = {c["name"] for c in inspector.get_columns("reviews")}

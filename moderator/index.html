@@ -41,7 +41,7 @@
     .hidden { display: none !important; }
     .theme-toggle {
       width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border);
-      background: var(--surface); font-size: 15px; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); color: var(--text-2); display: flex; align-items: center; justify-content: center;
       padding: 0; flex-shrink: 0;
     }
 
@@ -75,7 +75,7 @@
       padding: 10px 12px; border-radius: 10px; border: none; background: none;
       font-size: 14px; font-weight: 600; color: var(--text-2);
     }
-    .navbtn .ic { font-size: 15px; width: 18px; text-align: center; }
+    .navbtn .ic { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .navbtn.active { background: var(--primary-tint); color: var(--primary-dark); }
     .sidebar-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-light); }
     .sidebar-footer .who { font-size: 12px; color: var(--text-3); margin-bottom: 8px; word-break: break-all; }
@@ -111,6 +111,11 @@
     .head .name { font-weight: 700; font-size: 15px; }
     .head .sub { font-size: 12px; color: var(--text-3); }
     .head .when { margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+    .head-user { display: flex; align-items: center; gap: 12px; cursor: pointer; border-radius: 10px; margin: -4px; padding: 4px; }
+    .head-user:hover { background: var(--border-light); }
+    .head-user:hover .name { text-decoration: underline; }
+    .user-name-link { cursor: pointer; font-weight: 700; color: inherit; }
+    .user-name-link:hover { text-decoration: underline; color: var(--primary-dark); }
     .audit-sentence { font-weight: 400; font-size: 15px; color: var(--text); }
     .rating-row { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; }
     .stars { position: relative; display: inline-block; font-size: 20px; line-height: 1; letter-spacing: 2px; }
@@ -301,6 +306,24 @@
     let APP_URL = '';
     let token = '';
 
+    // ── Ícones (SVG inline, estilo Feather) ──
+    // Nada de emoji/glyphs Unicode como ícone: em várias combinações de SO/
+    // fonte (ex.: Noto Color Emoji cobrindo blocos de símbolos além dos
+    // emojis "de verdade") eles renderizam coloridos e destoam do resto da
+    // UI. Só SVG dá controle total do traço em qualquer ambiente.
+    const ICONS = {
+      star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+      flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line>',
+      mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22 6 12 13 2 6"></polyline>',
+      users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
+      clock: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
+      sun: '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>',
+      moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>',
+    };
+    function svgIcon(name, size = 16) {
+      return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+    }
+
     // ── Tema (claro/escuro) ──
     // O atributo data-theme já foi definido por um script no <head> (evita
     // flash do tema errado); aqui só cuidamos do toggle e de persistir a escolha.
@@ -308,8 +331,8 @@
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
       localStorage.setItem(THEME_KEY, theme);
-      const icon = theme === 'dark' ? '☀️' : '🌙';
-      document.querySelectorAll('.theme-toggle').forEach((btn) => { btn.textContent = icon; });
+      const icon = svgIcon(theme === 'dark' ? 'sun' : 'moon', 16);
+      document.querySelectorAll('.theme-toggle').forEach((btn) => { btn.innerHTML = icon; });
     }
     function toggleTheme() {
       const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -423,11 +446,11 @@
     // como (re)carregar seus dados. Novas telas de moderação (ex.: outras
     // filas de denúncia) só precisam de uma nova entrada aqui.
     const SECTIONS = [
-      { key: 'reviews', label: 'Avaliações', icon: '★', sectionId: 'section-reviews', title: 'Avaliações do Daqui', onShow: refreshReviews },
-      { key: 'reports', label: 'Denúncias', icon: '⚑', sectionId: 'section-reports', title: 'Denúncias', onShow: refreshReports },
-      { key: 'tickets', label: 'Chamados', icon: '✉', sectionId: 'section-tickets', title: 'Chamados de suporte', onShow: refreshTickets },
-      { key: 'users', label: 'Usuários', icon: '◍', sectionId: 'section-users', title: 'Usuários', onShow: showUsers },
-      { key: 'audit', label: 'Auditoria', icon: '🕘', sectionId: 'section-audit', title: 'Registro de Auditoria', onShow: refreshAuditLogs },
+      { key: 'reviews', label: 'Avaliações', icon: 'star', sectionId: 'section-reviews', title: 'Avaliações do Daqui', onShow: refreshReviews },
+      { key: 'reports', label: 'Denúncias', icon: 'flag', sectionId: 'section-reports', title: 'Denúncias', onShow: refreshReports },
+      { key: 'tickets', label: 'Chamados', icon: 'mail', sectionId: 'section-tickets', title: 'Chamados de suporte', onShow: refreshTickets },
+      { key: 'users', label: 'Usuários', icon: 'users', sectionId: 'section-users', title: 'Usuários', onShow: showUsers },
+      { key: 'audit', label: 'Auditoria', icon: 'clock', sectionId: 'section-audit', title: 'Registro de Auditoria', onShow: refreshAuditLogs },
     ];
     let currentSection = SECTIONS[0].key;
 
@@ -437,7 +460,7 @@
       for (const s of SECTIONS) {
         const b = document.createElement('button');
         b.className = 'navbtn' + (s.key === currentSection ? ' active' : '');
-        b.innerHTML = `<span class="ic">${s.icon}</span><span>${s.label}</span>`;
+        b.innerHTML = `<span class="ic">${svgIcon(s.icon, 16)}</span><span>${s.label}</span>`;
         b.onclick = () => goToSection(s.key);
         nav.appendChild(b);
       }
@@ -494,10 +517,12 @@
           : `<div class="comment empty">— sem comentário —</div>`;
         card.innerHTML = `
           <div class="head">
-            <img class="avatar" src="${avatar}" alt="" />
-            <div>
-              <div class="name">${escapeHtml(a.name)}</div>
-              <div class="sub">@${escapeHtml(a.username)} · ${escapeHtml(a.neighborhood || '')}</div>
+            <div class="head-user" onclick="openUserById(${a.id})">
+              <img class="avatar" src="${avatar}" alt="" />
+              <div>
+                <div class="name">${escapeHtml(a.name)}</div>
+                <div class="sub">@${escapeHtml(a.username)} · ${escapeHtml(a.neighborhood || '')}</div>
+              </div>
             </div>
             <div class="when">${fmtDate(r.updated_at)}</div>
           </div>
@@ -591,12 +616,16 @@
         <div class="stat"><div class="n">${s.pending}</div><div class="l">pendentes</div></div>`;
     }
 
+    function userNameLink(u) {
+      return `<span class="user-name-link" onclick="openUserById(${u.id})">${escapeHtml(u.name)}</span>`;
+    }
+
     function reportTargetBox(r) {
       if (r.target_type === 'post') {
         if (!r.post) return `<div class="target-box empty">Publicação não encontrada (pode ter sido excluída).</div>`;
         const title = r.post.title ? escapeHtml(r.post.title) + ' — ' : '';
         return `<div class="target-box">
-          <div class="label">Publicação de ${escapeHtml(r.post.author.name)}</div>
+          <div class="label">Publicação de ${userNameLink(r.post.author)}</div>
           <div class="content">${title}${escapeHtml(truncate(r.post.content, 280))}</div>
           <div style="margin-top:8px;">${appLinkTag(postLink(r.post.id), 'Ver publicação no app')}</div>
         </div>`;
@@ -604,7 +633,7 @@
       if (r.target_type === 'comment') {
         if (!r.comment_target) return `<div class="target-box empty">Comentário não encontrado (pode ter sido excluído).</div>`;
         return `<div class="target-box">
-          <div class="label">Comentário de ${escapeHtml(r.comment_target.author.name)}</div>
+          <div class="label">Comentário de ${userNameLink(r.comment_target.author)}</div>
           <div class="content">${escapeHtml(truncate(r.comment_target.content, 280))}</div>
           <div style="margin-top:8px;">${appLinkTag(postLink(r.comment_target.post_id), 'Ver publicação do comentário')}</div>
         </div>`;
@@ -613,7 +642,7 @@
         if (!r.reported_user) return `<div class="target-box empty">Perfil não encontrado.</div>`;
         return `<div class="target-box">
           <div class="label">Perfil denunciado</div>
-          <div class="content">${escapeHtml(r.reported_user.name)} · @${escapeHtml(r.reported_user.username)} · ${escapeHtml(r.reported_user.neighborhood || '')}</div>
+          <div class="content">${userNameLink(r.reported_user)} · @${escapeHtml(r.reported_user.username)} · ${escapeHtml(r.reported_user.neighborhood || '')}</div>
           <div style="margin-top:8px;">${appLinkTag(userLink(r.reported_user.id), 'Ver perfil no app')}</div>
         </div>`;
       }
@@ -633,10 +662,12 @@
           : `<div class="comment empty">— sem comentário adicional —</div>`;
         card.innerHTML = `
           <div class="head">
-            <img class="avatar" src="${avatar}" alt="" />
-            <div>
-              <div class="name">${escapeHtml(rep.name)} <span class="sub">denunciou</span></div>
-              <div class="sub">@${escapeHtml(rep.username)} · ${REPORT_TARGET_LABEL[r.target_type] || r.target_type}</div>
+            <div class="head-user" onclick="openUserById(${rep.id})">
+              <img class="avatar" src="${avatar}" alt="" />
+              <div>
+                <div class="name">${escapeHtml(rep.name)} <span class="sub">denunciou</span></div>
+                <div class="sub">@${escapeHtml(rep.username)} · ${REPORT_TARGET_LABEL[r.target_type] || r.target_type}</div>
+              </div>
             </div>
             <div class="when">${fmtDate(r.created_at)}</div>
           </div>
@@ -731,10 +762,12 @@
           : '';
         card.innerHTML = `
           <div class="head">
-            <img class="avatar" src="${avatar}" alt="" />
-            <div>
-              <div class="name">${escapeHtml(u.name)}</div>
-              <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')}</div>
+            <div class="head-user" onclick="openUserById(${u.id})">
+              <img class="avatar" src="${avatar}" alt="" />
+              <div>
+                <div class="name">${escapeHtml(u.name)}</div>
+                <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')}</div>
+              </div>
             </div>
             <div class="when">${fmtDate(t.created_at)}</div>
           </div>
@@ -814,10 +847,10 @@
     // Retorna HTML (não texto puro): moderador e usuário afetado em negrito,
     // o resto da frase em peso normal.
     function auditSentence(l) {
-      const mod = `<strong>${escapeHtml(l.moderator.username)}</strong>`;
+      const mod = `<strong class="user-name-link" onclick="openUserById(${l.moderator.id})">${escapeHtml(l.moderator.username)}</strong>`;
       if (l.target_user) {
         const verb = AUDIT_ACTION_VERB[l.action] || AUDIT_ACTION_LABEL[l.action] || l.action;
-        const target = `<strong>${escapeHtml(l.target_user.username)}</strong>`;
+        const target = `<strong class="user-name-link" onclick="openUserById(${l.target_user.id})">${escapeHtml(l.target_user.username)}</strong>`;
         return `${mod} ${escapeHtml(verb)} ${target}`;
       }
       const verb = AUDIT_ACTION_VERB_NO_TARGET[l.action] || AUDIT_ACTION_LABEL[l.action] || l.action;
@@ -894,6 +927,23 @@
 
     async function showUsers() {
       $('userSearchInput').focus();
+    }
+
+    // Abre um usuário direto na aba Usuários a partir de qualquer nome/@usuário/
+    // foto clicável em outra seção (avaliações, denúncias, chamados, auditoria).
+    async function openUserById(userId) {
+      await goToSection('users');
+      $('userSearchView').classList.add('hidden');
+      $('userDetailView').classList.remove('hidden');
+      $('userDetailCard').innerHTML = `<div class="empty-state">Carregando…</div>`;
+      try {
+        const u = await apiFetch('/admin/users/' + userId);
+        await openUserDetail(u);
+      } catch (e) {
+        $('userDetailView').classList.add('hidden');
+        $('userSearchView').classList.remove('hidden');
+        showMessage(e.message, 'Erro');
+      }
     }
 
     $('userSearchBtn').addEventListener('click', searchUsers);

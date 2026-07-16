@@ -351,16 +351,20 @@ def _pacing_factor(db: Session, campaign: AdCampaign, now: datetime) -> float:
     return 0.3 if served_today >= target_so_far else 1.0
 
 
-def get_active_for_format(db: Session, format: str, ctx: dict) -> AdCampaign | None:
-    now = datetime.now(timezone.utc)
+def _eligible_for_format(db: Session, format: str, ctx: dict, now: datetime) -> list[AdCampaign]:
     candidates = _candidates_for_format(db, format)
-    eligible = [
+    return [
         c
         for c in candidates
         if _matches_targeting(c.targeting, ctx)
         and _matches_schedule(c.schedule, now)
         and _within_caps(db, c, ctx.get("viewer_id"))
     ]
+
+
+def get_active_for_format(db: Session, format: str, ctx: dict) -> AdCampaign | None:
+    now = datetime.now(timezone.utc)
+    eligible = _eligible_for_format(db, format, ctx, now)
     if not eligible:
         return None
 
@@ -370,6 +374,39 @@ def get_active_for_format(db: Session, format: str, ctx: dict) -> AdCampaign | N
     if sum(weights) <= 0:
         weights = [1.0 for _ in top_tier]
     return random.choices(top_tier, weights=weights, k=1)[0]
+
+
+def get_active_list_for_format(
+    db: Session, format: str, ctx: dict, exclude_ids: list[int], limit: int
+) -> list[AdCampaign]:
+    """Várias campanhas elegíveis pro formato (rolagem infinita da Busca, que
+    pode mostrar mais de um anúncio). Nunca repete uma campanha já mostrada
+    nesta sessão (`exclude_ids`) — quando o pool elegível ainda não visto se
+    esgota, a lista simplesmente some vazia (o cliente para de pedir mais)."""
+    now = datetime.now(timezone.utc)
+    eligible = _eligible_for_format(db, format, ctx, now)
+    if not eligible:
+        return []
+
+    top_priority = max(c.priority for c in eligible)
+    top_tier = [c for c in eligible if c.priority == top_priority]
+    pool = [c for c in top_tier if c.id not in exclude_ids]
+    if not pool:
+        return []
+
+    remaining = [(c, max(c.rotation_weight * _pacing_factor(db, c, now), 0.0)) for c in pool]
+    chosen: list[AdCampaign] = []
+    for _ in range(min(limit, len(pool))):
+        total = sum(w for _, w in remaining) or len(remaining)
+        r = random.uniform(0, total)
+        upto = 0.0
+        for i, (c, w) in enumerate(remaining):
+            upto += w or 1.0
+            if upto >= r:
+                chosen.append(c)
+                remaining.pop(i)
+                break
+    return chosen
 
 
 # ── Eventos (impressão/clique) ───────────────────────────────────────────

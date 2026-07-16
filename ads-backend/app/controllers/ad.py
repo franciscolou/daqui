@@ -102,6 +102,37 @@ def get_active_ad(
     return ad_service.get_active_ad(db, format, ctx)
 
 
+def get_active_ad_list(
+    format: str,
+    neighborhood: str | None = Query(None),
+    nearby_neighborhoods: str | None = Query(None),
+    lat: float | None = Query(None),
+    lng: float | None = Query(None),
+    view_mode: str | None = Query(None),
+    category: str | None = Query(None),
+    group_ids: str | None = Query(None),
+    engagement: str | None = Query(None),
+    recency: str | None = Query(None),
+    viewer_id: str | None = Query(None),
+    exclude_ids: str | None = Query(None),
+    limit: int = Query(3, ge=1, le=10),
+    db: Session = Depends(get_db),
+) -> list[AdOut]:
+    ctx = {
+        "neighborhood": neighborhood,
+        "nearby_neighborhoods": _parse_csv(nearby_neighborhoods),
+        "lat": lat,
+        "lng": lng,
+        "view_mode": view_mode,
+        "category": category,
+        "group_ids": _parse_ids(group_ids),
+        "engagement": engagement,
+        "recency": recency,
+        "viewer_id": viewer_id,
+    }
+    return ad_service.get_active_ad_list(db, format, ctx, _parse_ids(exclude_ids), limit)
+
+
 def track_click(
     campaign_id: int,
     payload: ClickIn | None = Body(None),

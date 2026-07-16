@@ -228,6 +228,9 @@ interface BackendPost {
   author: BackendUser;
   author_is_resident: boolean;
   liked: boolean;
+  reposted: boolean;
+  quoted_post: BackendSharedPost | null;
+  quoted_comment: BackendSharedComment | null;
   poll: BackendPoll | null;
 }
 
@@ -241,6 +244,8 @@ interface BackendComment {
   author_is_resident: boolean;
   likes_count: number;
   liked: boolean;
+  reposts_count: number;
+  reposted: boolean;
   replies_count: number;
 }
 
@@ -261,6 +266,8 @@ export interface Comment {
   authorIsResident: boolean; // autor mora no bairro do post comentado (selo de Morador)
   likesCount: number;
   liked: boolean;
+  repostsCount: number;
+  reposted: boolean; // repost simples (sem citação) pelo usuário logado
   repliesCount: number; // respostas diretas (carregadas sob demanda)
 }
 
@@ -650,6 +657,9 @@ function mapPost(p: BackendPost): Post {
     latitude: p.latitude ?? undefined,
     longitude: p.longitude ?? undefined,
     liked: p.liked,
+    reposted: p.reposted,
+    quotedPost: p.quoted_post ? mapSharedPost(p.quoted_post) : undefined,
+    quotedComment: p.quoted_comment ? mapSharedComment(p.quoted_comment) : undefined,
     pinned: p.pinned,
     important: p.important,
     // Campos específicos por categoria (backend snake_case → camelCase)
@@ -675,6 +685,8 @@ function mapComment(c: BackendComment): Comment {
     authorIsResident: c.author_is_resident,
     likesCount: c.likes_count,
     liked: c.liked,
+    repostsCount: c.reposts_count,
+    reposted: c.reposted,
     repliesCount: c.replies_count,
   };
 }
@@ -1007,16 +1019,22 @@ export const api = {
     latitude?: number;
     longitude?: number;
     includeNearby?: boolean; // incluir também os bairros vizinhos
-  } = {}): Promise<Post[]> {
+    page?: number; // paginação (rolagem infinita) — default do backend: página 1
+    pageSize?: number; // default do backend: 20
+  } = {}): Promise<{ items: Post[]; total: number; page: number; pageSize: number }> {
     const params = new URLSearchParams();
     if (opts.category && opts.category !== 'todos') params.set('category', opts.category);
     if (opts.neighborhood) params.set('neighborhood', opts.neighborhood);
     if (opts.latitude != null) params.set('latitude', String(opts.latitude));
     if (opts.longitude != null) params.set('longitude', String(opts.longitude));
     if (opts.includeNearby) params.set('include_nearby', 'true');
+    if (opts.page != null) params.set('page', String(opts.page));
+    if (opts.pageSize != null) params.set('page_size', String(opts.pageSize));
     const q = params.toString() ? `?${params.toString()}` : '';
-    const r = await request<{ items: BackendPost[] }>(`/posts/feed${q}`);
-    return r.items.map(mapPost);
+    const r = await request<{ items: BackendPost[]; total: number; page: number; page_size: number }>(
+      `/posts/feed${q}`,
+    );
+    return { items: r.items.map(mapPost), total: r.total, page: r.page, pageSize: r.page_size };
   },
 
   async getPost(id: string): Promise<Post> {
@@ -1101,6 +1119,10 @@ export const api = {
     return mapPost(await request<BackendPost>(`/posts/${id}/like`, { method: 'POST' }));
   },
 
+  async toggleRepost(id: string): Promise<Post> {
+    return mapPost(await request<BackendPost>(`/posts/${id}/repost`, { method: 'POST' }));
+  },
+
   async uploadPostMedia(asset: PickedMediaAsset): Promise<PostMedia> {
     const formData = await buildMediaFormData(asset);
     return requestMultipart<PostMedia>('/posts/media', formData);
@@ -1114,8 +1136,21 @@ export const api = {
     details?: Record<string, any>;
     important?: boolean;
     poll?: { options: string[]; multiple: boolean; closes_at: string };
+    // Repost com citação (estilo Twitter): no máximo um dos dois.
+    quotedPostId?: string;
+    quotedCommentId?: string;
   }): Promise<Post> {
-    return mapPost(await request<BackendPost>('/posts/', { method: 'POST', body: payload }));
+    const { quotedPostId, quotedCommentId, ...rest } = payload;
+    return mapPost(
+      await request<BackendPost>('/posts/', {
+        method: 'POST',
+        body: {
+          ...rest,
+          quoted_post_id: quotedPostId ? Number(quotedPostId) : undefined,
+          quoted_comment_id: quotedCommentId ? Number(quotedCommentId) : undefined,
+        },
+      }),
+    );
   },
 
   // Edita post (usado para enquetes: opções, múltiplo e prazo — sempre para o futuro).
@@ -1209,6 +1244,12 @@ export const api = {
   async toggleCommentLike(commentId: string): Promise<Comment> {
     return mapComment(
       await request<BackendComment>(`/comments/${commentId}/like`, { method: 'POST' }),
+    );
+  },
+
+  async toggleCommentRepost(commentId: string): Promise<Comment> {
+    return mapComment(
+      await request<BackendComment>(`/comments/${commentId}/repost`, { method: 'POST' }),
     );
   },
 

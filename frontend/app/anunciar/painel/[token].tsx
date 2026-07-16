@@ -7,6 +7,7 @@ import { Palette } from '../../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import { adsApi, AdsApiError, MyCampaign, CampaignStatus } from '../../../lib/adsApi';
 import VideoPlayer from '../../../components/VideoPlayer';
+import RankedBarChart from '../../../components/charts/RankedBarChart';
 
 const FORMAT_LABEL: Record<string, string> = {
   post: 'Post + mapa',
@@ -245,22 +246,17 @@ export default function AdvertiserPanelScreen() {
 
           {loading ? (
             <ActivityIndicator color={Colors.primary} style={{ marginTop: 12 }} />
-          ) : campaign.analytics.buckets.length === 0 ? (
-            <Text style={styles.emptyBuckets}>Sem dados suficientes ainda.</Text>
           ) : (
-            <View style={styles.buckets}>
-              {campaign.analytics.buckets.map((b) => {
-                const maxImp = Math.max(...campaign.analytics.buckets.map((x) => x.impressions), 1);
-                return (
-                  <View key={b.key} style={styles.bucketRow}>
-                    <Text style={styles.bucketKey}>{b.key}</Text>
-                    <View style={styles.bucketBarTrack}>
-                      <View style={[styles.bucketBarFill, { width: `${(b.impressions / maxImp) * 100}%` }]} />
-                    </View>
-                    <Text style={styles.bucketValue}>{b.impressions} imp · {b.clicks} cliques</Text>
-                  </View>
-                );
-              })}
+            <View style={styles.chartCard}>
+              <RankedBarChart
+                emptyLabel="Sem dados suficientes ainda."
+                data={campaign.analytics.buckets.map((b) => ({
+                  key: b.key,
+                  label: b.key,
+                  value: b.impressions,
+                  sublabel: `${b.clicks} cliques`,
+                }))}
+              />
             </View>
           )}
         </ScrollView>
@@ -351,11 +347,5 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   tabText: { fontSize: 12, fontWeight: '700', color: Colors.textTertiary },
   tabTextActive: { color: Colors.primary },
 
-  emptyBuckets: { fontSize: 13, color: Colors.textTertiary, textAlign: 'center', marginTop: 12 },
-  buckets: { gap: 8 },
-  bucketRow: { gap: 3 },
-  bucketKey: { fontSize: 12, fontWeight: '700', color: Colors.text },
-  bucketBarTrack: { height: 6, borderRadius: 3, backgroundColor: Colors.borderLight, overflow: 'hidden' },
-  bucketBarFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 3 },
-  bucketValue: { fontSize: 11, color: Colors.textTertiary },
+  chartCard: { borderWidth: 1, borderColor: Colors.borderLight, borderRadius: 14, padding: 14, backgroundColor: Colors.surface },
 });

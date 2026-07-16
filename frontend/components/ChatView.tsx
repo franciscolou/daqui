@@ -104,7 +104,10 @@ function MessageBubble({
     <Animated.View style={animStyle}>
       <View style={[styles.bubbleRow, mine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}>
         {showSender && (
-          <TouchableOpacity onPress={() => router.push(`/user/${msg.sender.id}` as any)}>
+          <TouchableOpacity
+            style={styles.senderAvatarBtn}
+            onPress={() => router.push(`/user/${msg.sender.id}` as any)}
+          >
             <Image source={{ uri: msg.sender.avatar }} style={styles.senderAvatar} />
           </TouchableOpacity>
         )}
@@ -703,6 +706,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   // Mantém o espaço reservado (evita o balão "pulando" ao mostrar/esconder) —
   // só fica transparente e sem interação fora do hover (ou fora do web).
   replyIconBtnHidden: { opacity: 0 },
+  // bubbleRow usa alignItems:"flex-end" (não stretch), então já fica do
+  // tamanho do conteúdo — só falta o borderRadius pro hover não vazar quadrado.
+  senderAvatarBtn: { borderRadius: 9 },
   senderAvatar: { width: 28, height: 28, borderRadius: 9, backgroundColor: Colors.border },
   bubble: { maxWidth: '78%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
   replyQuote: {

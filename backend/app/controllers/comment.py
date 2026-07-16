@@ -48,6 +48,14 @@ def toggle_comment_like(
     return comment.toggle_like(db, comment_id, current_user)
 
 
+def toggle_comment_repost(
+    comment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CommentOut:
+    return comment.toggle_repost(db, comment_id, current_user)
+
+
 def delete_comment(
     comment_id: int,
     db: Session = Depends(get_db),

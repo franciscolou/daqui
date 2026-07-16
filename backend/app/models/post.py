@@ -38,6 +38,16 @@ class Post(Base):
     poll_closes_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Repost com citação (estilo Twitter): no máximo um dos dois é preenchido —
+    # o post/comentário original que este post cita. Sem cascade explícito:
+    # se o original for apagado, a relação simplesmente resolve pra None (mesmo
+    # comportamento de Message.shared_post_id).
+    quoted_post_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("posts.id"), nullable=True
+    )
+    quoted_comment_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("comments.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -53,7 +63,11 @@ class Post(Base):
         "PostLike", back_populates="post", lazy="select", cascade="all, delete-orphan"
     )
     comments: Mapped[list["Comment"]] = relationship(  # noqa: F821
-        "Comment", back_populates="post", lazy="select", cascade="all, delete-orphan"
+        "Comment",
+        back_populates="post",
+        foreign_keys="Comment.post_id",
+        lazy="select",
+        cascade="all, delete-orphan",
     )
     poll_options: Mapped[list["PollOption"]] = relationship(
         "PollOption",
@@ -61,6 +75,12 @@ class Post(Base):
         lazy="select",
         cascade="all, delete-orphan",
         order_by="PollOption.position",
+    )
+    quoted_post: Mapped[Optional["Post"]] = relationship(
+        "Post", remote_side=[id], foreign_keys=[quoted_post_id]
+    )
+    quoted_comment: Mapped[Optional["Comment"]] = relationship(  # noqa: F821
+        "Comment", foreign_keys=[quoted_comment_id]
     )
 
 
@@ -75,6 +95,19 @@ class PostLike(Base):
     )
 
     post: Mapped["Post"] = relationship("Post", back_populates="likes")
+
+
+class PostRepost(Base):
+    """Repost simples (sem citação), estilo "retweet" — 1 por usuário por post."""
+
+    __tablename__ = "post_reposts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
 
 class PollOption(Base):

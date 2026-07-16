@@ -3,8 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Palette } from '../constants/Colors';
 import { SharedPost } from '../lib/api';
-import { formatPostTime } from '../lib/time';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import HoverTime from './HoverTime';
 
 interface Props {
   post: SharedPost;
@@ -26,7 +26,7 @@ export default function SharedPostPreview({ post, static: isStatic }: Props) {
           <Text style={styles.authorUsername} numberOfLines={1}>@{post.author.username}</Text>
         )}
         <Text style={styles.dot}>·</Text>
-        <Text style={styles.time}>{formatPostTime(post.createdAt)}</Text>
+        <HoverTime iso={post.createdAt} style={styles.time} />
       </View>
 
       {!!post.title && <Text style={styles.title} numberOfLines={2}>{post.title}</Text>}

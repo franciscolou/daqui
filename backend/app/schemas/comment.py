@@ -22,6 +22,8 @@ class CommentOut(BaseModel):
     author_is_resident: bool = False
     likes_count: int = 0
     liked: bool = False
+    reposts_count: int = 0
+    reposted: bool = False  # repost simples (sem citação) pelo usuário logado
     replies_count: int = 0  # respostas diretas (carregadas sob demanda)
 
     model_config = {"from_attributes": True}

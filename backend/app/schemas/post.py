@@ -3,6 +3,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel
 
+from app.schemas.message import SharedCommentOut, SharedPostOut
 from app.schemas.user import UserPublic
 
 MAX_MEDIA_ITEMS = 10
@@ -60,6 +61,10 @@ class PostCreate(BaseModel):
     details: Optional[dict] = None  # campos específicos da categoria
     important: bool = False
     poll: Optional[PollCreate] = None
+    # Repost com citação (estilo Twitter): no máximo um dos dois preenchido —
+    # ver services/post.py::create_post.
+    quoted_post_id: Optional[int] = None
+    quoted_comment_id: Optional[int] = None
 
 
 class PostUpdate(BaseModel):
@@ -90,6 +95,12 @@ class PostOut(BaseModel):
     # True quando o bairro atual do autor é o mesmo do post — exibe o selo de Morador.
     author_is_resident: bool = False
     liked: bool = False
+    # True quando o usuário logado deu repost simples (sem citação) neste post.
+    reposted: bool = False
+    # Preenchido quando este post é uma citação (repost com comentário, estilo
+    # Twitter) — no máximo um dos dois.
+    quoted_post: Optional[SharedPostOut] = None
+    quoted_comment: Optional[SharedCommentOut] = None
     poll: Optional[PollOut] = None
 
     model_config = {"from_attributes": True}
