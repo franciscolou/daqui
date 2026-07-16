@@ -31,6 +31,7 @@ import PollEditor, {
   buildClosesAt,
 } from '../../components/PollEditor';
 import { router } from 'expo-router';
+import { goBack } from '../../lib/navigation';
 
 // Calendário em português
 LocaleConfig.locales['pt-br'] = {
@@ -301,7 +302,7 @@ export default function PublishScreen() {
         {/* Header */}
         <LinearGradient colors={['#0D2918', '#15803D']} style={styles.header}>
           <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+            <TouchableOpacity style={styles.closeBtn} onPress={() => goBack('/(tabs)' as any)}>
               <Ionicons name="close" size={22} color="#fff" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Novo post</Text>

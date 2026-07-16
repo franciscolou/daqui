@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../../../lib/theme';
+import { goBack } from '../../../../lib/navigation';
 import { adsApi, AdsApiError, MyCampaign } from '../../../../lib/adsApi';
 import AdCreativeEditor, {
   CreativeBlocks,
@@ -84,7 +85,7 @@ export default function EditCampaignScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack(`/anunciar/painel/${token}` as any)}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Editar anúncio</Text>

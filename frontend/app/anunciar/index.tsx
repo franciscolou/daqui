@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { goBack } from '../../lib/navigation';
 import { adsApi, AdPlan, AdPlanCategory } from '../../lib/adsApi';
 import { AD_CONTACT_CHANNELS } from '../../constants/ads';
 
@@ -118,7 +119,7 @@ export default function AnunciarScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Anuncie no Daqui</Text>

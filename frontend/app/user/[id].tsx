@@ -15,6 +15,7 @@ import { Palette } from '../../constants/Colors';
 import { Post, User } from '../../data/mock';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import PostCard from '../../components/PostCard';
 import FeedLayout from '../../components/FeedLayout';
@@ -75,7 +76,7 @@ export default function UserScreen() {
         <View style={styles.notFound}>
           <Ionicons name="person-outline" size={48} color={Colors.textTertiary} />
           <Text style={styles.notFoundText}>Usuário não encontrado</Text>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtnCenter}>
+          <TouchableOpacity onPress={() => goBack('/')} style={styles.backBtnCenter}>
             <Text style={styles.backBtnCenterText}>Voltar</Text>
           </TouchableOpacity>
         </View>
@@ -88,7 +89,7 @@ export default function UserScreen() {
       <ProfileHeader
         user={user}
         isWide={isWide}
-        onBack={() => router.back()}
+        onBack={() => goBack('/')}
         onMenu={!isMe ? () => setMenuVisible(true) : undefined}
         actions={
           !user.locked ? (

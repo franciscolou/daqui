@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
 import { api, ApiError } from '../../lib/api';
 import { submitOnEnter } from '../../lib/keyboard';
+import { goBack } from '../../lib/navigation';
 
 export default function ForgotPasswordScreen() {
   const { width } = useWindowDimensions();
@@ -61,7 +62,7 @@ export default function ForgotPasswordScreen() {
             colors={['#0D2918', '#15803D']}
             style={[styles.header, isWide && styles.headerWide]}
           >
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => goBack('/(auth)/login')}>
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
 

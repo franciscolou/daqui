@@ -19,6 +19,7 @@ import { GROUP_PRIVACY_INFO } from '../../../constants/groups';
 import { api, GroupDetail, GroupMember, GroupPrivacy } from '../../../lib/api';
 import { User } from '../../../data/mock';
 import { useAuth } from '../../../lib/auth';
+import { goBack } from '../../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import FeedLayout from '../../../components/FeedLayout';
 
@@ -232,7 +233,7 @@ export default function GroupInfoScreen() {
   return (
     <FeedLayout showMobileMenu={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => goBack(`/groups/${id}` as any)}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Informações do grupo</Text>

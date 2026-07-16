@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { goBack } from '../../lib/navigation';
 import { adsApi, AdFormat, AdObjective, PriceFactor } from '../../lib/adsApi';
 
 const FORMATS: { key: AdFormat; label: string; desc: string }[] = [
@@ -185,7 +186,7 @@ export default function PersonalizarScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/anunciar')}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Personalize seu anúncio</Text>

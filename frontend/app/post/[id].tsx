@@ -19,6 +19,7 @@ import { CATEGORY_ICONS, CATEGORY_LABELS, Post } from '../../data/mock';
 import { api, Comment } from '../../lib/api';
 import { formatExactDateTime } from '../../lib/time';
 import { useAuth } from '../../lib/auth';
+import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { submitOnEnter } from '../../lib/keyboard';
 
@@ -325,7 +326,7 @@ export default function PostDetailScreen() {
     try {
       await api.deletePost(post.id);
       setConfirmDeletePost(false);
-      router.back();
+      goBack('/');
     } catch {
       // mantém o modal aberto para nova tentativa
     } finally {
@@ -585,7 +586,7 @@ export default function PostDetailScreen() {
       <WideLayout showMobileMenu={false}>
       <View style={styles.column}>
       <View style={styles.topBar}>
-        <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.back()} hitSlop={10}>
+        <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack('/')} hitSlop={10}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>{post?.poll ? 'Enquete' : 'Post'}</Text>

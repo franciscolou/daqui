@@ -15,6 +15,7 @@ import { Palette } from '../../constants/Colors';
 import { GROUP_PRIVACY_INFO } from '../../constants/groups';
 import { api, GroupPrivacy } from '../../lib/api';
 import { User } from '../../data/mock';
+import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
 
@@ -71,7 +72,7 @@ export default function NewGroupScreen() {
   return (
     <FeedLayout showMobileMenu={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => goBack('/groups')}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Novo grupo</Text>

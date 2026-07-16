@@ -18,6 +18,7 @@ import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../lib/auth';
 import { api, ApiError } from '../../lib/api';
 import { submitOnEnter } from '../../lib/keyboard';
+import { goBack } from '../../lib/navigation';
 import { useAvailability, AvailabilityState } from '../../lib/useAvailability';
 
 const STEPS = ['Conta', 'Verificar', 'Pronto'];
@@ -161,7 +162,7 @@ export default function SignupScreen() {
                 // completar a verificação de novo a qualquer momento.
                 if (step === 1) router.replace('/(auth)/login');
                 else if (step > 0) setStep(step - 1);
-                else router.back();
+                else goBack('/(auth)/welcome');
               }}
             >
               <Ionicons name="arrow-back" size={20} color="#fff" />

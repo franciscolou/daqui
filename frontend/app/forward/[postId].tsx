@@ -10,12 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { Post, User } from '../../data/mock';
 import { api, ApiError, Comment, SharedComment, SharedPost } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import SharedPostPreview from '../../components/SharedPostPreview';
@@ -155,7 +156,7 @@ export default function ForwardScreen() {
       <WideLayout>
         <View style={styles.column}>
           <View style={styles.topBar}>
-            <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.back()} hitSlop={10}>
+            <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${postId}` as any)} hitSlop={10}>
               <Ionicons name="arrow-back" size={22} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>Encaminhar</Text>

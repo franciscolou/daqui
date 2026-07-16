@@ -9,10 +9,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { api, ApiError } from '../../lib/api';
+import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import PollEditor, {
@@ -86,7 +87,7 @@ export default function EditPollScreen() {
           closes_at: buildClosesAt(draft.date, draft.time)!,
         },
       });
-      router.back();
+      goBack(`/post/${id}` as any);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Não foi possível salvar.');
       setSaving(false);
@@ -97,7 +98,7 @@ export default function EditPollScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <WideLayout showMobileMenu={false}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.back()} hitSlop={10}>
+          <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${id}` as any)} hitSlop={10}>
             <Ionicons name="arrow-back" size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>Editar enquete</Text>

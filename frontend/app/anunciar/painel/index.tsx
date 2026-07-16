@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import { useAuth } from '../../../lib/auth';
+import { goBack } from '../../../lib/navigation';
 import { adsApi, CampaignSummary, MyCampaignsAnalytics } from '../../../lib/adsApi';
 import TimeseriesChart from '../../../components/charts/TimeseriesChart';
 import RankedBarChart from '../../../components/charts/RankedBarChart';
@@ -70,7 +71,7 @@ export default function MyCampaignsDashboard() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Meus anúncios</Text>

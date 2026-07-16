@@ -18,6 +18,7 @@ import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../lib/auth';
 import { ApiError } from '../../lib/api';
 import { submitOnEnter } from '../../lib/keyboard';
+import { goBack } from '../../lib/navigation';
 
 export default function LoginScreen() {
   const { width } = useWindowDimensions();
@@ -125,7 +126,7 @@ export default function LoginScreen() {
             colors={['#0D2918', '#15803D']}
             style={[styles.header, isWide && styles.headerWide]}
           >
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => goBack('/(auth)/welcome')}>
               <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
 

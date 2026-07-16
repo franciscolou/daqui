@@ -18,6 +18,7 @@ import { Palette } from '../../constants/Colors';
 import { Post } from '../../data/mock';
 import { api, ApiError, Comment, SharedComment, SharedPost } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import SharedPostPreview from '../../components/SharedPostPreview';
@@ -112,7 +113,7 @@ export default function QuoteScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.topBar}>
-            <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.back()} hitSlop={10}>
+            <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${postId}` as any)} hitSlop={10}>
               <Ionicons name="close" size={22} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>Citar</Text>
