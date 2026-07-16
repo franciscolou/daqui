@@ -66,6 +66,7 @@
     .sidebar {
       width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border);
       display: flex; flex-direction: column; padding: 18px 12px;
+      position: sticky; top: 0; height: 100vh; overflow-y: auto;
     }
     .brand-mini { display: flex; align-items: center; gap: 9px; padding: 4px 10px 22px; font-weight: 800; font-size: 15px; }
     .brand-mini .dot { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size: 13px; }
@@ -88,7 +89,7 @@
 
     @media (max-width: 700px) {
       .layout { flex-direction: column; }
-      .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; }
+      .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; position: static; height: auto; overflow-y: visible; }
       .brand-mini { padding: 0 14px 0 0; }
       #nav { flex-direction: row; gap: 6px; }
       .navbtn { width: auto; white-space: nowrap; }

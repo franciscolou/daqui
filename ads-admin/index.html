@@ -56,7 +56,7 @@
     .err { color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 12px; min-height: 16px; }
 
     .layout { display: flex; min-height: 100vh; align-items: stretch; }
-    .sidebar { width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 18px 12px; }
+    .sidebar { width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 18px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
     .brand-mini { display: flex; align-items: center; gap: 9px; padding: 4px 10px 22px; font-weight: 800; font-size: 15px; }
     .brand-mini .dot { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size: 13px; }
     #nav { display: flex; flex-direction: column; gap: 3px; }
@@ -73,7 +73,7 @@
 
     @media (max-width: 700px) {
       .layout { flex-direction: column; }
-      .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; }
+      .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; position: static; height: auto; overflow-y: visible; }
       .brand-mini { padding: 0 14px 0 0; }
       #nav { flex-direction: row; gap: 6px; }
       .navbtn { width: auto; white-space: nowrap; }
@@ -112,10 +112,18 @@
     .act.approve { background: var(--primary); border-color: var(--primary); color: #fff; }
     .act.reject { background: var(--surface); border-color: var(--gold); color: #92400E; }
     .act.danger { background: var(--surface); border-color: var(--danger); color: var(--danger); }
-    .act.icon-btn { padding: 8px 10px; display: inline-flex; align-items: center; justify-content: center; }
     .b-hidden { background: var(--border-light); color: var(--text-2); }
+    .plan-card { position: relative; padding-bottom: 46px; }
     .card.plan-hidden { opacity: .6; }
     .card.plan-hidden:hover { opacity: 1; }
+    .plan-actions { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 2px; }
+    .icon-action {
+      width: 30px; height: 30px; padding: 0; border: none; border-radius: 8px; background: none;
+      color: var(--text-3); display: flex; align-items: center; justify-content: center;
+      transition: background-color .15s ease, color .15s ease;
+    }
+    .icon-action:hover { background: var(--border-light); color: var(--text); }
+    .icon-action.danger:hover { background: var(--danger-bg); color: var(--danger); }
     .empty-state { text-align: center; color: var(--text-3); padding: 60px 20px; }
     .checks { display: flex; gap: 14px; flex-wrap: wrap; }
     .checks label { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; margin: 0; }
@@ -200,7 +208,9 @@
     .filters-bar .presets { display: flex; gap: 6px; }
     .preset-btn { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); font-size: 12px; font-weight: 600; }
     .preset-btn.active { background: var(--primary-tint); border-color: var(--primary-tint); color: var(--primary-dark); }
+    .filter-btns { display: flex; gap: 8px; }
     .apply-btn { padding: 9px 16px; border-radius: 10px; border: none; background: var(--primary); color: #fff; font-size: 13px; font-weight: 700; }
+    .apply-btn.clear-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-2); }
     .insights-card { background: var(--primary-tint); border-radius: 14px; padding: 14px 16px; margin-bottom: 16px; }
     .insights-card h3 { font-size: 12px; margin: 0 0 8px; color: var(--primary-dark); text-transform: uppercase; letter-spacing: .4px; }
     .insights-card ul { margin: 0; padding-left: 18px; }
@@ -278,7 +288,10 @@
                 <label>Períodos rápidos</label>
                 <div class="presets" id="anPresets"></div>
               </div>
-              <button class="apply-btn" id="anApplyBtn">Aplicar filtros</button>
+              <div class="filter-btns">
+                <button class="apply-btn" id="anApplyBtn">Aplicar filtros</button>
+                <button class="apply-btn clear-btn" id="anClearBtn">Limpar filtros</button>
+              </div>
             </div>
             <div id="anContent"></div>
           </div>
@@ -975,6 +988,12 @@
     $('anFrom').addEventListener('change', () => { anPreset = ''; renderAnPresets(); });
     $('anTo').addEventListener('change', () => { anPreset = ''; renderAnPresets(); });
     $('anApplyBtn').addEventListener('click', refreshAnalytics);
+    $('anClearBtn').addEventListener('click', () => {
+      $('anAdvertiser').value = '';
+      $('anStatus').value = '';
+      applyAnPreset('all');
+      refreshAnalytics();
+    });
 
     $('anStatus').innerHTML = CAMPAIGN_STATUS_FILTERS.map((f) => `<option value="${f.key}">${f.label}</option>`).join('');
 
@@ -1475,15 +1494,15 @@
         const formatsHtml = p.formats.map((f) => `<span class="format-tag">${FORMAT_LABEL[f] || f}</span>`).join('');
         const badgeHtml = p.badge ? `<span class="badge b-active">${escapeHtml(p.badge)}</span>` : '';
         const visibilityHtml = p.is_public ? '' : `<span class="badge b-hidden">Oculto</span>`;
-        card.className = 'card' + (p.is_public ? '' : ' plan-hidden');
+        card.className = 'card plan-card' + (p.is_public ? '' : ' plan-hidden');
         card.innerHTML = `
           <div class="head"><div class="name">${escapeHtml(p.name)}</div>${badgeHtml}${visibilityHtml}<div class="when">${fmtMoney(p.price_cents)}</div></div>
           <div class="formats">${formatsHtml}</div>
           <div class="comment">${escapeHtml(p.description)}</div>
           <div class="meta-row">${p.duration_days} dias · ${p.max_neighborhoods ? p.max_neighborhoods + ' bairro(s)' : 'cidade toda'}</div>
-          <div class="actions">
-            <button class="act icon-btn ${p.is_public ? 'reject' : 'approve'}" data-act="toggle" title="${p.is_public ? 'Ocultar' : 'Tornar visível'}" aria-label="${p.is_public ? 'Ocultar' : 'Tornar visível'}">${svgIcon(p.is_public ? 'eyeOff' : 'eye', 15)}</button>
-            <button class="act icon-btn danger" data-act="delete" title="Excluir" aria-label="Excluir">${svgIcon('trash', 15)}</button>
+          <div class="plan-actions">
+            <button class="icon-action" data-act="toggle" title="${p.is_public ? 'Ocultar' : 'Tornar visível'}" aria-label="${p.is_public ? 'Ocultar' : 'Tornar visível'}">${svgIcon(p.is_public ? 'eyeOff' : 'eye', 15)}</button>
+            <button class="icon-action danger" data-act="delete" title="Excluir" aria-label="Excluir">${svgIcon('trash', 15)}</button>
           </div>`;
         card.querySelector('[data-act="toggle"]').onclick = () => togglePlanVisibility(p);
         card.querySelector('[data-act="delete"]').onclick = () => deletePlan(p);
