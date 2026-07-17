@@ -8,12 +8,14 @@ import {
 
 export interface LeafletMapProps extends LeafletHtmlOptions {
   onSelectMarker?: (id: string) => void;
+  onPick?: (coords: { latitude: number; longitude: number }) => void;
   style?: StyleProp<ViewStyle>;
 }
 
 // Web: renderiza o mapa Leaflet dentro de um <iframe srcDoc> (mesmo HTML do nativo).
 export default function LeafletMap({
   onSelectMarker,
+  onPick,
   style,
   ...options
 }: LeafletMapProps) {
@@ -23,23 +25,30 @@ export default function LeafletMap({
     options.zoom,
     options.interactive,
     options.focusId,
+    options.pickable,
+    options.pickedLocation?.latitude,
+    options.pickedLocation?.longitude,
     JSON.stringify(options.markers),
   ]);
 
   useEffect(() => {
-    if (!onSelectMarker) return;
+    if (!onSelectMarker && !onPick) return;
     const handler = (event: MessageEvent) => {
       try {
         const data =
           typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-        if (data?.type === MAP_MESSAGE_TYPE && data.id) onSelectMarker(String(data.id));
+        if (data?.type !== MAP_MESSAGE_TYPE) return;
+        if (data.id) onSelectMarker?.(String(data.id));
+        else if (data.latitude != null && data.longitude != null) {
+          onPick?.({ latitude: data.latitude, longitude: data.longitude });
+        }
       } catch {
         /* ignora mensagens desconhecidas */
       }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [onSelectMarker]);
+  }, [onSelectMarker, onPick]);
 
   return (
     <View style={style}>

@@ -23,6 +23,8 @@ import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
+import LocationPickerModal from '../../components/LocationPickerModal';
+import MapPickButton from '../../components/MapPickButton';
 import PollEditor, {
   PollDraft,
   emptyPollDraft,
@@ -99,6 +101,7 @@ export default function PublishScreen() {
   const [priceNegotiable, setPriceNegotiable] = useState(false);
   const [media, setMedia] = useState<DraftMedia[]>([]); // até 10 fotos/vídeos
   const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
 
   // Ao editar o endereço, o status de validação anterior deixa de valer.
   const setLocation = (v: string) => {
@@ -107,9 +110,12 @@ export default function PublishScreen() {
     setLocationMsg(null);
   };
 
-  // Confere se o endereço existe e fica dentro do bairro (API de endereços).
-  const validateLocation = async () => {
-    const addr = location.trim();
+  // Confere se um endereço existe e fica dentro do bairro (API de endereços).
+  // Recebe o texto explicitamente (em vez de ler `location` do closure) pra
+  // poder ser chamada logo após escolher um ponto no mapa, sem esperar o
+  // próximo render refletir o `setLocation` anterior.
+  const validateLocationValue = async (addr: string) => {
+    addr = addr.trim();
     if (!addr) {
       setLocationStatus('idle');
       setLocationMsg(null);
@@ -125,6 +131,26 @@ export default function PublishScreen() {
       setLocationMsg(e instanceof ApiError ? e.message : 'Não foi possível validar o endereço.');
     }
   };
+  const validateLocation = () => validateLocationValue(location);
+
+  // Endereço escolhido no mapa (LocationPickerModal): preenche o campo de
+  // texto e roda a mesma validação de "dentro do bairro" de um endereço
+  // digitado.
+  const handlePickLocation = (address: string) => {
+    setLocation(address);
+    validateLocationValue(address);
+    setLocationPickerOpen(false);
+  };
+
+  // Centro inicial do mapa de seleção: coordenadas do usuário (mesmas usadas
+  // na tela Mapa) ou o centro de São Paulo como fallback.
+  const pickerCenter = useMemo(
+    () =>
+      user?.latitude != null && user?.longitude != null
+        ? { latitude: user.latitude, longitude: user.longitude }
+        : { latitude: -23.5505, longitude: -46.6333 },
+    [user?.latitude, user?.longitude],
+  );
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -577,6 +603,7 @@ export default function PublishScreen() {
               value={location}
               onChange={setLocation}
               onBlur={validateLocation}
+              onPickPress={() => setLocationPickerOpen(true)}
               status={locationStatus}
               message={locationMsg}
             />
@@ -609,6 +636,7 @@ export default function PublishScreen() {
                       onBlur={validateLocation}
                       maxLength={120}
                     />
+                    <MapPickButton onPress={() => setLocationPickerOpen(true)} />
                   </View>
                 </View>
               </View>
@@ -652,6 +680,7 @@ export default function PublishScreen() {
               value={location}
               onChange={setLocation}
               onBlur={validateLocation}
+              onPickPress={() => setLocationPickerOpen(true)}
               status={locationStatus}
               message={locationMsg}
             />
@@ -665,6 +694,7 @@ export default function PublishScreen() {
               value={location}
               onChange={setLocation}
               onBlur={validateLocation}
+              onPickPress={() => setLocationPickerOpen(true)}
               status={locationStatus}
               message={locationMsg}
             />
@@ -677,6 +707,7 @@ export default function PublishScreen() {
               value={location}
               onChange={setLocation}
               onBlur={validateLocation}
+              onPickPress={() => setLocationPickerOpen(true)}
               status={locationStatus}
               message={locationMsg}
             />
@@ -715,6 +746,13 @@ export default function PublishScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
       </WideLayout>
+
+      <LocationPickerModal
+        visible={locationPickerOpen}
+        onClose={() => setLocationPickerOpen(false)}
+        onConfirm={handlePickLocation}
+        initialCenter={pickerCenter}
+      />
     </SafeAreaView>
   );
 }
@@ -771,6 +809,7 @@ function LocationField({
   value,
   onChange,
   onBlur,
+  onPickPress,
   status,
   message,
 }: {
@@ -779,6 +818,7 @@ function LocationField({
   value: string;
   onChange: (v: string) => void;
   onBlur: () => void;
+  onPickPress: () => void;
   status: LocationStatus;
   message: string | null;
 }) {
@@ -796,6 +836,7 @@ function LocationField({
           onBlur={onBlur}
           maxLength={120}
         />
+        <MapPickButton onPress={onPickPress} />
       </View>
       <LocationStatusRow styles={styles} Colors={Colors} status={status} message={message} />
     </View>

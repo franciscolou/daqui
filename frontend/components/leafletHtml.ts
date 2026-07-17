@@ -26,19 +26,31 @@ export interface LeafletHtmlOptions {
   markers?: MapMarker[];
   interactive?: boolean;
   focusId?: string; // abre o tooltip do marcador com este id ao carregar o mapa
+  // Modo "escolher local": qualquer clique no mapa (ou arrastar o pin) manda
+  // a coordenada pro app via mensagem, em vez de abrir um post. Usado pelo
+  // seletor de local dos posts (ver LocationPickerModal.tsx).
+  pickable?: boolean;
+  pickedLocation?: { latitude: number; longitude: number } | null;
 }
 
-// Mensagem enviada do mapa para o app quando um pin é selecionado (clique).
+// Mensagem enviada do mapa para o app: `id` quando um pin de post é
+// selecionado (clique), `latitude`/`longitude` quando um ponto é escolhido no
+// modo `pickable` (clique no mapa ou arrastar o pin).
 export const MAP_MESSAGE_TYPE = 'daqui-map';
 
 export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
-  const { center, zoom = 15, markers = [], interactive = true, focusId = null } = opts;
+  const {
+    center, zoom = 15, markers = [], interactive = true, focusId = null,
+    pickable = false, pickedLocation = null,
+  } = opts;
   const data = JSON.stringify({
     center: [center.latitude, center.longitude],
     zoom,
     markers,
     interactive,
     focusId,
+    pickable,
+    pickedLocation,
   });
 
   return `<!DOCTYPE html>
@@ -89,8 +101,13 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   var CFG = ${data};
-  function send(id) {
-    var msg = JSON.stringify({ type: '${MAP_MESSAGE_TYPE}', id: id });
+  // id pra clique num pin de post; lat/lng pra escolha de ponto no modo
+  // pickable — os dois casos nunca acontecem juntos.
+  function send(id, lat, lng) {
+    var payload = { type: '${MAP_MESSAGE_TYPE}' };
+    if (id != null) payload.id = id;
+    if (lat != null && lng != null) { payload.latitude = lat; payload.longitude = lng; }
+    var msg = JSON.stringify(payload);
     if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(msg); }
     else if (window.parent) { window.parent.postMessage(msg, '*'); }
   }
@@ -106,6 +123,30 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     attributionControl: false,
   }).setView(CFG.center, CFG.zoom);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+  if (CFG.pickable) {
+    var pickIcon = L.divIcon({
+      className: '',
+      html: '<div class="daqui-pin-wrap"><div class="daqui-pin" style="background:#16A34A"></div></div>',
+      iconSize: [22, 22], iconAnchor: [11, 22],
+    });
+    var pickMarker = null;
+    function placePicked(lat, lng) {
+      if (pickMarker) { pickMarker.setLatLng([lat, lng]); }
+      else { pickMarker = L.marker([lat, lng], { icon: pickIcon, draggable: true }).addTo(map); }
+      pickMarker.on('dragend', function () {
+        var p = pickMarker.getLatLng();
+        send(null, p.lat, p.lng);
+      });
+    }
+    if (CFG.pickedLocation) {
+      placePicked(CFG.pickedLocation.latitude, CFG.pickedLocation.longitude);
+    }
+    map.on('click', function (e) {
+      placePicked(e.latlng.lat, e.latlng.lng);
+      send(null, e.latlng.lat, e.latlng.lng);
+    });
+  }
 
   function buildCard(m) {
     var card = document.createElement('div');
