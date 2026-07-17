@@ -467,3 +467,14 @@ export const CATEGORY_ICONS: Record<PostCategory, string> = {
   perdidos: 'search',
   enquete: 'stats-chart',
 };
+
+// Vida útil (em dias) do pin de cada categoria no mapa: passado esse prazo o
+// pin já encolheu quase ao máximo (ver CATEGORY_LIFESPAN_DAYS em map.tsx e o
+// decaimento em leafletHtml.ts). Categorias fora daqui — como "evento", que já
+// tem vida própria marcada pelas `event_dates` — ficam sempre no tamanho normal.
+export const CATEGORY_LIFESPAN_DAYS: Partial<Record<PostCategory, number>> = {
+  recomendacao: 30,
+  venda: 60,
+  perdidos: 15,
+  seguranca: 15,
+};

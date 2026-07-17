@@ -13,7 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
-import { CATEGORY_LABELS, CATEGORY_ICONS, PostCategory, Post } from '../../data/mock';
+import { CATEGORY_LABELS, CATEGORY_ICONS, CATEGORY_LIFESPAN_DAYS, PostCategory, Post } from '../../data/mock';
 import { api, NeighborhoodStats } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
 import { getOrCreateAdViewerId } from '../../lib/storage';
@@ -116,6 +116,8 @@ export default function MapScreen() {
       authorName: p.author.name,
       authorAvatar: p.author.avatar,
       imageUrl: p.media?.find((m) => m.type === 'image')?.url,
+      createdAt: p.createdAt,
+      maxAgeDays: CATEGORY_LIFESPAN_DAYS[p.category],
     }));
     if (ad?.latitude != null && ad?.longitude != null) {
       list.push({

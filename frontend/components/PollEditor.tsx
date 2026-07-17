@@ -143,11 +143,13 @@ export default function PollEditor({
         )}
       </View>
 
-      {/* Múltiplos votos */}
+      {/* Múltiplos votos — sem hover global (tabIndex -1): a linha já tem seu
+          próprio toggle visual, o realce cinza por cima só polui. */}
       <TouchableOpacity
         style={styles.multiRow}
         activeOpacity={0.8}
         onPress={() => onChange({ ...value, multiple: !value.multiple })}
+        {...({ tabIndex: -1 } as any)}
       >
         <View style={styles.multiLeft}>
           <View style={[styles.multiIcon, { backgroundColor: accent + '18' }]}>
@@ -230,7 +232,16 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.text,
   },
   removeOpt: { padding: 2 },
-  addOpt: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingVertical: 4 },
+  addOpt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+  },
   addOptText: { fontSize: 14, fontWeight: '700' },
   multiRow: {
     flexDirection: 'row',

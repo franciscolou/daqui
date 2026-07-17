@@ -225,6 +225,9 @@ def _build_details(category: str, raw: dict | None) -> dict | None:
     if category == "perdidos":
         return {"location": _clean_str(raw.get("location"))}
 
+    if category == "seguranca":
+        return {"location": _clean_str(raw.get("location"))}
+
     return None
 
 

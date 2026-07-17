@@ -259,6 +259,8 @@ export default function PublishScreen() {
         };
       case 'perdidos':
         return { location: location.trim() || null };
+      case 'seguranca':
+        return { location: location.trim() || null };
       default:
         return undefined;
     }
@@ -657,6 +659,18 @@ export default function PublishScreen() {
           )}
 
           {selectedCategory === 'perdidos' && (
+            <LocationField
+              styles={styles}
+              Colors={Colors}
+              value={location}
+              onChange={setLocation}
+              onBlur={validateLocation}
+              status={locationStatus}
+              message={locationMsg}
+            />
+          )}
+
+          {selectedCategory === 'seguranca' && (
             <LocationField
               styles={styles}
               Colors={Colors}

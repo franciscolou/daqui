@@ -12,6 +12,12 @@ export interface MapMarker {
   authorName?: string;
   authorAvatar?: string;
   imageUrl?: string;
+  // Data de criação (ISO) + vida útil em dias, usados para encolher o pin
+  // gradativamente com o tempo (ver CATEGORY_LIFESPAN_DAYS). Se `maxAgeDays`
+  // vier ausente/undefined, o pin fica sempre no tamanho normal (ex.: eventos,
+  // que já têm vida própria marcada pela data do evento).
+  createdAt?: string;
+  maxAgeDays?: number;
 }
 
 export interface LeafletHtmlOptions {
@@ -43,11 +49,18 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #e5e7eb; }
+  /* O wrapper mantém a área de 22x22 sempre no lugar (é o que o Leaflet
+     posiciona/ancora); só o pin de dentro encolhe com --daqui-scale, então
+     "chegar perto" com o mouse já basta pra disparar o :hover e crescer de
+     volta ao tamanho normal, mesmo com o pin quase invisível. */
+  .daqui-pin-wrap { width: 22px; height: 22px; cursor: pointer; }
   .daqui-pin {
     width: 22px; height: 22px; border-radius: 50% 50% 50% 0;
-    transform: rotate(-45deg); border: 2.5px solid #fff;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.35); cursor: pointer;
+    transform: rotate(-45deg) scale(var(--daqui-scale, 1));
+    border: 2.5px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    transition: transform 0.2s ease-out;
   }
+  .daqui-pin-wrap:hover .daqui-pin { transform: rotate(-45deg) scale(1); }
   .daqui-pin::after {
     content: ''; position: absolute; top: 6px; left: 6px;
     width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.9);
@@ -137,10 +150,22 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     return card;
   }
 
+  // Encolhe o pin gradativamente conforme envelhece, até quase sumir perto do
+  // fim da vida útil da categoria; sem maxAgeDays/createdAt fica sempre 1
+  // (tamanho normal, ex.: eventos).
+  var MIN_PIN_SCALE = 0.2;
+  function pinScale(m) {
+    if (!m.maxAgeDays || !m.createdAt) return 1;
+    var ageDays = (Date.now() - new Date(m.createdAt).getTime()) / 86400000;
+    var ratio = Math.min(1, Math.max(0, ageDays / m.maxAgeDays));
+    return 1 - (1 - MIN_PIN_SCALE) * ratio;
+  }
+
   CFG.markers.forEach(function (m) {
     var icon = L.divIcon({
       className: '',
-      html: '<div class="daqui-pin" style="background:' + m.color + '"></div>',
+      html: '<div class="daqui-pin-wrap"><div class="daqui-pin" style="background:' +
+        m.color + ';--daqui-scale:' + pinScale(m) + '"></div></div>',
       iconSize: [22, 22], iconAnchor: [11, 22], tooltipAnchor: [12, -11],
     });
     var mk = L.marker([m.latitude, m.longitude], { icon: icon }).addTo(map);
