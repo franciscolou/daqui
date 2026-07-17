@@ -6,6 +6,7 @@
   <title>Anúncios | Daqui</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
   <script>
     (function () {
       try {
@@ -56,15 +57,33 @@
     .err { color: var(--danger); font-size: 13px; font-weight: 600; margin-top: 12px; min-height: 16px; }
 
     .layout { display: flex; min-height: 100vh; align-items: stretch; }
-    .sidebar { width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 18px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-    .brand-mini { display: flex; align-items: center; gap: 9px; padding: 4px 10px 22px; font-weight: 800; font-size: 15px; }
+    .sidebar { width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 18px 12px 14px; position: sticky; top: 0; height: 100vh; }
+    .brand-mini { display: flex; align-items: center; gap: 9px; padding: 4px 10px 22px; font-weight: 800; font-size: 15px; flex-shrink: 0; }
     .brand-mini .dot { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size: 13px; }
+    /* Só a navegação rola internamente — o rodapé (conta/tema/sair) fica de
+       fora desse scroll, então nunca some atrás de uma lista de seções alta. */
+    .sidebar-nav-scroll { flex: 1; min-height: 0; overflow-y: auto; }
     #nav { display: flex; flex-direction: column; gap: 3px; }
     .navbtn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; border-radius: 10px; border: none; background: none; font-size: 14px; font-weight: 600; color: var(--text-2); }
     .navbtn .ic { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .navbtn.active { background: var(--primary-tint); color: var(--primary-dark); }
-    .sidebar-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-light); }
-    .sidebar-footer .who { font-size: 12px; color: var(--text-3); margin-bottom: 8px; word-break: break-all; }
+
+    .sidebar-footer { flex-shrink: 0; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--border-light); }
+    .who-row { display: flex; align-items: center; gap: 9px; padding: 0 2px 12px; min-width: 0; }
+    .who-avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: var(--border-light); color: var(--text-2);
+      display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;
+    }
+    .who-email { font-size: 12px; font-weight: 600; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .footer-actions { display: flex; align-items: center; gap: 8px; }
+    .logout-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+      height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid transparent;
+      background: var(--danger-bg); color: var(--danger); font-size: 13px; font-weight: 700;
+      transition: background-color .15s ease, border-color .15s ease;
+    }
+    .logout-btn:hover { border-color: var(--danger); }
+    .logout-btn svg { flex-shrink: 0; }
     .main { flex: 1; min-width: 0; }
     .topbar { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; }
     .topbar h1 { font-size: 18px; margin: 0; }
@@ -73,12 +92,22 @@
 
     @media (max-width: 700px) {
       .layout { flex-direction: column; }
-      .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; position: static; height: auto; overflow-y: visible; }
+      .sidebar {
+        width: 100%; flex-direction: row; align-items: center; padding: 10px 14px;
+        position: sticky; top: 0; height: auto; z-index: 20;
+      }
       .brand-mini { padding: 0 14px 0 0; }
+      .sidebar-nav-scroll { flex: 0 1 auto; overflow-x: auto; overflow-y: visible; }
       #nav { flex-direction: row; gap: 6px; }
       .navbtn { width: auto; white-space: nowrap; }
-      .sidebar-footer { margin-top: 0; margin-left: auto; padding-top: 0; border-top: none; display: flex; align-items: center; gap: 10px; }
-      .sidebar-footer .who { margin-bottom: 0; }
+      .sidebar-footer { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-top: 0; margin-left: auto; padding-top: 0; border-top: none; }
+      .who-row { padding: 0 10px 0 0; }
+      .who-email { max-width: 140px; }
+    }
+
+    @media (max-width: 560px) {
+      .who-email { display: none; }
+      .who-row { padding-right: 6px; }
     }
 
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
@@ -156,6 +185,23 @@
     .creative-item .top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
     .creative-item .top b { font-size: 13px; }
     .creative-item .sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+    .target-box { background: var(--bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; margin-top: 8px; }
+    /* QR code: fundo sempre branco (independe do tema) — leitores precisam do contraste real. */
+    .qr-box { background: #fff; border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: center; width: fit-content; margin: 0 auto; }
+    .qr-box svg { width: 180px; height: 180px; display: block; }
+    .security-card { max-width: 560px; }
+    .btn.danger { background: var(--danger); }
+    .twofa-step { font-size: 13px; color: var(--text-2); line-height: 1.5; margin: 16px 0 8px; }
+    .twofa-step b { color: var(--primary-dark); }
+    .secret-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .secret-text { font-family: monospace; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-2); word-break: break-all; }
+    .copy-link { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; padding: 4px 6px; margin: -4px -6px; border-radius: 8px; color: var(--primary-dark); font-size: 13px; font-weight: 700; flex-shrink: 0; }
+    .copy-link:hover { background: var(--primary-tint); }
+    .code-input-lg { font-size: 22px; font-weight: 700; letter-spacing: 10px; text-align: center; padding: 14px 12px; }
+    .twofa-btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .twofa-btn-row .act { margin-top: 0; }
+    .twofa-btn-row .act.approve { flex: 1; }
+    .twofa-btn-row .act.cancel { flex: 0 0 auto; }
 
     /* ── Bairros: chip-picker com autocomplete (OSM/Nominatim) ── */
     .chip-picker { border: 1px solid var(--border); border-radius: 10px; padding: 8px; background: var(--surface); position: relative; }
@@ -242,14 +288,58 @@
     <div class="login-card">
       <div class="brand"><div class="dot">d</div><h1>Anúncios Daqui</h1></div>
       <p class="muted">Painel do time de anúncios. Login separado do app Daqui.</p>
+
+      <div id="loginStepCreds">
+        <label>Servidor do ads-backend</label>
+        <input id="api" value="http://localhost:8001/api/v1" />
+        <label>E-mail</label>
+        <input id="email" type="email" placeholder="ads@daqui.com" autocomplete="username" />
+        <label>Senha</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+        <button id="loginBtn" class="btn">Entrar</button>
+        <button class="linkbtn" id="forgotPasswordLink" style="margin-top:14px;">Esqueci minha senha</button>
+        <div id="loginErr" class="err"></div>
+      </div>
+
+      <div id="loginStep2fa" class="hidden">
+        <p class="muted">Digite o código de 6 dígitos do seu app autenticador.</p>
+        <label>Código</label>
+        <input id="twofaCode" inputmode="numeric" placeholder="000000" maxlength="6" autocomplete="one-time-code" />
+        <button id="twofaBtn" class="btn">Confirmar</button>
+        <button class="linkbtn" id="twofaBackBtn" style="margin-top:14px;">Voltar</button>
+        <div id="twofaErr" class="err"></div>
+      </div>
+
+      <div id="loginStepForgot" class="hidden">
+        <p class="muted">Informe seu e-mail. Se existir uma conta, enviaremos um link para redefinir a senha.</p>
+        <label>E-mail</label>
+        <input id="forgotEmail" type="email" placeholder="ads@daqui.com" autocomplete="username" />
+        <button id="forgotSubmitBtn" class="btn">Enviar link</button>
+        <button class="linkbtn" id="forgotBackBtn" style="margin-top:14px;">Voltar</button>
+        <div id="forgotMsg" class="muted" style="margin-top:12px;"></div>
+        <div id="forgotErr" class="err"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Redefinição de senha (link do e-mail: ?reset_token=...) -->
+  <div id="resetPasswordScreen" class="login-wrap hidden">
+    <button class="theme-toggle login-theme-toggle" id="themeToggleReset" title="Alternar tema"></button>
+    <div class="login-card">
+      <div class="brand"><div class="dot">d</div><h1>Nova senha</h1></div>
+      <p class="muted">Escolha uma nova senha para sua conta do painel de anúncios.</p>
       <label>Servidor do ads-backend</label>
-      <input id="api" value="http://localhost:8001/api/v1" />
-      <label>E-mail</label>
-      <input id="email" type="email" placeholder="ads@daqui.com" autocomplete="username" />
-      <label>Senha</label>
-      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
-      <button id="loginBtn" class="btn">Entrar</button>
-      <div id="loginErr" class="err"></div>
+      <input id="resetApi" value="http://localhost:8001/api/v1" />
+      <label>Nova senha</label>
+      <input id="resetNewPassword" type="password" placeholder="••••••••" autocomplete="new-password" />
+      <label>Confirmar nova senha</label>
+      <input id="resetNewPassword2" type="password" placeholder="••••••••" autocomplete="new-password" />
+      <button id="resetSubmitBtn" class="btn">Salvar nova senha</button>
+      <div id="resetErr" class="err"></div>
+      <div id="resetOk" class="hidden" style="margin-top:14px;padding:12px;border-radius:10px;background:var(--primary-tint);">
+        <div style="font-weight:700;margin-bottom:6px;">Senha alterada com sucesso!</div>
+        <button class="act approve" id="resetGoLoginBtn">Ir para o login</button>
+      </div>
     </div>
   </div>
 
@@ -257,11 +347,19 @@
     <div class="layout">
       <nav class="sidebar">
         <div class="brand-mini"><div class="dot">d</div><span>Anúncios</span></div>
-        <div id="nav"></div>
+        <div class="sidebar-nav-scroll"><div id="nav"></div></div>
         <div class="sidebar-footer">
-          <div class="who" id="who"></div>
-          <button class="theme-toggle" id="themeToggleApp" title="Alternar tema"></button>
-          <button class="linkbtn" id="logoutBtn">Sair</button>
+          <div class="who-row">
+            <div class="who-avatar" id="whoAvatar"></div>
+            <div class="who-email" id="who"></div>
+          </div>
+          <div class="footer-actions">
+            <button class="theme-toggle" id="themeToggleApp" title="Alternar tema"></button>
+            <button class="logout-btn" id="logoutBtn" title="Sair">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Sair</span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -395,6 +493,10 @@
 
         </div>
 
+        <div id="section-security" class="hidden container">
+          <div id="securityContent"></div>
+        </div>
+
         <div id="section-settings" class="hidden container">
           <div class="form-card" style="max-width:420px;">
             <h2>Multiplicador geral</h2>
@@ -478,6 +580,8 @@
       eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>',
       eyeOff: '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>',
       trash: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>',
+      lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+      copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
     };
     function svgIcon(name, size = 16) {
       return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -497,6 +601,7 @@
     applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
     $('themeToggleLogin').addEventListener('click', toggleTheme);
     $('themeToggleApp').addEventListener('click', toggleTheme);
+    $('themeToggleReset').addEventListener('click', toggleTheme);
 
     async function apiFetch(path, opts = {}) {
       const res = await fetch(API + path, {
@@ -623,8 +728,29 @@
     }
 
     // ── Login ──
+    // 3 passos possíveis no card de login: credenciais → (se A2F ativa) código
+    // → confirma; ou credenciais → "esqueci minha senha" → confirmação.
+    let twofaTicket = '';
+
+    function showLoginStep(step) {
+      $('loginStepCreds').classList.toggle('hidden', step !== 'creds');
+      $('loginStep2fa').classList.toggle('hidden', step !== '2fa');
+      $('loginStepForgot').classList.toggle('hidden', step !== 'forgot');
+    }
+
     $('loginBtn').addEventListener('click', login);
     $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+    $('twofaBtn').addEventListener('click', submitTwofaLogin);
+    $('twofaCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitTwofaLogin(); });
+    $('twofaBackBtn').addEventListener('click', () => showLoginStep('creds'));
+    $('forgotPasswordLink').addEventListener('click', () => {
+      $('forgotEmail').value = $('email').value.trim();
+      $('forgotMsg').textContent = '';
+      $('forgotErr').textContent = '';
+      showLoginStep('forgot');
+    });
+    $('forgotBackBtn').addEventListener('click', () => showLoginStep('creds'));
+    $('forgotSubmitBtn').addEventListener('click', submitForgotPassword);
 
     async function login() {
       $('loginErr').textContent = '';
@@ -638,12 +764,14 @@
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || 'Falha no login');
-        token = data.access_token;
-        $('who').textContent = $('email').value.trim();
-        $('login').classList.add('hidden');
-        $('app').classList.remove('hidden');
-        renderNav();
-        await goToSection(SECTIONS[0].key);
+        if (data.requires_2fa) {
+          twofaTicket = data.ticket;
+          $('twofaCode').value = '';
+          $('twofaErr').textContent = '';
+          showLoginStep('2fa');
+          return;
+        }
+        completeLogin(data.access_token);
       } catch (e) {
         $('loginErr').textContent = e.message;
       } finally {
@@ -651,15 +779,122 @@
       }
     }
 
+    async function submitTwofaLogin() {
+      $('twofaErr').textContent = '';
+      $('twofaBtn').disabled = true;
+      try {
+        const r = await fetch(API + '/auth/login/2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket: twofaTicket, code: $('twofaCode').value.trim() }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Código inválido');
+        completeLogin(data.access_token);
+      } catch (e) {
+        $('twofaErr').textContent = e.message;
+      } finally {
+        $('twofaBtn').disabled = false;
+      }
+    }
+
+    function completeLogin(accessToken) {
+      token = accessToken;
+      const emailVal = $('email').value.trim();
+      $('who').textContent = emailVal;
+      $('whoAvatar').textContent = (emailVal[0] || '?').toUpperCase();
+      $('login').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      renderNav();
+      goToSection(SECTIONS[0].key);
+    }
+
+    async function submitForgotPassword() {
+      $('forgotErr').textContent = '';
+      $('forgotMsg').textContent = '';
+      API = $('api').value.trim().replace(/\/$/, '');
+      const email = $('forgotEmail').value.trim();
+      if (!email) { $('forgotErr').textContent = 'Informe um e-mail.'; return; }
+      $('forgotSubmitBtn').disabled = true;
+      try {
+        const r = await fetch(API + '/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        if (!r.ok) {
+          const data = await r.json().catch(() => null);
+          throw new Error((data && data.detail) || 'Não foi possível enviar o e-mail.');
+        }
+        $('forgotMsg').textContent = 'Se este e-mail estiver cadastrado, você receberá um link para redefinir a senha.';
+      } catch (e) {
+        $('forgotErr').textContent = e.message;
+      } finally {
+        $('forgotSubmitBtn').disabled = false;
+      }
+    }
+
     $('logoutBtn').addEventListener('click', () => {
       token = ''; $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+      showLoginStep('creds');
     });
+
+    // ── Redefinição de senha (link do e-mail: ?reset_token=...) ──────────
+    let resetToken = '';
+
+    function showResetPasswordScreen(resetTokenValue) {
+      resetToken = resetTokenValue;
+      $('login').classList.add('hidden');
+      $('app').classList.add('hidden');
+      $('resetPasswordScreen').classList.remove('hidden');
+    }
+
+    async function submitResetPassword() {
+      $('resetErr').textContent = '';
+      const p1 = $('resetNewPassword').value;
+      const p2 = $('resetNewPassword2').value;
+      if (p1.length < 6) { $('resetErr').textContent = 'A senha deve ter ao menos 6 caracteres.'; return; }
+      if (p1 !== p2) { $('resetErr').textContent = 'As senhas não coincidem.'; return; }
+      const api = $('resetApi').value.trim().replace(/\/$/, '');
+      $('resetSubmitBtn').disabled = true;
+      try {
+        const r = await fetch(api + '/auth/reset-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: resetToken, new_password: p1 }),
+        });
+        if (!r.ok) {
+          const data = await r.json().catch(() => null);
+          throw new Error((data && data.detail) || 'Não foi possível redefinir a senha.');
+        }
+        $('resetOk').classList.remove('hidden');
+        $('resetSubmitBtn').classList.add('hidden');
+      } catch (e) {
+        $('resetErr').textContent = e.message;
+      } finally {
+        $('resetSubmitBtn').disabled = false;
+      }
+    }
+
+    $('resetSubmitBtn').addEventListener('click', submitResetPassword);
+    $('resetGoLoginBtn').addEventListener('click', () => {
+      history.replaceState(null, '', location.pathname);
+      $('resetPasswordScreen').classList.add('hidden');
+      $('login').classList.remove('hidden');
+    });
+
+    (function checkResetTokenOnLoad() {
+      const params = new URLSearchParams(location.search);
+      const t = params.get('reset_token');
+      if (t) showResetPasswordScreen(t);
+    })();
 
     const SECTIONS = [
       { key: 'campaigns', label: 'Campanhas', icon: 'grid', sectionId: 'section-campaigns', title: 'Campanhas', onShow: refreshCampaigns },
       { key: 'analytics', label: 'Analytics', icon: 'barChart', sectionId: 'section-analytics', title: 'Analytics', onShow: refreshAnalytics },
       { key: 'new', label: 'Nova proposta', icon: 'plusCircle', sectionId: 'section-new', title: 'Inserir proposta manual', onShow: () => ensureNewLocationMap() },
       { key: 'plans', label: 'Planos', icon: 'list', sectionId: 'section-plans', title: 'Planos', onShow: refreshPlans },
+      { key: 'security', label: 'Segurança', icon: 'lock', sectionId: 'section-security', title: 'Segurança', onShow: refreshSecurity },
       { key: 'settings', label: 'Configurações', icon: 'settings', sectionId: 'section-settings', title: 'Configurações', onShow: refreshSettings },
     ];
     let currentSection = SECTIONS[0].key;
@@ -1579,6 +1814,100 @@
         $('settingsErr').textContent = e.message;
       }
     });
+
+    // ── Segurança (A2F da própria conta de admin de anúncios) ────────────
+    async function refreshSecurity() {
+      $('securityContent').innerHTML = `<div class="empty-state">Carregando…</div>`;
+      try {
+        const me = await apiFetch('/auth/me');
+        renderSecurity(me.two_factor_enabled);
+      } catch (e) {
+        $('securityContent').innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderSecurity(enabled) {
+      const wrap = $('securityContent');
+      if (enabled) {
+        wrap.innerHTML = `
+          <div class="card security-card">
+            <div class="head"><div class="name">Autenticação de dois fatores</div><span class="badge b-active">Ativa</span></div>
+            <div class="comment" style="margin-top:8px;">Sua conta exige um código do app autenticador a cada login.</div>
+            <label>Código para desativar</label>
+            <input id="secDisableCode" inputmode="numeric" placeholder="000000" maxlength="6" />
+            <button class="btn danger" id="secDisableBtn">Desativar A2F</button>
+            <div id="secErr" class="err"></div>
+          </div>`;
+        $('secDisableBtn').onclick = disableTwofa;
+      } else {
+        wrap.innerHTML = `
+          <div class="card security-card">
+            <div class="head"><div class="name">Autenticação de dois fatores</div><span class="badge b-rejected">Inativa</span></div>
+            <div class="comment" style="margin-top:8px;">Adicione uma camada extra de segurança exigindo um código do Google Authenticator, Authy ou similar a cada login.</div>
+            <button class="btn" id="secSetupBtn">Ativar A2F</button>
+            <div id="secSetupArea" style="margin-top:14px;"></div>
+          </div>`;
+        $('secSetupBtn').onclick = startTwofaSetup;
+      }
+    }
+
+    async function startTwofaSetup() {
+      try {
+        const data = await apiFetch('/auth/2fa/setup', { method: 'POST' });
+        const groupedSecret = data.secret.replace(/(.{4})/g, '$1 ').trim();
+        $('secSetupArea').innerHTML = `
+          <div class="twofa-step"><b>1.</b> Escaneie o QR code com seu app autenticador (Google Authenticator, Authy...).</div>
+          <div class="qr-box" id="secQrBox"></div>
+          <div class="twofa-step" style="margin-bottom:6px;">Não consegue escanear? Use a chave manual:</div>
+          <div class="secret-row">
+            <span class="secret-text">${escapeHtml(groupedSecret)}</span>
+            <button class="copy-link" id="secCopySecretBtn">${svgIcon('copy', 14)}<span>Copiar</span></button>
+          </div>
+          <div class="twofa-step"><b>2.</b> Digite o código de 6 dígitos que o app mostrar para confirmar.</div>
+          <label>Código de verificação</label>
+          <input id="secEnableCode" class="code-input-lg" inputmode="numeric" placeholder="000000" maxlength="6" />
+          <div id="secErr2" class="err"></div>
+          <div class="twofa-btn-row">
+            <button class="act cancel" id="secCancelBtn">Cancelar</button>
+            <button class="act approve" id="secEnableBtn">Confirmar e ativar</button>
+          </div>`;
+        const qr = qrcode(0, 'M');
+        qr.addData(data.otpauth_url);
+        qr.make();
+        $('secQrBox').innerHTML = qr.createSvgTag(5);
+        $('secCopySecretBtn').onclick = () => {
+          navigator.clipboard.writeText(data.secret);
+          const label = $('secCopySecretBtn').querySelector('span');
+          label.textContent = 'Copiado!';
+          setTimeout(() => { label.textContent = 'Copiar'; }, 1500);
+        };
+        $('secCancelBtn').onclick = () => renderSecurity(false);
+        $('secEnableBtn').onclick = enableTwofa;
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+
+    async function enableTwofa() {
+      const code = $('secEnableCode').value.trim();
+      try {
+        await apiFetch('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
+        await refreshSecurity();
+      } catch (e) {
+        $('secErr2').textContent = e.message;
+      }
+    }
+
+    async function disableTwofa() {
+      const code = $('secDisableCode').value.trim();
+      if (!confirm('Desativar a autenticação de dois fatores?')) return;
+      try {
+        await apiFetch('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });
+        await refreshSecurity();
+      } catch (e) {
+        $('secErr').textContent = e.message;
+      }
+    }
   </script>
 </body>
 </html>

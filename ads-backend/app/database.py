@@ -85,3 +85,11 @@ def _ensure_columns():
                         "ON ad_campaigns (root_campaign_id)"
                     )
                 )
+
+    if "ad_admins" in tables:
+        columns = {c["name"] for c in inspector.get_columns("ad_admins")}
+        with engine.begin() as conn:
+            if "totp_secret" not in columns:
+                conn.execute(text("ALTER TABLE ad_admins ADD COLUMN totp_secret VARCHAR(64)"))
+            if "totp_enabled" not in columns:
+                conn.execute(text("ALTER TABLE ad_admins ADD COLUMN totp_enabled BOOLEAN DEFAULT 0 NOT NULL"))

@@ -21,6 +21,15 @@ class Settings(BaseSettings):
     ADS_ADMIN_EMAIL: str = "ads@daqui.com"
     ADS_ADMIN_PASSWORD: str = "senha123"
 
+    # E-mail transacional (redefinição de senha) — mesmo provedor do backend
+    # principal (Resend), ver app/core/email.py.
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "Daqui Ads <onboarding@resend.dev>"
+    # URL do próprio painel estático (ads-admin/index.html) — usada para montar
+    # o link de redefinição de senha, já que (ao contrário do moderador) não
+    # existe outro app pra abrir essa tela.
+    ADS_ADMIN_URL: str = "http://localhost:8091"
+
     class Config:
         env_file = ".env"
 

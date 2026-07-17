@@ -17,3 +17,11 @@ def create(db: Session, email: str, hashed_password: str) -> AdAdmin:
     db.commit()
     db.refresh(admin)
     return admin
+
+
+def update(db: Session, admin: AdAdmin, data: dict) -> AdAdmin:
+    for field, value in data.items():
+        setattr(admin, field, value)
+    db.commit()
+    db.refresh(admin)
+    return admin

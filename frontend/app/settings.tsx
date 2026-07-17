@@ -1305,7 +1305,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
-  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 4, borderRadius: 8 },
   copyBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
   codeInput: { fontSize: 20, fontWeight: '700', letterSpacing: 6 },
   twoFaBtnRow: { flexDirection: 'row', gap: 10, marginTop: 4 },

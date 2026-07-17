@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Moderação | Daqui</title>
+  <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
   <script>
     // Aplica o tema antes do primeiro paint (evita flash do tema errado).
     (function () {
@@ -65,11 +66,14 @@
     .layout { display: flex; min-height: 100vh; align-items: stretch; }
     .sidebar {
       width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border);
-      display: flex; flex-direction: column; padding: 18px 12px;
-      position: sticky; top: 0; height: 100vh; overflow-y: auto;
+      display: flex; flex-direction: column; padding: 18px 12px 14px;
+      position: sticky; top: 0; height: 100vh;
     }
-    .brand-mini { display: flex; align-items: center; gap: 9px; padding: 4px 10px 22px; font-weight: 800; font-size: 15px; }
+    .brand-mini { display: flex; align-items: center; gap: 9px; padding: 4px 10px 22px; font-weight: 800; font-size: 15px; flex-shrink: 0; }
     .brand-mini .dot { width: 28px; height: 28px; border-radius: 9px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size: 13px; }
+    /* Só a navegação rola internamente — o rodapé (conta/tema/sair) fica de
+       fora desse scroll, então nunca some atrás de uma lista de seções alta. */
+    .sidebar-nav-scroll { flex: 1; min-height: 0; overflow-y: auto; }
     #nav { display: flex; flex-direction: column; gap: 3px; }
     .navbtn {
       display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
@@ -78,8 +82,23 @@
     }
     .navbtn .ic { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .navbtn.active { background: var(--primary-tint); color: var(--primary-dark); }
-    .sidebar-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--border-light); }
-    .sidebar-footer .who { font-size: 12px; color: var(--text-3); margin-bottom: 8px; word-break: break-all; }
+
+    .sidebar-footer { flex-shrink: 0; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--border-light); }
+    .who-row { display: flex; align-items: center; gap: 9px; padding: 0 2px 12px; min-width: 0; }
+    .who-avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: var(--border-light); color: var(--text-2);
+      display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;
+    }
+    .who-email { font-size: 12px; font-weight: 600; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .footer-actions { display: flex; align-items: center; gap: 8px; }
+    .logout-btn {
+      flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+      height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid transparent;
+      background: var(--danger-bg); color: var(--danger); font-size: 13px; font-weight: 700;
+      transition: background-color .15s ease, border-color .15s ease;
+    }
+    .logout-btn:hover { border-color: var(--danger); }
+    .logout-btn svg { flex-shrink: 0; }
     .main { flex: 1; min-width: 0; }
 
     .topbar { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 24px; }
@@ -89,12 +108,22 @@
 
     @media (max-width: 700px) {
       .layout { flex-direction: column; }
-      .sidebar { width: 100%; flex-direction: row; align-items: center; padding: 10px 14px; overflow-x: auto; position: static; height: auto; overflow-y: visible; }
+      .sidebar {
+        width: 100%; flex-direction: row; align-items: center; padding: 10px 14px;
+        position: sticky; top: 0; height: auto; z-index: 20;
+      }
       .brand-mini { padding: 0 14px 0 0; }
+      .sidebar-nav-scroll { flex: 0 1 auto; overflow-x: auto; overflow-y: visible; }
       #nav { flex-direction: row; gap: 6px; }
       .navbtn { width: auto; white-space: nowrap; }
-      .sidebar-footer { margin-top: 0; margin-left: auto; padding-top: 0; border-top: none; display: flex; align-items: center; gap: 10px; }
-      .sidebar-footer .who { margin-bottom: 0; }
+      .sidebar-footer { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-top: 0; margin-left: auto; padding-top: 0; border-top: none; }
+      .who-row { padding: 0 10px 0 0; }
+      .who-email { max-width: 140px; }
+    }
+
+    @media (max-width: 560px) {
+      .who-email { display: none; }
+      .who-row { padding-right: 6px; }
     }
 
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
@@ -115,6 +144,9 @@
     .head-user { display: flex; align-items: center; gap: 12px; cursor: pointer; border-radius: 10px; margin: -4px; padding: 4px; }
     .head-user:hover { background: var(--border-light); }
     .head-user:hover .name { text-decoration: underline; }
+    .head-user.no-hover { cursor: default; }
+    .head-user.no-hover:hover { background: none; }
+    .head-user.no-hover:hover .name { text-decoration: none; }
     .user-name-link { cursor: pointer; font-weight: 700; color: inherit; }
     .user-name-link:hover { text-decoration: underline; color: var(--primary-dark); }
     .audit-sentence { font-weight: 400; font-size: 15px; color: var(--text); }
@@ -131,6 +163,22 @@
     .b-rejected, .b-dismissed { background: var(--danger-bg); color: var(--danger); }
     .reason-tag { display: inline-block; font-size: 12px; font-weight: 700; color: var(--text-2); background: var(--border-light); padding: 3px 10px; border-radius: 999px; margin: 10px 0 6px; }
     .target-box { background: var(--bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; margin-top: 8px; }
+    /* QR code: fundo sempre branco (independe do tema) — leitores precisam do contraste real. */
+    .qr-box { background: #fff; border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: center; width: fit-content; margin: 0 auto; }
+    .qr-box svg { width: 180px; height: 180px; display: block; }
+    .security-card { max-width: 560px; }
+    .btn.danger { background: var(--danger); }
+    .twofa-step { font-size: 13px; color: var(--text-2); line-height: 1.5; margin: 16px 0 8px; }
+    .twofa-step b { color: var(--primary-dark); }
+    .secret-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .secret-text { font-family: monospace; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-2); word-break: break-all; }
+    .copy-link { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; padding: 4px 6px; margin: -4px -6px; border-radius: 8px; color: var(--primary-dark); font-size: 13px; font-weight: 700; flex-shrink: 0; }
+    .copy-link:hover { background: var(--primary-tint); }
+    .code-input-lg { font-size: 22px; font-weight: 700; letter-spacing: 10px; text-align: center; padding: 14px 12px; }
+    .twofa-btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .twofa-btn-row .act { margin-top: 0; }
+    .twofa-btn-row .act.approve { flex: 1; }
+    .twofa-btn-row .act.cancel { flex: 0 0 auto; }
     .target-box .label { font-size: 11px; font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
     .target-box .content { font-size: 13px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
     .target-box.empty { color: var(--text-3); font-style: italic; font-size: 13px; }
@@ -176,16 +224,39 @@
     <div class="login-card">
       <div class="brand"><div class="dot">d</div><h1>Moderação Daqui</h1></div>
       <p class="muted">Acesso restrito a moderadores.</p>
-      <label>Servidor da API</label>
-      <input id="api" value="http://localhost:8000/api/v1" />
-      <label>URL do app Daqui</label>
-      <input id="appUrl" value="http://localhost:8081" />
-      <label>E-mail</label>
-      <input id="email" type="email" placeholder="moderador@daqui.com" autocomplete="username" />
-      <label>Senha</label>
-      <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
-      <button id="loginBtn" class="btn">Entrar</button>
-      <div id="loginErr" class="err"></div>
+
+      <div id="loginStepCreds">
+        <label>Servidor da API</label>
+        <input id="api" value="http://localhost:8000/api/v1" />
+        <label>URL do app Daqui</label>
+        <input id="appUrl" value="http://localhost:8081" />
+        <label>E-mail</label>
+        <input id="email" type="email" placeholder="moderador@daqui.com" autocomplete="username" />
+        <label>Senha</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+        <button id="loginBtn" class="btn">Entrar</button>
+        <button class="linkbtn" id="forgotPasswordLink" style="margin-top:14px;">Esqueci minha senha</button>
+        <div id="loginErr" class="err"></div>
+      </div>
+
+      <div id="loginStep2fa" class="hidden">
+        <p class="muted">Digite o código de 6 dígitos do seu app autenticador.</p>
+        <label>Código</label>
+        <input id="twofaCode" inputmode="numeric" placeholder="000000" maxlength="6" autocomplete="one-time-code" />
+        <button id="twofaBtn" class="btn">Confirmar</button>
+        <button class="linkbtn" id="twofaBackBtn" style="margin-top:14px;">Voltar</button>
+        <div id="twofaErr" class="err"></div>
+      </div>
+
+      <div id="loginStepForgot" class="hidden">
+        <p class="muted">Informe seu e-mail. Se existir uma conta com esse e-mail, enviaremos um link para redefinir a senha.</p>
+        <label>E-mail</label>
+        <input id="forgotEmail" type="email" placeholder="moderador@daqui.com" autocomplete="username" />
+        <button id="forgotSubmitBtn" class="btn">Enviar link</button>
+        <button class="linkbtn" id="forgotBackBtn" style="margin-top:14px;">Voltar</button>
+        <div id="forgotMsg" class="muted" style="margin-top:12px;"></div>
+        <div id="forgotErr" class="err"></div>
+      </div>
     </div>
   </div>
 
@@ -194,11 +265,19 @@
     <div class="layout">
       <nav class="sidebar">
         <div class="brand-mini"><div class="dot">d</div><span>Moderação</span></div>
-        <div id="nav"></div>
+        <div class="sidebar-nav-scroll"><div id="nav"></div></div>
         <div class="sidebar-footer">
-          <div class="who" id="who"></div>
-          <button class="theme-toggle" id="themeToggleApp" title="Alternar tema"></button>
-          <button class="linkbtn" id="logoutBtn">Sair</button>
+          <div class="who-row">
+            <div class="who-avatar" id="whoAvatar"></div>
+            <div class="who-email" id="who"></div>
+          </div>
+          <div class="footer-actions">
+            <button class="theme-toggle" id="themeToggleApp" title="Alternar tema"></button>
+            <button class="logout-btn" id="logoutBtn" title="Sair">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Sair</span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -249,6 +328,10 @@
             </div>
             <div class="tabs" id="auditActionTabs"></div>
             <div id="auditList"></div>
+          </div>
+
+          <div id="section-security" class="hidden">
+            <div id="securityContent"></div>
           </div>
         </div>
       </div>
@@ -318,6 +401,8 @@
       mail: '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22 6 12 13 2 6"></polyline>',
       users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
       clock: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
+      lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+      copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
       sun: '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>',
       moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>',
     };
@@ -406,8 +491,29 @@
     }
 
     // ── Login ──
+    // 3 passos possíveis no card de login: credenciais → (se A2F ativa) código
+    // → confirma; ou credenciais → "esqueci minha senha" → confirmação.
+    let twofaTicket = '';
+
+    function showLoginStep(step) {
+      $('loginStepCreds').classList.toggle('hidden', step !== 'creds');
+      $('loginStep2fa').classList.toggle('hidden', step !== '2fa');
+      $('loginStepForgot').classList.toggle('hidden', step !== 'forgot');
+    }
+
     $('loginBtn').addEventListener('click', login);
     $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+    $('twofaBtn').addEventListener('click', submitTwofaLogin);
+    $('twofaCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitTwofaLogin(); });
+    $('twofaBackBtn').addEventListener('click', () => showLoginStep('creds'));
+    $('forgotPasswordLink').addEventListener('click', () => {
+      $('forgotEmail').value = $('email').value.trim();
+      $('forgotMsg').textContent = '';
+      $('forgotErr').textContent = '';
+      showLoginStep('forgot');
+    });
+    $('forgotBackBtn').addEventListener('click', () => showLoginStep('creds'));
+    $('forgotSubmitBtn').addEventListener('click', submitForgotPassword);
 
     async function login() {
       $('loginErr').textContent = '';
@@ -422,15 +528,14 @@
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || 'Falha no login');
-        if (!data.access_token) throw new Error('Esta conta exige 2FA (não suportado aqui).');
-        token = data.access_token;
-        // Confirma que é moderador buscando as estatísticas (403 se não for).
-        await apiFetch('/admin/reviews/stats');
-        $('who').textContent = $('email').value.trim();
-        $('login').classList.add('hidden');
-        $('app').classList.remove('hidden');
-        renderNav();
-        await goToSection(SECTIONS[0].key);
+        if (data.requires_2fa) {
+          twofaTicket = data.ticket;
+          $('twofaCode').value = '';
+          $('twofaErr').textContent = '';
+          showLoginStep('2fa');
+          return;
+        }
+        await completeLogin(data.access_token);
       } catch (e) {
         $('loginErr').textContent = e.message.includes('restrito') ? 'Esta conta não é moderadora.' : e.message;
       } finally {
@@ -438,8 +543,73 @@
       }
     }
 
+    async function submitTwofaLogin() {
+      $('twofaErr').textContent = '';
+      $('twofaBtn').disabled = true;
+      try {
+        const r = await fetch(API + '/auth/login/2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticket: twofaTicket, code: $('twofaCode').value.trim() }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Código inválido');
+        await completeLogin(data.access_token);
+      } catch (e) {
+        $('twofaErr').textContent = e.message;
+      } finally {
+        $('twofaBtn').disabled = false;
+      }
+    }
+
+    async function completeLogin(accessToken) {
+      token = accessToken;
+      try {
+        // Confirma que é moderador buscando as estatísticas (403 se não for).
+        await apiFetch('/admin/reviews/stats');
+      } catch (e) {
+        token = '';
+        showLoginStep('creds');
+        $('loginErr').textContent = e.message.includes('restrito') ? 'Esta conta não é moderadora.' : e.message;
+        return;
+      }
+      const emailVal = $('email').value.trim();
+      $('who').textContent = emailVal;
+      $('whoAvatar').textContent = (emailVal[0] || '?').toUpperCase();
+      $('login').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      renderNav();
+      await goToSection(SECTIONS[0].key);
+    }
+
+    async function submitForgotPassword() {
+      $('forgotErr').textContent = '';
+      $('forgotMsg').textContent = '';
+      API = $('api').value.trim().replace(/\/$/, '');
+      const email = $('forgotEmail').value.trim();
+      if (!email) { $('forgotErr').textContent = 'Informe um e-mail.'; return; }
+      $('forgotSubmitBtn').disabled = true;
+      try {
+        const r = await fetch(API + '/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        if (!r.ok) {
+          const data = await r.json().catch(() => null);
+          throw new Error((data && data.detail) || 'Não foi possível enviar o e-mail.');
+        }
+        $('forgotMsg').textContent = 'Se este e-mail estiver cadastrado, você receberá um link para redefinir a senha — ele abre o app Daqui.';
+      } catch (e) {
+        $('forgotErr').textContent = e.message;
+      } finally {
+        $('forgotSubmitBtn').disabled = false;
+      }
+    }
+
     $('logoutBtn').addEventListener('click', () => {
       token = ''; $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+      showLoginStep('creds');
     });
 
     // ── Navegação por seções ──────────────────────────────────────────
@@ -452,6 +622,7 @@
       { key: 'tickets', label: 'Chamados', icon: 'mail', sectionId: 'section-tickets', title: 'Chamados de suporte', onShow: refreshTickets },
       { key: 'users', label: 'Usuários', icon: 'users', sectionId: 'section-users', title: 'Usuários', onShow: showUsers },
       { key: 'audit', label: 'Auditoria', icon: 'clock', sectionId: 'section-audit', title: 'Registro de Auditoria', onShow: refreshAuditLogs },
+      { key: 'security', label: 'Segurança', icon: 'lock', sectionId: 'section-security', title: 'Segurança', onShow: refreshSecurity },
     ];
     let currentSection = SECTIONS[0].key;
 
@@ -663,10 +834,10 @@
           : `<div class="comment empty">— sem comentário adicional —</div>`;
         card.innerHTML = `
           <div class="head">
-            <div class="head-user" onclick="openUserById(${rep.id})">
-              <img class="avatar" src="${avatar}" alt="" />
+            <div class="head-user no-hover">
+              <img class="avatar" src="${avatar}" alt="" onclick="openUserById(${rep.id})" style="cursor:pointer" />
               <div>
-                <div class="name">${escapeHtml(rep.name)} <span class="sub">denunciou</span></div>
+                <div class="name"><span class="user-name-link" onclick="openUserById(${rep.id})">${escapeHtml(rep.name)}</span> <span class="sub">denunciou</span></div>
                 <div class="sub">@${escapeHtml(rep.username)} · ${REPORT_TARGET_LABEL[r.target_type] || r.target_type}</div>
               </div>
             </div>
@@ -1169,6 +1340,106 @@
         userComments = userComments.filter((c) => c.id !== id);
         renderUserContentList();
       } catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
+    // ── Segurança (A2F da própria conta de moderador) ─────────────────────
+    // Moderador é só um User com is_moderator=True — usa os mesmos endpoints
+    // genéricos de A2F que qualquer usuário do Daqui já tem.
+    async function refreshSecurity() {
+      $('securityContent').innerHTML = `<div class="empty-state">Carregando…</div>`;
+      try {
+        const me = await apiFetch('/auth/me');
+        renderSecurity(me.two_factor_enabled);
+      } catch (e) {
+        $('securityContent').innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderSecurity(enabled) {
+      const wrap = $('securityContent');
+      if (enabled) {
+        wrap.innerHTML = `
+          <div class="card security-card">
+            <div class="head"><div class="name">Autenticação de dois fatores</div><span class="badge b-approved">Ativa</span></div>
+            <div class="comment" style="margin-top:8px;">Sua conta exige um código do app autenticador a cada login.</div>
+            <label>Código para desativar</label>
+            <input id="secDisableCode" inputmode="numeric" placeholder="000000" maxlength="6" />
+            <button class="btn danger" id="secDisableBtn">Desativar A2F</button>
+            <div id="secErr" class="err"></div>
+          </div>`;
+        $('secDisableBtn').onclick = disableTwofa;
+      } else {
+        wrap.innerHTML = `
+          <div class="card security-card">
+            <div class="head"><div class="name">Autenticação de dois fatores</div><span class="badge b-rejected">Inativa</span></div>
+            <div class="comment" style="margin-top:8px;">Adicione uma camada extra de segurança exigindo um código do Google Authenticator, Authy ou similar a cada login.</div>
+            <button class="btn" id="secSetupBtn">Ativar A2F</button>
+            <div id="secSetupArea" style="margin-top:14px;"></div>
+          </div>`;
+        $('secSetupBtn').onclick = startTwofaSetup;
+      }
+    }
+
+    async function startTwofaSetup() {
+      try {
+        const data = await apiFetch('/auth/2fa/setup', { method: 'POST' });
+        const groupedSecret = data.secret.replace(/(.{4})/g, '$1 ').trim();
+        $('secSetupArea').innerHTML = `
+          <div class="twofa-step"><b>1.</b> Escaneie o QR code com seu app autenticador (Google Authenticator, Authy...).</div>
+          <div class="qr-box" id="secQrBox"></div>
+          <div class="twofa-step" style="margin-bottom:6px;">Não consegue escanear? Use a chave manual:</div>
+          <div class="secret-row">
+            <span class="secret-text">${escapeHtml(groupedSecret)}</span>
+            <button class="copy-link" id="secCopySecretBtn">${svgIcon('copy', 14)}<span>Copiar</span></button>
+          </div>
+          <div class="twofa-step"><b>2.</b> Digite o código de 6 dígitos que o app mostrar para confirmar.</div>
+          <label>Código de verificação</label>
+          <input id="secEnableCode" class="code-input-lg" inputmode="numeric" placeholder="000000" maxlength="6" />
+          <div id="secErr2" class="err"></div>
+          <div class="twofa-btn-row">
+            <button class="act cancel" id="secCancelBtn">Cancelar</button>
+            <button class="act approve" id="secEnableBtn">Confirmar e ativar</button>
+          </div>`;
+        const qr = qrcode(0, 'M');
+        qr.addData(data.otpauth_url);
+        qr.make();
+        $('secQrBox').innerHTML = qr.createSvgTag(5);
+        $('secCopySecretBtn').onclick = () => {
+          navigator.clipboard.writeText(data.secret);
+          const label = $('secCopySecretBtn').querySelector('span');
+          label.textContent = 'Copiado!';
+          setTimeout(() => { label.textContent = 'Copiar'; }, 1500);
+        };
+        $('secCancelBtn').onclick = () => renderSecurity(false);
+        $('secEnableBtn').onclick = enableTwofa;
+      } catch (e) {
+        showMessage(e.message, 'Erro');
+      }
+    }
+
+    async function enableTwofa() {
+      const code = $('secEnableCode').value.trim();
+      try {
+        await apiFetch('/auth/2fa/enable', { method: 'POST', body: JSON.stringify({ code }) });
+        await refreshSecurity();
+        showMessage('Autenticação de dois fatores ativada com sucesso.', 'Sucesso');
+      } catch (e) {
+        $('secErr2').textContent = e.message;
+      }
+    }
+
+    async function disableTwofa() {
+      const code = $('secDisableCode').value.trim();
+      const ok = await showConfirm('Desativar a autenticação de dois fatores?', {
+        title: 'Desativar A2F', confirmLabel: 'Desativar',
+      });
+      if (!ok) return;
+      try {
+        await apiFetch('/auth/2fa/disable', { method: 'POST', body: JSON.stringify({ code }) });
+        await refreshSecurity();
+      } catch (e) {
+        $('secErr').textContent = e.message;
+      }
     }
   </script>
 </body>
