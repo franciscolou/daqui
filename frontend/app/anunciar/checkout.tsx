@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Linking, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -6,13 +6,16 @@ import { useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { goBack } from '../../lib/navigation';
-import { adsApi, AdFormat, AdObjective, AdsApiError } from '../../lib/adsApi';
+import { adsApi, AdFormat, AdObjective, AdvertiserType, AdsApiError } from '../../lib/adsApi';
+import { isValidDocument } from '../../lib/brDocuments';
 import AdCreativeEditor, {
   CreativeBlocks,
   blocksToCreatives,
   creativesToBlocks,
   emptyCreativeBlocks,
 } from '../../components/AdCreativeEditor';
+import AdPreview from '../../components/AdPreview';
+import AdvertiserIdentityFields from '../../components/AdvertiserIdentityFields';
 
 export default function CheckoutScreen() {
   const Colors = useTheme();
@@ -44,7 +47,12 @@ export default function CheckoutScreen() {
   const schedule = useMemo(() => (params.schedule ? JSON.parse(params.schedule) : undefined), [params.schedule]);
   const prefill = useMemo(() => (params.prefill ? JSON.parse(params.prefill) : null), [params.prefill]);
 
+  const { width } = useWindowDimensions();
+  const wide = width >= 900;
+
+  const [advertiserType, setAdvertiserType] = useState<AdvertiserType>(prefill?.advertiserType ?? 'individual');
   const [advertiserName, setAdvertiserName] = useState(prefill?.advertiserName ?? '');
+  const [advertiserDocument, setAdvertiserDocument] = useState(prefill?.advertiserDocument ?? '');
   const [advertiserEmail, setAdvertiserEmail] = useState(prefill?.advertiserEmail ?? '');
   const [advertiserPhone, setAdvertiserPhone] = useState(prefill?.advertiserPhone ?? '');
   const [blocks, setBlocks] = useState<CreativeBlocks>(() =>
@@ -53,9 +61,11 @@ export default function CheckoutScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const canSubmit =
+  const canSubmit = !!(
     advertiserName.trim() && advertiserEmail.trim() &&
-    blocks.default.title.trim() && blocks.default.targetUrl.trim() && !submitting;
+    isValidDocument(advertiserType, advertiserDocument) &&
+    blocks.default.title.trim() && blocks.default.targetUrl.trim() && !submitting
+  );
 
   const submit = async () => {
     setError('');
@@ -78,6 +88,8 @@ export default function CheckoutScreen() {
         advertiserName: advertiserName.trim(),
         advertiserEmail: advertiserEmail.trim(),
         advertiserPhone: advertiserPhone.trim(),
+        advertiserType,
+        advertiserDocument: advertiserDocument.trim(),
         creatives: blocksToCreatives(blocks),
         renewedFromToken: params.renewedFromToken || undefined,
       });
@@ -100,27 +112,42 @@ export default function CheckoutScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <Text style={styles.summary}>
-          {durationDays} dias · {citywide ? 'cidade toda' : neighborhoods.join(', ')}
-        </Text>
+        <View style={[styles.columns, wide && styles.columnsWide]}>
+          <View style={[styles.formCol, wide && styles.formColWide]}>
+            <Text style={styles.summary}>
+              {durationDays} dias · {citywide ? 'cidade toda' : neighborhoods.join(', ')}
+            </Text>
 
-        <Text style={styles.sectionTitle}>Seus dados</Text>
-        <TextInput style={styles.input} placeholder="Nome / empresa" placeholderTextColor={Colors.textTertiary} value={advertiserName} onChangeText={setAdvertiserName} />
-        <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
-        <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
+            <Text style={styles.sectionTitle}>Seus dados</Text>
+            <AdvertiserIdentityFields
+              type={advertiserType}
+              name={advertiserName}
+              document={advertiserDocument}
+              onChangeType={setAdvertiserType}
+              onChangeName={setAdvertiserName}
+              onChangeDocument={setAdvertiserDocument}
+            />
+            <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
+            <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
 
-        <AdCreativeEditor formats={formats} value={blocks} onChange={setBlocks} />
+            <AdCreativeEditor formats={formats} value={blocks} onChange={setBlocks} />
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <TouchableOpacity
-          style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
-          activeOpacity={0.85}
-          disabled={!canSubmit}
-          onPress={submit}
-        >
-          {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Ir para o pagamento</Text>}
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+              activeOpacity={0.85}
+              disabled={!canSubmit}
+              onPress={submit}
+            >
+              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Ir para o pagamento</Text>}
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.previewCol, wide && styles.previewColWide]}>
+            <AdPreview formats={formats} blocks={blocks} />
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -140,7 +167,17 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   iconBtn: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { flex: 1, fontSize: 17, fontWeight: '800', color: Colors.text },
-  body: { padding: 16, paddingBottom: 48, gap: 10, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  body: { padding: 16, paddingBottom: 48, maxWidth: 1040, width: '100%', alignSelf: 'center' },
+  columns: { gap: 10 },
+  columnsWide: { flexDirection: 'row', alignItems: 'flex-start', gap: 28 },
+  formCol: { flex: 1, gap: 10, minWidth: 0, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  // No layout largo (linha) o eixo cruzado é vertical: sem isso o
+  // `alignSelf: 'center'` (que centraliza horizontalmente no layout estreito)
+  // centralizaria o formulário verticalmente contra a coluna de preview mais
+  // alta, deixando-o flutuando no meio. Alinha ao topo.
+  formColWide: { alignSelf: 'flex-start' },
+  previewCol: { gap: 10 },
+  previewColWide: { flex: 1, minWidth: 0, maxWidth: 420, position: 'sticky', top: 16 } as any,
 
   summary: { fontSize: 13, color: Colors.textTertiary },
   sectionTitle: { fontSize: 14, fontWeight: '800', color: Colors.text, marginTop: 10 },

@@ -1143,6 +1143,16 @@ export const api = {
     });
   },
 
+  // Sugestões de endereço (autocomplete, tipo iFood/Uber) enquanto o usuário
+  // digita — já filtradas pro bairro dele, então escolher uma marca o local
+  // como válido sem precisar validar de novo.
+  async searchAddress(query: string): Promise<GeocodeResult[]> {
+    return request<GeocodeResult[]>('/geo/search', {
+      method: 'POST',
+      body: { query },
+    });
+  },
+
   async toggleLike(id: string): Promise<Post> {
     return mapPost(await request<BackendPost>(`/posts/${id}/like`, { method: 'POST' }));
   },

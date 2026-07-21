@@ -61,9 +61,32 @@ def _uf(address: dict) -> str:
     return STATE_UF.get(str(address.get("state", "")).strip().lower(), "")
 
 
+# Chaves do `address` do Nominatim que representam a via (rua/avenida/etc).
+STREET_KEYS = ("road", "pedestrian", "footway", "cycleway")
+
+
+def _label(address: dict, neighborhood: str, city: str) -> str:
+    """Monta um rótulo enxuto — Rua[, número], Bairro, Cidade, País — a partir
+    dos campos estruturados do Nominatim, em vez do `display_name` bruto (que
+    vem com UF, "Região X" e CEP, que não queremos mostrar).
+
+    O número só aparece quando o próprio OSM tem aquele endereço mapeado como
+    ponto (nem toda rua tem cada número indexado — limitação dos dados, não da
+    busca: ver core/geocoding.py:search).
+    """
+    street = _pick(address, STREET_KEYS)
+    house_number = address.get("house_number")
+    if street and house_number:
+        street = f"{street}, {house_number}"
+    country = str(address.get("country") or "Brasil")
+    parts = [p for p in (street, neighborhood, city, country) if p]
+    return ", ".join(parts)
+
+
 def _to_result(item: dict) -> Optional[GeoResult]:
     address = item.get("address") or {}
     neighborhood = _pick(address, NEIGHBORHOOD_KEYS)
+    city = _pick(address, CITY_KEYS)
     try:
         lat = float(item["lat"])
         lon = float(item["lon"])
@@ -73,9 +96,9 @@ def _to_result(item: dict) -> Optional[GeoResult]:
         latitude=lat,
         longitude=lon,
         neighborhood=neighborhood,
-        city=_pick(address, CITY_KEYS),
+        city=city,
         state=_uf(address),
-        display_name=str(item.get("display_name", "")),
+        display_name=_label(address, neighborhood, city),
     )
 
 
@@ -107,6 +130,16 @@ def forward(query: str) -> Optional[GeoResult]:
     if not isinstance(data, list) or not data:
         return None
     return _to_result(data[0])
+
+
+def search(query: str, limit: int = 10) -> list[GeoResult]:
+    """Endereço (texto) → várias sugestões de coordenadas + bairro (autocomplete,
+    tipo iFood/Uber): usado enquanto o usuário digita, ao contrário de `forward`
+    (que só devolve o melhor resultado, pra validar um endereço já fechado)."""
+    data = _get("/search", {"q": query, "countrycodes": "br", "limit": limit})
+    if not isinstance(data, list):
+        return []
+    return [r for item in data if (r := _to_result(item)) is not None]
 
 
 class NearbyPlace(TypedDict):

@@ -399,7 +399,17 @@
               <h2>Inserir proposta manual</h2>
               <p class="muted">Para propostas negociadas por Instagram/WhatsApp/Gmail — nasce "aguardando pagamento", com link de pagamento gerado na hora. Use "Marcar como paga" na lista de campanhas pra confirmar um pagamento combinado por fora (ou testar sem Stripe real).</p>
               <label>Anunciante</label>
-              <input id="newAdvertiserName" placeholder="Nome" />
+              <div class="row2">
+                <div>
+                  <label>Tipo</label>
+                  <select id="newAdvertiserType">
+                    <option value="individual">Pessoa Física (CPF)</option>
+                    <option value="company">Pessoa Jurídica (CNPJ)</option>
+                  </select>
+                </div>
+                <div><label id="newAdvertiserDocLabel">CPF</label><input id="newAdvertiserDocument" placeholder="000.000.000-00" /></div>
+              </div>
+              <input id="newAdvertiserName" placeholder="Nome / razão social" />
               <div class="row2">
                 <div><label>E-mail</label><input id="newAdvertiserEmail" type="email" /></div>
                 <div><label>Telefone</label><input id="newAdvertiserPhone" /></div>
@@ -1377,26 +1387,61 @@
       return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
     }
 
+    // Localização de quem está usando o painel (best-effort, silencioso) — só
+    // pra ordenar as sugestões de bairro por proximidade, pra não sugerir
+    // primeiro um lugar longe. Se o navegador negar, seguimos sem ordenação.
+    let adminCoords = null;
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { adminCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+        () => {},
+        { timeout: 8000 },
+      );
+    }
+    function haversineMeters(a, b) {
+      const R = 6371000, toRad = (d) => (d * Math.PI) / 180;
+      const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lng - a.lng);
+      const s = Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(s));
+    }
+
+    // Devolve objetos { name, label } — `name` vira o chip/valor salvo (precisa
+    // bater com o bairro do usuário no backend); `label` ("Bairro · Cidade ·
+    // País") é o que aparece no dropdown, mais fácil de distinguir. Ordenado
+    // por proximidade de onde o admin está, quando temos a localização.
     async function searchNeighborhoodSuggestions(query) {
       const q = query.trim();
       if (q.length < 2) return [];
       try {
-        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=br&q=' +
-          encodeURIComponent(q + ', São Paulo, SP, Brasil');
+        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=10&q=' +
+          encodeURIComponent(q);
         const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
         if (!res.ok) return [];
         const data = await res.json();
         const seen = new Set();
-        const out = [];
+        let out = [];
         for (const item of data) {
           const a = item.address || {};
           const name = a.suburb || a.neighbourhood || a.quarter || a.city_district || a.town
             || (item.display_name || '').split(',')[0];
-          if (!name || seen.has(name)) continue;
-          seen.add(name);
-          out.push(name);
+          if (!name) continue;
+          const city = a.city || a.town || a.municipality || a.city_district || a.state || '';
+          const country = a.country || '';
+          const key = (name + '|' + city).toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push({
+            name: name.trim(),
+            label: [name, city, country].filter(Boolean).join(' · '),
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+          });
         }
-        return out;
+        if (adminCoords) {
+          out.sort((x, y) => haversineMeters(adminCoords, x) - haversineMeters(adminCoords, y));
+        }
+        return out.slice(0, 6);
       } catch (e) {
         return [];
       }
@@ -1413,6 +1458,9 @@
       const chipList = container.querySelector('.chip-list');
       const input = container.querySelector('input');
       const suggBox = container.querySelector('.chip-suggestions');
+      // Guarda as sugestões atuais (objetos { name, label }) pra o Enter poder
+      // confirmar a primeira e o clique resolver qual foi escolhida.
+      let currentSuggestions = [];
 
       function emit() { if (onChange) onChange(chips.map((c) => c.label)); }
 
@@ -1438,15 +1486,17 @@
       function closeSuggestions() {
         suggBox.classList.add('hidden');
         suggBox.innerHTML = '';
+        currentSuggestions = [];
       }
 
       function renderSuggestions(items) {
+        currentSuggestions = items;
         if (!items.length) { closeSuggestions(); return; }
-        suggBox.innerHTML = items.map((s, i) => `<div class="chip-suggestion" data-i="${i}">${escapeHtml(s)}</div>`).join('');
+        suggBox.innerHTML = items.map((s, i) => `<div class="chip-suggestion" data-i="${i}">${escapeHtml(s.label)}</div>`).join('');
         suggBox.classList.remove('hidden');
         suggBox.querySelectorAll('.chip-suggestion').forEach((el) => {
           el.onclick = () => {
-            addChip(items[parseInt(el.dataset.i, 10)], true);
+            addChip(items[parseInt(el.dataset.i, 10)].name, true);
             input.value = '';
             closeSuggestions();
             input.focus();
@@ -1464,7 +1514,10 @@
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ',') {
           e.preventDefault();
-          if (input.value.trim()) { addChip(input.value, false); input.value = ''; closeSuggestions(); }
+          // Enter confirma a PRIMEIRA sugestão, se houver; senão adiciona o
+          // texto digitado como bairro "não verificado".
+          if (currentSuggestions.length) { addChip(currentSuggestions[0].name, true); input.value = ''; closeSuggestions(); }
+          else if (input.value.trim()) { addChip(input.value, false); input.value = ''; closeSuggestions(); }
         } else if (e.key === 'Backspace' && !input.value && chips.length) {
           chips.pop(); renderChips(); emit();
         } else if (e.key === 'Escape') {
@@ -1488,6 +1541,33 @@
     });
     $('newCitywide').addEventListener('change', () => {
       newNeighborhoodsPicker.setEnabled(!$('newCitywide').checked);
+    });
+
+    // ── Anunciante: Pessoa Física (CPF) ou Jurídica (CNPJ) ──
+    function maskDocument(type, value) {
+      const d = (value || '').replace(/\D/g, '');
+      if (type === 'individual') {
+        return d.slice(0, 11)
+          .replace(/^(\d{3})(\d)/, '$1.$2')
+          .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+          .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+      }
+      return d.slice(0, 14)
+        .replace(/^(\d{2})(\d)/, '$1.$2')
+        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+        .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
+    }
+    function refreshDocField() {
+      const type = $('newAdvertiserType').value;
+      const isPj = type === 'company';
+      $('newAdvertiserDocLabel').textContent = isPj ? 'CNPJ' : 'CPF';
+      $('newAdvertiserDocument').placeholder = isPj ? '00.000.000/0000-00' : '000.000.000-00';
+      $('newAdvertiserDocument').value = maskDocument(type, $('newAdvertiserDocument').value);
+    }
+    $('newAdvertiserType').addEventListener('change', refreshDocField);
+    $('newAdvertiserDocument').addEventListener('input', () => {
+      $('newAdvertiserDocument').value = maskDocument($('newAdvertiserType').value, $('newAdvertiserDocument').value);
     });
 
     // ── Localização (lat/lng): busca de endereço + mapa Leaflet/OSM ──
@@ -1605,6 +1685,8 @@
         advertiser_name: $('newAdvertiserName').value.trim(),
         advertiser_email: $('newAdvertiserEmail').value.trim(),
         advertiser_phone: $('newAdvertiserPhone').value.trim(),
+        advertiser_type: $('newAdvertiserType').value,
+        advertiser_document: $('newAdvertiserDocument').value.trim(),
         title: $('newTitle').value.trim(),
         content: $('newContent').value.trim(),
         image_url: media && media.type === 'image' ? media.url : null,

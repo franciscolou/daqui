@@ -7,6 +7,7 @@ import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { goBack } from '../../lib/navigation';
 import { adsApi, AdFormat, AdObjective, PriceFactor } from '../../lib/adsApi';
+import NeighborhoodPicker from '../../components/NeighborhoodPicker';
 
 const FORMATS: { key: AdFormat; label: string; desc: string }[] = [
   { key: 'post', label: 'Post + mapa', desc: 'Aparece como post no feed e ganha um pin no mapa.' },
@@ -64,11 +65,15 @@ export default function PersonalizarScreen() {
   const [formats, setFormats] = useState<AdFormat[]>(prefillData?.formats ?? ['post']);
   const [durationDays, setDurationDays] = useState(prefillData?.durationDays ?? 15);
   const [citywide, setCitywide] = useState(prefillData?.citywide ?? false);
-  const [neighborhoodsText, setNeighborhoodsText] = useState(prefillData?.neighborhoods?.join(', ') ?? '');
+  const [neighborhoods, setNeighborhoods] = useState<string[]>(prefillData?.neighborhoods ?? []);
   const [priceCents, setPriceCents] = useState<number | null>(null);
   const [factors, setFactors] = useState<PriceFactor[]>([]);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [error, setError] = useState('');
+  // Plano escolhido (quando veio de "Contratar este plano"): trava o preço no
+  // valor fixo do plano e limita a quantidade de bairros — assim "até N bairros
+  // por R$ X" cobra exatamente R$ X, sem a cotação dinâmica mexer no total.
+  const [plan, setPlan] = useState<{ priceCents: number; maxNeighborhoods: number | null } | null>(null);
 
   // "Configurações avançadas": recolhida por padrão — quem nunca abre tem a
   // mesma experiência simples de sempre (todo campo abaixo já nasce com o
@@ -91,16 +96,16 @@ export default function PersonalizarScreen() {
   useEffect(() => {
     if (!params.planId) return;
     adsApi.getAdPlans().then((plans) => {
-      const plan = plans.find((p) => String(p.id) === params.planId);
-      if (plan) {
-        setFormats(plan.formats);
-        setDurationDays(plan.durationDays);
-        setCitywide(plan.maxNeighborhoods == null);
+      const p = plans.find((pl) => String(pl.id) === params.planId);
+      if (p) {
+        setFormats(p.formats);
+        setDurationDays(p.durationDays);
+        setCitywide(p.maxNeighborhoods == null);
+        setPlan({ priceCents: p.priceCents, maxNeighborhoods: p.maxNeighborhoods });
       }
     }).catch(() => {});
   }, [params.planId]);
 
-  const neighborhoods = neighborhoodsText.split(',').map((s) => s.trim()).filter(Boolean);
   const parseCsvNumbers = (raw: string) => raw.split(',').map((s) => s.trim()).filter(Boolean).map(Number).filter((n) => !Number.isNaN(n));
   const parseCsvStrings = (raw: string) => raw.split(',').map((s) => s.trim()).filter(Boolean);
 
@@ -113,6 +118,13 @@ export default function PersonalizarScreen() {
     setError('');
     if (formats.length === 0 || (!citywide && neighborhoods.length === 0)) {
       setPriceCents(null);
+      setFactors([]);
+      return;
+    }
+    // Com plano: preço fixo do plano, sem cotação dinâmica (fix da inconsistência
+    // "escolhi o plano de R$ X e o total mudou ao preencher os bairros").
+    if (plan) {
+      setPriceCents(plan.priceCents);
       setFactors([]);
       return;
     }
@@ -142,8 +154,9 @@ export default function PersonalizarScreen() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    formats.join(','), durationDays, neighborhoodsText, citywide, objective, priorityNum,
+    formats.join(','), durationDays, neighborhoods.join(','), citywide, objective, priorityNum,
     dailyCapNum, perUserCapNum, includeNearby, audience, categoriesText, hoursText, daysOfWeekText, specialDatesText,
+    plan,
   ]);
 
   const toggleFormat = (key: AdFormat) => {
@@ -238,13 +251,13 @@ export default function PersonalizarScreen() {
         </View>
         {!citywide && (
           <>
-            <Text style={styles.label}>Bairros (separados por vírgula)</Text>
-            <TextInput
-              style={styles.input}
-              value={neighborhoodsText}
-              onChangeText={setNeighborhoodsText}
-              placeholder="Pinheiros, Vila Madalena"
-              placeholderTextColor={Colors.textTertiary}
+            <Text style={styles.label}>
+              Bairros{plan?.maxNeighborhoods ? ` (até ${plan.maxNeighborhoods})` : ''}
+            </Text>
+            <NeighborhoodPicker
+              value={neighborhoods}
+              onChange={setNeighborhoods}
+              max={plan?.maxNeighborhoods ?? null}
             />
           </>
         )}
@@ -331,15 +344,23 @@ export default function PersonalizarScreen() {
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <TouchableOpacity style={styles.priceBox} activeOpacity={0.85} onPress={() => setShowBreakdown((v) => !v)}>
+        <TouchableOpacity
+          style={styles.priceBox}
+          activeOpacity={plan ? 1 : 0.85}
+          onPress={() => { if (!plan) setShowBreakdown((v) => !v); }}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={styles.priceLabel}>Valor estimado</Text>
+            <Text style={styles.priceLabel}>{plan ? 'Valor do plano' : 'Valor estimado'}</Text>
             <Text style={styles.priceValue}>{priceCents != null ? formatMoney(priceCents) : '—'}</Text>
           </View>
-          {priceCents != null && (
-            <Text style={styles.priceHint}>{showBreakdown ? '▾ ver menos' : '▸ ver como calculamos'}</Text>
+          {plan ? (
+            <Text style={styles.priceHint}>Preço fixo do plano — não muda com os bairros escolhidos.</Text>
+          ) : (
+            priceCents != null && (
+              <Text style={styles.priceHint}>{showBreakdown ? '▾ ver menos' : '▸ ver como calculamos'}</Text>
+            )
           )}
-          {showBreakdown && factors.map((f) => (
+          {!plan && showBreakdown && factors.map((f) => (
             <View key={f.label} style={styles.factorRow}>
               <Text style={styles.factorLabel}>{f.label}</Text>
               <Text style={styles.factorValue}>×{f.multiplier.toFixed(2)}</Text>

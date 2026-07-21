@@ -90,3 +90,38 @@ def geocode(address: str, neighborhood: str) -> GeocodeResult:
         longitude=result["longitude"],
         label=result["display_name"],
     )
+
+
+def search_within(query: str, neighborhood: str, limit: int = 5) -> list[GeocodeResult]:
+    """Sugestões de endereço (autocomplete, tipo iFood/Uber) enquanto o usuário
+    digita, já filtradas pro bairro dele.
+
+    Ao contrário de `geocode`, que valida um endereço já fechado, isto devolve
+    várias opções pra escolher — cada uma sai do filtro já confirmada dentro do
+    bairro, então escolher uma delas dispensa geocodificar de novo depois.
+    """
+    query = (query or "").strip()
+    if not query:
+        return []
+    # Mesmo truque do geocode_within: acrescenta o bairro à busca quando o
+    # usuário ainda não digitou, pra ajudar o Nominatim a desambiguar.
+    biased = query if _norm(neighborhood) in _norm(query) else f"{query}, {neighborhood}"
+    results = geocoding.search(biased, limit=limit * 3)
+    matches = [r for r in results if _norm(r["neighborhood"]) == _norm(neighborhood)]
+
+    # O rótulo enxuto (sem CEP) pode ficar igual pra pontos distintos do OSM
+    # (ex.: mesma rua em duas faixas de CEP) — sem o CEP pra diferenciar,
+    # mostrar as duas seria só ruído, então fica a primeira.
+    seen: set[str] = set()
+    deduped: list[GeoResult] = []
+    for r in matches:
+        key = _norm(r["display_name"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(r)
+
+    return [
+        GeocodeResult(latitude=r["latitude"], longitude=r["longitude"], label=r["display_name"])
+        for r in deduped[:limit]
+    ]

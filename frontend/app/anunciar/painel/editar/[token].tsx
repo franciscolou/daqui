@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -6,13 +6,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../../../lib/theme';
 import { goBack } from '../../../../lib/navigation';
-import { adsApi, AdsApiError, MyCampaign } from '../../../../lib/adsApi';
+import { adsApi, AdsApiError, AdvertiserType, MyCampaign } from '../../../../lib/adsApi';
+import { isValidDocument } from '../../../../lib/brDocuments';
 import AdCreativeEditor, {
   CreativeBlocks,
   blocksToCreatives,
   creativesToBlocks,
   emptyCreativeBlocks,
 } from '../../../../components/AdCreativeEditor';
+import AdPreview from '../../../../components/AdPreview';
+import AdvertiserIdentityFields from '../../../../components/AdvertiserIdentityFields';
 
 const FORMAT_LABEL: Record<string, string> = {
   post: 'Post + mapa',
@@ -30,12 +33,16 @@ export default function EditCampaignScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { token } = useLocalSearchParams<{ token: string }>();
+  const { width } = useWindowDimensions();
+  const wide = width >= 900;
 
   const [campaign, setCampaign] = useState<MyCampaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  const [advertiserType, setAdvertiserType] = useState<AdvertiserType>('individual');
   const [advertiserName, setAdvertiserName] = useState('');
+  const [advertiserDocument, setAdvertiserDocument] = useState('');
   const [advertiserEmail, setAdvertiserEmail] = useState('');
   const [advertiserPhone, setAdvertiserPhone] = useState('');
   const [blocks, setBlocks] = useState<CreativeBlocks>(emptyCreativeBlocks());
@@ -49,7 +56,9 @@ export default function EditCampaignScreen() {
     adsApi.getMyCampaign(token)
       .then((c) => {
         setCampaign(c);
+        setAdvertiserType(c.advertiserType);
         setAdvertiserName(c.advertiserName);
+        setAdvertiserDocument(c.advertiserDocument);
         setAdvertiserEmail(c.advertiserEmail);
         setAdvertiserPhone(c.advertiserPhone);
         setBlocks(creativesToBlocks(c.creatives));
@@ -60,8 +69,9 @@ export default function EditCampaignScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const canSubmit = advertiserName.trim() && advertiserEmail.trim() &&
-    blocks.default.title.trim() && blocks.default.targetUrl.trim() && !saving;
+  const canSubmit = !!(advertiserName.trim() && advertiserEmail.trim() &&
+    isValidDocument(advertiserType, advertiserDocument) &&
+    blocks.default.title.trim() && blocks.default.targetUrl.trim() && !saving);
 
   const submit = async () => {
     if (!token) return;
@@ -72,6 +82,8 @@ export default function EditCampaignScreen() {
         advertiserName: advertiserName.trim(),
         advertiserEmail: advertiserEmail.trim(),
         advertiserPhone: advertiserPhone.trim(),
+        advertiserType,
+        advertiserDocument: advertiserDocument.trim(),
         creatives: blocksToCreatives(blocks),
       });
       router.replace(`/anunciar/painel/${token}` as any);
@@ -103,32 +115,47 @@ export default function EditCampaignScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-          <Text style={styles.summary}>
-            {formatDate(campaign.startsAt)} – {formatDate(campaign.endsAt)} ·{' '}
-            {campaign.formats.map((f) => FORMAT_LABEL[f] ?? f).join(', ')} ·{' '}
-            {campaign.citywide ? 'Cidade toda' : campaign.neighborhoods.join(', ') || '—'}
-          </Text>
-          <Text style={styles.summaryHint}>
-            Período, segmentação e formatos não são editáveis por aqui — fale com o time de anúncios pra mudar isso.
-          </Text>
+          <View style={[styles.columns, wide && styles.columnsWide]}>
+            <View style={[styles.formCol, wide && styles.formColWide]}>
+              <Text style={styles.summary}>
+                {formatDate(campaign.startsAt)} – {formatDate(campaign.endsAt)} ·{' '}
+                {campaign.formats.map((f) => FORMAT_LABEL[f] ?? f).join(', ')} ·{' '}
+                {campaign.citywide ? 'Cidade toda' : campaign.neighborhoods.join(', ') || '—'}
+              </Text>
+              <Text style={styles.summaryHint}>
+                Período, segmentação e formatos não são editáveis por aqui — fale com o time de anúncios pra mudar isso.
+              </Text>
 
-          <Text style={styles.sectionTitle}>Seus dados</Text>
-          <TextInput style={styles.input} placeholder="Nome / empresa" placeholderTextColor={Colors.textTertiary} value={advertiserName} onChangeText={setAdvertiserName} />
-          <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
-          <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
+              <Text style={styles.sectionTitle}>Seus dados</Text>
+              <AdvertiserIdentityFields
+                type={advertiserType}
+                name={advertiserName}
+                document={advertiserDocument}
+                onChangeType={setAdvertiserType}
+                onChangeName={setAdvertiserName}
+                onChangeDocument={setAdvertiserDocument}
+              />
+              <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
+              <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
 
-          <AdCreativeEditor formats={campaign.formats} value={blocks} onChange={setBlocks} />
+              <AdCreativeEditor formats={campaign.formats} value={blocks} onChange={setBlocks} />
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          <TouchableOpacity
-            style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
-            activeOpacity={0.85}
-            disabled={!canSubmit}
-            onPress={submit}
-          >
-            {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Salvar alterações</Text>}
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitBtn, !canSubmit && styles.submitBtnDisabled]}
+                activeOpacity={0.85}
+                disabled={!canSubmit}
+                onPress={submit}
+              >
+                {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Salvar alterações</Text>}
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.previewCol, wide && styles.previewColWide]}>
+              <AdPreview formats={campaign.formats} blocks={blocks} />
+            </View>
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -153,7 +180,15 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
   notFoundText: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20, maxWidth: 340 },
 
-  body: { padding: 16, paddingBottom: 48, gap: 10, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  body: { padding: 16, paddingBottom: 48, maxWidth: 1040, width: '100%', alignSelf: 'center' },
+  columns: { gap: 10 },
+  columnsWide: { flexDirection: 'row', alignItems: 'flex-start', gap: 28 },
+  formCol: { flex: 1, gap: 10, minWidth: 0, maxWidth: 640, width: '100%', alignSelf: 'center' },
+  // Ver checkout.tsx: alinha o formulário ao topo no layout largo pra ele não
+  // ficar centralizado verticalmente contra a coluna de preview mais alta.
+  formColWide: { alignSelf: 'flex-start' },
+  previewCol: { gap: 10 },
+  previewColWide: { flex: 1, minWidth: 0, maxWidth: 420, position: 'sticky', top: 16 } as any,
 
   summary: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
   summaryHint: { fontSize: 12, color: Colors.textTertiary },

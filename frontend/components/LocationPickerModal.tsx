@@ -17,24 +17,30 @@ import LeafletMap from './LeafletMap';
 interface LocationPickerModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (address: string) => void;
+  // `coords` são as coordenadas do ponto escolhido — opcionais pra manter
+  // compatível com quem só usa o endereço (ex.: publish geocodifica no backend).
+  onConfirm: (address: string, coords?: { latitude: number; longitude: number }) => void;
   /** Centro inicial do mapa (ex.: coordenadas do bairro do usuário). */
   initialCenter: { latitude: number; longitude: number };
+  /** Bairro do usuário — só é possível confirmar um ponto dentro dele. */
+  neighborhood: string;
 }
 
 type PickStatus = 'idle' | 'resolving' | 'resolved' | 'error';
 
+const norm = (v: string) => (v || '').trim().toLowerCase();
+
 // Seletor de local em tela cheia: o usuário toca (ou arrasta o pin) no mapa
 // pra marcar um ponto, a gente faz reverse geocoding (`/geo/resolve`) pra
-// achar um endereço legível, e devolve esse texto pro campo de local — a
-// mesma validação de "dentro do bairro" que já roda pro endereço digitado
-// (forward geocode em `validateLocation`) roda de novo em cima desse texto,
-// então não duplicamos a checagem de bairro aqui.
+// achar um endereço legível e confere que o ponto fica dentro do bairro do
+// usuário — só assim o botão "Usar este local" habilita. O endereço volta pro
+// campo de local já confirmado (`valid`), sem precisar geocodificar de novo.
 export default function LocationPickerModal({
   visible,
   onClose,
   onConfirm,
   initialCenter,
+  neighborhood,
 }: LocationPickerModalProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -42,12 +48,14 @@ export default function LocationPickerModal({
   const isWide = width >= 900;
   const [status, setStatus] = useState<PickStatus>('idle');
   const [label, setLabel] = useState<string | null>(null);
+  const [pickedCoords, setPickedCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
       setStatus('idle');
       setLabel(null);
+      setPickedCoords(null);
       setError(null);
     }
   }, [visible]);
@@ -57,10 +65,19 @@ export default function LocationPickerModal({
     setError(null);
     try {
       const res = await api.resolveNeighborhood(coords.latitude, coords.longitude);
+      if (norm(res.neighborhood) !== norm(neighborhood)) {
+        setLabel(null);
+        setPickedCoords(null);
+        setStatus('error');
+        setError(`Esse ponto fica em ${res.neighborhood}, fora do seu bairro (${neighborhood}).`);
+        return;
+      }
       setLabel(res.displayName);
+      setPickedCoords(coords);
       setStatus('resolved');
     } catch (e) {
       setLabel(null);
+      setPickedCoords(null);
       setStatus('error');
       setError(e instanceof ApiError ? e.message : 'Não foi possível identificar o endereço.');
     }
@@ -68,7 +85,7 @@ export default function LocationPickerModal({
 
   const confirm = () => {
     if (!label) return;
-    onConfirm(label);
+    onConfirm(label, pickedCoords ?? undefined);
   };
 
   return (

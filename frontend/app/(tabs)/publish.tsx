@@ -24,7 +24,7 @@ import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import LocationPickerModal from '../../components/LocationPickerModal';
-import MapPickButton from '../../components/MapPickButton';
+import LocationAutocompleteInput from '../../components/LocationAutocompleteInput';
 import PollEditor, {
   PollDraft,
   emptyPollDraft,
@@ -90,9 +90,9 @@ export default function PublishScreen() {
 
   // Campos específicos por categoria
   const [location, setLocationRaw] = useState('');
-  // Validação do endereço contra o bairro (via API de endereços).
-  const [locationStatus, setLocationStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
-  const [locationMsg, setLocationMsg] = useState<string | null>(null);
+  // `valid` só é alcançado escolhendo uma sugestão do autocomplete ou um ponto
+  // no mapa — nunca só digitando (ver LocationAutocompleteInput/LocationPickerModal).
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'valid'>('idle');
   const [placeName, setPlaceName] = useState('');
   const [eventDates, setEventDates] = useState<string[]>([]);
   const [allDay, setAllDay] = useState(true);
@@ -103,42 +103,23 @@ export default function PublishScreen() {
   const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
 
-  // Ao editar o endereço, o status de validação anterior deixa de valer.
+  // Ao editar o endereço à mão, a escolha anterior deixa de valer — só volta
+  // a ficar `valid` escolhendo de novo uma sugestão ou um ponto no mapa.
   const setLocation = (v: string) => {
     setLocationRaw(v);
     setLocationStatus('idle');
-    setLocationMsg(null);
   };
 
-  // Confere se um endereço existe e fica dentro do bairro (API de endereços).
-  // Recebe o texto explicitamente (em vez de ler `location` do closure) pra
-  // poder ser chamada logo após escolher um ponto no mapa, sem esperar o
-  // próximo render refletir o `setLocation` anterior.
-  const validateLocationValue = async (addr: string) => {
-    addr = addr.trim();
-    if (!addr) {
-      setLocationStatus('idle');
-      setLocationMsg(null);
-      return;
-    }
-    setLocationStatus('checking');
-    setLocationMsg(null);
-    try {
-      await api.geocode(addr);
-      setLocationStatus('valid');
-    } catch (e) {
-      setLocationStatus('invalid');
-      setLocationMsg(e instanceof ApiError ? e.message : 'Não foi possível validar o endereço.');
-    }
+  // Endereço confirmado (sugestão do autocomplete ou ponto escolhido no
+  // mapa — os dois já saem filtrados pro bairro do usuário, então não precisa
+  // geocodificar de novo aqui).
+  const confirmLocation = (address: string) => {
+    setLocationRaw(address);
+    setLocationStatus('valid');
   };
-  const validateLocation = () => validateLocationValue(location);
 
-  // Endereço escolhido no mapa (LocationPickerModal): preenche o campo de
-  // texto e roda a mesma validação de "dentro do bairro" de um endereço
-  // digitado.
   const handlePickLocation = (address: string) => {
-    setLocation(address);
-    validateLocationValue(address);
+    confirmLocation(address);
     setLocationPickerOpen(false);
   };
 
@@ -187,10 +168,13 @@ export default function PublishScreen() {
   // A mensagem é obrigatória (basta não estar vazia) exceto em Eventos.
   const contentValid = selectedCategory === 'evento' || content.trim().length > 0;
 
+  // Local digitado mas nunca confirmado (nem por sugestão, nem pelo mapa)
+  // bloqueia a publicação — evita mandar um texto vago/não geocodificado.
+  const locationOk = !location.trim() || locationStatus === 'valid';
+
   const canPublish =
     !!selectedCategory && titleValid && contentValid && categoryValid &&
-    locationStatus !== 'invalid' && locationStatus !== 'checking' &&
-    !media.some((m) => m.uploading) && !publishing;
+    locationOk && !media.some((m) => m.uploading) && !publishing;
 
   // Mensagem explicando por que o botão está desabilitado (ajuda o usuário).
   const disabledReason = (() => {
@@ -204,7 +188,7 @@ export default function PublishScreen() {
     if (selectedCategory === 'enquete' && !pollDraftValid(pollDraft))
       return 'Preencha ao menos 2 opções e um prazo futuro';
     if (!contentValid) return 'Escreva uma mensagem';
-    if (locationStatus === 'invalid') return locationMsg ?? 'Endereço fora do bairro';
+    if (!locationOk) return 'Escolha um endereço da lista de sugestões (ou marque no mapa)';
     return null;
   })();
 
@@ -597,16 +581,16 @@ export default function PublishScreen() {
 
           {/* Campos específicos por categoria */}
           {selectedCategory === 'evento' && (
-            <LocationField
-              styles={styles}
-              Colors={Colors}
-              value={location}
-              onChange={setLocation}
-              onBlur={validateLocation}
-              onPickPress={() => setLocationPickerOpen(true)}
-              status={locationStatus}
-              message={locationMsg}
-            />
+            <View style={styles.section}>
+              <FieldLabel styles={styles}>Local</FieldLabel>
+              <LocationAutocompleteInput
+                value={location}
+                onChangeText={setLocation}
+                onSelect={confirmLocation}
+                onPickOnMap={() => setLocationPickerOpen(true)}
+                status={locationStatus}
+              />
+            </View>
           )}
 
           {selectedCategory === 'recomendacao' && (
@@ -625,22 +609,16 @@ export default function PublishScreen() {
                 </View>
                 <View style={styles.fieldCol}>
                   <FieldLabel styles={styles}>Local</FieldLabel>
-                  <View style={styles.fieldInputRow}>
-                    <Ionicons name="location-outline" size={18} color={Colors.textTertiary} />
-                    <TextInput
-                      style={styles.fieldInputFlex}
-                      placeholder="Ex.: Rua das Flores"
-                      placeholderTextColor={Colors.textTertiary}
-                      value={location}
-                      onChangeText={setLocation}
-                      onBlur={validateLocation}
-                      maxLength={120}
-                    />
-                    <MapPickButton onPress={() => setLocationPickerOpen(true)} />
-                  </View>
+                  <LocationAutocompleteInput
+                    value={location}
+                    onChangeText={setLocation}
+                    onSelect={confirmLocation}
+                    onPickOnMap={() => setLocationPickerOpen(true)}
+                    status={locationStatus}
+                    placeholder="Ex.: Rua das Flores"
+                  />
                 </View>
               </View>
-              <LocationStatusRow styles={styles} Colors={Colors} status={locationStatus} message={locationMsg} />
             </View>
           )}
 
@@ -674,43 +652,43 @@ export default function PublishScreen() {
                 </View>
               </View>
 
-              <LocationField
-              styles={styles}
-              Colors={Colors}
-              value={location}
-              onChange={setLocation}
-              onBlur={validateLocation}
-              onPickPress={() => setLocationPickerOpen(true)}
-              status={locationStatus}
-              message={locationMsg}
-            />
+              <View style={styles.section}>
+                <FieldLabel styles={styles}>Local</FieldLabel>
+                <LocationAutocompleteInput
+                  value={location}
+                  onChangeText={setLocation}
+                  onSelect={confirmLocation}
+                  onPickOnMap={() => setLocationPickerOpen(true)}
+                  status={locationStatus}
+                />
+              </View>
             </>
           )}
 
           {selectedCategory === 'perdidos' && (
-            <LocationField
-              styles={styles}
-              Colors={Colors}
-              value={location}
-              onChange={setLocation}
-              onBlur={validateLocation}
-              onPickPress={() => setLocationPickerOpen(true)}
-              status={locationStatus}
-              message={locationMsg}
-            />
+            <View style={styles.section}>
+              <FieldLabel styles={styles}>Local</FieldLabel>
+              <LocationAutocompleteInput
+                value={location}
+                onChangeText={setLocation}
+                onSelect={confirmLocation}
+                onPickOnMap={() => setLocationPickerOpen(true)}
+                status={locationStatus}
+              />
+            </View>
           )}
 
           {selectedCategory === 'seguranca' && (
-            <LocationField
-              styles={styles}
-              Colors={Colors}
-              value={location}
-              onChange={setLocation}
-              onBlur={validateLocation}
-              onPickPress={() => setLocationPickerOpen(true)}
-              status={locationStatus}
-              message={locationMsg}
-            />
+            <View style={styles.section}>
+              <FieldLabel styles={styles}>Local</FieldLabel>
+              <LocationAutocompleteInput
+                value={location}
+                onChangeText={setLocation}
+                onSelect={confirmLocation}
+                onPickOnMap={() => setLocationPickerOpen(true)}
+                status={locationStatus}
+              />
+            </View>
           )}
 
           {/* Dica do que falta preencher para habilitar o botão */}
@@ -752,6 +730,7 @@ export default function PublishScreen() {
         onClose={() => setLocationPickerOpen(false)}
         onConfirm={handlePickLocation}
         initialCenter={pickerCenter}
+        neighborhood={user?.neighborhood ?? ''}
       />
     </SafeAreaView>
   );
@@ -772,74 +751,6 @@ function FieldLabel({
       {children}
       {!optional && <Text style={styles.requiredMark}> *</Text>}
     </Text>
-  );
-}
-
-type LocationStatus = 'idle' | 'checking' | 'valid' | 'invalid';
-
-// Linha de feedback da validação do endereço (dentro do bairro?).
-function LocationStatusRow({
-  styles,
-  Colors,
-  status,
-  message,
-}: {
-  styles: ReturnType<typeof makeStyles>;
-  Colors: Palette;
-  status: LocationStatus;
-  message: string | null;
-}) {
-  if (status === 'idle') return null;
-  const map = {
-    checking: { icon: 'sync', color: Colors.textTertiary, text: 'Verificando endereço…' },
-    valid: { icon: 'checkmark-circle', color: Colors.primary, text: 'Endereço confirmado no seu bairro' },
-    invalid: { icon: 'alert-circle', color: Colors.error, text: message ?? 'Endereço fora do bairro' },
-  }[status];
-  return (
-    <View style={styles.locStatusRow}>
-      <Ionicons name={map.icon as any} size={14} color={map.color} />
-      <Text style={[styles.locStatusText, { color: map.color }]}>{map.text}</Text>
-    </View>
-  );
-}
-
-function LocationField({
-  styles,
-  Colors,
-  value,
-  onChange,
-  onBlur,
-  onPickPress,
-  status,
-  message,
-}: {
-  styles: ReturnType<typeof makeStyles>;
-  Colors: Palette;
-  value: string;
-  onChange: (v: string) => void;
-  onBlur: () => void;
-  onPickPress: () => void;
-  status: LocationStatus;
-  message: string | null;
-}) {
-  return (
-    <View style={styles.section}>
-      <FieldLabel styles={styles}>Local</FieldLabel>
-      <View style={styles.fieldInputRow}>
-        <Ionicons name="location-outline" size={18} color={Colors.textTertiary} />
-        <TextInput
-          style={styles.fieldInputFlex}
-          placeholder="Ex.: Rua das Flores 123, Praça..."
-          placeholderTextColor={Colors.textTertiary}
-          value={value}
-          onChangeText={onChange}
-          onBlur={onBlur}
-          maxLength={120}
-        />
-        <MapPickButton onPress={onPickPress} />
-      </View>
-      <LocationStatusRow styles={styles} Colors={Colors} status={status} message={message} />
-    </View>
   );
 }
 
@@ -1056,25 +967,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
   },
-  fieldInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    paddingHorizontal: 14,
-  },
-  fieldInputFlex: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: Colors.text,
-  },
   helperText: { fontSize: 12, color: Colors.textSecondary, marginTop: 8, fontWeight: '600' },
-  locStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  locStatusText: { fontSize: 12, fontWeight: '600' },
   calendarWrap: {
     borderRadius: 14,
     borderWidth: 1.5,

@@ -5,6 +5,7 @@ from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core import payments
+from app.core.br_documents import validate_document
 from app.core.uploads import save_upload_media
 from app.daos import ad as ad_dao
 from app.daos import settings as settings_dao
@@ -145,22 +146,40 @@ def upload_media(base_url: str, file: UploadFile) -> MediaUploadOut:
     return MediaUploadOut(url=url, type=media_type)
 
 
+def _plan_locked_price(db: Session, plan_id: int | None) -> int | None:
+    """Quando o anunciante contrata um plano predefinido, o preço é o preço
+    fixo do plano (já com o multiplicador de mercado, igual ao mostrado no
+    card em `list_public_plans`) — NÃO a cotação dinâmica. É o que garante que
+    "até 3 bairros por R$ X" cobre exatamente R$ X mesmo com os 3 bairros
+    preenchidos. Sem plano (montagem 100% avulsa), devolve `None` e o preço
+    volta a sair da engine."""
+    if plan_id is None:
+        return None
+    plan = ad_dao.get_plan(db, plan_id)
+    if not plan:
+        return None
+    multiplier = settings_dao.get(db).price_multiplier
+    return round(plan.price_cents * multiplier)
+
+
 def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
     targeting = payload.effective_targeting()
     _check_targeting(targeting)
     schedule = payload.schedule or ScheduleIn()
-    result = _quote_breakdown(
-        db,
-        formats=payload.formats,
-        duration_days=payload.duration_days,
-        targeting=targeting,
-        schedule=schedule,
-        objective=payload.objective,
-        priority=payload.priority,
-        daily_impression_cap=payload.daily_impression_cap,
-        per_user_impression_cap=payload.per_user_impression_cap,
-    )
-    price_cents = result["price_cents"]
+    price_cents = _plan_locked_price(db, payload.plan_id)
+    if price_cents is None:
+        result = _quote_breakdown(
+            db,
+            formats=payload.formats,
+            duration_days=payload.duration_days,
+            targeting=targeting,
+            schedule=schedule,
+            objective=payload.objective,
+            priority=payload.priority,
+            daily_impression_cap=payload.daily_impression_cap,
+            per_user_impression_cap=payload.per_user_impression_cap,
+        )
+        price_cents = result["price_cents"]
     creatives = [c.model_dump() for c in payload.effective_creatives()]
     renewed_from_id, root_campaign_id = _resolve_renewal(db, payload.renewed_from_token)
     campaign = ad_dao.create_campaign(
@@ -171,6 +190,8 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
         advertiser_name=payload.advertiser_name,
         advertiser_email=payload.advertiser_email,
         advertiser_phone=payload.advertiser_phone,
+        advertiser_type=payload.advertiser_type,
+        advertiser_document=payload.advertiser_document,
         formats=payload.formats,
         price_cents=price_cents,
         targeting=targeting.model_dump(),
@@ -362,6 +383,8 @@ def admin_create_manual_campaign(
     schedule = payload.schedule or ScheduleIn()
     price_cents = payload.price_cents
     if price_cents is None:
+        price_cents = _plan_locked_price(db, payload.plan_id)
+    if price_cents is None:
         result = _quote_breakdown(
             db,
             formats=payload.formats,
@@ -384,6 +407,8 @@ def admin_create_manual_campaign(
         advertiser_name=payload.advertiser_name,
         advertiser_email=payload.advertiser_email,
         advertiser_phone=payload.advertiser_phone,
+        advertiser_type=payload.advertiser_type,
+        advertiser_document=payload.advertiser_document,
         formats=payload.formats,
         price_cents=price_cents,
         targeting=targeting.model_dump(),
@@ -543,6 +568,8 @@ def get_my_campaign(db: Session, token: str, group_by: str) -> MyCampaignOut:
         advertiser_name=campaign.advertiser_name,
         advertiser_email=campaign.advertiser_email,
         advertiser_phone=campaign.advertiser_phone,
+        advertiser_type=campaign.advertiser_type,
+        advertiser_document=campaign.advertiser_document,
         formats=campaign.formats,
         price_cents=campaign.price_cents,
         currency=campaign.currency,
@@ -577,6 +604,15 @@ def update_my_campaign(
         for k, v in payload.model_dump(exclude={"creatives"}).items()
         if v is not None
     }
+    # Se mudou documento/tipo, revalida (PF→CPF, PJ→CNPJ) e normaliza.
+    if contact.get("advertiser_document", "").strip():
+        adv_type = contact.get("advertiser_type", campaign.advertiser_type)
+        try:
+            contact["advertiser_document"] = validate_document(
+                adv_type, contact["advertiser_document"]
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
     if contact:
         campaign = ad_dao.update_campaign(db, campaign, **contact)
     if payload.creatives is not None:

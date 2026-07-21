@@ -144,6 +144,12 @@ class AdCampaign(Base):
     advertiser_name: Mapped[str] = mapped_column(String(120), nullable=False)
     advertiser_email: Mapped[str] = mapped_column(String(255), nullable=False)
     advertiser_phone: Mapped[str] = mapped_column(String(30), default="")
+    # Pessoa Física (CPF) ou Jurídica (CNPJ) — ver core/br_documents.py.
+    # `advertiser_document` guarda só os dígitos, já validados no checkout.
+    advertiser_type: Mapped[str] = mapped_column(
+        String(20), default="individual", nullable=False
+    )
+    advertiser_document: Mapped[str] = mapped_column(String(20), default="")
 
     # Link de acesso do anunciante ao próprio painel (`/anunciar/painel/{token}`,
     # ver routers/ads.py::"/my-campaign/{token}") — capability token em vez de

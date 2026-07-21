@@ -1,19 +1,34 @@
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { adsApi, AdFormat, CreativeInput } from '../lib/adsApi';
-import { api } from '../lib/api';
+import { api, GeocodeResult } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import { User } from '../data/mock';
 import VideoPlayer from './VideoPlayer';
+import LocationAutocompleteInput from './LocationAutocompleteInput';
+import LocationPickerModal from './LocationPickerModal';
 
-// Editor de criativos por-formato: um bloco fixo por formato (post/mensagens/
-// novidades — sem teste A/B por peso, ver plano de "mídia por formato").
-// Usado tanto na criação (checkout.tsx) quanto na edição pelo próprio
-// anunciante (painel/editar/[token].tsx) — construído uma vez, reaproveitado
-// nos dois fluxos.
+// Editor de criativos por-formato. Um bloco base ("O anúncio") — reutilizado
+// em todos os lugares — mais um bloco opcional por superfície (Feed/mapa,
+// Busca, Mensagens, Novidades): o anunciante configura o conteúdo uma vez e,
+// se quiser, sobrepõe ícone/texto diferente em qualquer uma delas, sem
+// preencher tudo 4 vezes. Usado tanto na criação (checkout.tsx) quanto na
+// edição pelo próprio anunciante (painel/editar/[token].tsx).
+
+// Superfícies que podem receber um criativo próprio, na ordem em que
+// aparecem no editor. `post` cobre feed + pin no mapa; `search_poster` é a
+// Busca. Cada uma vira um `format` específico no backend (o base é
+// `format=null` e serve de fallback pra qualquer uma sem bloco próprio).
+export const OVERRIDE_FORMATS: { key: AdFormat; label: string; allowVideo: boolean }[] = [
+  { key: 'post', label: 'Feed e mapa', allowVideo: true },
+  { key: 'search_poster', label: 'Busca', allowVideo: true },
+  { key: 'conversation', label: 'Mensagens', allowVideo: false },
+  { key: 'notification', label: 'Novidades', allowVideo: false },
+];
 
 export interface CreativeBlockDraft {
   title: string;
@@ -24,13 +39,20 @@ export interface CreativeBlockDraft {
   ctaLabel: string;
   latitude: string;
   longitude: string;
+  // Endereço legível do pin no mapa (só UI — não vai pro backend, que guarda
+  // lat/lng). `locationStatus` reproduz a semântica do picker do "Novo post":
+  // `valid` só ao escolher uma sugestão ou marcar no mapa.
+  locationLabel: string;
+  locationStatus: 'idle' | 'valid';
   linkedUserId?: number;
 }
 
 export interface CreativeBlocks {
-  // format=null no backend — cobre "post" + "search_poster" + fallback de
-  // qualquer formato sem bloco próprio.
+  // Base — `format=null` no backend: cobre qualquer formato sem bloco próprio.
   default: CreativeBlockDraft;
+  // Sobreposições opcionais por superfície.
+  post?: CreativeBlockDraft;
+  search_poster?: CreativeBlockDraft;
   conversation?: CreativeBlockDraft;
   notification?: CreativeBlockDraft;
 }
@@ -38,7 +60,7 @@ export interface CreativeBlocks {
 export function emptyCreativeBlock(): CreativeBlockDraft {
   return {
     title: '', content: '', targetUrl: '', mediaUrl: '', mediaType: '', ctaLabel: '',
-    latitude: '', longitude: '', linkedUserId: undefined,
+    latitude: '', longitude: '', locationLabel: '', locationStatus: 'idle', linkedUserId: undefined,
   };
 }
 
@@ -46,7 +68,12 @@ export function emptyCreativeBlocks(): CreativeBlocks {
   return { default: emptyCreativeBlock() };
 }
 
+// Um bloco de sobreposição herda o link/local/conta-vinculada do base — o
+// anunciante só personaliza título/texto/mídia por superfície; destino do
+// clique, pino no mapa e conta vinculada continuam vindo do base (senão uma
+// sobreposição de texto no Feed perderia o pin/vínculo).
 export function blocksToCreatives(blocks: CreativeBlocks): CreativeInput[] {
+  const base = blocks.default;
   const toInput = (format: AdFormat | undefined, d: CreativeBlockDraft): CreativeInput => ({
     format,
     title: d.title.trim(),
@@ -54,14 +81,17 @@ export function blocksToCreatives(blocks: CreativeBlocks): CreativeInput[] {
     imageUrl: d.mediaType === 'image' ? d.mediaUrl : undefined,
     videoUrl: d.mediaType === 'video' ? d.mediaUrl : undefined,
     ctaLabel: d.ctaLabel.trim() || undefined,
-    targetUrl: d.targetUrl.trim(),
-    latitude: d.latitude.trim() ? Number(d.latitude) : undefined,
-    longitude: d.longitude.trim() ? Number(d.longitude) : undefined,
-    linkedUserId: d.linkedUserId,
+    // Link/local/conta sempre do base (mesmo numa sobreposição).
+    targetUrl: base.targetUrl.trim(),
+    latitude: base.latitude.trim() ? Number(base.latitude) : undefined,
+    longitude: base.longitude.trim() ? Number(base.longitude) : undefined,
+    linkedUserId: base.linkedUserId,
   });
-  const out = [toInput(undefined, blocks.default)];
-  if (blocks.conversation) out.push(toInput('conversation', blocks.conversation));
-  if (blocks.notification) out.push(toInput('notification', blocks.notification));
+  const out = [toInput(undefined, base)];
+  for (const { key } of OVERRIDE_FORMATS) {
+    const block = blocks[key];
+    if (block) out.push(toInput(key, block));
+  }
   return out;
 }
 
@@ -88,15 +118,23 @@ export function creativesToBlocks(creatives: CreativeLike[]): CreativeBlocks {
     ctaLabel: c.ctaLabel || '',
     latitude: c.latitude != null ? String(c.latitude) : '',
     longitude: c.longitude != null ? String(c.longitude) : '',
+    // Já tem pin (edição/reativação) → nasce confirmado; o rótulo legível é
+    // resolvido depois por reverse-geocoding (ver CreativeBlockFields).
+    locationLabel: '',
+    locationStatus: c.latitude != null && c.longitude != null ? 'valid' : 'idle',
     linkedUserId: c.linkedUserId,
   });
   const def = creatives.find((c) => !c.format);
-  const conv = creatives.find((c) => c.format === 'conversation');
-  const notif = creatives.find((c) => c.format === 'notification');
+  const find = (fmt: AdFormat) => {
+    const c = creatives.find((x) => x.format === fmt);
+    return c ? draftFrom(c) : undefined;
+  };
   return {
     default: def ? draftFrom(def) : emptyCreativeBlock(),
-    conversation: conv ? draftFrom(conv) : undefined,
-    notification: notif ? draftFrom(notif) : undefined,
+    post: find('post'),
+    search_poster: find('search_poster'),
+    conversation: find('conversation'),
+    notification: find('notification'),
   };
 }
 
@@ -109,9 +147,22 @@ interface AdCreativeEditorProps {
 export default function AdCreativeEditor({ formats, value, onChange }: AdCreativeEditorProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { user } = useAuth();
 
-  const updateFormatBlock = (fmt: 'conversation' | 'notification', next: CreativeBlockDraft | undefined) =>
-    onChange({ ...value, [fmt]: next });
+  const updateBlock = (key: AdFormat, next: CreativeBlockDraft | undefined) =>
+    onChange({ ...value, [key]: next });
+
+  // Ao ativar uma sobreposição, parto do conteúdo do base (reaproveita em vez
+  // de começar do zero) — mas descarto uma mídia de vídeo em superfícies que
+  // só aceitam imagem (ícones de Mensagens/Novidades).
+  const seedOverride = (allowVideo: boolean): CreativeBlockDraft => {
+    const seed = { ...value.default };
+    if (!allowVideo && seed.mediaType === 'video') { seed.mediaUrl = ''; seed.mediaType = ''; }
+    return seed;
+  };
+
+  // Só ofereço sobreposição pras superfícies que a campanha realmente inclui.
+  const overrides = OVERRIDE_FORMATS.filter((f) => formats.includes(f.key));
 
   return (
     <View style={styles.wrap}>
@@ -122,67 +173,51 @@ export default function AdCreativeEditor({ formats, value, onChange }: AdCreativ
         allowVideo
         showLocation={formats.includes('post')}
         showAccountLink
+        user={user}
         Colors={Colors}
         styles={styles}
       />
 
-      {formats.includes('conversation') && (
-        <View>
-          <TouchableOpacity
-            style={styles.toggleRow}
-            activeOpacity={0.7}
-            onPress={() => updateFormatBlock('conversation', value.conversation ? undefined : emptyCreativeBlock())}
-          >
-            <Ionicons
-              name={value.conversation ? 'checkbox' : 'square-outline'}
-              size={18}
-              color={value.conversation ? Colors.primary : Colors.textTertiary}
-            />
-            <Text style={styles.toggleText}>Usar mídia diferente para Mensagens</Text>
-          </TouchableOpacity>
-          {value.conversation && (
-            <CreativeBlockFields
-              label="Ícone em Mensagens"
-              draft={value.conversation}
-              onChange={(next) => updateFormatBlock('conversation', next)}
-              allowVideo={false}
-              showLocation={false}
-              showAccountLink={false}
-              Colors={Colors}
-              styles={styles}
-            />
-          )}
-        </View>
+      {overrides.length > 0 && (
+        <Text style={styles.overridesHint}>
+          O conteúdo acima aparece em todos os lugares. Quer título, texto ou imagem
+          diferentes em algum? Personalize abaixo — o resto continua usando o de cima.
+        </Text>
       )}
 
-      {formats.includes('notification') && (
-        <View>
-          <TouchableOpacity
-            style={styles.toggleRow}
-            activeOpacity={0.7}
-            onPress={() => updateFormatBlock('notification', value.notification ? undefined : emptyCreativeBlock())}
-          >
-            <Ionicons
-              name={value.notification ? 'checkbox' : 'square-outline'}
-              size={18}
-              color={value.notification ? Colors.primary : Colors.textTertiary}
-            />
-            <Text style={styles.toggleText}>Usar mídia diferente para Novidades</Text>
-          </TouchableOpacity>
-          {value.notification && (
-            <CreativeBlockFields
-              label="Ícone em Novidades"
-              draft={value.notification}
-              onChange={(next) => updateFormatBlock('notification', next)}
-              allowVideo={false}
-              showLocation={false}
-              showAccountLink={false}
-              Colors={Colors}
-              styles={styles}
-            />
-          )}
-        </View>
-      )}
+      {overrides.map((f) => {
+        const block = value[f.key];
+        return (
+          <View key={f.key} style={styles.overrideCard}>
+            <TouchableOpacity
+              style={styles.toggleRow}
+              activeOpacity={0.7}
+              onPress={() => updateBlock(f.key, block ? undefined : seedOverride(f.allowVideo))}
+            >
+              <Ionicons
+                name={block ? 'checkbox' : 'square-outline'}
+                size={18}
+                color={block ? Colors.primary : Colors.textTertiary}
+              />
+              <Text style={styles.toggleText}>Personalizar para {f.label}</Text>
+            </TouchableOpacity>
+            {block && (
+              <CreativeBlockFields
+                label={`Em ${f.label}`}
+                draft={block}
+                onChange={(next) => updateBlock(f.key, next)}
+                allowVideo={f.allowVideo}
+                showLocation={false}
+                showAccountLink={false}
+                showTargetUrl={false}
+                user={null}
+                Colors={Colors}
+                styles={styles}
+              />
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -194,6 +229,8 @@ function CreativeBlockFields({
   allowVideo,
   showLocation,
   showAccountLink,
+  showTargetUrl = true,
+  user,
   Colors,
   styles,
 }: {
@@ -203,28 +240,59 @@ function CreativeBlockFields({
   allowVideo: boolean;
   showLocation: boolean;
   showAccountLink: boolean;
+  showTargetUrl?: boolean;
+  user: User | null;
   Colors: Palette;
   styles: ReturnType<typeof makeStyles>;
 }) {
   const [mediaUploading, setMediaUploading] = useState(false);
   const [mediaError, setMediaError] = useState('');
-  const [linkedUser, setLinkedUser] = useState<User | null>(null);
-  const [linkOpen, setLinkOpen] = useState(false);
-  const [linkQuery, setLinkQuery] = useState('');
-  const [linkResults, setLinkResults] = useState<User[]>([]);
-  const [linkLoading, setLinkLoading] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const seq = useRef(0);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  // Rótulo legível resolvido por reverse-geocoding ao abrir a edição de um
+  // anúncio que já tem pin (só lat/lng). Fica em estado local (não no draft)
+  // pra não sobrescrever outros campos que o usuário edite enquanto resolve.
+  const [resolvedLabel, setResolvedLabel] = useState('');
+
+  // Centro inicial do mapa de seleção: coordenadas do usuário (como no publish)
+  // ou o centro de São Paulo como fallback.
+  const pickerCenter = useMemo(
+    () =>
+      user?.latitude != null && user?.longitude != null
+        ? { latitude: user.latitude, longitude: user.longitude }
+        : { latitude: -23.5505, longitude: -46.6333 },
+    [user?.latitude, user?.longitude],
+  );
 
   useEffect(() => {
-    if (!draft.linkedUserId) {
-      setLinkedUser(null);
-      return;
-    }
-    if (linkedUser && Number(linkedUser.id) === draft.linkedUserId) return;
-    api.getUser(String(draft.linkedUserId)).then(setLinkedUser).catch(() => setLinkedUser(null));
+    if (draft.locationStatus !== 'valid' || draft.locationLabel) return;
+    if (!draft.latitude || !draft.longitude) return;
+    let cancelled = false;
+    api
+      .resolveNeighborhood(Number(draft.latitude), Number(draft.longitude))
+      .then((r) => { if (!cancelled) setResolvedLabel(r.displayName); })
+      .catch(() => { if (!cancelled) setResolvedLabel('Local marcado no mapa'); });
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft.linkedUserId]);
+  }, []);
+
+  // Escolha de endereço (sugestão ou ponto no mapa) — captura o rótulo + as
+  // coordenadas do pin. Digitar à mão volta pra `idle` e limpa o pin, igual
+  // ao "Novo post" (só uma escolha confirmada vira um pin de verdade).
+  const onChangeLocationText = (v: string) => {
+    setResolvedLabel('');
+    onChange({ ...draft, locationLabel: v, locationStatus: 'idle', latitude: '', longitude: '' });
+  };
+  const confirmLocation = (label: string, coords?: { latitude: number; longitude: number }) => {
+    onChange({
+      ...draft,
+      locationLabel: label,
+      locationStatus: 'valid',
+      latitude: coords ? String(coords.latitude) : draft.latitude,
+      longitude: coords ? String(coords.longitude) : draft.longitude,
+    });
+  };
+
+  const isSelfLinked = !!user && draft.linkedUserId === Number(user.id);
 
   const pickMedia = async () => {
     setMediaError('');
@@ -255,33 +323,14 @@ function CreativeBlockFields({
   };
   const removeMedia = () => onChange({ ...draft, mediaUrl: '', mediaType: '' });
 
-  const runLinkSearch = (q: string) => {
-    const term = q.trim();
-    if (!term) {
-      setLinkResults([]);
-      setLinkLoading(false);
-      return;
-    }
-    const id = ++seq.current;
-    setLinkLoading(true);
-    api
-      .search(term, 'users')
-      .then((r) => { if (id === seq.current) setLinkResults(r.users); })
-      .catch(() => { if (id === seq.current) setLinkResults([]); })
-      .finally(() => { if (id === seq.current) setLinkLoading(false); });
-  };
-  const onChangeLinkQuery = (v: string) => {
-    setLinkQuery(v);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => runLinkSearch(v), 300);
-  };
-
   return (
     <View style={styles.creativeBlock}>
       <Text style={styles.sectionTitle}>{label}</Text>
       <TextInput style={styles.input} placeholder="Título" placeholderTextColor={Colors.textTertiary} value={draft.title} onChangeText={(v) => onChange({ ...draft, title: v })} />
       <TextInput style={[styles.input, styles.inputMultiline]} placeholder="Texto" placeholderTextColor={Colors.textTertiary} value={draft.content} onChangeText={(v) => onChange({ ...draft, content: v })} multiline />
-      <TextInput style={styles.input} placeholder="Link de destino (ao tocar no anúncio)" placeholderTextColor={Colors.textTertiary} value={draft.targetUrl} onChangeText={(v) => onChange({ ...draft, targetUrl: v })} autoCapitalize="none" />
+      {showTargetUrl && (
+        <TextInput style={styles.input} placeholder="Link de destino (ao tocar no anúncio)" placeholderTextColor={Colors.textTertiary} value={draft.targetUrl} onChangeText={(v) => onChange({ ...draft, targetUrl: v })} autoCapitalize="none" />
+      )}
 
       {draft.mediaUrl ? (
         <View style={styles.mediaPreviewWrap}>
@@ -313,62 +362,43 @@ function CreativeBlockFields({
       <TextInput style={styles.input} placeholder="Texto do botão (opcional)" placeholderTextColor={Colors.textTertiary} value={draft.ctaLabel} onChangeText={(v) => onChange({ ...draft, ctaLabel: v })} />
 
       {showLocation && (
-        <View style={styles.row2}>
-          <TextInput style={[styles.input, styles.inputHalf]} placeholder="Latitude (pin no mapa)" placeholderTextColor={Colors.textTertiary} value={draft.latitude} onChangeText={(v) => onChange({ ...draft, latitude: v })} keyboardType="numeric" />
-          <TextInput style={[styles.input, styles.inputHalf]} placeholder="Longitude" placeholderTextColor={Colors.textTertiary} value={draft.longitude} onChangeText={(v) => onChange({ ...draft, longitude: v })} keyboardType="numeric" />
+        <View style={styles.locationField}>
+          <Text style={styles.fieldHint}>Local do pin no mapa</Text>
+          <LocationAutocompleteInput
+            value={draft.locationLabel || resolvedLabel}
+            onChangeText={onChangeLocationText}
+            onSelect={(label) => confirmLocation(label)}
+            onSelectResult={(r) => confirmLocation(r.label, { latitude: r.latitude, longitude: r.longitude })}
+            onPickOnMap={() => setLocationPickerOpen(true)}
+            status={draft.locationStatus}
+            placeholder="Ex.: Rua das Flores 123, Praça..."
+          />
         </View>
       )}
 
-      {showAccountLink && (
-        linkedUser ? (
-          <View style={styles.linkedChip}>
-            <Image source={{ uri: linkedUser.avatar }} style={styles.linkedAvatar} />
-            <Text style={styles.linkedName} numberOfLines={1}>{linkedUser.name} · @{linkedUser.username}</Text>
-            <TouchableOpacity
-              onPress={() => { onChange({ ...draft, linkedUserId: undefined }); setLinkedUser(null); }}
-              hitSlop={8}
-            >
-              <Ionicons name="close-circle" size={18} color={Colors.textTertiary} />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View>
-            <TouchableOpacity style={styles.toggleRow} activeOpacity={0.7} onPress={() => setLinkOpen((v) => !v)}>
-              <Ionicons name={linkOpen ? 'checkbox' : 'square-outline'} size={18} color={linkOpen ? Colors.primary : Colors.textTertiary} />
-              <Text style={styles.toggleText}>Vincular a uma conta do Daqui (opcional)</Text>
-            </TouchableOpacity>
-            {linkOpen && (
-              <View style={styles.linkSearchBox}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Buscar por nome ou @usuário"
-                  placeholderTextColor={Colors.textTertiary}
-                  value={linkQuery}
-                  onChangeText={onChangeLinkQuery}
-                  autoCapitalize="none"
-                />
-                {linkLoading && <ActivityIndicator size="small" color={Colors.primary} style={{ marginTop: 8 }} />}
-                {!linkLoading && linkResults.map((u) => (
-                  <TouchableOpacity
-                    key={u.id}
-                    style={styles.linkResultRow}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      onChange({ ...draft, linkedUserId: Number(u.id) });
-                      setLinkedUser(u);
-                      setLinkOpen(false);
-                      setLinkQuery('');
-                      setLinkResults([]);
-                    }}
-                  >
-                    <Image source={{ uri: u.avatar }} style={styles.linkedAvatar} />
-                    <Text style={styles.linkedName} numberOfLines={1}>{u.name} · @{u.username}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-        )
+      {showAccountLink && !!user && (
+        <TouchableOpacity
+          style={styles.toggleRow}
+          activeOpacity={0.7}
+          onPress={() => onChange({ ...draft, linkedUserId: isSelfLinked ? undefined : Number(user.id) })}
+        >
+          <Ionicons
+            name={isSelfLinked ? 'checkbox' : 'square-outline'}
+            size={18}
+            color={isSelfLinked ? Colors.primary : Colors.textTertiary}
+          />
+          <Text style={styles.toggleText} numberOfLines={1}>Vincular à conta @{user.username}</Text>
+        </TouchableOpacity>
+      )}
+
+      {showLocation && (
+        <LocationPickerModal
+          visible={locationPickerOpen}
+          onClose={() => setLocationPickerOpen(false)}
+          onConfirm={(address, coords) => { confirmLocation(address, coords); setLocationPickerOpen(false); }}
+          initialCenter={pickerCenter}
+          neighborhood={user?.neighborhood ?? ''}
+        />
       )}
     </View>
   );
@@ -391,8 +421,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     outlineStyle: 'none',
   } as any,
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
-  row2: { flexDirection: 'row', gap: 10 },
-  inputHalf: { flex: 1 },
 
   mediaPickerBtn: {
     flexDirection: 'row',
@@ -422,20 +450,17 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   errorText: { fontSize: 12, fontWeight: '600', color: Colors.error },
 
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
-  toggleText: { fontSize: 13, fontWeight: '700', color: Colors.text },
+  toggleText: { fontSize: 13, fontWeight: '700', color: Colors.text, flexShrink: 1 },
 
-  linkedChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  locationField: { gap: 6 },
+  fieldHint: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
+
+  overridesHint: { fontSize: 12, color: Colors.textTertiary, lineHeight: 17, marginTop: 2 },
+  overrideCard: {
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 12,
-    padding: 8,
+    borderColor: Colors.borderLight,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
-  linkedAvatar: { width: 32, height: 32, borderRadius: 10 },
-  linkedName: { flex: 1, fontSize: 13, fontWeight: '700', color: Colors.text },
-
-  linkSearchBox: { gap: 6, marginTop: 4 },
-  linkResultRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
 });

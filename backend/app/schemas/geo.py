@@ -35,3 +35,7 @@ class GeocodeResult(BaseModel):
     latitude: float
     longitude: float
     label: str
+
+
+class SearchRequest(BaseModel):
+    query: str

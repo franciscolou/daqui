@@ -75,6 +75,8 @@ async function requestMultipart<T>(path: string, formData: FormData): Promise<T>
 // Tipos
 // ─────────────────────────────────────────────────────────────
 export type AdFormat = 'post' | 'conversation' | 'notification' | 'search_poster';
+// Pessoa Física (CPF) ou Jurídica (CNPJ) — ver checkout.tsx / ads-backend.
+export type AdvertiserType = 'individual' | 'company';
 export type AdObjective =
   | 'reach'
   | 'clicks'
@@ -267,6 +269,8 @@ export interface CheckoutParams extends QuoteParams {
   advertiserName: string;
   advertiserEmail: string;
   advertiserPhone: string;
+  advertiserType: AdvertiserType;
+  advertiserDocument: string;
   rotationWeight?: number;
   pacing?: 'asap' | 'even';
   // Um bloco fixo por formato (sem teste A/B — ver AdCreativeEditor).
@@ -336,6 +340,8 @@ export interface MyCampaign {
   advertiserName: string;
   advertiserEmail: string;
   advertiserPhone: string;
+  advertiserType: AdvertiserType;
+  advertiserDocument: string;
   formats: AdFormat[];
   priceCents: number;
   currency: string;
@@ -369,6 +375,8 @@ interface BackendMyCampaign {
   advertiser_name: string;
   advertiser_email: string;
   advertiser_phone: string;
+  advertiser_type: AdvertiserType;
+  advertiser_document: string;
   formats: AdFormat[];
   price_cents: number;
   currency: string;
@@ -429,6 +437,8 @@ function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
     advertiserName: b.advertiser_name,
     advertiserEmail: b.advertiser_email,
     advertiserPhone: b.advertiser_phone,
+    advertiserType: b.advertiser_type,
+    advertiserDocument: b.advertiser_document,
     formats: b.formats,
     priceCents: b.price_cents,
     currency: b.currency,
@@ -708,6 +718,8 @@ export const adsApi = {
         advertiser_name: params.advertiserName,
         advertiser_email: params.advertiserEmail,
         advertiser_phone: params.advertiserPhone,
+        advertiser_type: params.advertiserType,
+        advertiser_document: params.advertiserDocument,
         creatives: params.creatives.map(creativeBody),
         renewed_from_token: params.renewedFromToken ?? null,
       },
@@ -743,6 +755,8 @@ export const adsApi = {
       advertiserName?: string;
       advertiserEmail?: string;
       advertiserPhone?: string;
+      advertiserType?: AdvertiserType;
+      advertiserDocument?: string;
       creatives?: CreativeInput[];
     },
   ): Promise<MyCampaign> {
@@ -752,6 +766,8 @@ export const adsApi = {
         advertiser_name: payload.advertiserName ?? null,
         advertiser_email: payload.advertiserEmail ?? null,
         advertiser_phone: payload.advertiserPhone ?? null,
+        advertiser_type: payload.advertiserType ?? null,
+        advertiser_document: payload.advertiserDocument ?? null,
         creatives: payload.creatives ? payload.creatives.map(creativeBody) : null,
       },
     });

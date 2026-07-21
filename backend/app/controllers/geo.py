@@ -10,6 +10,7 @@ from app.schemas.geo import (
     NearbyNeighborhoodsRequest,
     NeighborhoodResolution,
     ResolveNeighborhoodRequest,
+    SearchRequest,
 )
 from app.services import geo
 
@@ -30,3 +31,11 @@ def geocode(
     current_user: User = Depends(get_current_user),
 ) -> GeocodeResult:
     return geo.geocode(payload.address, current_user.neighborhood)
+
+
+def search_address(
+    payload: SearchRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[GeocodeResult]:
+    return geo.search_within(payload.query, current_user.neighborhood)

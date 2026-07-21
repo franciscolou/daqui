@@ -78,6 +78,8 @@ export default function AdvertiserPanelScreen() {
       advertiserName: campaign.advertiserName,
       advertiserEmail: campaign.advertiserEmail,
       advertiserPhone: campaign.advertiserPhone,
+      advertiserType: campaign.advertiserType,
+      advertiserDocument: campaign.advertiserDocument,
       creatives: campaign.creatives.map((c) => ({
         format: c.format,
         title: c.title,

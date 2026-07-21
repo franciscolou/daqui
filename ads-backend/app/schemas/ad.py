@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator, model_validator
 
+from app.core.br_documents import ADVERTISER_TYPES, validate_document
 from app.models.ad import (
     AUDIENCES,
     ENGAGEMENT_LEVELS,
@@ -246,6 +247,9 @@ class CampaignCreateBase(BaseModel):
     advertiser_name: str
     advertiser_email: str
     advertiser_phone: str = ""
+    # Pessoa Física (CPF) ou Jurídica (CNPJ) — validado e normalizado abaixo.
+    advertiser_type: str = "individual"
+    advertiser_document: str = ""
 
     # Se preenchido, esta campanha é uma renovação/reativação de uma
     # anterior (identificada pelo access_token dela) — ver
@@ -271,12 +275,32 @@ class CampaignCreateBase(BaseModel):
     )
     _validate_pacing = field_validator("pacing")(_check_one_of("pacing", PACING_MODES))
 
+    @field_validator("advertiser_type")
+    @classmethod
+    def check_advertiser_type(cls, v: str) -> str:
+        if v not in ADVERTISER_TYPES:
+            raise ValueError(f"Tipo de anunciante inválido: {v}")
+        return v
+
     @model_validator(mode="after")
     def check_has_creative(self) -> "CampaignCreateBase":
         if not self.creatives and not (self.title and self.target_url):
             raise ValueError(
                 "Informe ao menos um criativo (título + link) ou a lista `creatives`"
             )
+        return self
+
+    @model_validator(mode="after")
+    def check_document(self) -> "CampaignCreateBase":
+        # Valida/normaliza (só dígitos) conforme PF/PJ. Documento vazio é aceito
+        # aqui (o admin pode inserir uma proposta antes de ter o CPF/CNPJ) — a
+        # obrigatoriedade no fluxo self-service é garantida no checkout do app.
+        if self.advertiser_document.strip():
+            self.advertiser_document = validate_document(
+                self.advertiser_type, self.advertiser_document
+            )
+        else:
+            self.advertiser_document = ""
         return self
 
     def effective_targeting(self) -> TargetingIn:
@@ -348,6 +372,8 @@ class CampaignAdminOut(BaseModel):
     advertiser_name: str
     advertiser_email: str
     advertiser_phone: str
+    advertiser_type: str
+    advertiser_document: str
     formats: list[str]
     price_cents: int
     currency: str
@@ -460,7 +486,16 @@ class MyCampaignUpdate(BaseModel):
     advertiser_name: str | None = None
     advertiser_email: str | None = None
     advertiser_phone: str | None = None
+    advertiser_type: str | None = None
+    advertiser_document: str | None = None
     creatives: list[CreativeIn] | None = None
+
+    @field_validator("advertiser_type")
+    @classmethod
+    def check_advertiser_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in ADVERTISER_TYPES:
+            raise ValueError(f"Tipo de anunciante inválido: {v}")
+        return v
 
 
 class MyCampaignOut(BaseModel):
@@ -474,6 +509,8 @@ class MyCampaignOut(BaseModel):
     advertiser_name: str
     advertiser_email: str
     advertiser_phone: str
+    advertiser_type: str
+    advertiser_document: str
     formats: list[str]
     price_cents: int
     currency: str

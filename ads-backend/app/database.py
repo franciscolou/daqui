@@ -61,6 +61,22 @@ def _ensure_columns():
                         "ON ad_campaigns (access_token)"
                     )
                 )
+        if "advertiser_type" not in columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE ad_campaigns ADD COLUMN advertiser_type "
+                        "VARCHAR(20) DEFAULT 'individual' NOT NULL"
+                    )
+                )
+        if "advertiser_document" not in columns:
+            with engine.begin() as conn:
+                conn.execute(
+                    text(
+                        "ALTER TABLE ad_campaigns ADD COLUMN advertiser_document "
+                        "VARCHAR(20) DEFAULT '' NOT NULL"
+                    )
+                )
         if "renewed_from_id" not in columns:
             with engine.begin() as conn:
                 conn.execute(
