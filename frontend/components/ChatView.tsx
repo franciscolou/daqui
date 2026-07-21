@@ -28,6 +28,8 @@ import { useTheme, useThemedStyles } from '../lib/theme';
 import { submitOnEnter } from '../lib/keyboard';
 import SharedPostPreview from './SharedPostPreview';
 import SharedCommentPreview from './SharedCommentPreview';
+import MentionInput from './MentionInput';
+import MentionText from './MentionText';
 
 export type ChatTarget = { kind: 'dm' | 'group'; id: string };
 
@@ -169,9 +171,12 @@ function MessageBubble({
             </View>
           )}
           {!!msg.content && (
-            <Text style={[styles.bubbleText, mine && !hasShared && styles.bubbleTextMine]}>
+            <MentionText
+              style={[styles.bubbleText, mine && !hasShared && styles.bubbleTextMine]}
+              linkStyle={mine && !hasShared ? styles.bubbleMention : undefined}
+            >
               {msg.content}
-            </Text>
+            </MentionText>
           )}
           <Text
             style={[
@@ -436,6 +441,13 @@ export default function ChatView({
       .filter((u): u is User => !!u);
   }, [kind, other, typingDmUserIds, typingGroupUserIds, id, group]);
 
+  // Candidatos a menção: num grupo, só os membros (vazio até o grupo carregar);
+  // num DM, `undefined` = busca global de usuários.
+  const mentionCandidates = useMemo<User[] | undefined>(
+    () => (kind === 'group' ? (group?.members.map((m) => m.user) ?? []) : undefined),
+    [kind, group],
+  );
+
   // FlatList invertida: itens com divisores de dia, mais recente primeiro —
   // o balão de "digitando" (quando presente) fica na ponta, como se fosse a
   // próxima mensagem chegando.
@@ -626,10 +638,13 @@ export default function ChatView({
 
           {/* Composer */}
           <View style={styles.composer}>
-            <TextInput
-              ref={inputRef}
-              style={[styles.input, { height: inputHeight }]}
-              placeholder="Escreva uma mensagem..."
+            <MentionInput
+              inputRef={inputRef}
+              containerStyle={styles.inputWrap}
+              style={[styles.input, styles.inputInner, { height: inputHeight }]}
+              dropdownDirection="up"
+              candidates={mentionCandidates}
+              placeholder="Escreva uma mensagem... use @ para mencionar"
               placeholderTextColor={Colors.textTertiary}
               value={input}
               onChangeText={(v) => {
@@ -748,6 +763,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   typingDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.textTertiary },
   bubbleText: { fontSize: 14, color: Colors.text, lineHeight: 19 },
   bubbleTextMine: { color: '#fff' },
+  // Menção dentro do balão "meu" (fundo colorido): mantém legível.
+  bubbleMention: { color: '#fff', fontWeight: '700', textDecorationLine: 'underline' },
   bubbleTime: { fontSize: 10, color: Colors.textTertiary, marginTop: 3, alignSelf: 'flex-end' },
   bubbleTimeMine: { color: 'rgba(255,255,255,0.7)' },
   empty: {
@@ -794,6 +811,10 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.text,
     outlineStyle: 'none',
   } as any,
+  // MentionInput embrulha o campo: o wrapper ocupa a vaga flex:1 da linha e o
+  // input interno preenche a largura (sem flex vertical, altura própria).
+  inputWrap: { flex: 1 },
+  inputInner: { flex: 0, alignSelf: 'stretch' },
   sendBtn: {
     width: 40,
     height: 40,

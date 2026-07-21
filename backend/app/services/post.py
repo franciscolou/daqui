@@ -28,6 +28,7 @@ from app.schemas.post import (
 )
 from app.services import audit_log as audit_log_service
 from app.services import geo
+from app.services import mentions
 
 
 def _aware(dt: datetime) -> datetime:
@@ -338,6 +339,11 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         db.refresh(post)
 
     user_dao.update(db, user, {"posts_count": post_dao.count_by_author(db, user.id)})
+
+    # Notifica @menções no corpo (e no título) do post.
+    mentions.notify_mentions(
+        db, user, f"{post.title or ''} {post.content or ''}", post.id, post.content or post.title or ""
+    )
     return _to_schema(post, user, db)
 
 

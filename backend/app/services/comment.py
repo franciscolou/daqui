@@ -13,6 +13,7 @@ from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentOut
 from app.schemas.user import UserPublic
 from app.services import audit_log as audit_log_service
+from app.services import mentions
 
 
 def _visible_post_or_404(db: Session, post_id: int, viewer: User):
@@ -93,6 +94,9 @@ def create(db: Session, post_id: int, user: User, payload: CommentCreate) -> Com
     user.comments_count = comment_dao.count_by_author(db, user.id)
     db.commit()
     db.refresh(comment)
+
+    # Notifica @menções no comentário (leva pro post ao tocar na novidade).
+    mentions.notify_mentions(db, user, content, post_id, content)
     return _to_schema(comment, liked=False)
 
 

@@ -9,6 +9,7 @@ import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import ActionMenu from './ActionMenu';
 import HoverTime from './HoverTime';
+import MentionText from './MentionText';
 import PollBlock from './PollBlock';
 import PostMediaGallery from './PostMediaGallery';
 import ReportModal from './ReportModal';
@@ -154,7 +155,7 @@ export default function PostCard({ post, onPress }: PostCardProps) {
         )}
 
         {/* Body */}
-        <Text style={styles.body} numberOfLines={4}>{post.content}</Text>
+        <MentionText style={styles.body} numberOfLines={4}>{post.content}</MentionText>
 
         {/* Enquete */}
         {post.poll && <PollBlock poll={post.poll} postId={post.id} />}

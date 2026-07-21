@@ -34,6 +34,8 @@ import PostMediaGallery from '../../components/PostMediaGallery';
 import ResidentBadge from '../../components/ResidentBadge';
 import SharedCommentPreview from '../../components/SharedCommentPreview';
 import SharedPostPreview from '../../components/SharedPostPreview';
+import MentionInput from '../../components/MentionInput';
+import MentionText from '../../components/MentionText';
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -373,7 +375,7 @@ export default function PostDetailScreen() {
                   <Ionicons name="ellipsis-horizontal" size={15} color={Colors.textTertiary} />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.commentText}>{comment.content}</Text>
+              <MentionText style={styles.commentText}>{comment.content}</MentionText>
             </View>
             {/* Ações do comentário — como num post: curtir, responder, encaminhar */}
             <View style={styles.commentActions}>
@@ -497,7 +499,7 @@ export default function PostDetailScreen() {
         </View>
 
         {post.title && <Text style={styles.title}>{post.title}</Text>}
-        <Text style={styles.body}>{post.content}</Text>
+        <MentionText style={styles.body}>{post.content}</MentionText>
         {post.poll && (
           <PollBlock
             poll={post.poll}
@@ -639,10 +641,12 @@ export default function PostDetailScreen() {
 
           <View style={styles.composer}>
             <Image source={{ uri: user?.avatar }} style={styles.composerAvatar} />
-            <TextInput
-              ref={inputRef}
-              style={styles.composerInput}
-              placeholder={replyingTo ? `Responder a ${replyingTo.author.name}...` : 'Escreva um comentário...'}
+            <MentionInput
+              inputRef={inputRef}
+              containerStyle={styles.composerInputWrap}
+              style={[styles.composerInput, styles.composerInputInner]}
+              dropdownDirection="up"
+              placeholder={replyingTo ? `Responder a ${replyingTo.author.name}...` : 'Escreva um comentário... use @ para mencionar'}
               placeholderTextColor={Colors.textTertiary}
               value={text}
               onChangeText={setText}
@@ -976,6 +980,10 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.text,
     outlineStyle: 'none',
   } as any,
+  // MentionInput embrulha o campo num wrapper; ele ocupa a vaga flex:1 da
+  // linha e o input interno preenche a largura (sem flex vertical).
+  composerInputWrap: { flex: 1 },
+  composerInputInner: { flex: 0, alignSelf: 'stretch' },
   sendBtn: {
     width: 38,
     height: 38,

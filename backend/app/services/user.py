@@ -43,6 +43,14 @@ def get_by_id(db: Session, viewer: User, user_id: int) -> UserPublic:
     return public_view(viewer, user)
 
 
+def get_by_username(db: Session, viewer: User, username: str) -> UserPublic:
+    """Resolve um @handle → perfil público (usado ao tocar numa menção)."""
+    user = user_dao.get_by_username(db, (username or "").strip().lower())
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return public_view(viewer, user)
+
+
 def check_username(db: Session, user: User, username: str) -> UsernameAvailability:
     normalized = username.strip().lower()
     valid = bool(USERNAME_RE.match(normalized))

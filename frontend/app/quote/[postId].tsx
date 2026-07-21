@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  TextInput,
   ScrollView,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -23,6 +22,7 @@ import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import SharedPostPreview from '../../components/SharedPostPreview';
 import SharedCommentPreview from '../../components/SharedCommentPreview';
+import MentionInput from '../../components/MentionInput';
 
 // Converte o Post/Comment completo na prévia compacta usada no card citado
 // (mesmos conversores de app/forward/[postId].tsx).
@@ -152,9 +152,10 @@ export default function QuoteScreen() {
               )}
               <View style={styles.composeRow}>
                 <Image source={{ uri: user?.avatar }} style={styles.avatar} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Acrescente sua ideia..."
+                <MentionInput
+                  containerStyle={styles.inputWrap}
+                  style={[styles.input, styles.inputInner]}
+                  placeholder="Acrescente sua ideia... use @ para mencionar"
                   placeholderTextColor={Colors.textTertiary}
                   value={text}
                   onChangeText={setText}
@@ -232,5 +233,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     textAlignVertical: 'top',
     outlineStyle: 'none',
   } as any,
+  inputWrap: { flex: 1 },
+  inputInner: { flex: 0, alignSelf: 'stretch' },
   previewWrap: { paddingHorizontal: 16, paddingBottom: 24 },
 });

@@ -1250,6 +1250,11 @@ export const api = {
     return mapUser(await request<BackendUser>(`/users/${id}`));
   },
 
+  // Resolve um @handle → usuário (usado ao tocar numa menção no texto).
+  async getUserByUsername(username: string): Promise<User> {
+    return mapUser(await request<BackendUser>(`/users/by-username/${encodeURIComponent(username)}`));
+  },
+
   async getUserPosts(id: string): Promise<Post[]> {
     const r = await request<BackendPost[]>(`/users/${id}/posts`);
     return r.map(mapPost);

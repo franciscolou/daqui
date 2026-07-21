@@ -19,6 +19,8 @@ router.get(  "/neighborhood-stats", response_model=NeighborhoodStats)(user.neigh
 router.patch("/me",                 response_model=UserPublic)(user.update_me)
 router.post( "/me/avatar",          response_model=UserPublic)(user.update_avatar)
 router.post( "/me/cover",           response_model=UserPublic)(user.update_cover)
+# Estática antes da dinâmica `/{user_id}` (resolve @handle → perfil na menção).
+router.get(  "/by-username/{username}", response_model=UserPublic)(user.get_user_by_username)
 router.get(  "/{user_id}",          response_model=UserPublic)(user.get_user)
 router.get(  "/{user_id}/posts",    response_model=list[PostOut])(post.list_by_author)
 

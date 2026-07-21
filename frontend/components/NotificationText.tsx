@@ -26,6 +26,8 @@ export function notificationParts(n: AppNotification, boldStyle: StyleProp<TextS
       return <>{actor} curtiu seu comentário {QUOTE}{target}{QUOTE}</>;
     case 'comment':
       return <>{actor} comentou: {QUOTE}{target}{QUOTE}</>;
+    case 'mention':
+      return <>{actor} mencionou você: {QUOTE}{target}{QUOTE}</>;
     case 'follow':
       return <>{actor} começou a seguir você</>;
     default:

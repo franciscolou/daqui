@@ -25,6 +25,7 @@ import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import LocationPickerModal from '../../components/LocationPickerModal';
 import LocationAutocompleteInput from '../../components/LocationAutocompleteInput';
+import MentionInput from '../../components/MentionInput';
 import PollEditor, {
   PollDraft,
   emptyPollDraft,
@@ -500,16 +501,20 @@ export default function PublishScreen() {
           )}
 
           {/* Content / Pergunta da enquete */}
-          <View style={styles.section}>
+          {/* zIndex garante que o dropdown de menções do MentionInput fique na
+              frente de campos/botões seguintes (ex.: o "Publicar" do rodapé
+              no desktop), já que no web cada View vira sua própria stacking
+              context e um z-index alto lá dentro não escapa sozinho. */}
+          <View style={[styles.section, { zIndex: 20 }]}>
             <FieldLabel styles={styles}>
               {selectedCategory === 'enquete' ? 'Pergunta' : 'Mensagem'}
             </FieldLabel>
-            <TextInput
+            <MentionInput
               style={selectedCategory === 'enquete' ? styles.titleInput : styles.contentInput}
               placeholder={
                 selectedCategory === 'enquete'
                   ? 'O que você quer perguntar ao bairro?'
-                  : 'O que você quer compartilhar com o bairro?'
+                  : 'O que você quer compartilhar com o bairro? Use @ para mencionar vizinhos.'
               }
               placeholderTextColor={Colors.textTertiary}
               value={content}

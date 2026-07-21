@@ -11,6 +11,9 @@ TYPE_POST_REMOVED = "post_removed"
 TYPE_COMMENT_REMOVED = "comment_removed"
 MODERATION_NOTICE_TYPES = (TYPE_POST_REMOVED, TYPE_COMMENT_REMOVED)
 
+# Menção: alguém citou @usuario num post ou comentário.
+TYPE_MENTION = "mention"
+
 
 class Notification(Base):
     __tablename__ = "notifications"

@@ -38,6 +38,14 @@ def get_user(
     return user.get_by_id(db, current_user, user_id)
 
 
+def get_user_by_username(
+    username: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserPublic:
+    return user.get_by_username(db, current_user, username)
+
+
 def update_me(
     payload: UserUpdate,
     db: Session = Depends(get_db),
