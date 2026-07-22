@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -25,6 +27,7 @@ from app.schemas.group import (
     GroupOut,
     GroupUpdate,
 )
+from app.services import mutes as mute_service
 
 
 # ── Helpers de autorização ────────────────────────────────────────────
@@ -50,10 +53,18 @@ def _require_manager(db: Session, group: Group, user: User) -> GroupMember:
 
 
 # ── Serialização ──────────────────────────────────────────────────────
-def _to_out(group: Group, my_role: str | None, my_request_pending: bool = False) -> GroupOut:
+def _to_out(
+    group: Group,
+    my_role: str | None,
+    my_request_pending: bool = False,
+    is_muted: bool = False,
+    muted_until: datetime | None = None,
+) -> GroupOut:
     out = GroupOut.model_validate(group)
     out.my_role = my_role
     out.my_request_pending = my_request_pending
+    out.is_muted = is_muted
+    out.muted_until = muted_until
     return out
 
 
@@ -67,6 +78,9 @@ def _detail_out(
     out = GroupDetailOut.model_validate(group)
     out.my_role = my_role
     out.members = [GroupMemberOut.model_validate(m) for m in members]
+    mute_status = mute_service.get_group_status(db, user.id, group.id)
+    out.is_muted = mute_status.is_muted
+    out.muted_until = mute_status.muted_until
     if my_role in (ROLE_OWNER, ROLE_ADMIN):
         requests = group_dao.list_join_requests(db, group.id)
         out.join_requests = [GroupJoinRequestOut.model_validate(r) for r in requests]
@@ -168,6 +182,7 @@ def delete_group(db: Session, user: User, group_id: int) -> None:
 
 # ── Descoberta / conversas ────────────────────────────────────────────
 def list_conversations(db: Session, user: User) -> list[GroupConversationOut]:
+    muted = mute_service.group_mute_map(db, user.id)
     result: list[GroupConversationOut] = []
     for group in group_dao.list_user_groups(db, user.id):
         member = group_dao.get_membership(db, group.id, user.id)
@@ -177,7 +192,12 @@ def list_conversations(db: Session, user: User) -> list[GroupConversationOut]:
         )
         result.append(
             GroupConversationOut(
-                group=_to_out(group, member.role if member else None),
+                group=_to_out(
+                    group,
+                    member.role if member else None,
+                    is_muted=group.id in muted,
+                    muted_until=muted.get(group.id),
+                ),
                 last_message=_preview_text(last),
                 last_message_at=last.created_at if last else group.created_at,
                 unread_count=unread,

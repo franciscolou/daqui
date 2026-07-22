@@ -16,12 +16,13 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../../constants/Colors';
 import { GROUP_PRIVACY_INFO } from '../../../constants/groups';
-import { api, GroupDetail, GroupMember, GroupPrivacy } from '../../../lib/api';
+import { api, GroupDetail, GroupMember, GroupPrivacy, MuteStatus } from '../../../lib/api';
 import { User } from '../../../data/mock';
 import { useAuth } from '../../../lib/auth';
 import { goBack } from '../../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import FeedLayout from '../../../components/FeedLayout';
+import NotificationMuteRow from '../../../components/NotificationMuteRow';
 
 const PRIVACY_OPTIONS: GroupPrivacy[] = ['public', 'request', 'closed'];
 
@@ -74,6 +75,14 @@ export default function GroupInfoScreen() {
   const canManage = group?.myRole === 'owner' || group?.myRole === 'admin';
   const isOwner = group?.myRole === 'owner';
   const isMember = group?.myRole != null;
+
+  // Referência estável (só muda quando o silenciamento de verdade muda) —
+  // sem isso, `NotificationMuteRow` refaria o fetch a cada digitação no nome/
+  // descrição (que também vive neste componente e re-renderiza a tela toda).
+  const muteInitialStatus = useMemo<MuteStatus | undefined>(
+    () => (group ? { isMuted: group.isMuted, mutedUntil: group.mutedUntil } : undefined),
+    [group?.isMuted, group?.mutedUntil],
+  );
 
   const dirty =
     !!group &&
@@ -292,6 +301,13 @@ export default function GroupInfoScreen() {
               {group.neighborhood ? ` · ${group.neighborhood}` : ''}
             </Text>
           </View>
+
+          <NotificationMuteRow
+            kind="group"
+            id={group.id}
+            initialStatus={muteInitialStatus}
+            onChange={(s) => setGroup((g) => (g ? { ...g, isMuted: s.isMuted, mutedUntil: s.mutedUntil } : g))}
+          />
 
           {/* Nome/descrição — editável para administradores */}
           {canManage ? (

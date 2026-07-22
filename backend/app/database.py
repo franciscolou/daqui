@@ -19,6 +19,7 @@ def create_tables():
         comment,
         group,
         message,
+        mute,
         notification,
         post,
         review,

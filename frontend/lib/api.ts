@@ -283,6 +283,8 @@ interface BackendConversation {
   last_message: string;
   last_message_at: string;
   unread_count: number;
+  is_muted: boolean;
+  muted_until: string | null;
 }
 
 interface BackendSharedPost {
@@ -340,6 +342,8 @@ interface BackendGroup {
   created_at: string;
   my_role: string | null;
   my_request_pending: boolean | null;
+  is_muted: boolean;
+  muted_until: string | null;
 }
 
 interface BackendGroupMember {
@@ -409,6 +413,25 @@ export interface Conversation {
   lastMessage: string;
   time: string;
   unread: number;
+  isMuted: boolean;
+  mutedUntil?: string;
+}
+
+// Silenciamento de notificações (conversa ou grupo) — ver MuteMenu.
+export type MuteDuration = '8h' | '1d' | '1w' | 'forever';
+
+export interface MuteStatus {
+  isMuted: boolean;
+  mutedUntil?: string; // ausente = silenciado até reativar manualmente
+}
+
+interface BackendMuteStatus {
+  is_muted: boolean;
+  muted_until: string | null;
+}
+
+function mapMuteStatus(m: BackendMuteStatus): MuteStatus {
+  return { isMuted: m.is_muted, mutedUntil: m.muted_until ?? undefined };
 }
 
 // Prévia de um post encaminhado dentro de uma mensagem (estilo Twitter).
@@ -527,6 +550,8 @@ export interface Group {
   createdAt: string;
   myRole: GroupRole | null; // papel do usuário logado (null se não for membro)
   myRequestPending: boolean; // já pedi entrada e ainda não fui aprovado/recusado
+  isMuted: boolean;
+  mutedUntil?: string;
 }
 
 export interface GroupMember {
@@ -725,6 +750,8 @@ function mapConversation(c: BackendConversation): Conversation {
     lastMessage: c.last_message,
     time: c.last_message_at, // ISO — formatado na renderização (lib/time)
     unread: c.unread_count,
+    isMuted: c.is_muted,
+    mutedUntil: c.muted_until ?? undefined,
   };
 }
 
@@ -790,6 +817,8 @@ function mapGroup(g: BackendGroup): Group {
     createdAt: g.created_at,
     myRole: (g.my_role as GroupRole | null) ?? null,
     myRequestPending: g.my_request_pending ?? false,
+    isMuted: g.is_muted,
+    mutedUntil: g.muted_until ?? undefined,
   };
 }
 
@@ -1322,6 +1351,25 @@ export const api = {
     return r.map(mapMessage);
   },
 
+  async getDmMuteStatus(userId: string): Promise<MuteStatus> {
+    return mapMuteStatus(await request<BackendMuteStatus>(`/messages/${userId}/mute`));
+  },
+
+  async muteDm(userId: string, duration: MuteDuration): Promise<MuteStatus> {
+    return mapMuteStatus(
+      await request<BackendMuteStatus>(`/messages/${userId}/mute`, {
+        method: 'POST',
+        body: { duration },
+      }),
+    );
+  },
+
+  async unmuteDm(userId: string): Promise<MuteStatus> {
+    return mapMuteStatus(
+      await request<BackendMuteStatus>(`/messages/${userId}/mute`, { method: 'DELETE' }),
+    );
+  },
+
   // Avisa o servidor que estou digitando (DM ou grupo) — lido pelo polling
   // do websocket e repassado a quem está na mesma conversa.
   async pingTyping(kind: 'dm' | 'group', id: string): Promise<void> {
@@ -1487,6 +1535,21 @@ export const api = {
         method: 'POST',
         body: { content, reply_to_id: replyToId ? Number(replyToId) : undefined },
       }),
+    );
+  },
+
+  async muteGroup(id: string, duration: MuteDuration): Promise<MuteStatus> {
+    return mapMuteStatus(
+      await request<BackendMuteStatus>(`/groups/${id}/mute`, {
+        method: 'POST',
+        body: { duration },
+      }),
+    );
+  },
+
+  async unmuteGroup(id: string): Promise<MuteStatus> {
+    return mapMuteStatus(
+      await request<BackendMuteStatus>(`/groups/${id}/mute`, { method: 'DELETE' }),
     );
   },
 

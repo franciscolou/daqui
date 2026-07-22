@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  NativeSyntheticEvent,
+  TextInputContentSizeChangeEventData,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -53,6 +55,7 @@ function MessageBubble({
   showSender,
   highlighted,
   animateIn,
+  linkMentions,
   styles,
   onReply,
   onJumpTo,
@@ -62,6 +65,9 @@ function MessageBubble({
   showSender: boolean;
   highlighted: boolean;
   animateIn: boolean;
+  // Menções só existem em grupos (ver checkout com o usuário — DMs não têm
+  // sugeridor de @menção, então o texto "@algo" digitado numa DM é só texto).
+  linkMentions: boolean;
   styles: ReturnType<typeof makeStyles>;
   onReply: (msg: ChatMessage) => void;
   onJumpTo: (id: string) => void;
@@ -119,6 +125,7 @@ function MessageBubble({
           onPress={handlePress}
           onHoverIn={() => setHovered(true)}
           onHoverOut={() => setHovered(false)}
+          {...({ tabIndex: -1 } as any)}
         >
         {mine && (
           <TouchableOpacity
@@ -171,12 +178,18 @@ function MessageBubble({
             </View>
           )}
           {!!msg.content && (
-            <MentionText
-              style={[styles.bubbleText, mine && !hasShared && styles.bubbleTextMine]}
-              linkStyle={mine && !hasShared ? styles.bubbleMention : undefined}
-            >
-              {msg.content}
-            </MentionText>
+            linkMentions ? (
+              <MentionText
+                style={[styles.bubbleText, mine && !hasShared && styles.bubbleTextMine]}
+                linkStyle={mine && !hasShared ? styles.bubbleMention : undefined}
+              >
+                {msg.content}
+              </MentionText>
+            ) : (
+              <Text style={[styles.bubbleText, mine && !hasShared && styles.bubbleTextMine]}>
+                {msg.content}
+              </Text>
+            )
           )}
           <Text
             style={[
@@ -441,11 +454,34 @@ export default function ChatView({
       .filter((u): u is User => !!u);
   }, [kind, other, typingDmUserIds, typingGroupUserIds, id, group]);
 
-  // Candidatos a menção: num grupo, só os membros (vazio até o grupo carregar);
-  // num DM, `undefined` = busca global de usuários.
-  const mentionCandidates = useMemo<User[] | undefined>(
-    () => (kind === 'group' ? (group?.members.map((m) => m.user) ?? []) : undefined),
-    [kind, group],
+  // Candidatos a menção: só existe em grupo (DM não tem @menção — ver
+  // composer abaixo), e só os membros — vazio até o grupo carregar.
+  const mentionCandidates = useMemo<User[]>(
+    () => group?.members.map((m) => m.user) ?? [],
+    [group],
+  );
+
+  const onChangeInput = useCallback(
+    (v: string) => {
+      setInput(v);
+      if (v.trim() && id) pingTyping({ kind, id });
+    },
+    [id, kind, pingTyping],
+  );
+
+  const onInputContentSizeChange = useCallback(
+    (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
+      // Na web quem manda é o useLayoutEffect acima (precisa zerar a altura
+      // antes de medir pra conseguir encolher); aqui só nativo.
+      if (Platform.OS === 'web') return;
+      setInputHeight(
+        Math.min(
+          Math.max(e.nativeEvent.contentSize.height, INPUT_MIN_HEIGHT),
+          INPUT_MAX_HEIGHT,
+        ),
+      );
+    },
+    [],
   );
 
   // FlatList invertida: itens com divisores de dia, mais recente primeiro —
@@ -504,8 +540,10 @@ export default function ChatView({
     return () => clearTimeout(t);
   }, [highlightId]);
 
+  // Abre as configurações da conversa/grupo (inclui "Notificações" — ver
+  // NotificationMuteRow) em vez de ir direto pro perfil do destinatário.
   const openInfo = () => {
-    if (kind === 'dm' && other) router.push(`/user/${other.id}` as any);
+    if (kind === 'dm' && other) router.push(`/messages/${other.id}/info` as any);
     else if (kind === 'group' && group) router.push(`/groups/${group.id}/info` as any);
   };
 
@@ -528,7 +566,12 @@ export default function ChatView({
             <Ionicons name="arrow-back" size={22} color={Colors.text} />
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.headerUser} activeOpacity={0.7} onPress={openInfo}>
+        <TouchableOpacity
+          style={styles.headerUser}
+          activeOpacity={0.7}
+          onPress={openInfo}
+          {...({ tabIndex: -1 } as any)}
+        >
           {headerAvatar ? (
             <Image source={{ uri: headerAvatar }} style={styles.headerAvatar} />
           ) : (
@@ -545,11 +588,11 @@ export default function ChatView({
             )}
           </View>
         </TouchableOpacity>
-        {kind === 'group' && (
-          <TouchableOpacity style={styles.backBtn} onPress={openInfo}>
-            <Ionicons name="information-circle-outline" size={24} color={Colors.text} />
-          </TouchableOpacity>
-        )}
+        {/* Configurações da conversa/grupo (inclui "Notificações") — mesmo
+            destino de tocar no nome/avatar acima, só que sempre visível. */}
+        <TouchableOpacity style={styles.backBtn} onPress={openInfo}>
+          <Ionicons name="information-circle-outline" size={24} color={Colors.text} />
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -600,6 +643,7 @@ export default function ChatView({
                   showSender={kind === 'group' && !(!!me && item.msg.sender.id === me.id)}
                   highlighted={item.msg.id === highlightId}
                   animateIn={enteringIds.has(item.msg.id)}
+                  linkMentions={kind === 'group'}
                   onReply={setReplyingTo}
                   onJumpTo={jumpToMessage}
                   styles={styles}
@@ -636,36 +680,39 @@ export default function ChatView({
             </View>
           )}
 
-          {/* Composer */}
+          {/* Composer — @menção só existe em grupos (só membros podem ser
+              mencionados; numa DM já é só o outro participante, sem sentido). */}
           <View style={styles.composer}>
-            <MentionInput
-              inputRef={inputRef}
-              containerStyle={styles.inputWrap}
-              style={[styles.input, styles.inputInner, { height: inputHeight }]}
-              dropdownDirection="up"
-              candidates={mentionCandidates}
-              placeholder="Escreva uma mensagem... use @ para mencionar"
-              placeholderTextColor={Colors.textTertiary}
-              value={input}
-              onChangeText={(v) => {
-                setInput(v);
-                if (v.trim() && id) pingTyping({ kind, id });
-              }}
-              multiline
-              onContentSizeChange={(e) => {
-                // Na web quem manda é o useLayoutEffect acima (precisa zerar a
-                // altura antes de medir pra conseguir encolher); aqui só nativo.
-                if (Platform.OS === 'web') return;
-                setInputHeight(
-                  Math.min(
-                    Math.max(e.nativeEvent.contentSize.height, INPUT_MIN_HEIGHT),
-                    INPUT_MAX_HEIGHT,
-                  ),
-                );
-              }}
-              onKeyPress={submitOnEnter(send)}
-              onSubmitEditing={send}
-            />
+            {kind === 'group' ? (
+              <MentionInput
+                inputRef={inputRef}
+                containerStyle={styles.inputWrap}
+                style={[styles.input, styles.inputInner, { height: inputHeight }]}
+                dropdownDirection="up"
+                candidates={mentionCandidates}
+                placeholder="Escreva uma mensagem... use @ para mencionar"
+                placeholderTextColor={Colors.textTertiary}
+                value={input}
+                onChangeText={onChangeInput}
+                multiline
+                onContentSizeChange={onInputContentSizeChange}
+                onKeyPress={submitOnEnter(send)}
+                onSubmitEditing={send}
+              />
+            ) : (
+              <TextInput
+                ref={inputRef}
+                style={[styles.input, { height: inputHeight }]}
+                placeholder="Escreva uma mensagem..."
+                placeholderTextColor={Colors.textTertiary}
+                value={input}
+                onChangeText={onChangeInput}
+                multiline
+                onContentSizeChange={onInputContentSizeChange}
+                onKeyPress={submitOnEnter(send)}
+                onSubmitEditing={send}
+              />
+            )}
             <TouchableOpacity
               style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
               onPress={send}

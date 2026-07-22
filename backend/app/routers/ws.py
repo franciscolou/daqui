@@ -12,6 +12,7 @@ from app.daos import message as message_dao
 from app.daos import notification as notification_dao
 from app.database import SessionLocal
 from app.models.user import User
+from app.services import message as message_service
 
 router = APIRouter(tags=["realtime"])
 
@@ -78,9 +79,7 @@ async def realtime(websocket: WebSocket, token: str):
                     db, group_ids, user_id, last_check
                 )
                 new_notifications = notification_dao.new_since(db, user_id, last_check)
-                unread_messages = message_dao.count_unread_total(
-                    db, user_id
-                ) + group_dao.count_unread_for_user(db, user_id)
+                unread_messages = message_service.unread_count(db, current)
                 unread_notifications = notification_dao.count_unread(db, user_id)
             finally:
                 db.close()

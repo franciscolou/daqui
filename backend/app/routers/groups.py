@@ -8,6 +8,7 @@ from app.schemas.group import (
     GroupMessageOut,
     GroupOut,
 )
+from app.schemas.mute import MuteStatusOut
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -36,3 +37,6 @@ router.delete("/{group_id}/members/{user_id}/admin", response_model=GroupDetailO
 
 router.get("/{group_id}/messages", response_model=list[GroupMessageOut])(group.get_thread)
 router.post("/{group_id}/messages", response_model=GroupMessageOut, status_code=201)(group.send_message)
+
+router.post("/{group_id}/mute", response_model=MuteStatusOut)(group.mute_group)
+router.delete("/{group_id}/mute", response_model=MuteStatusOut)(group.unmute_group)

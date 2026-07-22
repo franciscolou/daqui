@@ -39,6 +39,9 @@ class GroupOut(BaseModel):
     # True se o usuário logado já tem uma solicitação de entrada pendente
     # (só relevante para privacy="request" e quando my_role é None).
     my_request_pending: Optional[bool] = None
+    # Silenciamento de notificações — por usuário (ver models/mute.py).
+    is_muted: bool = False
+    muted_until: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

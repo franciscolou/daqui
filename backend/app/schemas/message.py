@@ -73,6 +73,8 @@ class ConversationOut(BaseModel):
     last_message: str
     last_message_at: datetime
     unread_count: int
+    is_muted: bool = False
+    muted_until: datetime | None = None
 
 
 class UnreadCountOut(BaseModel):

@@ -388,6 +388,7 @@ function InboxRow({ item, active, onPress }: { item: ConvInboxItem; active: bool
   const isGroup = item.kind === 'group';
   const name = isGroup ? item.conversation.group.name : item.conversation.user.name;
   const avatar = isGroup ? item.conversation.group.avatar : item.conversation.user.avatar;
+  const isMuted = isGroup ? item.conversation.group.isMuted : item.conversation.isMuted;
   const { lastMessage, unread } = item.conversation;
   const isTyping = isGroup
     ? typingGroupUserIds(item.conversation.group.id).length > 0
@@ -409,6 +410,7 @@ function InboxRow({ item, active, onPress }: { item: ConvInboxItem; active: bool
           <View style={styles.nameRow}>
             {isGroup && <Ionicons name="people" size={13} color={Colors.textTertiary} />}
             <Text style={[styles.msgName, unread > 0 && styles.msgNameBold]} numberOfLines={1}>{name}</Text>
+            {isMuted && <Ionicons name="notifications-off-outline" size={13} color={Colors.textTertiary} />}
           </View>
           <Text style={[styles.msgTime, unread > 0 && styles.msgTimeBold]}>{formatConversationTime(item.time)}</Text>
         </View>

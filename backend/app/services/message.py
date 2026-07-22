@@ -9,8 +9,14 @@ from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.message import Message
 from app.models.user import User
-from app.schemas.message import ConversationOut, MessageCreate, MessageSearchOut, TypingPing
+from app.schemas.message import (
+    ConversationOut,
+    MessageCreate,
+    MessageSearchOut,
+    TypingPing,
+)
 from app.schemas.user import UserPublic
+from app.services import mutes as mute_service
 
 
 def _preview_text(msg: Message) -> str:
@@ -27,6 +33,7 @@ def _preview_text(msg: Message) -> str:
 
 def list_conversations(db: Session, user: User) -> list[ConversationOut]:
     last_messages = message_dao.get_last_per_conversation(db, user.id)
+    muted = mute_service.dm_mute_map(db, user.id)
     result = []
     for msg in last_messages:
         other_id = msg.receiver_id if msg.sender_id == user.id else msg.sender_id
@@ -40,6 +47,8 @@ def list_conversations(db: Session, user: User) -> list[ConversationOut]:
                 last_message=_preview_text(msg),
                 last_message_at=msg.created_at,
                 unread_count=unread,
+                is_muted=other_id in muted,
+                muted_until=muted.get(other_id),
             )
         )
     return result
@@ -69,10 +78,13 @@ def search_messages(db: Session, user: User, query: str) -> list[MessageSearchOu
 
 
 def unread_count(db: Session, user: User) -> int:
-    """Total de mensagens não lidas — diretas + grupos — usado no selo de 'Mensagens'."""
-    return message_dao.count_unread_total(db, user.id) + group_dao.count_unread_for_user(
-        db, user.id
-    )
+    """Total de mensagens não lidas — diretas + grupos, excluindo conversas/grupos
+    silenciados — usado no selo de 'Mensagens'."""
+    muted_dms = mute_service.muted_dm_ids(db, user.id)
+    muted_groups = mute_service.muted_group_ids(db, user.id)
+    return message_dao.count_unread_total(
+        db, user.id, exclude_sender_ids=muted_dms
+    ) + group_dao.count_unread_for_user(db, user.id, exclude_group_ids=muted_groups)
 
 
 def get_thread(db: Session, user: User, other_id: int) -> list[Message]:

@@ -15,7 +15,9 @@ from app.schemas.group import (
     GroupOut,
     GroupUpdate,
 )
+from app.schemas.mute import MuteIn, MuteStatusOut
 from app.services import group as group_service
+from app.services import mutes as mute_service
 
 
 def create_group(
@@ -181,3 +183,20 @@ def send_message(
     return group_service.send_message(
         db, current_user, group_id, payload.content, payload.reply_to_id
     )
+
+
+def mute_group(
+    group_id: int,
+    payload: MuteIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MuteStatusOut:
+    return mute_service.mute_group(db, current_user, group_id, payload.duration)
+
+
+def unmute_group(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MuteStatusOut:
+    return mute_service.unmute_group(db, current_user, group_id)

@@ -11,7 +11,9 @@ from app.schemas.message import (
     TypingPing,
     UnreadCountOut,
 )
+from app.schemas.mute import MuteIn, MuteStatusOut
 from app.services import message
+from app.services import mutes as mute_service
 
 
 def list_conversations(
@@ -58,3 +60,28 @@ def ping_typing(
     current_user: User = Depends(get_current_user),
 ) -> None:
     message.ping_typing(db, current_user, payload)
+
+
+def get_mute(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MuteStatusOut:
+    return mute_service.get_dm_status(db, current_user, user_id)
+
+
+def mute_conversation(
+    user_id: int,
+    payload: MuteIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MuteStatusOut:
+    return mute_service.mute_dm(db, current_user, user_id, payload.duration)
+
+
+def unmute_conversation(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MuteStatusOut:
+    return mute_service.unmute_dm(db, current_user, user_id)

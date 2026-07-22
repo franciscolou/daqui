@@ -230,10 +230,14 @@ def mark_read(db: Session, member: GroupMember, last_id: int) -> None:
         db.commit()
 
 
-def count_unread_for_user(db: Session, user_id: int) -> int:
+def count_unread_for_user(
+    db: Session, user_id: int, exclude_group_ids: set[int] = frozenset()
+) -> int:
     total = 0
     memberships = db.query(GroupMember).filter(GroupMember.user_id == user_id).all()
     for member in memberships:
+        if member.group_id in exclude_group_ids:
+            continue
         total += count_unread(db, member.group_id, user_id, member.last_read_message_id)
     return total
 

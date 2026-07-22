@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
-import FeedLayout from '../../components/FeedLayout';
-import ChatView from '../../components/ChatView';
-import { goBack } from '../../lib/navigation';
+import FeedLayout from '../../../components/FeedLayout';
+import ChatView from '../../../components/ChatView';
+import { goBack } from '../../../lib/navigation';
 
 export default function ChatScreen() {
   const { id, messageId } = useLocalSearchParams<{ id: string; messageId?: string }>();
