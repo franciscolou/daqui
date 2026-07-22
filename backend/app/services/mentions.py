@@ -10,11 +10,10 @@ import re
 
 from sqlalchemy.orm import Session
 
-from app.core import realtime_registry
-from app.daos import notification as notification_dao
 from app.daos import user as user_dao
 from app.models.notification import TYPE_MENTION
 from app.models.user import User
+from app.services import notification as notification_service
 
 # @handle: letra/dígito/._ (mesmo conjunto aceito no cadastro de username).
 # Exige uma borda antes do @ pra não pegar e-mails (ex.: "a@b").
@@ -49,7 +48,7 @@ def notify_mentions(
         target = user_dao.get_by_username(db, handle)
         if not target or target.id == actor.id:
             continue
-        notification_dao.create(
+        notification_service.notify(
             db,
             user_id=target.id,
             type_=TYPE_MENTION,
@@ -57,5 +56,6 @@ def notify_mentions(
             target_text=(target_text or "")[:_PREVIEW_MAX],
             post_id=post_id,
             actor_id=actor.id,
+            push_title=f"{actor.name} mencionou você",
+            push_body=(target_text or "")[:_PREVIEW_MAX] or "mencionou você",
         )
-        realtime_registry.wake(target.id)

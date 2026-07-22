@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # Usado para montar o link de redefinição de senha enviado por e-mail.
     FRONTEND_URL: str = "http://localhost:8081"
 
+    # Push notification (Expo Push Service). Opcional: só necessário se o
+    # projeto Expo tiver "enhanced push security" habilitado.
+    EXPO_ACCESS_TOKEN: str = ""
+
     class Config:
         env_file = ".env"
 

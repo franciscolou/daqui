@@ -19,6 +19,8 @@ import QRCode from 'react-native-qrcode-svg';
 import { Palette } from '../constants/Colors';
 import { api, ApiError, UserSession } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { registerPushToken, unregisterPushToken } from '../lib/push';
+import { getItem, setItem } from '../lib/storage';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
 import { formatExactDateTime } from '../lib/time';
 import LeftSidebar from '../components/LeftSidebar';
@@ -833,10 +835,35 @@ function TwoFactorSection() {
   );
 }
 
+const PUSH_ENABLED_KEY = 'daqui.pushEnabled';
+
 function NotificationsPanel() {
   const styles = useThemedStyles(makeStyles);
+  const [pushEnabled, setPushEnabled] = useState(true);
+
+  useEffect(() => {
+    getItem(PUSH_ENABLED_KEY).then((v) => {
+      if (v === 'false') setPushEnabled(false);
+    });
+  }, []);
+
+  const handlePushToggle = (value: boolean) => {
+    setPushEnabled(value);
+    setItem(PUSH_ENABLED_KEY, String(value)).catch(() => {});
+    if (value) registerPushToken();
+    else unregisterPushToken();
+  };
+
   return (
     <View style={styles.panelGroup}>
+      <SectionTitle>Push</SectionTitle>
+      <ToggleRow
+        label="Notificações push"
+        desc="Avisos no celular quando o app está fechado"
+        value={pushEnabled}
+        onValueChange={handlePushToggle}
+      />
+
       <SectionTitle>No aplicativo</SectionTitle>
       <ToggleRow label="Curtidas" desc="Quando curtirem seus posts" defaultValue />
       <ToggleRow label="Comentários" desc="Respostas e menções" defaultValue />

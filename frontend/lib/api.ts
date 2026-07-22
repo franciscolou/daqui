@@ -1370,6 +1370,16 @@ export const api = {
     );
   },
 
+  async registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void> {
+    await request<void>('/push/register', { method: 'POST', body: { token, platform } });
+  },
+
+  async unregisterPushToken(token: string): Promise<void> {
+    await request<void>(`/push/register?token=${encodeURIComponent(token)}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Avisa o servidor que estou digitando (DM ou grupo) — lido pelo polling
   // do websocket e repassado a quem está na mesma conversa.
   async pingTyping(kind: 'dm' | 'group', id: string): Promise<void> {

@@ -1,9 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.core import realtime_registry
 from app.daos import comment as comment_dao
-from app.daos import notification as notification_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.audit_log import ACTION_COMMENT_DELETE
@@ -14,6 +12,7 @@ from app.schemas.comment import CommentCreate, CommentOut
 from app.schemas.user import UserPublic
 from app.services import audit_log as audit_log_service
 from app.services import mentions
+from app.services import notification as notification_service
 
 
 def _visible_post_or_404(db: Session, post_id: int, viewer: User):
@@ -202,13 +201,14 @@ def admin_delete(db: Session, comment_id: int, moderator: User) -> None:
         author.comments_count = comment_dao.count_by_author(db, author_id)
     db.commit()
 
-    notification_dao.create(
+    notification_service.notify(
         db,
         user_id=author_id,
         type_=TYPE_COMMENT_REMOVED,
         content="Seu comentário foi removido pela moderação por não seguir as diretrizes da comunidade.",
         target_text=content_preview,
         snapshot=snapshot,
+        push_title="Aviso da moderação",
+        push_body="Seu comentário foi removido por não seguir as diretrizes da comunidade.",
     )
-    realtime_registry.wake(author_id)
     audit_log_service.log(db, moderator, ACTION_COMMENT_DELETE, author_id, content_preview)

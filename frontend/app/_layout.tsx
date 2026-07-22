@@ -1,8 +1,10 @@
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../lib/auth';
+import { addNotificationTapListener } from '../lib/push';
 import { RealtimeProvider } from '../lib/realtime';
 import { ScrollToTopProvider } from '../lib/scrollToTop';
 import { ThemeProvider, useThemeMode } from '../lib/theme';
@@ -14,6 +16,12 @@ function ThemedStatusBar() {
   return <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />;
 }
 
+// Navega pra conversa/grupo certo quando o usuário toca numa push notification.
+function PushNotificationTapHandler() {
+  useEffect(() => addNotificationTapListener(), []);
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -22,6 +30,7 @@ export default function RootLayout() {
           <RealtimeProvider>
             <ScrollToTopProvider>
               <ThemedStatusBar />
+              <PushNotificationTapHandler />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" />

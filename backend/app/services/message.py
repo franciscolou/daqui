@@ -17,6 +17,7 @@ from app.schemas.message import (
 )
 from app.schemas.user import UserPublic
 from app.services import mutes as mute_service
+from app.services import push as push_service
 
 
 def _preview_text(msg: Message) -> str:
@@ -78,13 +79,12 @@ def search_messages(db: Session, user: User, query: str) -> list[MessageSearchOu
 
 
 def unread_count(db: Session, user: User) -> int:
-    """Total de mensagens não lidas — diretas + grupos, excluindo conversas/grupos
-    silenciados — usado no selo de 'Mensagens'."""
-    muted_dms = mute_service.muted_dm_ids(db, user.id)
-    muted_groups = mute_service.muted_group_ids(db, user.id)
-    return message_dao.count_unread_total(
-        db, user.id, exclude_sender_ids=muted_dms
-    ) + group_dao.count_unread_for_user(db, user.id, exclude_group_ids=muted_groups)
+    """Total de mensagens não lidas — diretas + grupos — usado no selo de
+    'Mensagens'. Silenciar uma conversa/grupo não tira ela da contagem (só
+    impede o push de chegar, ver `services/push.py`)."""
+    return message_dao.count_unread_total(db, user.id) + group_dao.count_unread_for_user(
+        db, user.id
+    )
 
 
 def get_thread(db: Session, user: User, other_id: int) -> list[Message]:
@@ -124,7 +124,7 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         if not replied or {replied.sender_id, replied.receiver_id} != conversation_ids:
             raise HTTPException(status_code=404, detail="Mensagem respondida não encontrada")
 
-    return message_dao.create(
+    msg = message_dao.create(
         db,
         user.id,
         payload.receiver_id,
@@ -133,6 +133,15 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         payload.reply_to_id,
         shared_comment_id=payload.shared_comment_id,
     )
+    if not mute_service.get_dm_status(db, receiver, user.id).is_muted:
+        push_service.notify_user(
+            db,
+            receiver.id,
+            user.name,
+            _preview_text(msg),
+            data={"type": "dm", "userId": user.id},
+        )
+    return msg
 
 
 def ping_typing(db: Session, user: User, payload: TypingPing) -> None:

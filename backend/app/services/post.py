@@ -3,10 +3,8 @@ from datetime import date, datetime, timezone
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core import realtime_registry
 from app.core.uploads import save_upload_media
 from app.daos import comment as comment_dao
-from app.daos import notification as notification_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.audit_log import ACTION_POST_DELETE
@@ -29,6 +27,7 @@ from app.schemas.post import (
 from app.services import audit_log as audit_log_service
 from app.services import geo
 from app.services import mentions
+from app.services import notification as notification_service
 
 
 def _aware(dt: datetime) -> datetime:
@@ -542,13 +541,14 @@ def admin_delete_post(db: Session, post_id: int, moderator: User) -> None:
     post_dao.delete(db, post)
     if author:
         user_dao.update(db, author, {"posts_count": post_dao.count_by_author(db, author.id)})
-    notification_dao.create(
+    notification_service.notify(
         db,
         user_id=author_id,
         type_=TYPE_POST_REMOVED,
         content="Seu post foi removido pela moderação por não seguir as diretrizes da comunidade.",
         target_text=content_preview,
         snapshot=snapshot,
+        push_title="Aviso da moderação",
+        push_body="Seu post foi removido por não seguir as diretrizes da comunidade.",
     )
-    realtime_registry.wake(author_id)
     audit_log_service.log(db, moderator, ACTION_POST_DELETE, author_id, content_preview)

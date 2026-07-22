@@ -22,6 +22,7 @@ def create_tables():
         mute,
         notification,
         post,
+        push_token,
         review,
         session,
         user,

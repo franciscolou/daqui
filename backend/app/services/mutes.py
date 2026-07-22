@@ -66,15 +66,7 @@ def unmute_group(db: Session, user: User, group_id: int) -> MuteStatusOut:
     return MuteStatusOut(is_muted=False, muted_until=None)
 
 
-# ── Leitura em massa (listagens e contagem agregada) ─────────────────────
-def muted_dm_ids(db: Session, user_id: int) -> set[int]:
-    return mute_dao.active_target_ids(db, user_id, KIND_DM)
-
-
-def muted_group_ids(db: Session, user_id: int) -> set[int]:
-    return mute_dao.active_target_ids(db, user_id, KIND_GROUP)
-
-
+# ── Leitura em massa (listagens) ──────────────────────────────────────────
 def dm_mute_map(db: Session, user_id: int) -> dict[int, datetime | None]:
     """other_user_id → muted_until (None = indeterminado), só ativos."""
     return {tid: row.muted_until for tid, row in mute_dao.active_map(db, user_id, KIND_DM).items()}

@@ -40,17 +40,6 @@ def remove(db: Session, user_id: int, kind: str, target_id: int) -> None:
         db.commit()
 
 
-def active_target_ids(db: Session, user_id: int, kind: str) -> set[int]:
-    """Ids (do outro usuário, em DM, ou do grupo) atualmente silenciados —
-    usado pra excluir da contagem agregada de não lidas (ver services/message.py)."""
-    rows = (
-        db.query(ConversationMute)
-        .filter(ConversationMute.user_id == user_id, ConversationMute.kind == kind)
-        .all()
-    )
-    return {r.target_id for r in rows if r.is_active}
-
-
 def active_map(db: Session, user_id: int, kind: str) -> dict[int, ConversationMute]:
     """target_id → linha, só as ainda ativas — usado nas listagens (evita
     reconsultar uma-a-uma pra cada conversa/grupo)."""

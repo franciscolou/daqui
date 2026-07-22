@@ -19,7 +19,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#16A34A"
       },
-      "package": "com.daqui.app"
+      "package": "com.daqui.app",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -34,10 +38,18 @@
           "locationWhenInUsePermission": "O Daqui usa sua localização para descobrir e confirmar o seu bairro."
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "93e138ad-5209-45a6-82d8-9de14af752ea"
+      },
+      "router": {}
+    },
+    "owner": "franciscolous-team"
   }
 }

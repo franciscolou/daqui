@@ -15,6 +15,7 @@ from app.routers import (
     messages,
     notifications,
     posts,
+    push,
     reports,
     reviews,
     search,
@@ -59,6 +60,7 @@ app.include_router(reports.admin_router, prefix="/api/v1")
 app.include_router(support_tickets.router, prefix="/api/v1")
 app.include_router(support_tickets.admin_router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(push.router, prefix="/api/v1")
 app.include_router(comments.router, prefix="/api/v1")
 app.include_router(comments.admin_router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")

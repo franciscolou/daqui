@@ -1,8 +1,42 @@
 from sqlalchemy.orm import Session
 
+from app.core import realtime_registry
 from app.daos import notification
 from app.models.notification import MODERATION_NOTICE_TYPES, Notification
 from app.models.user import User
+from app.services import push as push_service
+
+
+def notify(
+    db: Session,
+    *,
+    user_id: int,
+    type_: str,
+    content: str,
+    push_title: str,
+    push_body: str,
+    actor_id: int | None = None,
+    target_text: str | None = None,
+    post_id: int | None = None,
+    snapshot: dict | None = None,
+) -> Notification:
+    """Cria a `Notification`, acorda o websocket do usuário e dispara o push
+    — os 3 passos que toda notificação real do backend precisa (menção,
+    avisos de moderação). Ponto único pra não duplicar essa sequência em
+    cada service que cria uma notificação."""
+    notif = notification.create(
+        db,
+        user_id=user_id,
+        type_=type_,
+        content=content,
+        target_text=target_text,
+        post_id=post_id,
+        actor_id=actor_id,
+        snapshot=snapshot,
+    )
+    realtime_registry.wake(user_id)
+    push_service.notify_user(db, user_id, push_title, push_body)
+    return notif
 
 
 def list_for_user(db: Session, user: User) -> list[Notification]:

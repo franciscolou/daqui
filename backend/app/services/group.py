@@ -28,6 +28,7 @@ from app.schemas.group import (
     GroupUpdate,
 )
 from app.services import mutes as mute_service
+from app.services import push as push_service
 
 
 # ── Helpers de autorização ────────────────────────────────────────────
@@ -354,4 +355,18 @@ def send_message(
             raise HTTPException(status_code=404, detail="Mensagem respondida não encontrada")
     msg = group_dao.create_message(db, group.id, user.id, content, reply_to_id)
     group_dao.mark_read(db, member, msg.id)
+
+    for other_member in group_dao.list_members(db, group.id):
+        if other_member.user_id == user.id:
+            continue
+        if mute_service.get_group_status(db, other_member.user_id, group.id).is_muted:
+            continue
+        push_service.notify_user(
+            db,
+            other_member.user_id,
+            group.name,
+            f"{user.name}: {content}",
+            data={"type": "group", "groupId": group.id},
+        )
+
     return GroupMessageOut.model_validate(msg)
