@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo/metro-runtime": "~56.0.14",
     "@expo/vector-icons": "^15.1.1",
+    "@react-native-community/slider": "5.2.0",
     "@react-navigation/native": "^7.3.0",
     "babel-preset-expo": "~56.0.0",
     "expo": "~56.0.9",

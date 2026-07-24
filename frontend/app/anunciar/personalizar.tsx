@@ -1,8 +1,13 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch } from 'react-native';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch, Modal, Pressable,
+  useWindowDimensions, ViewProps,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Slider from '@react-native-community/slider';
+import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentRef, type ComponentType } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { goBack } from '../../lib/navigation';
@@ -17,6 +22,221 @@ const FORMATS: { key: AdFormat; label: string; desc: string }[] = [
 ];
 
 const DURATION_PRESETS = [7, 15, 30, 90];
+// Duração máxima de uma campanha: 720 dias (2 anos) — mesmo limite validado
+// em `QuoteRequest`/`CampaignCreateBase` no ads-backend.
+const MAX_DURATION_DAYS = 720;
+
+// Escala não-linear do slider de duração: dá espaço proporcional pros
+// presets mais comuns (7/15/30/90 dias) em vez de espremê-los nos primeiros
+// ~12% de uma escala linear até 720 dias. Cada ponto é [posição 0-1, dias];
+// o slider em si é sempre controlado em posição (0-1), convertida pra dias
+// pelas funções abaixo.
+const DURATION_SCALE: [number, number][] = [
+  [0, 1],
+  [0.22, 7],
+  [0.42, 15],
+  [0.62, 30],
+  [0.82, 90],
+  [1, MAX_DURATION_DAYS],
+];
+
+function durationScalePosToDays(pos: number): number {
+  const s = DURATION_SCALE;
+  if (pos <= s[0][0]) return s[0][1];
+  if (pos >= s[s.length - 1][0]) return s[s.length - 1][1];
+  for (let i = 0; i < s.length - 1; i++) {
+    const [p0, d0] = s[i];
+    const [p1, d1] = s[i + 1];
+    if (pos <= p1) return Math.round(d0 + ((pos - p0) / (p1 - p0)) * (d1 - d0));
+  }
+  return s[s.length - 1][1];
+}
+
+function durationDaysToScalePos(days: number): number {
+  const s = DURATION_SCALE;
+  if (days <= s[0][1]) return s[0][0];
+  if (days >= s[s.length - 1][1]) return s[s.length - 1][0];
+  for (let i = 0; i < s.length - 1; i++) {
+    const [p0, d0] = s[i];
+    const [p1, d1] = s[i + 1];
+    if (days <= d1) return p0 + ((days - d0) / (d1 - d0)) * (p1 - p0);
+  }
+  return s[s.length - 1][0];
+}
+
+// Pontos do gráfico de desconto (espelha `DURATION_DISCOUNT_ANCHORS` em
+// `ads-backend/app/services/ad_pricing.py`) — só ilustrativo, não afeta o
+// preço de verdade (esse sempre vem da cotação do backend). Eixo X
+// categórico (espaçamento igual entre pontos, não proporcional aos dias):
+// os patamares vão de 1 a 720 dias, então uma escala real deixaria os 4
+// últimos pontos espremidos num canto — assim o formato da curva fica claro.
+const DISCOUNT_CHART_POINTS: { days: number; pct: number }[] = [
+  { days: 1, pct: 0 },
+  { days: 30, pct: 5 },
+  { days: 90, pct: 15 },
+  { days: 180, pct: 22 },
+  { days: 365, pct: 30 },
+  { days: 720, pct: 40 },
+];
+
+const CHART_W = 320;
+const CHART_H = 180;
+const CHART_PAD = { top: 26, right: 16, bottom: 32, left: 16 };
+const POPOVER_WIDTH = CHART_W + 32; // padding de 16 de cada lado dentro do popover
+const POPOVER_HEIGHT_APPROX = CHART_H + 96; // chart + título + legenda + paddings
+
+// react-native-web repassa onMouseMove/onMouseLeave pro elemento, mas os
+// tipos de View (focados no nativo) não os declaram (mesmo padrão de
+// components/HoverTime.tsx).
+type WebViewProps = ViewProps & { onMouseMove?: (e: any) => void; onMouseLeave?: () => void };
+const MouseTrackingView = View as unknown as ComponentType<WebViewProps>;
+
+// Gráfico do desconto por duração — maior, interativo: passar o mouse (web)
+// ou tocar e arrastar (nativo) em cima da linha mostra num badge flutuante a
+// duração e o desconto correspondente naquele ponto, sempre por interpolação
+// linear dentro do trecho entre dois patamares — a mesma conta que o backend
+// faz de verdade (`ad_pricing.duration_discount`), só que os pontos aqui vêm
+// espaçados igualmente no eixo X (não proporcional aos dias).
+function DiscountChart() {
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const fg = Colors.surface;
+  const [hover, setHover] = useState<{ days: number; pct: number; x: number; y: number } | null>(null);
+
+  const plotW = CHART_W - CHART_PAD.left - CHART_PAD.right;
+  const plotH = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
+  const baseline = CHART_PAD.top + plotH;
+  const maxPct = DISCOUNT_CHART_POINTS[DISCOUNT_CHART_POINTS.length - 1].pct;
+
+  const points = DISCOUNT_CHART_POINTS.map((p, i) => ({
+    ...p,
+    x: CHART_PAD.left + (i / (DISCOUNT_CHART_POINTS.length - 1)) * plotW,
+    y: CHART_PAD.top + (1 - p.pct / maxPct) * plotH,
+  }));
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${baseline} L ${points[0].x.toFixed(1)} ${baseline} Z`;
+
+  const updateHoverFromX = (localX: number) => {
+    const clamped = Math.max(points[0].x, Math.min(points[points.length - 1].x, localX));
+    let idx = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+      if (clamped >= points[i].x && clamped <= points[i + 1].x) { idx = i; break; }
+    }
+    const p0 = points[idx];
+    const p1 = points[idx + 1];
+    const segW = p1.x - p0.x;
+    const t = segW > 0 ? (clamped - p0.x) / segW : 0;
+    setHover({
+      days: Math.round(p0.days + t * (p1.days - p0.days)),
+      pct: p0.pct + t * (p1.pct - p0.pct),
+      x: p0.x + t * (p1.x - p0.x),
+      y: p0.y + t * (p1.y - p0.y),
+    });
+  };
+
+  const handleResponderMove = (evt: any) => updateHoverFromX(evt.nativeEvent.locationX);
+  const badgeLeft = hover ? Math.max(0, Math.min(hover.x - 40, CHART_W - 80)) : 0;
+  const badgeTop = hover ? Math.max(0, hover.y - 42) : 0;
+
+  return (
+    <MouseTrackingView
+      style={{ width: CHART_W, height: CHART_H }}
+      onMouseMove={(e: any) => updateHoverFromX(e.nativeEvent.offsetX)}
+      onMouseLeave={() => setHover(null)}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderGrant={handleResponderMove}
+      onResponderMove={handleResponderMove}
+      onResponderRelease={() => setHover(null)}
+    >
+      <Svg width={CHART_W} height={CHART_H}>
+        <Line x1={CHART_PAD.left} y1={baseline} x2={CHART_W - CHART_PAD.right} y2={baseline} stroke={fg} strokeOpacity={0.25} strokeWidth={1} />
+        <Path d={areaPath} fill={fg} fillOpacity={0.12} />
+        <Path d={linePath} stroke={fg} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p) => (
+          <G key={p.days}>
+            <Circle cx={p.x} cy={p.y} r={4} fill={Colors.text} />
+            <Circle cx={p.x} cy={p.y} r={2.5} fill={fg} />
+            {p.pct > 0 && (
+              <SvgText x={p.x} y={p.y - 9} fontSize={10} fontWeight="700" fill={fg} textAnchor="middle">
+                -{p.pct}%
+              </SvgText>
+            )}
+            <SvgText x={p.x} y={baseline + 17} fontSize={9} fill={fg} fillOpacity={0.75} textAnchor="middle">
+              {p.days}d
+            </SvgText>
+          </G>
+        ))}
+        {hover && (
+          <G>
+            <Line x1={hover.x} y1={CHART_PAD.top} x2={hover.x} y2={baseline} stroke={fg} strokeOpacity={0.45} strokeWidth={1} strokeDasharray="3,3" />
+            <Circle cx={hover.x} cy={hover.y} r={5} fill={Colors.primary} stroke={fg} strokeWidth={1.5} />
+          </G>
+        )}
+      </Svg>
+      {hover && (
+        <View style={[styles.chartHoverBadge, { left: badgeLeft, top: badgeTop }]} pointerEvents="none">
+          <Text style={styles.chartHoverBadgeDays}>{hover.days} dias</Text>
+          <Text style={styles.chartHoverBadgePct}>
+            {hover.pct <= 0 ? 'sem desconto' : `-${Math.round(hover.pct)}%`}
+          </Text>
+        </View>
+      )}
+    </MouseTrackingView>
+  );
+}
+
+// "i" ao lado de "Desconto progressivo": clique abre o gráfico num popover
+// ancorado perto do ícone; clique de novo no ícone ou fora do popover fecha
+// (Modal transparente + Pressable cobrindo a tela toda, mesmo padrão de
+// components/ActionMenu.tsx).
+function DiscountInfo() {
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const { width: winW, height: winH } = useWindowDimensions();
+  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const iconRef = useRef<ComponentRef<typeof TouchableOpacity>>(null);
+
+  const handleToggle = () => {
+    if (open) { setOpen(false); return; }
+    iconRef.current?.measureInWindow((x, y, width, height) => {
+      setAnchor({ x, y, width, height });
+      setOpen(true);
+    });
+  };
+
+  const openAbove = !!anchor
+    && winH - (anchor.y + anchor.height) < POPOVER_HEIGHT_APPROX + 16
+    && anchor.y > POPOVER_HEIGHT_APPROX;
+  const top = anchor ? (openAbove ? anchor.y - POPOVER_HEIGHT_APPROX - 8 : anchor.y + anchor.height + 8) : 0;
+  const left = anchor
+    ? Math.max(12, Math.min(anchor.x - (POPOVER_WIDTH - anchor.width) / 2, winW - POPOVER_WIDTH - 12))
+    : 0;
+
+  return (
+    <>
+      <TouchableOpacity ref={iconRef} style={styles.discountInfoWrap} onPress={handleToggle}>
+        <Ionicons name="information-circle-outline" size={16} color={Colors.textSecondary} />
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.discountOverlay} onPress={() => setOpen(false)} tabIndex={-1}>
+          {anchor && (
+            <View style={[styles.discountPopover, { top, left, width: POPOVER_WIDTH }]}>
+              <Pressable onPress={() => {}} tabIndex={-1}>
+                <Text style={styles.discountTooltipTitle}>Desconto por duração</Text>
+                <DiscountChart />
+                <Text style={styles.discountTooltipCaption}>
+                  Passe o mouse (ou toque e arraste) na linha pra ver o desconto de cada duração.
+                </Text>
+              </Pressable>
+            </View>
+          )}
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
 
 const OBJECTIVES: { key: AdObjective; label: string }[] = [
   { key: 'reach', label: 'Alcance' },
@@ -64,6 +284,18 @@ export default function PersonalizarScreen() {
 
   const [formats, setFormats] = useState<AdFormat[]>(prefillData?.formats ?? ['post']);
   const [durationDays, setDurationDays] = useState(prefillData?.durationDays ?? 15);
+  // Espelha `durationDays` como texto editável (campo pequeno ao lado do
+  // slider) — permite digitar livremente sem forçar um número válido a cada
+  // tecla; só vira `durationDays` de fato quando o valor digitado é válido.
+  const [durationText, setDurationText] = useState(String(prefillData?.durationDays ?? 15));
+
+  // Aplica uma duração vinda do slider/marcações/plano: mantém texto e valor
+  // numérico em sincronia, sempre dentro de [1, MAX_DURATION_DAYS].
+  const applyDuration = (n: number) => {
+    const clamped = Math.min(MAX_DURATION_DAYS, Math.max(1, Math.round(n)));
+    setDurationDays(clamped);
+    setDurationText(String(clamped));
+  };
   const [citywide, setCitywide] = useState(prefillData?.citywide ?? false);
   const [neighborhoods, setNeighborhoods] = useState<string[]>(prefillData?.neighborhoods ?? []);
   const [priceCents, setPriceCents] = useState<number | null>(null);
@@ -100,6 +332,7 @@ export default function PersonalizarScreen() {
       if (p) {
         setFormats(p.formats);
         setDurationDays(p.durationDays);
+        setDurationText(String(p.durationDays));
         setCitywide(p.maxNeighborhoods == null);
         setPlan({ priceCents: p.priceCents, maxNeighborhoods: p.maxNeighborhoods });
       }
@@ -121,15 +354,9 @@ export default function PersonalizarScreen() {
       setFactors([]);
       return;
     }
-    // Com plano: preço fixo do plano, sem cotação dinâmica (fix da inconsistência
-    // "escolhi o plano de R$ X e o total mudou ao preencher os bairros").
-    if (plan) {
-      setPriceCents(plan.priceCents);
-      setFactors([]);
-      return;
-    }
     let cancelled = false;
     adsApi.quoteAd({
+      planId: plan ? Number(params.planId) : undefined,
       formats,
       durationDays,
       neighborhoods,
@@ -230,19 +457,79 @@ export default function PersonalizarScreen() {
           );
         })}
 
-        <Text style={styles.label}>Duração</Text>
+        <Text style={styles.label}>Duração (dias)</Text>
         <View style={styles.durationRow}>
-          {DURATION_PRESETS.map((d) => (
-            <TouchableOpacity
-              key={d}
-              style={[styles.durationChip, durationDays === d && styles.durationChipActive]}
-              onPress={() => setDurationDays(d)}
-            >
-              <Text style={[styles.durationChipText, durationDays === d && styles.durationChipTextActive]}>
-                {d} dias
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <View style={styles.durationSliderWrap}>
+            <Slider
+              style={styles.durationSlider}
+              minimumValue={0}
+              maximumValue={1}
+              value={durationDaysToScalePos(durationDays)}
+              onValueChange={(pos) => applyDuration(durationScalePosToDays(pos))}
+              minimumTrackTintColor={Colors.primary}
+              maximumTrackTintColor={Colors.border}
+              thumbTintColor={Colors.primary}
+            />
+            <View style={styles.durationMarksRow}>
+              {DURATION_PRESETS.map((d) => (
+                // TouchableOpacity ignora `position: absolute` no próprio style
+                // (fica relativo à posição no fluxo) — por isso o posicionamento
+                // fica numa View plana por fora, só com o toque por dentro.
+                <View key={d} style={[styles.durationMark, { left: `${durationDaysToScalePos(d) * 100}%` }]}>
+                  <TouchableOpacity onPress={() => applyDuration(d)} style={styles.durationMarkTouchable}>
+                    <View style={[styles.durationMarkDot, durationDays === d && styles.durationMarkDotActive]} />
+                    <Text style={[styles.durationMarkText, durationDays === d && styles.durationMarkTextActive]}>
+                      {d}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+          <View style={styles.durationInputWrap}>
+            <TextInput
+              style={styles.durationInput}
+              value={durationText}
+              onChangeText={(text) => {
+                const cleaned = text.replace(/[^0-9]/g, '');
+                setDurationText(cleaned);
+                const n = parseInt(cleaned, 10);
+                if (!Number.isNaN(n) && n >= 1 && n <= MAX_DURATION_DAYS) setDurationDays(n);
+              }}
+              onBlur={() => applyDuration(parseInt(durationText, 10) || durationDays)}
+              keyboardType="numeric"
+              maxLength={3}
+            />
+            <View style={styles.durationStepper}>
+              <TouchableOpacity
+                style={[styles.durationStepperBtn, styles.durationStepperBtnUp]}
+                disabled={durationDays >= MAX_DURATION_DAYS}
+                onPress={() => applyDuration(durationDays + 1)}
+              >
+                <Ionicons
+                  name="chevron-up"
+                  size={11}
+                  color={durationDays >= MAX_DURATION_DAYS ? Colors.borderLight : Colors.textSecondary}
+                />
+              </TouchableOpacity>
+              <View style={styles.durationStepperDivider} />
+              <TouchableOpacity
+                style={[styles.durationStepperBtn, styles.durationStepperBtnDown]}
+                disabled={durationDays <= 1}
+                onPress={() => applyDuration(durationDays - 1)}
+              >
+                <Ionicons
+                  name="chevron-down"
+                  size={11}
+                  color={durationDays <= 1 ? Colors.borderLight : Colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+        <View style={styles.discountInfoRow}>
+          <Text style={styles.discountLabel}>Desconto progressivo</Text>
+          <DiscountInfo />
         </View>
 
         <View style={styles.citywideRow}>
@@ -262,14 +549,14 @@ export default function PersonalizarScreen() {
           </>
         )}
 
-        <TouchableOpacity
-          style={styles.advancedToggle}
-          activeOpacity={0.8}
+        <Pressable
+          style={({ pressed }) => [styles.advancedToggle, pressed && styles.advancedTogglePressed]}
           onPress={() => setShowAdvanced((v) => !v)}
+          tabIndex={-1}
         >
           <Ionicons name={showAdvanced ? 'chevron-down' : 'chevron-forward'} size={16} color={Colors.textSecondary} />
           <Text style={styles.advancedToggleText}>Configurações avançadas</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         {showAdvanced && (
           <View style={styles.advancedBox}>
@@ -346,21 +633,20 @@ export default function PersonalizarScreen() {
 
         <TouchableOpacity
           style={styles.priceBox}
-          activeOpacity={plan ? 1 : 0.85}
-          onPress={() => { if (!plan) setShowBreakdown((v) => !v); }}
+          activeOpacity={0.85}
+          onPress={() => setShowBreakdown((v) => !v)}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Text style={styles.priceLabel}>{plan ? 'Valor do plano' : 'Valor estimado'}</Text>
             <Text style={styles.priceValue}>{priceCents != null ? formatMoney(priceCents) : '—'}</Text>
           </View>
-          {plan ? (
-            <Text style={styles.priceHint}>Preço fixo do plano — não muda com os bairros escolhidos.</Text>
-          ) : (
-            priceCents != null && (
-              <Text style={styles.priceHint}>{showBreakdown ? '▾ ver menos' : '▸ ver como calculamos'}</Text>
-            )
+          {priceCents != null && (
+            <Text style={styles.priceHint}>
+              {plan ? 'Preço não muda com os bairros — escala com a duração escolhida. ' : ''}
+              {showBreakdown ? '▾ ver menos' : '▸ ver como calculamos'}
+            </Text>
           )}
-          {!plan && showBreakdown && factors.map((f) => (
+          {showBreakdown && factors.map((f) => (
             <View key={f.label} style={styles.factorRow}>
               <Text style={styles.factorLabel}>{f.label}</Text>
               <Text style={styles.factorValue}>×{f.multiplier.toFixed(2)}</Text>
@@ -414,11 +700,73 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   formatCardTitle: { fontSize: 14, fontWeight: '700', color: Colors.text },
   formatCardDesc: { fontSize: 12, color: Colors.textTertiary, marginTop: 2 },
 
-  durationRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  durationChip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surface },
-  durationChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  durationChipText: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary },
-  durationChipTextActive: { color: '#fff' },
+  durationRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  durationSliderWrap: { flex: 1, position: 'relative', paddingBottom: 18 },
+  durationSlider: { width: '100%', height: 32 },
+  durationMarksRow: {
+    position: 'absolute', left: 0, right: 0, top: 34, height: 20, zIndex: 2,
+    pointerEvents: 'box-none',
+  } as any,
+  durationMark: { position: 'absolute', top: 0, width: 24, marginLeft: -12, zIndex: 2 },
+  durationMarkTouchable: { alignItems: 'center', paddingHorizontal: 4, paddingVertical: 3, borderRadius: 8 },
+  durationMarkDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.border },
+  durationMarkDotActive: { backgroundColor: Colors.primary },
+  durationMarkText: { fontSize: 10, fontWeight: '600', color: Colors.textTertiary, marginTop: 2 },
+  durationMarkTextActive: { color: Colors.primary, fontWeight: '800' },
+  durationInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+  },
+  durationInput: {
+    width: 44,
+    paddingHorizontal: 8,
+    paddingVertical: 11,
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+    color: Colors.text,
+    backgroundColor: 'transparent',
+    outlineStyle: 'none',
+  } as any,
+  durationStepper: { width: 22, borderLeftWidth: 1, borderLeftColor: Colors.border },
+  durationStepperBtn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  durationStepperBtnUp: { borderTopRightRadius: 11 },
+  durationStepperBtnDown: { borderBottomRightRadius: 11 },
+  durationStepperDivider: { height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+
+  discountInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  discountLabel: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary },
+  discountInfoWrap: { borderRadius: 8, padding: 2 },
+  discountOverlay: { flex: 1 },
+  discountPopover: {
+    position: 'absolute',
+    alignItems: 'center',
+    backgroundColor: Colors.text,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+    borderRadius: 14,
+    ...Colors.shadow.lg,
+  },
+  discountTooltipTitle: { fontSize: 14, fontWeight: '800', color: Colors.surface, marginBottom: 6, alignSelf: 'flex-start' },
+  discountTooltipCaption: { fontSize: 11, fontWeight: '500', color: Colors.surface, opacity: 0.75, marginTop: 8, textAlign: 'center' },
+  chartHoverBadge: {
+    position: 'absolute',
+    minWidth: 80,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 9,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    ...Colors.shadow.md,
+  },
+  chartHoverBadgeDays: { fontSize: 10, fontWeight: '700', color: Colors.text },
+  chartHoverBadgePct: { fontSize: 12, fontWeight: '800', color: Colors.primary, marginTop: 1 },
 
   citywideRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 
@@ -437,6 +785,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   errorText: { fontSize: 12, fontWeight: '600', color: Colors.error },
 
   advancedToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, paddingVertical: 6 },
+  advancedTogglePressed: { opacity: 0.7 },
   advancedToggleText: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary },
   advancedBox: { borderWidth: 1, borderStyle: 'dashed', borderColor: Colors.border, borderRadius: 14, padding: 12, gap: 2 },
   row2: { flexDirection: 'row', gap: 10 },

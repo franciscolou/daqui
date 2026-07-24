@@ -226,6 +226,9 @@ function scheduleBody(s?: ScheduleParams) {
 }
 
 export interface QuoteParams {
+  // Quando informado, cota o preço fixo do plano escalado pra `durationDays`
+  // (em vez da engine dinâmica) — ver `services/ad.py::_plan_quote_breakdown`.
+  planId?: number;
   formats: AdFormat[];
   durationDays: number;
   neighborhoods: string[];
@@ -265,7 +268,6 @@ export interface CreativeInput {
 }
 
 export interface CheckoutParams extends QuoteParams {
-  planId?: number;
   advertiserName: string;
   advertiserEmail: string;
   advertiserPhone: string;
@@ -678,6 +680,7 @@ export const adsApi = {
     }>('/ads/quote', {
       method: 'POST',
       body: {
+        plan_id: params.planId ?? null,
         formats: params.formats,
         duration_days: params.durationDays,
         neighborhoods: params.neighborhoods,

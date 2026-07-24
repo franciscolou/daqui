@@ -61,7 +61,7 @@ export async function searchNeighborhoods(
   if (q.length < 2) return [];
   try {
     const url =
-      'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=10&q=' +
+      'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=10&countrycodes=br&q=' +
       encodeURIComponent(q);
     const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
     if (!res.ok) return [];

@@ -185,6 +185,11 @@ class AdPlanUpdate(BaseModel):
 
 # ── Quote ────────────────────────────────────────────────────────────────
 class QuoteRequest(BaseModel):
+    # Quando informado, o preço não vem da engine dinâmica de `formats` — vem
+    # do preço fixo do plano escalado pra `duration_days` (ver
+    # `services/ad.py::_plan_quote_breakdown`), pra cotar em tempo real a
+    # duração customizada de um plano contratado.
+    plan_id: int | None = None
     formats: list[str]
     duration_days: int
     neighborhoods: list[str] = []
@@ -206,6 +211,13 @@ class QuoteRequest(BaseModel):
     def check_priority(cls, v: int) -> int:
         if not 1 <= v <= 5:
             raise ValueError("Prioridade deve estar entre 1 e 5")
+        return v
+
+    @field_validator("duration_days")
+    @classmethod
+    def check_duration(cls, v: int) -> int:
+        if not 1 <= v <= 720:
+            raise ValueError("Duração deve estar entre 1 e 720 dias")
         return v
 
     def effective_targeting(self) -> TargetingIn:
@@ -274,6 +286,13 @@ class CampaignCreateBase(BaseModel):
         _check_one_of("objective", OBJECTIVES)
     )
     _validate_pacing = field_validator("pacing")(_check_one_of("pacing", PACING_MODES))
+
+    @field_validator("duration_days")
+    @classmethod
+    def check_duration(cls, v: int) -> int:
+        if not 1 <= v <= 720:
+            raise ValueError("Duração deve estar entre 1 e 720 dias")
+        return v
 
     @field_validator("advertiser_type")
     @classmethod

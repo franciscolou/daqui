@@ -96,12 +96,32 @@ def frequency_multiplier(
     return m
 
 
+DURATION_DISCOUNT_ANCHORS = [
+    (1, 1.0),
+    (30, 0.95),
+    (90, 0.85),
+    (180, 0.78),
+    (365, 0.7),
+    (720, 0.6),
+]
+
+
 def duration_discount(duration_days: int) -> float:
-    if duration_days >= 90:
-        return 0.85
-    if duration_days >= 30:
-        return 0.95
-    return 1.0
+    """Desconto por duração — cresce de forma contínua (interpolação linear
+    entre os pontos de `DURATION_DISCOUNT_ANCHORS`), então qualquer dia a
+    mais escolhido sempre resulta num preço por dia igual ou menor, sem os
+    degraus fixos de antes (onde 29 e 30 dias tinham o mesmo desconto)."""
+    d = max(1, duration_days)
+    anchors = DURATION_DISCOUNT_ANCHORS
+    if d <= anchors[0][0]:
+        return anchors[0][1]
+    if d >= anchors[-1][0]:
+        return anchors[-1][1]
+    for (d0, f0), (d1, f1) in zip(anchors, anchors[1:], strict=False):
+        if d <= d1:
+            t = (d - d0) / (d1 - d0)
+            return f0 + t * (f1 - f0)
+    return anchors[-1][1]
 
 
 def quote(
@@ -150,4 +170,23 @@ def quote(
         "price_cents": round(price),
         "base_cents": base_cents,
         "factors": factors,
+    }
+
+
+def plan_quote(plan_price_cents: int, plan_duration_days: int, duration_days: int) -> dict:
+    """Preço de um plano (valor fixo definido pelo admin) pra uma duração
+    customizada pelo anunciante. Mantém `plan_price_cents` exato quando
+    `duration_days == plan_duration_days` (preço padrão do plano, do jeito
+    que sempre foi), e escala pra qualquer outra duração reaproveitando a
+    mesma curva de `duration_discount` — assim o anunciante sempre paga
+    menos por dia quanto mais tempo escolher, sem perder o desconto que o
+    próprio plano já embutia no preço original."""
+    plan_discount = duration_discount(plan_duration_days)
+    baseline_daily = plan_price_cents / (plan_duration_days * plan_discount)
+    base_cents = round(baseline_daily * duration_days)
+    discount = duration_discount(duration_days)
+    return {
+        "price_cents": round(base_cents * discount),
+        "base_cents": base_cents,
+        "factors": [("Desconto por duração", discount)],
     }
