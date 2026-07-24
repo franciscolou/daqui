@@ -424,9 +424,25 @@
                   <div class="muted" id="newSuggestedPrice" style="margin-top:4px;"></div>
                 </div>
               </div>
-              <label><input type="checkbox" id="newCitywide" style="width:auto;display:inline-block;margin-right:6px;" /> Cidade toda</label>
-              <label>Bairros (se não for cidade toda)</label>
-              <div class="chip-picker" id="newNeighborhoodsPicker"></div>
+              <label>Onde anunciar</label>
+              <select id="newGeoScope">
+                <option value="neighborhood">Bairros</option>
+                <option value="citywide">Cidade toda</option>
+                <option value="cities">Várias cidades</option>
+                <option value="country">Brasil todo</option>
+              </select>
+              <div id="newNeighborhoodWrap">
+                <label>Bairros</label>
+                <div class="chip-picker" id="newNeighborhoodsPicker"></div>
+              </div>
+              <div id="newCityWrap" class="hidden">
+                <label>Cidade</label>
+                <div class="chip-picker" id="newCityPicker"></div>
+              </div>
+              <div id="newCitiesWrap" class="hidden">
+                <label>Cidades</label>
+                <div class="chip-picker" id="newCitiesPicker"></div>
+              </div>
               <label>Título do anúncio</label>
               <input id="newTitle" />
               <label>Texto</label>
@@ -541,12 +557,20 @@
               </div>
               <label>Formatos</label>
               <div class="checks" id="planFormats"></div>
+              <label>Escopo geográfico</label>
+              <select id="planGeoScope">
+                <option value="neighborhood">Bairros (limitado por "Máx. de bairros")</option>
+                <option value="citywide">Cidade toda</option>
+                <option value="cities">Várias cidades (limitado por "Máx. de cidades")</option>
+                <option value="country">Brasil todo</option>
+              </select>
               <div class="row2">
-                <div><label>Máx. de bairros (vazio = cidade toda)</label><input id="planMaxNeighborhoods" type="number" min="1" /></div>
+                <div id="planMaxNeighborhoodsWrap"><label>Máx. de bairros</label><input id="planMaxNeighborhoods" type="number" min="1" /></div>
+                <div id="planMaxCitiesWrap" class="hidden"><label>Máx. de cidades</label><input id="planMaxCities" type="number" min="1" /></div>
                 <div><label>Ordem de exibição</label><input id="planSortOrder" type="number" value="0" /></div>
               </div>
               <div class="row2">
-                <div><label>Categoria (tela de anúncios)</label><select id="planCategory"><option value="">Sem categoria</option><option value="local_business">Comércio local</option><option value="event">Anuncie seu evento</option><option value="enterprise">Grandes empresas</option></select></div>
+                <div><label>Categoria (tela de anúncios)</label><select id="planCategory"><option value="">Sem categoria</option><option value="local_business">Comércio local</option><option value="event">Anuncie seu evento</option><option value="enterprise">Grandes empresas</option><option value="national">Alcance nacional</option></select></div>
                 <div><label>Selo (opcional)</label><input id="planBadge" placeholder="Mais popular" /></div>
               </div>
               <button class="act approve" id="planSubmitBtn" style="margin-top:16px;width:100%;">Criar plano</button>
@@ -1016,7 +1040,10 @@
         const primary = c.creatives && c.creatives[0];
         const title = primary ? primary.title : '(sem criativo)';
         const content = primary ? primary.content : '';
-        const targeting = c.targeting.citywide ? 'Cidade toda' : ((c.targeting.neighborhoods || []).join(', ') || '—');
+        const targeting = c.targeting.geo_scope === 'country' ? 'Brasil todo'
+          : c.targeting.geo_scope === 'cities' ? ((c.targeting.cities || []).join(', ') || '—')
+          : c.targeting.geo_scope === 'citywide' ? (c.targeting.city || 'Cidade toda')
+          : ((c.targeting.neighborhoods || []).join(', ') || '—');
         const formatsHtml = c.formats.map((f) => `<span class="format-tag">${FORMAT_LABEL[f] || f}</span>`).join('');
         let actions = '';
         if (c.status === 'active') actions += `<button class="act reject" data-act="pause">Pausar</button>`;
@@ -1447,7 +1474,46 @@
       }
     }
 
-    function createChipPicker({ container, searchFn, placeholder, onChange }) {
+    // Mesma fonte/espírito de `searchNeighborhoodSuggestions`, extraindo o
+    // nível de cidade em vez de bairro — usado pelos escopos "cidade toda" e
+    // "várias cidades".
+    async function searchCitySuggestions(query) {
+      const q = query.trim();
+      if (q.length < 2) return [];
+      try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=10&countrycodes=br&q=' +
+          encodeURIComponent(q);
+        const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const seen = new Set();
+        let out = [];
+        for (const item of data) {
+          const a = item.address || {};
+          const name = a.city || a.town || a.municipality || a.city_district || a.state || '';
+          if (!name) continue;
+          const state = a.state || '';
+          const country = a.country || '';
+          const key = (name + '|' + state).toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          out.push({
+            name: name.trim(),
+            label: [name, state, country].filter(Boolean).join(' · '),
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+          });
+        }
+        if (adminCoords) {
+          out.sort((x, y) => haversineMeters(adminCoords, x) - haversineMeters(adminCoords, y));
+        }
+        return out.slice(0, 6);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function createChipPicker({ container, searchFn, placeholder, onChange, max }) {
       let chips = [];
 
       container.innerHTML = `
@@ -1478,6 +1544,12 @@
       function addChip(label, verified) {
         const norm = label.trim();
         if (!norm || chips.some((c) => c.label.toLowerCase() === norm.toLowerCase())) return;
+        if (max != null && chips.length >= max) {
+          // max=1 (ex.: "cidade toda") funciona como seletor único: a nova
+          // escolha substitui a anterior em vez de ser ignorada.
+          if (max === 1) chips = [];
+          else return;
+        }
         chips.push({ label: norm, verified });
         renderChips();
         emit();
@@ -1539,9 +1611,33 @@
       placeholder: 'Digite o nome de um bairro...',
       onChange: () => scheduleNewQuote(),
     });
-    $('newCitywide').addEventListener('change', () => {
-      newNeighborhoodsPicker.setEnabled(!$('newCitywide').checked);
+    const newCityPicker = createChipPicker({
+      container: $('newCityPicker'),
+      searchFn: searchCitySuggestions,
+      placeholder: 'Digite o nome da cidade...',
+      onChange: () => scheduleNewQuote(),
+      max: 1,
     });
+    const newCitiesPicker = createChipPicker({
+      container: $('newCitiesPicker'),
+      searchFn: searchCitySuggestions,
+      placeholder: 'Digite o nome de uma cidade...',
+      onChange: () => scheduleNewQuote(),
+    });
+
+    // Escopo geográfico: só um dos 3 blocos (bairros/cidade/cidades) fica
+    // visível por vez — "Brasil todo" não precisa de nenhum.
+    function refreshNewGeoScopeVisibility() {
+      const scope = $('newGeoScope').value;
+      $('newNeighborhoodWrap').classList.toggle('hidden', scope !== 'neighborhood');
+      $('newCityWrap').classList.toggle('hidden', scope !== 'citywide');
+      $('newCitiesWrap').classList.toggle('hidden', scope !== 'cities');
+    }
+    $('newGeoScope').addEventListener('change', () => {
+      refreshNewGeoScopeVisibility();
+      scheduleNewQuote();
+    });
+    refreshNewGeoScopeVisibility();
 
     // ── Anunciante: Pessoa Física (CPF) ou Jurídica (CNPJ) ──
     function maskDocument(type, value) {
@@ -1673,15 +1769,20 @@
 
     function buildNewCampaignPayload() {
       const formats = readFormats('newFmt');
-      const citywide = $('newCitywide').checked;
-      const neighborhoods = citywide ? [] : newNeighborhoodsPicker.getChips();
+      const geoScope = $('newGeoScope').value;
+      const neighborhoods = geoScope === 'neighborhood' ? newNeighborhoodsPicker.getChips() : [];
+      const cityChips = geoScope === 'citywide' ? newCityPicker.getChips() : [];
+      const city = cityChips[0] || null;
+      const cities = geoScope === 'cities' ? newCitiesPicker.getChips() : [];
       const media = newMediaPicker.get();
       const priceRaw = $('newPrice').value.trim();
       return {
         formats,
         duration_days: parseInt($('newDuration').value, 10),
+        geo_scope: geoScope,
         neighborhoods,
-        citywide,
+        city,
+        cities,
         advertiser_name: $('newAdvertiserName').value.trim(),
         advertiser_email: $('newAdvertiserEmail').value.trim(),
         advertiser_phone: $('newAdvertiserPhone').value.trim(),
@@ -1704,8 +1805,10 @@
         daily_impression_cap: $('newDailyCap').value ? parseInt($('newDailyCap').value, 10) : null,
         per_user_impression_cap: $('newPerUserCap').value ? parseInt($('newPerUserCap').value, 10) : null,
         targeting: {
-          citywide,
+          geo_scope: geoScope,
           neighborhoods,
+          city,
+          cities,
           include_nearby: $('newIncludeNearby').checked,
           audience: $('newAudience').value,
           categories: parseCsvStrings($('newCategories').value),
@@ -1744,7 +1847,7 @@
       }
     }
     [
-      'newDuration', 'newCitywide', 'newObjective', 'newPriority',
+      'newDuration', 'newGeoScope', 'newObjective', 'newPriority',
       'newDailyCap', 'newPerUserCap',
     ].forEach((id) => { $(id).addEventListener('change', scheduleNewQuote); $(id).addEventListener('input', scheduleNewQuote); });
     ALL_FORMATS.forEach((f) => $(`newFmt_${f}`).addEventListener('change', scheduleNewQuote));
@@ -1771,7 +1874,16 @@
       { key: 'local_business', label: 'Comércio local' },
       { key: 'event', label: 'Anuncie seu evento' },
       { key: 'enterprise', label: 'Grandes empresas' },
+      { key: 'national', label: 'Alcance nacional' },
     ];
+
+    function refreshPlanGeoScopeVisibility() {
+      const scope = $('planGeoScope').value;
+      $('planMaxNeighborhoodsWrap').classList.toggle('hidden', scope !== 'neighborhood');
+      $('planMaxCitiesWrap').classList.toggle('hidden', scope !== 'cities');
+    }
+    $('planGeoScope').addEventListener('change', refreshPlanGeoScopeVisibility);
+    refreshPlanGeoScopeVisibility();
     let allPlans = [];
     let activePlanCategory = PLAN_CATEGORIES[0].key;
 
@@ -1816,7 +1928,12 @@
           <div class="head"><div class="name">${escapeHtml(p.name)}</div>${badgeHtml}${visibilityHtml}<div class="when">${fmtMoney(p.price_cents)}</div></div>
           <div class="formats">${formatsHtml}</div>
           <div class="comment">${escapeHtml(p.description)}</div>
-          <div class="meta-row">${p.duration_days} dias · ${p.max_neighborhoods ? p.max_neighborhoods + ' bairro(s)' : 'cidade toda'}</div>
+          <div class="meta-row">${p.duration_days} dias · ${
+            p.geo_scope === 'country' ? 'Brasil todo'
+              : p.geo_scope === 'cities' ? (p.max_cities ? 'até ' + p.max_cities + ' cidades' : 'várias cidades')
+              : p.geo_scope === 'citywide' ? 'cidade toda'
+              : (p.max_neighborhoods ? p.max_neighborhoods + ' bairro(s)' : 'cidade toda')
+          }</div>
           <div class="plan-actions">
             <button class="icon-action" data-act="toggle" title="${p.is_public ? 'Ocultar' : 'Tornar visível'}" aria-label="${p.is_public ? 'Ocultar' : 'Tornar visível'}">${svgIcon(p.is_public ? 'eyeOff' : 'eye', 15)}</button>
             <button class="icon-action danger" data-act="delete" title="Excluir" aria-label="Excluir">${svgIcon('trash', 15)}</button>
@@ -1849,7 +1966,11 @@
     $('planSubmitBtn').addEventListener('click', async () => {
       $('planErr').textContent = '';
       const priceReais = parseFloat($('planPrice').value || '0');
-      const maxN = $('planMaxNeighborhoods').value ? parseInt($('planMaxNeighborhoods').value, 10) : null;
+      const geoScope = $('planGeoScope').value;
+      const maxN = geoScope === 'neighborhood' && $('planMaxNeighborhoods').value
+        ? parseInt($('planMaxNeighborhoods').value, 10) : null;
+      const maxC = geoScope === 'cities' && $('planMaxCities').value
+        ? parseInt($('planMaxCities').value, 10) : null;
       const payload = {
         name: $('planName').value.trim(),
         slug: $('planSlug').value.trim(),
@@ -1857,7 +1978,9 @@
         price_cents: Math.round(priceReais * 100),
         duration_days: parseInt($('planDuration').value, 10),
         formats: readFormats('planFmt'),
+        geo_scope: geoScope,
         max_neighborhoods: maxN,
+        max_cities: maxC,
         sort_order: parseInt($('planSortOrder').value || '0', 10),
         category: $('planCategory').value || null,
         badge: $('planBadge').value.trim() || null,

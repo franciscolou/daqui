@@ -30,7 +30,18 @@ PEAK_HOURS = set(range(18, 23))  # 18h-22h
 
 
 def reach_multiplier(targeting: dict) -> float:
-    if targeting.get("citywide"):
+    scope = targeting.get("geo_scope", "neighborhood")
+    if scope == "country":
+        # Brasil todo — maior salto possível, reflete alcançar toda a base de
+        # usuários do app de uma vez, não só uma cidade ou um punhado delas.
+        m = 12.0
+    elif scope == "cities":
+        # Várias cidades específicas (ex.: capitais de vários estados) —
+        # cresce por cidade a partir do mesmo patamar de "cidade toda",
+        # sem chegar ao alcance de "país todo".
+        n = max(1, len(targeting.get("cities", [])))
+        m = 3.0 + 0.4 * (n - 1)
+    elif scope == "citywide":
         m = 3.0
     else:
         m = 1 + 0.15 * max(0, len(targeting.get("neighborhoods", [])) - 1)
@@ -46,7 +57,7 @@ def reach_multiplier(targeting: dict) -> float:
         m *= 0.95
     if targeting.get("engagement", "any") == "active":
         m *= 0.95
-    return max(0.5, min(m, 4.0))
+    return max(0.5, min(m, 13.0))
 
 
 def competition_multiplier(competing_count: int) -> float:

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -15,6 +16,8 @@ import { api, ApiError, SupportTicket } from '../../lib/api';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
+import AttachmentPicker, { AttachmentDraft } from '../../components/AttachmentPicker';
+import ImageViewerModal, { MediaItem } from '../../components/ImageViewerModal';
 
 type SectionKey = 'how' | 'faq' | 'tickets';
 
@@ -247,8 +250,12 @@ function TicketsSection() {
   const [composing, setComposing] = useState(false);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [viewer, setViewer] = useState<{ media: MediaItem[]; index: number } | null>(null);
+
+  const uploading = attachments.some((a) => a.uploading);
 
   const load = useCallback(() => {
     api.getMySupportTickets()
@@ -263,6 +270,7 @@ function TicketsSection() {
     setComposing(true);
     setSubject('');
     setMessage('');
+    setAttachments([]);
     setFeedback(null);
   };
 
@@ -271,10 +279,14 @@ function TicketsSection() {
       setFeedback({ ok: false, text: 'Preencha o assunto e a mensagem.' });
       return;
     }
+    if (uploading) return;
     setSending(true);
     setFeedback(null);
     try {
-      const created = await api.submitSupportTicket(subject.trim(), message.trim());
+      const attachmentPayload = attachments
+        .filter((a) => a.url)
+        .map((a) => ({ url: a.url as string, type: a.type }));
+      const created = await api.submitSupportTicket(subject.trim(), message.trim(), attachmentPayload);
       setTickets((prev) => [created, ...prev]);
       setComposing(false);
       setFeedback({
@@ -309,7 +321,7 @@ function TicketsSection() {
         <View style={styles.composeCard}>
           <Text style={styles.composeTitle}>Novo chamado</Text>
 
-          <Text style={styles.fieldLabel}>Assunto</Text>
+          <Text style={styles.fieldLabel}>Assunto <Text style={styles.required}>*</Text></Text>
           <TextInput
             style={styles.input}
             value={subject}
@@ -319,7 +331,7 @@ function TicketsSection() {
             maxLength={MAX_TICKET_SUBJECT}
           />
 
-          <Text style={styles.fieldLabel}>Mensagem</Text>
+          <Text style={styles.fieldLabel}>Mensagem <Text style={styles.required}>*</Text></Text>
           <TextInput
             style={[styles.input, styles.inputMultiline]}
             value={message}
@@ -330,6 +342,14 @@ function TicketsSection() {
             maxLength={MAX_TICKET_MESSAGE}
           />
 
+          <AttachmentPicker
+            attachments={attachments}
+            setAttachments={setAttachments}
+            upload={api.uploadTicketAttachment}
+            max={3}
+            label="Anexos"
+          />
+
           {feedback && !feedback.ok && <Text style={styles.feedbackErrText}>{feedback.text}</Text>}
 
           <View style={styles.composeActions}>
@@ -337,10 +357,10 @@ function TicketsSection() {
               <Text style={styles.secondaryBtnText}>Cancelar</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.submitBtn, sending && styles.submitBtnDisabled]}
+              style={[styles.submitBtn, (sending || uploading) && styles.submitBtnDisabled]}
               activeOpacity={0.85}
               onPress={submit}
-              disabled={sending}
+              disabled={sending || uploading}
             >
               {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Enviar chamado</Text>}
             </TouchableOpacity>
@@ -387,6 +407,29 @@ function TicketsSection() {
               {expanded && (
                 <>
                   <Text style={styles.ticketMessage}>{t.message}</Text>
+                  {t.attachments.length > 0 && (
+                    <View style={styles.ticketAttachmentsRow}>
+                      {t.attachments.map((a, i) => (
+                        <TouchableOpacity
+                          key={a.url}
+                          onPress={() => setViewer({ media: t.attachments, index: i })}
+                          activeOpacity={0.85}
+                        >
+                          {a.type === 'video' ? (
+                            <View style={[styles.ticketAttachmentThumb, styles.ticketAttachmentVideo]}>
+                              <Ionicons name="videocam" size={18} color="#fff" />
+                            </View>
+                          ) : (
+                            <Image
+                              source={{ uri: a.url }}
+                              style={styles.ticketAttachmentThumb}
+                              resizeMode="cover"
+                            />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
                   {t.status === 'answered' ? (
                     <View style={styles.responseBox}>
                       <View style={styles.responseHeader}>
@@ -406,6 +449,13 @@ function TicketsSection() {
           );
         })
       )}
+
+      <ImageViewerModal
+        media={viewer?.media ?? []}
+        initialIndex={viewer?.index ?? 0}
+        visible={!!viewer}
+        onClose={() => setViewer(null)}
+      />
     </ScrollView>
   );
 }
@@ -512,6 +562,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   composeTitle: { fontSize: 15, fontWeight: '800', color: Colors.text, marginBottom: 2 },
   fieldLabel: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
+  required: { color: Colors.error },
   input: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -581,6 +632,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   statusPendingText: { color: Colors.textTertiary },
   statusAnsweredText: { color: Colors.primary },
   ticketMessage: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19, marginTop: 4 },
+  ticketAttachmentsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  ticketAttachmentThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: Colors.border },
+  ticketAttachmentVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E293B' },
   responseBox: {
     marginTop: 8,
     padding: 12,

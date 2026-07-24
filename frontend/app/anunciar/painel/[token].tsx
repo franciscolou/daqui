@@ -67,8 +67,10 @@ export default function AdvertiserPanelScreen() {
     const prefill = JSON.stringify({
       formats: campaign.formats,
       durationDays: campaign.durationDays,
-      citywide: campaign.citywide,
+      geoScope: campaign.geoScope,
       neighborhoods: campaign.neighborhoods,
+      city: campaign.city,
+      cities: campaign.cities,
       objective: campaign.objective,
       priority: campaign.priority,
       rotationWeight: campaign.rotationWeight,
@@ -169,7 +171,12 @@ export default function AdvertiserPanelScreen() {
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Segmentação</Text>
-              <Text style={styles.infoValue}>{campaign.citywide ? 'Cidade toda' : campaign.neighborhoods.join(', ') || '—'}</Text>
+              <Text style={styles.infoValue}>
+                {campaign.geoScope === 'country' ? 'Brasil todo'
+                  : campaign.geoScope === 'citywide' ? (campaign.city || 'Cidade toda')
+                  : campaign.geoScope === 'cities' ? (campaign.cities.join(', ') || '—')
+                  : campaign.neighborhoods.join(', ') || '—'}
+              </Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Investimento</Text>

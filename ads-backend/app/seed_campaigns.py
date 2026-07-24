@@ -23,10 +23,14 @@ SEED_EMAIL_DOMAIN = "@seed.daqui.com"
 now = datetime.now(timezone.utc)
 
 
-def _targeting(*, neighborhoods=None, citywide=False) -> dict:
+def _targeting(*, neighborhoods=None, citywide=False, city="São Paulo") -> dict:
     t = default_targeting()
-    t["neighborhoods"] = neighborhoods or []
-    t["citywide"] = citywide
+    if citywide:
+        t["geo_scope"] = "citywide"
+        t["city"] = city
+    else:
+        t["geo_scope"] = "neighborhood"
+        t["neighborhoods"] = neighborhoods or []
     return t
 
 

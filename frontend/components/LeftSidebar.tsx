@@ -59,7 +59,7 @@ const APP_ITEMS: {
   { key: 'rate', label: 'Avaliar o Daqui', icon: 'star-outline' },
   { key: 'help',   label: 'Ajuda e suporte', icon: 'help-circle-outline', route: '/help' },
   { key: 'ads',    label: 'Anuncie conosco', icon: 'megaphone-outline', route: '/anunciar' },
-  { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline' },
+  { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline', route: '/legal/termos' },
 ];
 
 export default function LeftSidebar({
@@ -369,7 +369,11 @@ export default function LeftSidebar({
 
       {/* Footer */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Sobre · Privacidade · Termos</Text>
+        <Text style={styles.footerText}>
+          <Text style={styles.footerLink} onPress={() => navigate('/legal/privacidade')}>Privacidade</Text>
+          {' · '}
+          <Text style={styles.footerLink} onPress={() => navigate('/legal/termos')}>Termos</Text>
+        </Text>
         <Text style={styles.footerVersion}>Daqui © 2025</Text>
       </View>
 
@@ -565,5 +569,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingHorizontal: 8,
   },
   footerText: { fontSize: 10, color: Colors.textTertiary, lineHeight: 16 },
+  footerLink: { textDecorationLine: 'underline' },
   footerVersion: { fontSize: 10, color: Colors.textTertiary, marginTop: 2 },
 });

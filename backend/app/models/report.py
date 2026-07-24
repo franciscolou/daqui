@@ -1,7 +1,15 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -59,6 +67,9 @@ class Report(Base):
     )
     reason: Mapped[str] = mapped_column(String(30), nullable=False)
     comment: Mapped[str] = mapped_column(Text, default="")
+    # Até MAX_ATTACHMENTS (ver schemas/attachment.py) imagens/vídeos anexados
+    # como evidência: [{"url": ..., "type": "image"|"video"}, ...].
+    attachments: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default=STATUS_PENDING, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -29,6 +29,9 @@ class SupportTicket(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     subject: Mapped[str] = mapped_column(String(MAX_SUBJECT_LENGTH), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
+    # Até MAX_ATTACHMENTS (ver schemas/attachment.py) imagens/vídeos anexados
+    # pelo usuário: [{"url": ..., "type": "image"|"video"}, ...].
+    attachments: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default=STATUS_PENDING, index=True)
     response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { goBack } from '../../lib/navigation';
-import { adsApi, AdFormat, AdObjective, AdvertiserType, AdsApiError } from '../../lib/adsApi';
+import { adsApi, AdFormat, AdObjective, AdvertiserType, AdsApiError, GeoScope } from '../../lib/adsApi';
 import { isValidDocument } from '../../lib/brDocuments';
 import AdCreativeEditor, {
   CreativeBlocks,
@@ -23,8 +23,10 @@ export default function CheckoutScreen() {
   const params = useLocalSearchParams<{
     formats: string;
     durationDays: string;
+    geoScope: string;
     neighborhoods: string;
-    citywide: string;
+    city: string;
+    cities: string;
     planId?: string;
     objective?: string;
     priority?: string;
@@ -40,8 +42,10 @@ export default function CheckoutScreen() {
 
   const formats = useMemo<AdFormat[]>(() => JSON.parse(params.formats || '[]'), [params.formats]);
   const neighborhoods = useMemo<string[]>(() => JSON.parse(params.neighborhoods || '[]'), [params.neighborhoods]);
+  const cities = useMemo<string[]>(() => JSON.parse(params.cities || '[]'), [params.cities]);
   const durationDays = Number(params.durationDays || 0);
-  const citywide = params.citywide === 'true';
+  const geoScope = (params.geoScope || 'neighborhood') as GeoScope;
+  const city = params.city || undefined;
   const planId = params.planId ? Number(params.planId) : undefined;
   const targeting = useMemo(() => (params.targeting ? JSON.parse(params.targeting) : undefined), [params.targeting]);
   const schedule = useMemo(() => (params.schedule ? JSON.parse(params.schedule) : undefined), [params.schedule]);
@@ -75,8 +79,10 @@ export default function CheckoutScreen() {
         planId,
         formats,
         durationDays,
+        geoScope,
         neighborhoods,
-        citywide,
+        city,
+        cities,
         targeting,
         schedule,
         objective: (params.objective as AdObjective) || undefined,
@@ -115,7 +121,11 @@ export default function CheckoutScreen() {
         <View style={[styles.columns, wide && styles.columnsWide]}>
           <View style={[styles.formCol, wide && styles.formColWide]}>
             <Text style={styles.summary}>
-              {durationDays} dias · {citywide ? 'cidade toda' : neighborhoods.join(', ')}
+              {durationDays} dias ·{' '}
+              {geoScope === 'country' ? 'Brasil todo'
+                : geoScope === 'citywide' ? (city || 'cidade toda')
+                : geoScope === 'cities' ? cities.join(', ')
+                : neighborhoods.join(', ')}
             </Text>
 
             <Text style={styles.sectionTitle}>Seus dados</Text>

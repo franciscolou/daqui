@@ -1,10 +1,12 @@
 from fastapi import APIRouter
 
 from app.controllers import report
+from app.schemas.attachment import AttachmentItem
 from app.schemas.report import ReportAdminOut, ReportOut, ReportStats
 
 # App Daqui (usuário): denunciar posts, comentários ou perfis.
 router = APIRouter(prefix="/reports", tags=["reports"])
+router.post("/attachments", response_model=AttachmentItem)(report.upload_attachment)
 router.post("/", response_model=ReportOut, status_code=201)(report.submit_report)
 
 # App de moderação: rotas restritas a moderadores.

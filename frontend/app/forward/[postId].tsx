@@ -47,7 +47,7 @@ function toSharedComment(c: Comment): SharedComment {
 
 export default function ForwardScreen() {
   // Encaminha um post (rota /forward/{postId}) ou um comentário
-  // (/forward/{postId}?commentId=...). Comentário não tem restrição de bairro.
+  // (/forward/{postId}?commentId=...).
   const { postId, commentId } = useLocalSearchParams<{ postId: string; commentId?: string }>();
   const { loading: authLoading } = useAuth();
   const Colors = useTheme();
@@ -72,14 +72,10 @@ export default function ForwardScreen() {
         api.getConversations().catch(() => []),
         api.getNeighbors().catch(() => []),
       ]);
-      let restrictNeighborhood: string | null = null;
       if (commentId) {
         setComment(await api.getComment(commentId));
-        // Comentário pode ser encaminhado a qualquer vizinho (isolamento relaxado).
       } else {
-        const p = await api.getPost(postId);
-        setPost(p);
-        restrictNeighborhood = p.neighborhood;
+        setPost(await api.getPost(postId));
       }
       // Conversas recentes primeiro, depois demais vizinhos (sem repetir).
       const seen = new Set<string>();
@@ -90,14 +86,7 @@ export default function ForwardScreen() {
       for (const u of neighbors) {
         if (!seen.has(u.id)) { seen.add(u.id); merged.push(u); }
       }
-      if (restrictNeighborhood) {
-        // Post: usuários do mesmo bairro primeiro; os de outros bairros (bloqueados) depois.
-        const same = merged.filter((u) => u.neighborhood === restrictNeighborhood);
-        const other = merged.filter((u) => u.neighborhood !== restrictNeighborhood);
-        setPeople([...same, ...other]);
-      } else {
-        setPeople(merged);
-      }
+      setPeople(merged);
     } catch {
       setPost(null);
       setComment(null);
@@ -206,41 +195,34 @@ export default function ForwardScreen() {
               ListEmptyComponent={
                 <Text style={styles.noResults}>Nenhum vizinho encontrado.</Text>
               }
-              renderItem={({ item }) => {
-                // Comentário: sem restrição de bairro. Post: bloqueia outro bairro.
-                const otherNeighborhood =
-                  !forwardingComment && !!post && item.neighborhood !== post.neighborhood;
-                return (
-                  <TouchableOpacity
-                    style={styles.row}
-                    activeOpacity={0.85}
-                    disabled={otherNeighborhood || sent.has(item.id) || pending.has(item.id)}
-                    onPress={() => forward(item)}
-                  >
-                    <Image source={{ uri: item.avatar }} style={styles.avatar} />
-                    <View style={styles.rowInfo}>
-                      <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={styles.rowSub} numberOfLines={1}>
-                        @{item.username}
-                        {!!item.neighborhood && ` · ${item.neighborhood}`}
-                      </Text>
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.row}
+                  activeOpacity={0.85}
+                  disabled={sent.has(item.id) || pending.has(item.id)}
+                  onPress={() => forward(item)}
+                >
+                  <Image source={{ uri: item.avatar }} style={styles.avatar} />
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.rowSub} numberOfLines={1}>
+                      @{item.username}
+                      {!!item.neighborhood && ` · ${item.neighborhood}`}
+                    </Text>
+                  </View>
+                  {pending.has(item.id) ? (
+                    <ActivityIndicator color={Colors.primary} size="small" />
+                  ) : sent.has(item.id) ? (
+                    <View style={styles.sentBtn}>
+                      <Ionicons name="checkmark" size={16} color="#fff" />
                     </View>
-                    {otherNeighborhood ? (
-                      <Text style={styles.otherNeighborhoodText}>Usuário de outro bairro</Text>
-                    ) : pending.has(item.id) ? (
-                      <ActivityIndicator color={Colors.primary} size="small" />
-                    ) : sent.has(item.id) ? (
-                      <View style={styles.sentBtn}>
-                        <Ionicons name="checkmark" size={16} color="#fff" />
-                      </View>
-                    ) : (
-                      <View style={styles.sendBtn}>
-                        <Ionicons name="send" size={16} color={Colors.primary} />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
+                  ) : (
+                    <View style={styles.sendBtn}>
+                      <Ionicons name="send" size={16} color={Colors.primary} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
             />
           )}
         </View>
@@ -302,13 +284,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   rowInfo: { flex: 1, minWidth: 0 },
   rowName: { fontSize: 15, fontWeight: '700', color: Colors.text },
   rowSub: { fontSize: 12, color: Colors.textTertiary, marginTop: 1 },
-  otherNeighborhoodText: {
-    fontSize: 11,
-    color: Colors.textTertiary,
-    fontStyle: 'italic',
-    maxWidth: 90,
-    textAlign: 'right',
-  },
   sendBtn: {
     width: 34,
     height: 34,

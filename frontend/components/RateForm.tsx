@@ -46,7 +46,7 @@ export default function RateForm({ form, compact = false }: { form: RateFormStat
       <View style={styles.starsWrap}>
         <StarRating value={rating} onChange={setRating} size={compact ? 36 : 44} gap={compact ? 6 : 8} />
         <Text style={styles.ratingLabel}>
-          {rating > 0 ? `${rating.toString().replace('.', ',')} · ${label}` : label}
+          {rating > 0 ? `${rating.toString()} - ${label}` : label}
         </Text>
       </View>
 

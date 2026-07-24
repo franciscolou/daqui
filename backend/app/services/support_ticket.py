@@ -1,10 +1,12 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.uploads import save_upload_media
 from app.daos import support_ticket as ticket_dao
 from app.models.audit_log import ACTION_TICKET_REPLY
 from app.models.support_ticket import SupportTicket
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem
 from app.schemas.support_ticket import (
     SupportTicketAdminOut,
     SupportTicketCreate,
@@ -16,8 +18,14 @@ from app.schemas.user import UserPublic
 from app.services import audit_log as audit_log_service
 
 
+def upload_attachment(user: User, base_url: str, file: UploadFile) -> AttachmentItem:
+    url, media_type = save_upload_media(base_url, file, prefix=f"ticket_{user.id}")
+    return AttachmentItem(url=url, type=media_type)
+
+
 def submit(db: Session, user: User, payload: SupportTicketCreate) -> SupportTicketOut:
-    ticket = ticket_dao.create(db, user.id, payload.subject, payload.message)
+    attachments = [a.model_dump() for a in payload.attachments]
+    ticket = ticket_dao.create(db, user.id, payload.subject, payload.message, attachments)
     return SupportTicketOut.model_validate(ticket)
 
 

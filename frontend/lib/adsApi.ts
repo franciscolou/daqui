@@ -75,6 +75,11 @@ async function requestMultipart<T>(path: string, formData: FormData): Promise<T>
 // Tipos
 // ─────────────────────────────────────────────────────────────
 export type AdFormat = 'post' | 'conversation' | 'notification' | 'search_poster';
+// Escopo geográfico de uma campanha/plano: do mais estreito ao mais amplo.
+// "neighborhood" usa `neighborhoods`, "citywide" usa `city`, "cities" usa
+// `cities` (várias cidades específicas) e "country" não usa nenhum dos três
+// (Brasil todo — o app é só nacional, não precisa dizer qual país).
+export type GeoScope = 'neighborhood' | 'citywide' | 'cities' | 'country';
 // Pessoa Física (CPF) ou Jurídica (CNPJ) — ver checkout.tsx / ads-backend.
 export type AdvertiserType = 'individual' | 'company';
 export type AdObjective =
@@ -144,13 +149,15 @@ interface BackendAdPlan {
   currency: string;
   duration_days: number;
   formats: AdFormat[];
+  geo_scope: GeoScope;
   max_neighborhoods: number | null;
+  max_cities: number | null;
   sort_order: number;
   category: string | null;
   badge: string | null;
 }
 
-export type AdPlanCategory = 'local_business' | 'event' | 'enterprise';
+export type AdPlanCategory = 'local_business' | 'event' | 'enterprise' | 'national';
 
 export interface AdPlan {
   id: number;
@@ -161,7 +168,9 @@ export interface AdPlan {
   currency: string;
   durationDays: number;
   formats: AdFormat[];
+  geoScope: GeoScope;
   maxNeighborhoods: number | null;
+  maxCities: number | null;
   category?: AdPlanCategory;
   badge?: string;
 }
@@ -176,7 +185,9 @@ function mapAdPlan(b: BackendAdPlan): AdPlan {
     currency: b.currency,
     durationDays: b.duration_days,
     formats: b.formats,
+    geoScope: b.geo_scope,
     maxNeighborhoods: b.max_neighborhoods,
+    maxCities: b.max_cities,
     category: (b.category as AdPlanCategory) ?? undefined,
     badge: b.badge ?? undefined,
   };
@@ -201,10 +212,18 @@ export interface ScheduleParams {
   specialDates?: string[];
 }
 
-function targetingBody(citywide: boolean, neighborhoods: string[], t?: TargetingParams) {
+function targetingBody(
+  geoScope: GeoScope,
+  neighborhoods: string[],
+  city: string | undefined,
+  cities: string[],
+  t?: TargetingParams,
+) {
   return {
-    citywide,
+    geo_scope: geoScope,
     neighborhoods,
+    city: city ?? null,
+    cities,
     include_nearby: t?.includeNearby ?? false,
     radius_km: t?.radiusKm ?? null,
     center_lat: t?.centerLat ?? null,
@@ -231,8 +250,10 @@ export interface QuoteParams {
   planId?: number;
   formats: AdFormat[];
   durationDays: number;
+  geoScope: GeoScope;
   neighborhoods: string[];
-  citywide: boolean;
+  city?: string;
+  cities: string[];
   targeting?: TargetingParams;
   schedule?: ScheduleParams;
   objective?: AdObjective;
@@ -347,8 +368,10 @@ export interface MyCampaign {
   formats: AdFormat[];
   priceCents: number;
   currency: string;
-  citywide: boolean;
+  geoScope: GeoScope;
   neighborhoods: string[];
+  city?: string;
+  cities: string[];
   objective: AdObjective;
   priority: number;
   rotationWeight: number;
@@ -382,7 +405,7 @@ interface BackendMyCampaign {
   formats: AdFormat[];
   price_cents: number;
   currency: string;
-  targeting: { citywide: boolean; neighborhoods: string[] };
+  targeting: { geo_scope: GeoScope; neighborhoods: string[]; city: string | null; cities: string[] };
   objective: AdObjective;
   priority: number;
   rotation_weight: number;
@@ -444,8 +467,10 @@ function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
     formats: b.formats,
     priceCents: b.price_cents,
     currency: b.currency,
-    citywide: b.targeting.citywide,
+    geoScope: b.targeting.geo_scope,
     neighborhoods: b.targeting.neighborhoods,
+    city: b.targeting.city ?? undefined,
+    cities: b.targeting.cities,
     objective: b.objective,
     priority: b.priority,
     rotationWeight: b.rotation_weight,
@@ -600,6 +625,7 @@ export const adsApi = {
     format: AdFormat,
     params: {
       neighborhood?: string;
+      city?: string;
       nearbyNeighborhoods?: string[];
       lat?: number;
       lng?: number;
@@ -613,6 +639,7 @@ export const adsApi = {
   ): Promise<Ad | null> {
     const qs = new URLSearchParams();
     if (params.neighborhood) qs.set('neighborhood', params.neighborhood);
+    if (params.city) qs.set('city', params.city);
     if (params.nearbyNeighborhoods?.length) qs.set('nearby_neighborhoods', params.nearbyNeighborhoods.join(','));
     if (params.lat != null) qs.set('lat', String(params.lat));
     if (params.lng != null) qs.set('lng', String(params.lng));
@@ -635,6 +662,7 @@ export const adsApi = {
     format: AdFormat,
     params: {
       neighborhood?: string;
+      city?: string;
       nearbyNeighborhoods?: string[];
       lat?: number;
       lng?: number;
@@ -650,6 +678,7 @@ export const adsApi = {
   ): Promise<Ad[]> {
     const qs = new URLSearchParams();
     if (params.neighborhood) qs.set('neighborhood', params.neighborhood);
+    if (params.city) qs.set('city', params.city);
     if (params.nearbyNeighborhoods?.length) qs.set('nearby_neighborhoods', params.nearbyNeighborhoods.join(','));
     if (params.lat != null) qs.set('lat', String(params.lat));
     if (params.lng != null) qs.set('lng', String(params.lng));
@@ -683,9 +712,11 @@ export const adsApi = {
         plan_id: params.planId ?? null,
         formats: params.formats,
         duration_days: params.durationDays,
+        geo_scope: params.geoScope,
         neighborhoods: params.neighborhoods,
-        citywide: params.citywide,
-        targeting: targetingBody(params.citywide, params.neighborhoods, params.targeting),
+        city: params.city ?? null,
+        cities: params.cities,
+        targeting: targetingBody(params.geoScope, params.neighborhoods, params.city, params.cities, params.targeting),
         schedule: scheduleBody(params.schedule),
         objective: params.objective ?? 'clicks',
         priority: params.priority ?? 3,
@@ -708,9 +739,11 @@ export const adsApi = {
         plan_id: params.planId ?? null,
         formats: params.formats,
         duration_days: params.durationDays,
+        geo_scope: params.geoScope,
         neighborhoods: params.neighborhoods,
-        citywide: params.citywide,
-        targeting: targetingBody(params.citywide, params.neighborhoods, params.targeting),
+        city: params.city ?? null,
+        cities: params.cities,
+        targeting: targetingBody(params.geoScope, params.neighborhoods, params.city, params.cities, params.targeting),
         schedule: scheduleBody(params.schedule),
         objective: params.objective ?? 'clicks',
         priority: params.priority ?? 3,

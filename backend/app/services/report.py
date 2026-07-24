@@ -1,6 +1,7 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.uploads import save_upload_media
 from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import report as report_dao
@@ -21,11 +22,17 @@ from app.models.report import (
     Report,
 )
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem
 from app.schemas.comment import CommentOut
 from app.schemas.post import PostOut
 from app.schemas.report import ReportAdminOut, ReportCreate, ReportOut, ReportStats
 from app.schemas.user import UserPublic
 from app.services import audit_log as audit_log_service
+
+
+def upload_attachment(user: User, base_url: str, file: UploadFile) -> AttachmentItem:
+    url, media_type = save_upload_media(base_url, file, prefix=f"report_{user.id}")
+    return AttachmentItem(url=url, type=media_type)
 
 
 def submit(db: Session, user: User, payload: ReportCreate) -> ReportOut:
@@ -42,8 +49,15 @@ def submit(db: Session, user: User, payload: ReportCreate) -> ReportOut:
     if not target:
         raise HTTPException(status_code=404, detail="Conteúdo denunciado não encontrado")
 
+    attachments = [a.model_dump() for a in payload.attachments]
     report = report_dao.create(
-        db, user.id, payload.target_type, payload.target_id, payload.reason, payload.comment
+        db,
+        user.id,
+        payload.target_type,
+        payload.target_id,
+        payload.reason,
+        payload.comment,
+        attachments,
     )
     return ReportOut.model_validate(report)
 

@@ -115,9 +115,41 @@ def update_campaign(db: Session, campaign: AdCampaign, **fields) -> AdCampaign:
     return campaign
 
 
-def count_competing_campaigns(
-    db: Session, neighborhoods: list[str], citywide: bool
-) -> int:
+def _scope_cities(targeting: dict) -> set[str] | None:
+    """Conjunto de cidades "cobertas" por um targeting, em minúsculas — só
+    definido pra escopos que têm cidade conhecida (`citywide`/`cities`).
+    `None` quando o escopo é `neighborhood` (cidade desconhecida: nada nos
+    modelos guarda a cidade dos bairros hoje) ou `country` (não faz sentido
+    comparar por conjunto, sempre disputa com tudo — ver `_competes`)."""
+    scope = targeting.get("geo_scope", "neighborhood")
+    if scope == "citywide":
+        city = targeting.get("city")
+        return {city.strip().lower()} if city else set()
+    if scope == "cities":
+        return {c.strip().lower() for c in targeting.get("cities", []) if c}
+    return None
+
+
+def _competes(a: dict, b: dict) -> bool:
+    """Duas campanhas disputam a mesma audiência? `country` sempre disputa
+    com qualquer outra (cobre todo mundo); entre dois escopos com cidade
+    conhecida, compara o conjunto de cidades; entre dois `neighborhood`,
+    compara bairros; qualquer combinação envolvendo um `neighborhood` (cidade
+    desconhecida) contra um escopo com cidade é tratada, por cautela, como
+    concorrência (mesmo espírito permissivo do `citywide` de antes)."""
+    a_scope = a.get("geo_scope", "neighborhood")
+    b_scope = b.get("geo_scope", "neighborhood")
+    if a_scope == "country" or b_scope == "country":
+        return True
+    if a_scope == "neighborhood" and b_scope == "neighborhood":
+        return bool(set(a.get("neighborhoods", [])) & set(b.get("neighborhoods", [])))
+    a_cities, b_cities = _scope_cities(a), _scope_cities(b)
+    if a_cities is not None and b_cities is not None:
+        return bool(a_cities & b_cities)
+    return True
+
+
+def count_competing_campaigns(db: Session, targeting: dict) -> int:
     """Quantas campanhas ativas/pendentes já disputam a mesma audiência —
     usado só pelo fator `competition_multiplier` da precificação."""
     candidates = (
@@ -125,14 +157,7 @@ def count_competing_campaigns(
         .filter(AdCampaign.status.in_([STATUS_ACTIVE, STATUS_PENDING_PAYMENT]))
         .all()
     )
-    wanted = set(neighborhoods)
-    count = 0
-    for c in candidates:
-        if citywide or c.citywide:
-            count += 1
-        elif wanted & set(c.neighborhoods):
-            count += 1
-    return count
+    return sum(1 for c in candidates if _competes(targeting, c.targeting))
 
 
 # ── Criativos ────────────────────────────────────────────────────────────
@@ -214,12 +239,28 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 def _matches_targeting(targeting: dict, ctx: dict) -> bool:
     """Cada eixo: se a campanha não restringe aquele eixo, não filtra. Se o
     cliente ainda não manda o sinal correspondente (rollout gradual), também
-    não exclui — permissivo por padrão (ver seção de Segmentação do plano)."""
-    neighborhood = ctx.get("neighborhood")
-    citywide = bool(targeting.get("citywide", False))
-    neighborhoods = set(targeting.get("neighborhoods", []))
+    não exclui — permissivo por padrão (ver seção de Segmentação do plano).
 
-    if not citywide:
+    Exceção deliberada: os escopos `citywide`/`cities` filtram de verdade por
+    `ctx["city"]` (cidade do usuário, resolvida no backend principal) — sem
+    isso, "cidade toda" e "país todo" seriam indistinguíveis (o app hoje é
+    mono-cidade só por acidente de não ter esse filtro nunca existido)."""
+    scope = targeting.get("geo_scope", "neighborhood")
+    neighborhood = ctx.get("neighborhood")
+    city = ctx.get("city")
+
+    if scope == "country":
+        pass
+    elif scope == "cities":
+        cities = {c.strip().lower() for c in targeting.get("cities", []) if c}
+        if not city or city.strip().lower() not in cities:
+            return False
+    elif scope == "citywide":
+        target_city = (targeting.get("city") or "").strip().lower()
+        if not city or city.strip().lower() != target_city:
+            return False
+    else:  # neighborhood
+        neighborhoods = set(targeting.get("neighborhoods", []))
         candidates = set()
         if neighborhood:
             candidates.add(neighborhood)

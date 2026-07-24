@@ -15,12 +15,14 @@ def create(
     target_id: int,
     reason: str,
     comment: str,
+    attachments: list[dict],
 ) -> Report:
     report = Report(
         reporter_id=reporter_id,
         target_type=target_type,
         reason=reason,
         comment=comment,
+        attachments=attachments,
         post_id=target_id if target_type == "post" else None,
         comment_id=target_id if target_type == "comment" else None,
         reported_user_id=target_id if target_type == "user" else None,

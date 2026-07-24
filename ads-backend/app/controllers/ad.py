@@ -76,6 +76,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dic
 def get_active_ad(
     format: str,
     neighborhood: str | None = Query(None),
+    city: str | None = Query(None),
     nearby_neighborhoods: str | None = Query(None),
     lat: float | None = Query(None),
     lng: float | None = Query(None),
@@ -89,6 +90,7 @@ def get_active_ad(
 ) -> AdOut | None:
     ctx = {
         "neighborhood": neighborhood,
+        "city": city,
         "nearby_neighborhoods": _parse_csv(nearby_neighborhoods),
         "lat": lat,
         "lng": lng,
@@ -105,6 +107,7 @@ def get_active_ad(
 def get_active_ad_list(
     format: str,
     neighborhood: str | None = Query(None),
+    city: str | None = Query(None),
     nearby_neighborhoods: str | None = Query(None),
     lat: float | None = Query(None),
     lng: float | None = Query(None),
@@ -120,6 +123,7 @@ def get_active_ad_list(
 ) -> list[AdOut]:
     ctx = {
         "neighborhood": neighborhood,
+        "city": city,
         "nearby_neighborhoods": _parse_csv(nearby_neighborhoods),
         "lat": lat,
         "lng": lng,

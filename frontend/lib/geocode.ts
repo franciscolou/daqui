@@ -99,3 +99,72 @@ export async function searchNeighborhoods(
     return [];
   }
 }
+
+export interface CitySuggestion {
+  // `name` é o que vira chip / é salvo na campanha — precisa bater com o
+  // `city` do usuário no backend (match por igualdade de nome, case-insensitive).
+  name: string;
+  state: string;
+  country: string;
+  // Rótulo exibido no dropdown: "Cidade · Estado · País".
+  label: string;
+  latitude: number;
+  longitude: number;
+}
+
+function extractState(item: NominatimItem): string {
+  return (item.address?.state || '').trim();
+}
+
+/**
+ * Busca cidades que casem com `query` (usado pelos escopos "cidade toda" e
+ * "várias cidades" da segmentação de anúncios — ver CityPicker). Mesma fonte
+ * e mesmo espírito de `searchNeighborhoods`, extraindo o nível de cidade em
+ * vez de bairro. Deduplica por nome+estado.
+ */
+export async function searchCities(
+  query: string,
+  coords?: Coords | null,
+): Promise<CitySuggestion[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  try {
+    const url =
+      'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=10&countrycodes=br&q=' +
+      encodeURIComponent(q);
+    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    if (!res.ok) return [];
+    const data: NominatimItem[] = await res.json();
+
+    const seen = new Set<string>();
+    const out: CitySuggestion[] = [];
+    for (const item of data) {
+      const name = extractCity(item);
+      if (!name) continue;
+      const state = extractState(item);
+      const country = (item.address?.country || '').trim();
+      const dedupeKey = `${name.toLowerCase()}|${state.toLowerCase()}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      out.push({
+        name,
+        state,
+        country,
+        label: [name, state, country].filter(Boolean).join(' · '),
+        latitude: parseFloat(item.lat),
+        longitude: parseFloat(item.lon),
+      });
+    }
+
+    if (coords) {
+      out.sort(
+        (a, b) =>
+          haversineMeters(coords, { latitude: a.latitude, longitude: a.longitude }) -
+          haversineMeters(coords, { latitude: b.latitude, longitude: b.longitude }),
+      );
+    }
+    return out.slice(0, 6);
+  } catch {
+    return [];
+  }
+}

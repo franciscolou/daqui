@@ -8,6 +8,7 @@ import { useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import ActionMenu from './ActionMenu';
+import ConfirmModal from './ConfirmModal';
 import HoverTime from './HoverTime';
 import MentionText from './MentionText';
 import PollBlock from './PollBlock';
@@ -20,9 +21,12 @@ import SharedPostPreview from './SharedPostPreview';
 interface PostCardProps {
   post: Post;
   onPress?: () => void;
+  // Chamado após excluir o post com sucesso (menu de ações, só no próprio post)
+  // — quem renderiza a lista remove o item localmente.
+  onDeleted?: (postId: string) => void;
 }
 
-export default function PostCard({ post, onPress }: PostCardProps) {
+export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { user } = useAuth();
@@ -35,6 +39,8 @@ export default function PostCard({ post, onPress }: PostCardProps) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [repostMenuVisible, setRepostMenuVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const catColor = Colors.category[post.category] ?? Colors.primary;
   const isOwnPost = !!user && user.id === post.author.id;
 
@@ -81,6 +87,20 @@ export default function PostCard({ post, onPress }: PostCardProps) {
 
   const quote = () => router.push(`/quote/${post.id}` as any);
 
+  const doDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await api.deletePost(post.id);
+      setConfirmDeleteVisible(false);
+      onDeleted?.(post.id);
+    } catch {
+      // mantém o modal aberto para nova tentativa
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <>
     <TouchableOpacity style={styles.row} onPress={onPress ?? openPost} activeOpacity={0.92} focusable={false}>
@@ -116,15 +136,13 @@ export default function PostCard({ post, onPress }: PostCardProps) {
               </>
             )}
           </View>
-          {!isOwnPost && (
-            <TouchableOpacity
-              style={styles.iconBtn}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => setMenuVisible(true)}
-            >
-              <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => setMenuVisible(true)}
+          >
+            <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
+          </TouchableOpacity>
         </View>
 
         {/* Category + pinned */}
@@ -221,15 +239,27 @@ export default function PostCard({ post, onPress }: PostCardProps) {
     <ActionMenu
       visible={menuVisible}
       onClose={() => setMenuVisible(false)}
-      options={[
-        {
-          key: 'report',
-          label: 'Denunciar publicação',
-          icon: 'flag-outline',
-          destructive: true,
-          onPress: () => setReportVisible(true),
-        },
-      ]}
+      options={
+        isOwnPost
+          ? [
+              {
+                key: 'delete',
+                label: 'Excluir post',
+                icon: 'trash-outline',
+                destructive: true,
+                onPress: () => setConfirmDeleteVisible(true),
+              },
+            ]
+          : [
+              {
+                key: 'report',
+                label: 'Denunciar publicação',
+                icon: 'flag-outline',
+                destructive: true,
+                onPress: () => setReportVisible(true),
+              },
+            ]
+      }
     />
     <ActionMenu
       visible={repostMenuVisible}
@@ -254,6 +284,16 @@ export default function PostCard({ post, onPress }: PostCardProps) {
       onClose={() => setReportVisible(false)}
       targetType="post"
       targetId={post.id}
+    />
+    <ConfirmModal
+      visible={confirmDeleteVisible}
+      title="Excluir publicação?"
+      message="Esta ação não pode ser desfeita. O post e seus comentários serão removidos."
+      confirmLabel="Excluir"
+      destructive
+      loading={deleting}
+      onConfirm={doDelete}
+      onClose={() => setConfirmDeleteVisible(false)}
     />
     </>
   );

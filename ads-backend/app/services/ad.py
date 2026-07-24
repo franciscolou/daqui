@@ -69,10 +69,12 @@ def _fmt_brl(cents: int) -> str:
 
 
 def _check_targeting(targeting: TargetingIn) -> None:
-    if not targeting.citywide and not targeting.neighborhoods:
-        raise HTTPException(
-            status_code=400, detail="Selecione ao menos um bairro ou 'cidade toda'"
-        )
+    if targeting.geo_scope == "neighborhood" and not targeting.neighborhoods:
+        raise HTTPException(status_code=400, detail="Selecione ao menos um bairro")
+    if targeting.geo_scope == "citywide" and not targeting.city:
+        raise HTTPException(status_code=400, detail="Selecione a cidade")
+    if targeting.geo_scope == "cities" and not targeting.cities:
+        raise HTTPException(status_code=400, detail="Selecione ao menos uma cidade")
 
 
 def _quote_breakdown(
@@ -87,9 +89,7 @@ def _quote_breakdown(
     daily_impression_cap: int | None,
     per_user_impression_cap: int | None,
 ) -> dict:
-    competing_count = ad_dao.count_competing_campaigns(
-        db, targeting.neighborhoods, targeting.citywide
-    )
+    competing_count = ad_dao.count_competing_campaigns(db, targeting.model_dump())
     return ad_pricing.quote(
         formats=formats,
         duration_days=duration_days,

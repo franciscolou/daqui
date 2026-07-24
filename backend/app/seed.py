@@ -38,6 +38,31 @@ USERS = [
     dict(username="thiago", name="Thiago Ferreira", email="thiago@daqui.com", password="senha123",
          neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9618, longitude=-43.1650,
          avatar_url="https://i.pravatar.cc/150?img=61"),
+    # Usuários de outros bairros (adicionados no fim de propósito: author_idx dos POSTS/
+    # seed_comments acima é posicional, então novas entradas não podem ser inseridas no meio).
+    # Cobrem bairros vizinhos ao Leme (pro toggle "incluir bairros próximos") e bairros de
+    # SP (pro card "bloqueado" da busca de usuários fora do bairro).
+    dict(username="juliaramos", name="Julia Ramos", email="julia@daqui.com", password="senha123",
+         neighborhood="Copacabana", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9711, longitude=-43.1822,
+         avatar_url="https://i.pravatar.cc/150?img=12"),
+    dict(username="fernandosouza", name="Fernando Souza", email="fernando@daqui.com", password="senha123",
+         neighborhood="Botafogo", city="Rio de Janeiro", state="RJ", badge="comerciante", verified=False, latitude=-22.9519, longitude=-43.1823,
+         avatar_url="https://i.pravatar.cc/150?img=33"),
+    dict(username="camilarocha", name="Camila Rocha", email="camila@daqui.com", password="senha123",
+         neighborhood="Urca", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9490, longitude=-43.1652,
+         avatar_url="https://i.pravatar.cc/150?img=15"),
+    dict(username="rafaelnunes", name="Rafael Nunes", email="rafael@daqui.com", password="senha123",
+         neighborhood="Ipanema", city="Rio de Janeiro", state="RJ", badge="lider", verified=True, latitude=-22.9838, longitude=-43.2096,
+         avatar_url="https://i.pravatar.cc/150?img=8"),
+    dict(username="patriciagomes", name="Patricia Gomes", email="patricia@daqui.com", password="senha123",
+         neighborhood="Vila Madalena", city="São Paulo", state="SP", badge="morador", verified=False, latitude=-23.5505, longitude=-46.6919,
+         avatar_url="https://i.pravatar.cc/150?img=21"),
+    dict(username="brunoteixeira", name="Bruno Teixeira", email="bruno@daqui.com", password="senha123",
+         neighborhood="Itaim Bibi", city="São Paulo", state="SP", badge="comerciante", verified=True, latitude=-23.5822, longitude=-46.6764,
+         avatar_url="https://i.pravatar.cc/150?img=40"),
+    dict(username="larissacardoso", name="Larissa Cardoso", email="larissa@daqui.com", password="senha123",
+         neighborhood="Moema", city="São Paulo", state="SP", badge="morador", verified=True, latitude=-23.6019, longitude=-46.6636,
+         avatar_url="https://i.pravatar.cc/150?img=5"),
 ]
 
 POSTS = [

@@ -74,12 +74,13 @@ export default function MapScreen() {
     adsApi
       .getAd('post', {
         neighborhood: user?.neighborhood,
+        city: user?.city,
         engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
         viewerId: adViewerId,
       })
       .then(setAd)
       .catch(() => setAd(null));
-  }, [user?.neighborhood, user?.interactionsCount, adViewerId]);
+  }, [user?.neighborhood, user?.city, user?.interactionsCount, adViewerId]);
 
   const userCoords = useMemo(() => {
     if (user?.latitude != null && user?.longitude != null) {

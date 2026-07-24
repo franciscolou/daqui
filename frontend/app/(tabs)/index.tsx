@@ -240,6 +240,7 @@ export default function FeedScreen() {
       adsApi
         .getAd('post', {
           neighborhood: activeNeighborhood ?? undefined,
+          city: user?.city,
           viewMode: viewMode === 'meu' ? 'home' : 'nearby',
           category: activeCategory !== 'todos' ? activeCategory : undefined,
           engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
@@ -247,8 +248,12 @@ export default function FeedScreen() {
         })
         .then(setFeedAd)
         .catch(() => setFeedAd(null));
-    }, [activeNeighborhood, viewMode, activeCategory, user?.interactionsCount, adViewerId]),
+    }, [activeNeighborhood, viewMode, activeCategory, user?.interactionsCount, user?.city, adViewerId]),
   );
+
+  const handlePostDeleted = useCallback((postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  }, []);
 
   const switchView = useCallback((mode: ViewMode) => {
     if (mode === viewMode) {
@@ -467,7 +472,7 @@ export default function FeedScreen() {
       ListHeaderComponent={feedHeader}
       renderItem={({ item }) => (
         <Animated.View style={contentStyle}>
-          {item.kind === 'post' ? <PostCard post={item.post} /> : <AdPostCard ad={item.ad} viewerId={adViewerId} />}
+          {item.kind === 'post' ? <PostCard post={item.post} onDeleted={handlePostDeleted} /> : <AdPostCard ad={item.ad} viewerId={adViewerId} />}
         </Animated.View>
       )}
       contentContainerStyle={styles.listContent}

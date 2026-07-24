@@ -10,8 +10,12 @@ def get_by_id(db: Session, ticket_id: int) -> SupportTicket | None:
     return db.get(SupportTicket, ticket_id)
 
 
-def create(db: Session, user_id: int, subject: str, message: str) -> SupportTicket:
-    ticket = SupportTicket(user_id=user_id, subject=subject, message=message)
+def create(
+    db: Session, user_id: int, subject: str, message: str, attachments: list[dict]
+) -> SupportTicket:
+    ticket = SupportTicket(
+        user_id=user_id, subject=subject, message=message, attachments=attachments
+    )
     db.add(ticket)
     db.commit()
     db.refresh(ticket)

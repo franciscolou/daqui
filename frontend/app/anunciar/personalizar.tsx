@@ -11,14 +11,22 @@ import { useEffect, useMemo, useRef, useState, type ComponentRef, type Component
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { goBack } from '../../lib/navigation';
-import { adsApi, AdFormat, AdObjective, PriceFactor } from '../../lib/adsApi';
+import { adsApi, AdFormat, AdObjective, GeoScope, PriceFactor } from '../../lib/adsApi';
 import NeighborhoodPicker from '../../components/NeighborhoodPicker';
+import CityPicker from '../../components/CityPicker';
 
 const FORMATS: { key: AdFormat; label: string; desc: string }[] = [
   { key: 'post', label: 'Post + mapa', desc: 'Aparece como post no feed e ganha um pin no mapa.' },
   { key: 'conversation', label: 'Conversa', desc: 'Linha na aba Mensagens, abre um link ao tocar.' },
   { key: 'notification', label: 'Novidades', desc: 'Item na aba de notificações.' },
   { key: 'search_poster', label: 'Poster de busca', desc: 'Aparece na Busca antes do usuário pesquisar algo.' },
+];
+
+const GEO_SCOPE_OPTIONS: { key: GeoScope; label: string }[] = [
+  { key: 'neighborhood', label: 'Bairros' },
+  { key: 'citywide', label: 'Cidade toda' },
+  { key: 'cities', label: 'Várias cidades' },
+  { key: 'country', label: 'Brasil todo' },
 ];
 
 const DURATION_PRESETS = [7, 15, 30, 90];
@@ -226,9 +234,6 @@ function DiscountInfo() {
               <Pressable onPress={() => {}} tabIndex={-1}>
                 <Text style={styles.discountTooltipTitle}>Desconto por duração</Text>
                 <DiscountChart />
-                <Text style={styles.discountTooltipCaption}>
-                  Passe o mouse (ou toque e arraste) na linha pra ver o desconto de cada duração.
-                </Text>
               </Pressable>
             </View>
           )}
@@ -252,11 +257,21 @@ function formatMoney(cents: number) {
   return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+// Formato compacto "-R$XX,XX" (sem espaço entre o R$ e o valor) pro selo
+// verde ao lado do "i" — `formatMoney` usa o formato de moeda padrão do
+// Intl (com espaço), que não bate com o pedido aqui.
+function formatDiscountValue(cents: number) {
+  const value = (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `-R$${value}`;
+}
+
 interface ReactivatePrefill {
   formats?: AdFormat[];
   durationDays?: number;
-  citywide?: boolean;
+  geoScope?: GeoScope;
   neighborhoods?: string[];
+  city?: string;
+  cities?: string[];
   objective?: AdObjective;
   priority?: number;
   rotationWeight?: number;
@@ -296,16 +311,24 @@ export default function PersonalizarScreen() {
     setDurationDays(clamped);
     setDurationText(String(clamped));
   };
-  const [citywide, setCitywide] = useState(prefillData?.citywide ?? false);
+  const [geoScope, setGeoScope] = useState<GeoScope>(prefillData?.geoScope ?? 'neighborhood');
   const [neighborhoods, setNeighborhoods] = useState<string[]>(prefillData?.neighborhoods ?? []);
+  const [city, setCity] = useState<string>(prefillData?.city ?? '');
+  const [cities, setCities] = useState<string[]>(prefillData?.cities ?? []);
   const [priceCents, setPriceCents] = useState<number | null>(null);
   const [factors, setFactors] = useState<PriceFactor[]>([]);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [error, setError] = useState('');
   // Plano escolhido (quando veio de "Contratar este plano"): trava o preço no
-  // valor fixo do plano e limita a quantidade de bairros — assim "até N bairros
-  // por R$ X" cobra exatamente R$ X, sem a cotação dinâmica mexer no total.
-  const [plan, setPlan] = useState<{ priceCents: number; maxNeighborhoods: number | null } | null>(null);
+  // valor fixo do plano, no escopo geográfico dele, e limita a quantidade de
+  // bairros/cidades — assim "até N bairros por R$ X" cobra exatamente R$ X,
+  // sem a cotação dinâmica mexer no total.
+  const [plan, setPlan] = useState<{
+    priceCents: number;
+    geoScope: GeoScope;
+    maxNeighborhoods: number | null;
+    maxCities: number | null;
+  } | null>(null);
 
   // "Configurações avançadas": recolhida por padrão — quem nunca abre tem a
   // mesma experiência simples de sempre (todo campo abaixo já nasce com o
@@ -333,8 +356,13 @@ export default function PersonalizarScreen() {
         setFormats(p.formats);
         setDurationDays(p.durationDays);
         setDurationText(String(p.durationDays));
-        setCitywide(p.maxNeighborhoods == null);
-        setPlan({ priceCents: p.priceCents, maxNeighborhoods: p.maxNeighborhoods });
+        setGeoScope(p.geoScope);
+        setPlan({
+          priceCents: p.priceCents,
+          geoScope: p.geoScope,
+          maxNeighborhoods: p.maxNeighborhoods,
+          maxCities: p.maxCities,
+        });
       }
     }).catch(() => {});
   }, [params.planId]);
@@ -347,9 +375,17 @@ export default function PersonalizarScreen() {
   const dailyCapNum = dailyCap.trim() ? parseInt(dailyCap, 10) : undefined;
   const perUserCapNum = perUserCap.trim() ? parseInt(perUserCap, 10) : undefined;
 
+  // O que falta preencher varia por escopo: bairros pra "neighborhood",
+  // a cidade pra "citywide", ao menos uma cidade pra "cities" — "country"
+  // (Brasil todo) já nasce completo, sem nada a escolher.
+  const hasGeoTarget = geoScope === 'neighborhood' ? neighborhoods.length > 0
+    : geoScope === 'citywide' ? !!city
+    : geoScope === 'cities' ? cities.length > 0
+    : true;
+
   useEffect(() => {
     setError('');
-    if (formats.length === 0 || (!citywide && neighborhoods.length === 0)) {
+    if (formats.length === 0 || !hasGeoTarget) {
       setPriceCents(null);
       setFactors([]);
       return;
@@ -359,8 +395,10 @@ export default function PersonalizarScreen() {
       planId: plan ? Number(params.planId) : undefined,
       formats,
       durationDays,
+      geoScope,
       neighborhoods,
-      citywide,
+      city: city || undefined,
+      cities,
       objective,
       priority: priorityNum,
       dailyImpressionCap: dailyCapNum,
@@ -381,7 +419,7 @@ export default function PersonalizarScreen() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    formats.join(','), durationDays, neighborhoods.join(','), citywide, objective, priorityNum,
+    formats.join(','), durationDays, geoScope, neighborhoods.join(','), city, cities.join(','), objective, priorityNum,
     dailyCapNum, perUserCapNum, includeNearby, audience, categoriesText, hoursText, daysOfWeekText, specialDatesText,
     plan,
   ]);
@@ -390,7 +428,17 @@ export default function PersonalizarScreen() {
     setFormats((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
   };
 
-  const canContinue = formats.length > 0 && (citywide || neighborhoods.length > 0) && priceCents != null;
+  const canContinue = formats.length > 0 && hasGeoTarget && priceCents != null;
+
+  // Quanto do preço atual já é economia da duração escolhida: isola o fator
+  // "Desconto por duração" (sempre presente, ver ad_pricing.py) dos demais —
+  // se P = base * outrosFatores * fDuração, então P/fDuração é o preço sem
+  // esse desconto específico, e a diferença é o valor economizado em reais.
+  const durationFactor = factors.find((f) => f.label === 'Desconto por duração')?.multiplier;
+  const durationDiscountCents =
+    priceCents != null && durationFactor != null && durationFactor > 0 && durationFactor < 1
+      ? Math.round((priceCents * (1 - durationFactor)) / durationFactor)
+      : 0;
 
   const goToCheckout = () => {
     router.push({
@@ -398,8 +446,10 @@ export default function PersonalizarScreen() {
       params: {
         formats: JSON.stringify(formats),
         durationDays: String(durationDays),
+        geoScope,
         neighborhoods: JSON.stringify(neighborhoods),
-        citywide: String(citywide),
+        city,
+        cities: JSON.stringify(cities),
         planId: params.planId ?? '',
         objective,
         priority: String(priorityNum),
@@ -530,13 +580,24 @@ export default function PersonalizarScreen() {
         <View style={styles.discountInfoRow}>
           <Text style={styles.discountLabel}>Desconto progressivo</Text>
           <DiscountInfo />
+          {durationDiscountCents > 0 && (
+            <Text style={styles.discountValue}>{formatDiscountValue(durationDiscountCents)}</Text>
+          )}
         </View>
 
-        <View style={styles.citywideRow}>
-          <Text style={styles.label}>Cidade toda</Text>
-          <Switch value={citywide} onValueChange={setCitywide} />
+        <Text style={styles.label}>Onde anunciar</Text>
+        <View style={styles.chipsWrap}>
+          {GEO_SCOPE_OPTIONS.map((o) => (
+            <TouchableOpacity
+              key={o.key}
+              style={[styles.chip, geoScope === o.key && styles.chipActive]}
+              onPress={() => setGeoScope(o.key)}
+            >
+              <Text style={[styles.chipText, geoScope === o.key && styles.chipTextActive]}>{o.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
-        {!citywide && (
+        {geoScope === 'neighborhood' && (
           <>
             <Text style={styles.label}>
               Bairros{plan?.maxNeighborhoods ? ` (até ${plan.maxNeighborhoods})` : ''}
@@ -547,6 +608,30 @@ export default function PersonalizarScreen() {
               max={plan?.maxNeighborhoods ?? null}
             />
           </>
+        )}
+        {geoScope === 'citywide' && (
+          <>
+            <Text style={styles.label}>Cidade</Text>
+            <CityPicker
+              value={city ? [city] : []}
+              onChange={(v) => setCity(v[0] ?? '')}
+              max={1}
+              placeholder="Digite o nome da cidade..."
+            />
+          </>
+        )}
+        {geoScope === 'cities' && (
+          <>
+            <Text style={styles.label}>
+              Cidades{plan?.maxCities ? ` (até ${plan.maxCities})` : ''}
+            </Text>
+            <CityPicker value={cities} onChange={setCities} max={plan?.maxCities ?? null} />
+          </>
+        )}
+        {geoScope === 'country' && (
+          <Text style={styles.helperText}>
+            Seu anúncio aparece pra qualquer pessoa usando o Daqui, em qualquer cidade do Brasil.
+          </Text>
         )}
 
         <Pressable
@@ -741,6 +826,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
 
   discountInfoRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
   discountLabel: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary },
+  discountValue: { fontSize: 13, fontWeight: '800', color: Colors.success, marginLeft: 2 },
   discountInfoWrap: { borderRadius: 8, padding: 2 },
   discountOverlay: { flex: 1 },
   discountPopover: {

@@ -40,6 +40,10 @@ export default function ProfileScreen() {
     }, [user]),
   );
 
+  const handlePostDeleted = useCallback((postId: string) => {
+    setMyPosts((prev) => prev.filter((p) => p.id !== postId));
+  }, []);
+
   if (!user) return null;
 
   const content = (
@@ -55,7 +59,7 @@ export default function ProfileScreen() {
             <Text style={styles.noPostsText}>Você ainda não publicou nada.</Text>
           </View>
         ) : (
-          myPosts.map((post) => <PostCard key={post.id} post={post} />)
+          myPosts.map((post) => <PostCard key={post.id} post={post} onDeleted={handlePostDeleted} />)
         )}
       </View>
 

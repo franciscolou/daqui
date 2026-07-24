@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 from app.models.report import MAX_COMMENT_LENGTH, TARGETS
+from app.schemas.attachment import MAX_ATTACHMENTS, AttachmentItem
 from app.schemas.comment import CommentOut
 from app.schemas.post import PostOut
 from app.schemas.user import UserPublic
@@ -14,6 +15,8 @@ class ReportCreate(BaseModel):
     target_id: int
     reason: str
     comment: str = ""
+    # Já enviados via POST /reports/attachments, até MAX_ATTACHMENTS itens.
+    attachments: list[AttachmentItem] = []
 
     @field_validator("target_type")
     @classmethod
@@ -30,12 +33,20 @@ class ReportCreate(BaseModel):
             raise ValueError(f"O comentário deve ter no máximo {MAX_COMMENT_LENGTH} caracteres")
         return v
 
+    @field_validator("attachments")
+    @classmethod
+    def check_attachments(cls, v: list[AttachmentItem]) -> list[AttachmentItem]:
+        if len(v) > MAX_ATTACHMENTS:
+            raise ValueError(f"No máximo {MAX_ATTACHMENTS} anexos por denúncia")
+        return v
+
 
 class ReportOut(BaseModel):
     id: int
     target_type: str
     reason: str
     comment: str
+    attachments: list[AttachmentItem] = []
     status: str
     created_at: datetime
 

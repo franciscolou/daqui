@@ -402,6 +402,7 @@ interface BackendSupportTicket {
   id: number;
   subject: string;
   message: string;
+  attachments: BackendPostMedia[];
   status: SupportTicketStatus;
   response: string | null;
   responded_at: string | null;
@@ -591,6 +592,7 @@ export interface SupportTicket {
   id: string;
   subject: string;
   message: string;
+  attachments: PostMedia[];
   status: SupportTicketStatus;
   response?: string;
   respondedAt?: string;
@@ -886,6 +888,7 @@ function mapSupportTicket(t: BackendSupportTicket): SupportTicket {
     id: String(t.id),
     subject: t.subject,
     message: t.message,
+    attachments: t.attachments,
     status: t.status,
     response: t.response ?? undefined,
     respondedAt: t.responded_at ?? undefined,
@@ -1193,6 +1196,16 @@ export const api = {
   async uploadPostMedia(asset: PickedMediaAsset): Promise<PostMedia> {
     const formData = await buildMediaFormData(asset);
     return requestMultipart<PostMedia>('/posts/media', formData);
+  },
+
+  async uploadReportAttachment(asset: PickedMediaAsset): Promise<PostMedia> {
+    const formData = await buildMediaFormData(asset);
+    return requestMultipart<PostMedia>('/reports/attachments', formData);
+  },
+
+  async uploadTicketAttachment(asset: PickedMediaAsset): Promise<PostMedia> {
+    const formData = await buildMediaFormData(asset);
+    return requestMultipart<PostMedia>('/support-tickets/attachments', formData);
   },
 
   async createPost(payload: {
@@ -1592,6 +1605,7 @@ export const api = {
     targetId: string,
     reason: string,
     comment: string,
+    attachments: PostMedia[] = [],
   ): Promise<void> {
     await request<unknown>('/reports/', {
       method: 'POST',
@@ -1600,6 +1614,7 @@ export const api = {
         target_id: Number(targetId),
         reason,
         comment,
+        attachments,
       },
     });
   },
@@ -1610,11 +1625,15 @@ export const api = {
     return r.map(mapSupportTicket);
   },
 
-  async submitSupportTicket(subject: string, message: string): Promise<SupportTicket> {
+  async submitSupportTicket(
+    subject: string,
+    message: string,
+    attachments: PostMedia[] = [],
+  ): Promise<SupportTicket> {
     return mapSupportTicket(
       await request<BackendSupportTicket>('/support-tickets/', {
         method: 'POST',
-        body: { subject, message },
+        body: { subject, message, attachments },
       }),
     );
   },

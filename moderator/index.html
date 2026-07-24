@@ -163,6 +163,14 @@
     .b-rejected, .b-dismissed { background: var(--danger-bg); color: var(--danger); }
     .reason-tag { display: inline-block; font-size: 12px; font-weight: 700; color: var(--text-2); background: var(--border-light); padding: 3px 10px; border-radius: 999px; margin: 10px 0 6px; }
     .target-box { background: var(--bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; margin-top: 8px; }
+    .attach-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .attach-thumb {
+      width: 72px; height: 72px; border-radius: 10px; object-fit: cover; cursor: pointer;
+      background: var(--border-light); border: 1px solid var(--border);
+    }
+    .attach-thumb.video {
+      display: flex; align-items: center; justify-content: center; background: #1E293B; color: #fff;
+    }
     /* QR code: fundo sempre branco (independe do tema) — leitores precisam do contraste real. */
     .qr-box { background: #fff; border-radius: 12px; padding: 16px; display: flex; align-items: center; justify-content: center; width: fit-content; margin: 0 auto; }
     .qr-box svg { width: 180px; height: 180px; display: block; }
@@ -788,6 +796,21 @@
         <div class="stat"><div class="n">${s.pending}</div><div class="l">pendentes</div></div>`;
     }
 
+    // Galeria de anexos (fotos/vídeos, até 3) enviados pelo usuário numa
+    // denúncia ou chamado de suporte — clicar abre o arquivo original numa
+    // nova aba, em tamanho real.
+    function attachmentsBox(attachments) {
+      if (!attachments || !attachments.length) return '';
+      const thumbs = attachments.map((a) => {
+        const url = escapeHtml(a.url);
+        if (a.type === 'video') {
+          return `<div class="attach-thumb video" onclick="window.open('${url}', '_blank')" title="Abrir vídeo em nova aba">▶</div>`;
+        }
+        return `<img class="attach-thumb" src="${url}" onclick="window.open('${url}', '_blank')" title="Abrir imagem em nova aba" />`;
+      }).join('');
+      return `<div class="attach-row">${thumbs}</div>`;
+    }
+
     function userNameLink(u) {
       return `<span class="user-name-link" onclick="openUserById(${u.id})">${escapeHtml(u.name)}</span>`;
     }
@@ -849,6 +872,7 @@
           </div>
           ${reportTargetBox(r)}
           ${comment}
+          ${attachmentsBox(r.attachments)}
           <div class="actions">
             <button class="act approve">Marcar como revisada</button>
             <button class="act reject">Descartar</button>
@@ -948,6 +972,7 @@
             <span class="badge b-${t.status}">${TICKET_STATUS_LABEL[t.status] || t.status}</span>
           </div>
           <div class="comment" style="margin-top:8px;">${escapeHtml(t.message)}</div>
+          ${attachmentsBox(t.attachments)}
           ${answeredBox}
           <textarea class="reply-input" placeholder="Escreva uma resposta para o usuário...">${escapeHtml(t.response || '')}</textarea>
           <div class="actions">

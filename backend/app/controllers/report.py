@@ -1,8 +1,9 @@
-from fastapi import Depends, Query
+from fastapi import Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_moderator, get_current_user, get_db
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem
 from app.schemas.report import (
     ReportAdminOut,
     ReportCreate,
@@ -14,6 +15,14 @@ from app.services import report as report_service
 
 
 # ── Usuário (app Daqui) ───────────────────────────────────────────────
+def upload_attachment(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+) -> AttachmentItem:
+    return report_service.upload_attachment(current_user, str(request.base_url), file)
+
+
 def submit_report(
     payload: ReportCreate,
     db: Session = Depends(get_db),

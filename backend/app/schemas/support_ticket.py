@@ -3,13 +3,20 @@ from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
-from app.models.support_ticket import MAX_MESSAGE_LENGTH, MAX_RESPONSE_LENGTH, MAX_SUBJECT_LENGTH
+from app.models.support_ticket import (
+    MAX_MESSAGE_LENGTH,
+    MAX_RESPONSE_LENGTH,
+    MAX_SUBJECT_LENGTH,
+)
+from app.schemas.attachment import MAX_ATTACHMENTS, AttachmentItem
 from app.schemas.user import UserPublic
 
 
 class SupportTicketCreate(BaseModel):
     subject: str
     message: str
+    # Já enviados via POST /support-tickets/attachments, até MAX_ATTACHMENTS itens.
+    attachments: list[AttachmentItem] = []
 
     @field_validator("subject")
     @classmethod
@@ -31,11 +38,19 @@ class SupportTicketCreate(BaseModel):
             raise ValueError(f"A mensagem deve ter no máximo {MAX_MESSAGE_LENGTH} caracteres")
         return v
 
+    @field_validator("attachments")
+    @classmethod
+    def check_attachments(cls, v: list[AttachmentItem]) -> list[AttachmentItem]:
+        if len(v) > MAX_ATTACHMENTS:
+            raise ValueError(f"No máximo {MAX_ATTACHMENTS} anexos por chamado")
+        return v
+
 
 class SupportTicketOut(BaseModel):
     id: int
     subject: str
     message: str
+    attachments: list[AttachmentItem] = []
     status: str
     response: Optional[str] = None
     responded_at: Optional[datetime] = None

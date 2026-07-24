@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { api, ReportTargetType } from '../lib/api';
+import AttachmentPicker, { AttachmentDraft } from './AttachmentPicker';
 
 const MAX_COMMENT = 3000;
 
@@ -54,23 +55,30 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
   const styles = useThemedStyles(makeStyles);
   const [reason, setReason] = useState<string | null>(null);
   const [comment, setComment] = useState('');
+  const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const uploading = attachments.some((a) => a.uploading);
 
   const close = () => {
     onClose();
     setReason(null);
     setComment('');
+    setAttachments([]);
     setSaving(false);
     setFeedback(null);
   };
 
   const submit = async () => {
-    if (!reason || saving) return;
+    if (!reason || saving || uploading) return;
     setSaving(true);
     setFeedback(null);
     try {
-      await api.submitReport(targetType, targetId, reason, comment.trim());
+      const attachmentPayload = attachments
+        .filter((a) => a.url)
+        .map((a) => ({ url: a.url as string, type: a.type }));
+      await api.submitReport(targetType, targetId, reason, comment.trim(), attachmentPayload);
       setFeedback({
         ok: true,
         text: 'Denúncia enviada. Obrigado por ajudar a manter a comunidade segura.',
@@ -94,7 +102,7 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.label}>Motivo</Text>
+            <Text style={styles.label}>Motivo <Text style={styles.required}>*</Text></Text>
             {REASONS[targetType].map((r) => {
               const active = reason === r.value;
               return (
@@ -103,6 +111,7 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
                   style={styles.reasonRow}
                   onPress={() => setReason(r.value)}
                   activeOpacity={0.7}
+                  focusable={false}
                 >
                   <Ionicons
                     name={active ? 'radio-button-on' : 'radio-button-off'}
@@ -116,7 +125,7 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
               );
             })}
 
-            <Text style={styles.label}>Comentário (opcional)</Text>
+            <Text style={styles.label}>Comentário</Text>
             <TextInput
               style={styles.input}
               placeholder="Conte mais detalhes, se quiser…"
@@ -127,6 +136,16 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
               maxLength={MAX_COMMENT}
             />
             <Text style={styles.counter}>{comment.length}/{MAX_COMMENT}</Text>
+
+            <View style={styles.attachmentsSection}>
+              <AttachmentPicker
+                attachments={attachments}
+                setAttachments={setAttachments}
+                upload={api.uploadReportAttachment}
+                max={3}
+                label="Anexos"
+              />
+            </View>
 
             {feedback && (
               <View
@@ -146,9 +165,9 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
             )}
 
             <TouchableOpacity
-              style={[styles.submitBtn, (!reason || saving) && styles.submitBtnDisabled]}
+              style={[styles.submitBtn, (!reason || saving || uploading) && styles.submitBtnDisabled]}
               onPress={submit}
-              disabled={!reason || saving}
+              disabled={!reason || saving || uploading}
               activeOpacity={0.85}
             >
               {saving ? (
@@ -190,6 +209,7 @@ const makeStyles = (Colors: Palette) =>
     },
     headerTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
     label: { fontSize: 14, fontWeight: '700', color: Colors.text, marginTop: 18, marginBottom: 8 },
+    required: { color: Colors.error },
     reasonRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -212,6 +232,7 @@ const makeStyles = (Colors: Palette) =>
       outlineStyle: 'none',
     } as any,
     counter: { alignSelf: 'flex-end', fontSize: 12, color: Colors.textTertiary, marginTop: 6 },
+    attachmentsSection: { marginTop: 18 },
     feedbackBox: {
       flexDirection: 'row',
       alignItems: 'center',

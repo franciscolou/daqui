@@ -39,6 +39,10 @@ export default function UserScreen() {
 
   const isMe = !!me && me.id === id;
 
+  const handlePostDeleted = useCallback((postId: string) => {
+    setUserPosts((prev) => prev.filter((p) => p.id !== postId));
+  }, []);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -154,7 +158,7 @@ export default function UserScreen() {
                 <Text style={styles.noPostsText}>Nenhum post ainda</Text>
               </View>
             ) : (
-              userPosts.map((post) => <PostCard key={post.id} post={post} />)
+              userPosts.map((post) => <PostCard key={post.id} post={post} onDeleted={handlePostDeleted} />)
             )}
           </View>
         </>

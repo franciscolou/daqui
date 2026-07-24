@@ -116,12 +116,13 @@ export default function MessagesScreen() {
       adsApi
         .getAd('conversation', {
           neighborhood: user?.neighborhood,
+          city: user?.city,
           engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
           viewerId: adViewerId,
         })
         .then(setAd)
         .catch(() => setAd(null));
-    }, [user?.neighborhood, user?.interactionsCount, adViewerId]),
+    }, [user?.neighborhood, user?.city, user?.interactionsCount, adViewerId]),
   );
 
   const onRefresh = useCallback(async () => {

@@ -120,7 +120,10 @@ export default function EditCampaignScreen() {
               <Text style={styles.summary}>
                 {formatDate(campaign.startsAt)} – {formatDate(campaign.endsAt)} ·{' '}
                 {campaign.formats.map((f) => FORMAT_LABEL[f] ?? f).join(', ')} ·{' '}
-                {campaign.citywide ? 'Cidade toda' : campaign.neighborhoods.join(', ') || '—'}
+                {campaign.geoScope === 'country' ? 'Brasil todo'
+                  : campaign.geoScope === 'citywide' ? (campaign.city || 'Cidade toda')
+                  : campaign.geoScope === 'cities' ? (campaign.cities.join(', ') || '—')
+                  : campaign.neighborhoods.join(', ') || '—'}
               </Text>
               <Text style={styles.summaryHint}>
                 Período, segmentação e formatos não são editáveis por aqui — fale com o time de anúncios pra mudar isso.

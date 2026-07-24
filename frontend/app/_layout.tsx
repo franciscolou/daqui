@@ -57,6 +57,8 @@ export default function RootLayout() {
                 <Stack.Screen name="anunciar/painel/editar/[token]" />
                 <Stack.Screen name="anunciar/painel/[token]" />
                 <Stack.Screen name="settings" />
+                <Stack.Screen name="legal/termos" />
+                <Stack.Screen name="legal/privacidade" />
               </Stack>
             </ScrollToTopProvider>
           </RealtimeProvider>

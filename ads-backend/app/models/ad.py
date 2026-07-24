@@ -55,6 +55,22 @@ AUDIENCES = ("all", "residents", "visitors")
 USER_RECENCIES = ("all", "new", "returning")
 ENGAGEMENT_LEVELS = ("any", "active")
 
+# Escopo geográfico de uma campanha (ou de um plano — ver AdPlan.geo_scope):
+# do mais estreito ao mais amplo. "neighborhood" usa `neighborhoods` (lista de
+# bairros), "citywide" usa `city` (uma cidade inteira), "cities" usa `cities`
+# (lista de cidades específicas — ex.: capitais de vários estados) e "country"
+# não precisa de nenhum campo extra (Brasil todo, o app é só nacional).
+GEO_SCOPE_NEIGHBORHOOD = "neighborhood"
+GEO_SCOPE_CITYWIDE = "citywide"
+GEO_SCOPE_CITIES = "cities"
+GEO_SCOPE_COUNTRY = "country"
+GEO_SCOPES = (
+    GEO_SCOPE_NEIGHBORHOOD,
+    GEO_SCOPE_CITYWIDE,
+    GEO_SCOPE_CITIES,
+    GEO_SCOPE_COUNTRY,
+)
+
 EVENT_IMPRESSION = "impression"
 EVENT_CLICK = "click"
 EVENT_TYPES = (EVENT_IMPRESSION, EVENT_CLICK)
@@ -66,12 +82,15 @@ OBJECTIVE_ACTIONS = ("whatsapp", "instagram", "website", "map", "profile")
 
 def default_targeting() -> dict:
     """Alvo de audiência: bloco único em JSON (mesmo idioma de `formats`),
-    pra não exigir migração a cada novo eixo de segmentação. Todos os
-    defaults abaixo reproduzem o comportamento de hoje (só bairro/cidade).
+    pra não exigir migração a cada novo eixo de segmentação. `geo_scope`
+    decide qual dos 3 campos de área (`neighborhoods`/`city`/`cities`) vale —
+    ver GEO_SCOPES.
     """
     return {
-        "citywide": False,
+        "geo_scope": GEO_SCOPE_NEIGHBORHOOD,
         "neighborhoods": [],
+        "city": None,
+        "cities": [],
         "include_nearby": False,
         "radius_km": None,
         "center_lat": None,
@@ -106,7 +125,16 @@ class AdPlan(Base):
     currency: Mapped[str] = mapped_column(String(3), default="BRL")
     duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
     formats: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Escopo geográfico fixo do plano (ver GEO_SCOPES) — decide qual dos 2
+    # campos abaixo vale: "neighborhood" usa `max_neighborhoods` (limite de
+    # bairros que o anunciante escolhe), "cities" usa `max_cities` (limite de
+    # cidades). "citywide" e "country" não usam nenhum dos dois (o anunciante
+    # só escolhe QUAL cidade, no caso de "citywide" — ver targeting da campanha).
+    geo_scope: Mapped[str] = mapped_column(
+        String(20), default=GEO_SCOPE_NEIGHBORHOOD, nullable=False
+    )
     max_neighborhoods: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_cities: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     # Agrupamento na tela de anúncios (ex.: "local_business", "event",
@@ -230,17 +258,25 @@ class AdCampaign(Base):
         "AdCreative", back_populates="campaign", cascade="all, delete-orphan"
     )
 
-    # Propriedades de conveniência: leem/gravam dentro de `targeting`, para
-    # não espalhar `campaign.targeting["neighborhoods"]` pelo código todo —
-    # o filtro de elegibilidade (`daos/ad.py`) e a precificação continuam
-    # lendo `campaign.neighborhoods`/`campaign.citywide` como antes.
+    # Propriedades de conveniência: leem dentro de `targeting`, para não
+    # espalhar `campaign.targeting["neighborhoods"]` pelo código todo — o
+    # filtro de elegibilidade (`daos/ad.py`) e a precificação continuam
+    # lendo `campaign.geo_scope`/`campaign.neighborhoods`/etc como antes.
+    @property
+    def geo_scope(self) -> str:
+        return self.targeting.get("geo_scope", GEO_SCOPE_NEIGHBORHOOD)
+
     @property
     def neighborhoods(self) -> list[str]:
         return self.targeting.get("neighborhoods", [])
 
     @property
-    def citywide(self) -> bool:
-        return bool(self.targeting.get("citywide", False))
+    def city(self) -> str | None:
+        return self.targeting.get("city")
+
+    @property
+    def cities(self) -> list[str]:
+        return self.targeting.get("cities", [])
 
 
 class AdCreative(Base):

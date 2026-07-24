@@ -73,6 +73,7 @@ export default function SearchScreen() {
     adsApi
       .getAds('search_poster', {
         neighborhood: user?.neighborhood,
+        city: user?.city,
         engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
         viewerId: adViewerId,
         limit: 3,
@@ -82,7 +83,7 @@ export default function SearchScreen() {
         if (r.length === 0) setNoMoreAds(true);
       })
       .catch(() => setNoMoreAds(true));
-  }, [user?.neighborhood, user?.interactionsCount, adViewerId]);
+  }, [user?.neighborhood, user?.city, user?.interactionsCount, adViewerId]);
 
   // Ref (não state) porque precisa valer já na próxima chamada síncrona —
   // handleScroll e o efeito de auto-completar podem disparar loadMoreAds no
@@ -96,6 +97,7 @@ export default function SearchScreen() {
     adsApi
       .getAds('search_poster', {
         neighborhood: user?.neighborhood,
+        city: user?.city,
         engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
         viewerId: adViewerId,
         excludeIds: ads.map((a) => a.id),
@@ -190,6 +192,10 @@ export default function SearchScreen() {
 
   // Anúncios só existem no estado vazio (sem busca) — carrega mais conforme
   // o usuário se aproxima do fim da rolagem.
+  const handlePostDeleted = (postId: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+  };
+
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (query.trim()) return;
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
@@ -307,7 +313,7 @@ export default function SearchScreen() {
           {showPosts && posts.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Posts</Text>
-              {posts.map((p) => <PostCard key={p.id} post={p} />)}
+              {posts.map((p) => <PostCard key={p.id} post={p} onDeleted={handlePostDeleted} />)}
             </View>
           )}
         </>

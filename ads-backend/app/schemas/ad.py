@@ -7,6 +7,8 @@ from app.models.ad import (
     AUDIENCES,
     ENGAGEMENT_LEVELS,
     FORMATS,
+    GEO_SCOPE_NEIGHBORHOOD,
+    GEO_SCOPES,
     OBJECTIVES,
     PACING_MODES,
     STATUSES,
@@ -34,8 +36,13 @@ def _check_one_of(name: str, choices: tuple[str, ...]):
 
 # ── Segmentação e agenda ────────────────────────────────────────────────
 class TargetingIn(BaseModel):
-    citywide: bool = False
+    # Escopo geográfico (ver GEO_SCOPES): decide qual dos 3 campos de área
+    # abaixo vale — `neighborhoods` ("neighborhood"), `city` ("citywide") ou
+    # `cities` ("cities"); "country" não usa nenhum dos três.
+    geo_scope: str = GEO_SCOPE_NEIGHBORHOOD
     neighborhoods: list[str] = []
+    city: str | None = None
+    cities: list[str] = []
     include_nearby: bool = False
     radius_km: float | None = None
     center_lat: float | None = None
@@ -46,6 +53,9 @@ class TargetingIn(BaseModel):
     user_recency: str = "all"
     engagement: str = "any"
 
+    _validate_geo_scope = field_validator("geo_scope")(
+        _check_one_of("Escopo geográfico", GEO_SCOPES)
+    )
     _validate_audience = field_validator("audience")(
         _check_one_of("audience", AUDIENCES)
     )
@@ -136,7 +146,9 @@ class AdPlanOut(BaseModel):
     currency: str
     duration_days: int
     formats: list[str]
+    geo_scope: str
     max_neighborhoods: int | None
+    max_cities: int | None
     is_public: bool
     sort_order: int
     category: str | None
@@ -153,13 +165,18 @@ class AdPlanCreate(BaseModel):
     currency: str = "BRL"
     duration_days: int
     formats: list[str]
+    geo_scope: str = GEO_SCOPE_NEIGHBORHOOD
     max_neighborhoods: int | None = None
+    max_cities: int | None = None
     is_public: bool = True
     sort_order: int = 0
     category: str | None = None
     badge: str | None = None
 
     _validate_formats = field_validator("formats")(_check_formats)
+    _validate_geo_scope = field_validator("geo_scope")(
+        _check_one_of("Escopo geográfico", GEO_SCOPES)
+    )
 
 
 class AdPlanUpdate(BaseModel):
@@ -172,7 +189,9 @@ class AdPlanUpdate(BaseModel):
     price_cents: int | None = None
     duration_days: int | None = None
     formats: list[str] | None = None
+    geo_scope: str | None = None
     max_neighborhoods: int | None = None
+    max_cities: int | None = None
     is_public: bool | None = None
     sort_order: int | None = None
     category: str | None = None
@@ -180,6 +199,9 @@ class AdPlanUpdate(BaseModel):
 
     _validate_formats = field_validator("formats")(
         lambda v: _check_formats(v) if v is not None else v
+    )
+    _validate_geo_scope = field_validator("geo_scope")(
+        lambda v: _check_one_of("Escopo geográfico", GEO_SCOPES)(v) if v is not None else v
     )
 
 
@@ -192,8 +214,10 @@ class QuoteRequest(BaseModel):
     plan_id: int | None = None
     formats: list[str]
     duration_days: int
+    geo_scope: str = GEO_SCOPE_NEIGHBORHOOD
     neighborhoods: list[str] = []
-    citywide: bool = False
+    city: str | None = None
+    cities: list[str] = []
     targeting: TargetingIn | None = None
     schedule: ScheduleIn | None = None
     objective: str = "clicks"
@@ -202,6 +226,9 @@ class QuoteRequest(BaseModel):
     per_user_impression_cap: int | None = None
 
     _validate_formats = field_validator("formats")(_check_formats)
+    _validate_geo_scope = field_validator("geo_scope")(
+        _check_one_of("Escopo geográfico", GEO_SCOPES)
+    )
     _validate_objective = field_validator("objective")(
         _check_one_of("objective", OBJECTIVES)
     )
@@ -221,11 +248,20 @@ class QuoteRequest(BaseModel):
         return v
 
     def effective_targeting(self) -> TargetingIn:
+        # `geo_scope`/`neighborhoods`/`city`/`cities` soltos continuam sendo a
+        # fonte de verdade (mesma convenção de sempre); `targeting`, quando
+        # enviado, só acrescenta os eixos extras — evita ambiguidade entre os
+        # dois. Reconstrói (em vez de `model_copy`, que não revalida) para que
+        # um `geo_scope` inválido seja pego aqui, não só na checagem de negócio.
+        overrides = {
+            "geo_scope": self.geo_scope,
+            "neighborhoods": self.neighborhoods,
+            "city": self.city,
+            "cities": self.cities,
+        }
         if self.targeting is not None:
-            return self.targeting.model_copy(
-                update={"citywide": self.citywide, "neighborhoods": self.neighborhoods}
-            )
-        return TargetingIn(citywide=self.citywide, neighborhoods=self.neighborhoods)
+            return TargetingIn(**{**self.targeting.model_dump(), **overrides})
+        return TargetingIn(**overrides)
 
 
 class PriceFactor(BaseModel):
@@ -245,8 +281,10 @@ class CampaignCreateBase(BaseModel):
     plan_id: int | None = None
     formats: list[str]
     duration_days: int
+    geo_scope: str = GEO_SCOPE_NEIGHBORHOOD
     neighborhoods: list[str] = []
-    citywide: bool = False
+    city: str | None = None
+    cities: list[str] = []
     targeting: TargetingIn | None = None
     schedule: ScheduleIn | None = None
     objective: str = "clicks"
@@ -282,6 +320,9 @@ class CampaignCreateBase(BaseModel):
     longitude: float | None = None
 
     _validate_formats = field_validator("formats")(_check_formats)
+    _validate_geo_scope = field_validator("geo_scope")(
+        _check_one_of("Escopo geográfico", GEO_SCOPES)
+    )
     _validate_objective = field_validator("objective")(
         _check_one_of("objective", OBJECTIVES)
     )
@@ -323,14 +364,16 @@ class CampaignCreateBase(BaseModel):
         return self
 
     def effective_targeting(self) -> TargetingIn:
-        # `citywide`/`neighborhoods` soltos continuam sendo a fonte de
-        # verdade (mesmos campos de sempre); `targeting`, quando enviado,
-        # só acrescenta os eixos extras — evita ambiguidade entre os dois.
+        # Mesma convenção de `QuoteRequest.effective_targeting` (ver lá).
+        overrides = {
+            "geo_scope": self.geo_scope,
+            "neighborhoods": self.neighborhoods,
+            "city": self.city,
+            "cities": self.cities,
+        }
         if self.targeting is not None:
-            return self.targeting.model_copy(
-                update={"citywide": self.citywide, "neighborhoods": self.neighborhoods}
-            )
-        return TargetingIn(citywide=self.citywide, neighborhoods=self.neighborhoods)
+            return TargetingIn(**{**self.targeting.model_dump(), **overrides})
+        return TargetingIn(**overrides)
 
     def effective_creatives(self) -> list[CreativeIn]:
         if self.creatives:

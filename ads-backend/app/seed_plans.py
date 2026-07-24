@@ -1,8 +1,13 @@
 """Cria planos de exemplo (idempotente por slug).
 Execute: python -m app.seed_plans
 
-3 categorias × 3 níveis — a tela de anúncios (`/anunciar`) agrupa por
-`category` e destaca o plano com `badge` como "mais popular" de cada grupo.
+4 categorias — a tela de anúncios (`/anunciar`) agrupa por `category` e
+destaca o plano com `badge` como "mais popular" de cada grupo. As 3 primeiras
+(local_business/event/enterprise) têm 3 níveis cada, todas escopadas a uma
+única cidade (bairro(s) ou cidade toda). A 4ª ("national") é o novo patamar
+de preço para quem quer sair de uma cidade só — 2 níveis de "várias cidades"
+(`geo_scope="cities"`, com `max_cities` diferente) e o topo em "Brasil todo"
+(`geo_scope="country"`, sem limite de área nenhum).
 """
 
 from app.daos import ad as ad_dao
@@ -17,6 +22,7 @@ PLANS = [
         price_cents=3_990,
         duration_days=7,
         formats=["post"],
+        geo_scope="neighborhood",
         max_neighborhoods=1,
         category="local_business",
         sort_order=1,
@@ -28,6 +34,7 @@ PLANS = [
         price_cents=9_990,
         duration_days=15,
         formats=["post", "notification"],
+        geo_scope="neighborhood",
         max_neighborhoods=3,
         category="local_business",
         badge="Mais popular",
@@ -40,6 +47,7 @@ PLANS = [
         price_cents=17_990,
         duration_days=30,
         formats=["post", "conversation", "notification"],
+        geo_scope="neighborhood",
         max_neighborhoods=5,
         category="local_business",
         sort_order=3,
@@ -52,6 +60,7 @@ PLANS = [
         price_cents=5_990,
         duration_days=5,
         formats=["post"],
+        geo_scope="neighborhood",
         max_neighborhoods=2,
         category="event",
         sort_order=1,
@@ -63,6 +72,7 @@ PLANS = [
         price_cents=14_990,
         duration_days=10,
         formats=["post", "notification", "search_poster"],
+        geo_scope="neighborhood",
         max_neighborhoods=5,
         category="event",
         badge="Mais popular",
@@ -71,11 +81,11 @@ PLANS = [
     dict(
         name="Grande Evento",
         slug="evento-grande",
-        description="Todos os 4 formatos, cidade toda, por 15 dias — para eventos que querem lotar e serem notícia em São Paulo.",
+        description="Todos os 4 formatos, cidade toda, por 15 dias — para eventos que querem lotar e serem notícia na cidade.",
         price_cents=29_990,
         duration_days=15,
         formats=["post", "conversation", "notification", "search_poster"],
-        max_neighborhoods=None,
+        geo_scope="citywide",
         category="event",
         sort_order=3,
     ),
@@ -83,11 +93,11 @@ PLANS = [
     dict(
         name="Expansão",
         slug="empresa-expansao",
-        description="Post, novidades e poster de busca por 30 dias, cidade toda — construa presença de marca em São Paulo inteira.",
+        description="Post, novidades e poster de busca por 30 dias, cidade toda — construa presença de marca na sua cidade inteira.",
         price_cents=59_990,
         duration_days=30,
         formats=["post", "notification", "search_poster"],
-        max_neighborhoods=None,
+        geo_scope="citywide",
         category="enterprise",
         sort_order=1,
     ),
@@ -98,7 +108,7 @@ PLANS = [
         price_cents=129_990,
         duration_days=60,
         formats=["post", "conversation", "notification", "search_poster"],
-        max_neighborhoods=None,
+        geo_scope="citywide",
         category="enterprise",
         badge="Mais popular",
         sort_order=2,
@@ -106,13 +116,51 @@ PLANS = [
     dict(
         name="Presença Total",
         slug="empresa-presenca-total",
-        description="Todos os 4 formatos por 90 dias, cidade toda — a maior campanha possível no Daqui, para quem não abre mão de liderar.",
+        description="Todos os 4 formatos por 90 dias, cidade toda — a maior campanha possível numa única cidade, para quem não abre mão de liderar por lá.",
         price_cents=249_990,
         duration_days=90,
         formats=["post", "conversation", "notification", "search_poster"],
-        max_neighborhoods=None,
+        geo_scope="citywide",
         category="enterprise",
         badge="Máximo alcance",
+        sort_order=3,
+    ),
+    # ── Alcance nacional (várias cidades ou Brasil todo) ────────────────
+    dict(
+        name="Rede Regional",
+        slug="nacional-rede-regional",
+        description="Post e novidades por 30 dias em até 5 cidades — ideal pra quem tem loja ou franquia em mais de uma cidade.",
+        price_cents=79_990,
+        duration_days=30,
+        formats=["post", "notification"],
+        geo_scope="cities",
+        max_cities=5,
+        category="national",
+        sort_order=1,
+    ),
+    dict(
+        name="Metrópoles Brasil",
+        slug="nacional-metropoles",
+        description="Todos os 4 formatos por 45 dias em até 15 cidades — cubra as principais capitais e metrópoles do país de uma vez.",
+        price_cents=299_990,
+        duration_days=45,
+        formats=["post", "conversation", "notification", "search_poster"],
+        geo_scope="cities",
+        max_cities=15,
+        category="national",
+        badge="Mais popular",
+        sort_order=2,
+    ),
+    dict(
+        name="Brasil Todo",
+        slug="nacional-brasil-todo",
+        description="Todos os 4 formatos por 60 dias, em qualquer cidade do país — o maior alcance possível no Daqui, sem limite de área.",
+        price_cents=799_990,
+        duration_days=60,
+        formats=["post", "conversation", "notification", "search_poster"],
+        geo_scope="country",
+        category="national",
+        badge="Alcance nacional",
         sort_order=3,
     ),
 ]

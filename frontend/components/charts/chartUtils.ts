@@ -24,6 +24,13 @@ export function niceCeil(value: number): number {
 
 export function niceTicks(max: number, count = 3): number[] {
   const top = niceCeil(Math.max(1, max));
+  // Faixas pequenas (ex.: top=1 com count=3) fariam `Math.round(step * i)`
+  // colidir em valores repetidos (top=1 vira [0,0,1,1]) — usa cada inteiro
+  // de 0 a `top` nesse caso, em vez de tentar espalhar `count` ticks
+  // arredondados num intervalo menor que isso.
+  if (top <= count) {
+    return Array.from({ length: top + 1 }, (_, i) => i);
+  }
   const step = top / count;
   return Array.from({ length: count + 1 }, (_, i) => Math.round(step * i));
 }

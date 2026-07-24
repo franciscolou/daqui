@@ -44,9 +44,16 @@ const CATEGORIES: {
   {
     key: 'enterprise',
     label: 'Grandes empresas',
-    tagline: 'Alcance São Paulo inteira com força total',
+    tagline: 'Alcance sua cidade inteira com força total',
     icon: 'business-outline',
     gradient: ['#6366F1', '#3B82F6'],
+  },
+  {
+    key: 'national',
+    label: 'Alcance nacional',
+    tagline: 'Várias cidades de uma vez ou o Brasil todo',
+    icon: 'globe-outline',
+    gradient: ['#0EA5E9', '#6366F1'],
   },
 ];
 
@@ -205,7 +212,10 @@ export default function AnunciarScreen() {
                       </View>
                       <Text style={styles.planMeta}>
                         <Ionicons name="location-outline" size={12} color={Colors.textTertiary} />{' '}
-                        {plan.maxNeighborhoods ? `até ${plan.maxNeighborhoods} bairro(s)` : 'cidade toda'}
+                        {plan.geoScope === 'country' ? 'Brasil todo'
+                          : plan.geoScope === 'cities' ? (plan.maxCities ? `até ${plan.maxCities} cidades` : 'várias cidades')
+                          : plan.geoScope === 'citywide' ? 'cidade toda'
+                          : (plan.maxNeighborhoods ? `até ${plan.maxNeighborhoods} bairro(s)` : 'cidade toda')}
                       </Text>
                       <PressableScale
                         onPress={() => router.push({ pathname: '/anunciar/personalizar', params: { planId: String(plan.id) } })}

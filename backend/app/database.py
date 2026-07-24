@@ -156,6 +156,24 @@ def _ensure_columns():
             if "is_open" in columns:
                 conn.execute(text("ALTER TABLE groups DROP COLUMN is_open"))
 
+    if "support_tickets" in tables:
+        columns = {c["name"] for c in inspector.get_columns("support_tickets")}
+        if "attachments" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE support_tickets ADD COLUMN attachments JSON"))
+                conn.execute(
+                    text("UPDATE support_tickets SET attachments = '[]' WHERE attachments IS NULL")
+                )
+
+    if "reports" in tables:
+        columns = {c["name"] for c in inspector.get_columns("reports")}
+        if "attachments" not in columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE reports ADD COLUMN attachments JSON"))
+                conn.execute(
+                    text("UPDATE reports SET attachments = '[]' WHERE attachments IS NULL")
+                )
+
     if "reviews" in tables:
         columns = {c["name"] for c in inspector.get_columns("reviews")}
         # Avaliação não passa mais por aprovação/rejeição da moderação.

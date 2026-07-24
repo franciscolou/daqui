@@ -229,6 +229,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    borderRadius: 10,
   },
   neighborAvatar: { width: 36, height: 36, borderRadius: 11 },
   neighborInfo: { flex: 1, minWidth: 0 },
