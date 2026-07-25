@@ -13,17 +13,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
-import { useAuth } from '../../lib/auth';
-import { api, ApiError } from '../../lib/api';
 import { submitOnEnter } from '../../lib/keyboard';
 import { goBack } from '../../lib/navigation';
-import { useAvailability, AvailabilityState } from '../../lib/useAvailability';
+import { AvailabilityState } from '../../lib/useAvailability';
+import { useSignupFlow } from '../../lib/useSignupFlow';
 
 const STEPS = ['Conta', 'Verificar', 'Pronto'];
-
-const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
 
 // Indicador de status de disponibilidade (dentro do input).
 function AvailabilityIcon({ state }: { state: AvailabilityState }) {
@@ -36,100 +32,12 @@ function AvailabilityIcon({ state }: { state: AvailabilityState }) {
 export default function SignupScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
-  const { signup, verifyEmailCode, resendVerification } = useAuth();
-
-  const [step, setStep] = useState(0);
-  const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  // Validação em tempo real (formato + disponibilidade) de username e e-mail.
-  const usernameCheck = useAvailability(username, api.checkSignupUsername, {
-    ready: (v) => v.length >= 3,
-  });
-  const emailCheck = useAvailability(email, api.checkSignupEmail, { ready: emailLooksReady });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Verificação do e-mail (código de 6 dígitos, válido por 10min): ticket
-  // identifica essa verificação pendente (devolvido pelo cadastro/reenvio).
-  const [ticket, setTicket] = useState<string | null>(null);
-  const [code, setCode] = useState('');
-  const [resending, setResending] = useState(false);
-  const [resent, setResent] = useState(false);
-
-  // Cria a conta (sem localização — o bairro é configurado depois, em "Meu
-  // bairro"; o usuário entra direto vendo "Perto de mim"). A conta só fica
-  // utilizável depois de confirmar o código enviado por e-mail (step 1).
-  const createAccount = async () => {
-    setError(null);
-    if (!name.trim() || !username.trim() || !email.trim() || !password) {
-      setError('Preencha nome, usuário, e-mail e senha.');
-      return;
-    }
-    if (usernameCheck.status === 'checking' || emailCheck.status === 'checking') {
-      setError('Aguarde a verificação do usuário e do e-mail.');
-      return;
-    }
-    if (usernameCheck.status !== 'ok') {
-      setError(usernameCheck.error ?? 'Escolha um nome de usuário válido e disponível.');
-      return;
-    }
-    if (emailCheck.status !== 'ok') {
-      setError(emailCheck.error ?? 'Informe um e-mail válido e disponível.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const t = await signup({
-        name: name.trim(),
-        username: username.trim(),
-        email: email.trim(),
-        password,
-      });
-      setTicket(t);
-      setCode('');
-      setStep(1);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (submitting || !ticket) return;
-    setError(null);
-    if (code.trim().length < 6) {
-      setError('Digite o código de 6 dígitos que enviamos por e-mail.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await verifyEmailCode(ticket, code.trim());
-      setStep(2);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível verificar o código.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (resending || !ticket) return;
-    setError(null);
-    setResent(false);
-    setResending(true);
-    try {
-      setTicket(await resendVerification(ticket));
-      setCode('');
-      setResent(true);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível reenviar o código.');
-    } finally {
-      setResending(false);
-    }
-  };
+  const {
+    step, setStep, name, setName, username, setUsername, email, setEmail, password, setPassword,
+    showPassword, setShowPassword, usernameCheck, emailCheck, submitting, error,
+    code, onCodeChange, resending, resent,
+    createAccount, handleVerify, handleResend,
+  } = useSignupFlow();
 
   const headerTitle = step === 0 ? 'Crie sua conta' : step === 1 ? 'Confirme seu e-mail' : 'Tudo certo!';
   const headerSubtitle =
@@ -302,7 +210,7 @@ export default function SignupScreen() {
                       placeholder="000000"
                       placeholderTextColor={Colors.textTertiary}
                       value={code}
-                      onChangeText={(t) => { setCode(t.replace(/[^0-9]/g, '').slice(0, 6)); setResent(false); }}
+                      onChangeText={onCodeChange}
                       keyboardType="number-pad"
                       maxLength={6}
                       autoFocus

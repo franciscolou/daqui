@@ -15,11 +15,9 @@ import { submitOnEnter } from '../../lib/keyboard';
 import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
-import { useAuth } from '../../lib/auth';
-import { api, ApiError } from '../../lib/api';
-import { useAvailability, AvailabilityState } from '../../lib/useAvailability';
-
-const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
+import { AvailabilityState } from '../../lib/useAvailability';
+import { useSignupFlow } from '../../lib/useSignupFlow';
+import { useLoginFlow } from '../../lib/useLoginFlow';
 
 // ─── Dados estáticos ────────────────────────────────────────────
 const FEATURES = [
@@ -33,7 +31,9 @@ const POSTS = [
   { color: '#F59E0B', label: 'Recomendação',  text: 'Padaria nova na Harmonia 🥐' },
   { color: '#EC4899', label: 'Pets',  text: 'Gatinha encontrada aqui no…' },
 ];
-const SIGNUP_STEPS = ['Conta', 'Pronto'];
+// Espelha STEPS de app/(auth)/signup.tsx — ambos consomem useSignupFlow, que
+// é a única fonte de verdade pro número/ordem dos passos.
+const SIGNUP_STEPS = ['Conta', 'Verificar', 'Pronto'];
 
 // ─── Bolha decorativa animada ────────────────────────────────────
 // Flutua sozinha (drift suave em X/Y, com fases próprias) e reage ao mouse
@@ -88,28 +88,19 @@ type Panel = 'welcome' | 'login' | 'signup';
 export default function WelcomeScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
-  const { login, verifyLogin2fa, signup } = useAuth();
+  // Lógica de login/cadastro (validação, chamadas de API, ticket de 2FA/
+  // verificação de e-mail) mora inteira nesses hooks — os mesmos usados por
+  // app/(auth)/login.tsx e app/(auth)/signup.tsx. O painel deslizante aqui
+  // embaixo só decide COMO mostrar esse estado no layout desktop; nunca
+  // duplica a regra de negócio (é assim que as duas telas ficam em sync).
+  const signupFlow = useSignupFlow();
+  const loginFlow = useLoginFlow();
 
   // estado do painel esquerdo (só usado no desktop)
   const [panel, setPanel] = useState<Panel>('welcome');
+  // Espelha signupFlow.step só pra animação de slide (ver efeito abaixo);
+  // quem manda no valor real do passo é o hook.
   const [signupStep, setSignupStep] = useState(0);
-  // A2F: quando o login pede segundo fator, guardamos o ticket + código.
-  const [ticket, setTicket] = useState<string | null>(null);
-  const [code, setCode] = useState('');
-
-  // campos de formulário compartilhados
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
-  // Validação em tempo real (formato + disponibilidade) de username e e-mail.
-  const usernameCheck = useAvailability(username, api.checkSignupUsername, {
-    ready: (v) => v.length >= 3,
-  });
-  const emailCheck = useAvailability(email, api.checkSignupEmail, { ready: emailLooksReady });
-  const [submitting, setSubmitting] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   // ── Animação de deslize ──────────────────────────────────────
   // Duas camadas absolutas: exit (sai) + enter (entra)
@@ -175,106 +166,29 @@ export default function WelcomeScreen() {
       (finished) => { if (finished) runOnJS(finishSlide)(); else { animBusy.current = false; } });
   };
 
-  const goTo   = (next: Panel) => { setAuthError(null); slide(next, 0, 'fwd'); };
-  const nextStep = () => slide(panel, signupStep + 1, 'fwd');
+  const goTo = (next: Panel) => {
+    // Garante que reabrir o painel de cadastro sempre comece do passo 0
+    // (evita herdar um passo de uma sessão de cadastro anterior no mesmo
+    // carregamento da tela, o que disparia o efeito de slide abaixo de
+    // forma inesperada).
+    if (next === 'signup' && signupFlow.step !== 0) signupFlow.setStep(0);
+    slide(next, 0, 'fwd');
+  };
   const goBack = () => {
-    setAuthError(null);
-    setTicket(null);
-    setCode('');
-    if (panel === 'signup' && signupStep > 0) slide(panel, signupStep - 1, 'bwd');
+    if (panel === 'signup' && signupFlow.step > 0) signupFlow.goToPreviousStep();
     else slide('welcome', 0, 'bwd');
   };
 
-  const cancel2fa = () => {
-    setAuthError(null);
-    setTicket(null);
-    setCode('');
-  };
-
-  // ── Auth real (painel desktop) ───────────────────────────────
-  const handleLogin = async () => {
-    if (submitting) return;
-    setAuthError(null);
-    if (!email.trim() || !password) {
-      setAuthError('Preencha e-mail e senha.');
-      return;
+  // O passo do cadastro é controlado pelo hook (signupFlow.step, única fonte
+  // de verdade — a mesma usada por app/(auth)/signup.tsx); este efeito só
+  // traduz a mudança de passo na animação de deslize já existente aqui,
+  // sem duplicar nenhuma regra de negócio.
+  useEffect(() => {
+    if (panel === 'signup' && signupFlow.step !== signupStep) {
+      slide('signup', signupFlow.step, signupFlow.step > signupStep ? 'fwd' : 'bwd');
     }
-    setSubmitting(true);
-    try {
-      const result = await login(email.trim(), password);
-      if (result.status === '2fa') {
-        setTicket(result.ticket);
-        setCode('');
-      } else {
-        router.replace('/(tabs)');
-      }
-    } catch (e) {
-      setAuthError(e instanceof ApiError ? e.message : 'Falha ao entrar.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleVerify2fa = async () => {
-    if (submitting) return;
-    setAuthError(null);
-    if (code.trim().length < 6) {
-      setAuthError('Digite o código de 6 dígitos do seu app autenticador.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await verifyLogin2fa(ticket!, code.trim());
-      router.replace('/(tabs)');
-    } catch (e) {
-      setAuthError(e instanceof ApiError ? e.message : 'Não foi possível verificar o código.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // signupStep 0 → cria a conta (sem localização — o bairro é configurado
-  // depois, em "Meu bairro"; o usuário entra direto vendo "Perto de mim").
-  const handleSignupNext = async () => {
-    if (submitting) return;
-    setAuthError(null);
-
-    if (signupStep === 0) {
-      if (!name.trim() || !username.trim() || !email.trim() || !password) {
-        setAuthError('Preencha nome, usuário, e-mail e senha.');
-        return;
-      }
-      if (usernameCheck.status === 'checking' || emailCheck.status === 'checking') {
-        setAuthError('Aguarde a verificação do usuário e do e-mail.');
-        return;
-      }
-      if (usernameCheck.status !== 'ok') {
-        setAuthError(usernameCheck.error ?? 'Escolha um nome de usuário válido e disponível.');
-        return;
-      }
-      if (emailCheck.status !== 'ok') {
-        setAuthError(emailCheck.error ?? 'Informe um e-mail válido e disponível.');
-        return;
-      }
-      setSubmitting(true);
-      try {
-        await signup({
-          name: name.trim(),
-          username: username.trim(),
-          email: email.trim(),
-          password,
-        });
-        nextStep();
-      } catch (e) {
-        setAuthError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
-      } finally {
-        setSubmitting(false);
-      }
-      return;
-    }
-
-    router.replace('/(tabs)');
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signupFlow.step, panel]);
 
   // ── Painel esquerdo: hero ────────────────────────────────────
   const renderHero = () => (
@@ -341,20 +255,24 @@ export default function WelcomeScreen() {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <TouchableOpacity style={styles.backBtn} onPress={ticket ? cancel2fa : goBack}>
+      <TouchableOpacity style={styles.backBtn} onPress={loginFlow.mode !== 'login' ? loginFlow.cancelSecondStep : goBack}>
         <Ionicons name="arrow-back" size={18} color={Colors.textSecondary} />
       </TouchableOpacity>
 
       <View style={styles.formHeader}>
         <Text style={styles.formTitle}>
-          {ticket ? 'Verificação em duas etapas' : 'Bem-vindo de volta'}
+          {loginFlow.mode === '2fa' ? 'Verificação em duas etapas'
+            : loginFlow.mode === 'verify' ? 'Confirme seu e-mail'
+            : 'Bem-vindo de volta'}
         </Text>
         <Text style={styles.formSubtitle}>
-          {ticket ? 'Confirme sua identidade para entrar' : 'Entre na sua conta daqui'}
+          {loginFlow.mode === '2fa' ? 'Confirme sua identidade para entrar'
+            : loginFlow.mode === 'verify' ? 'Enviamos um código de 6 dígitos para você'
+            : 'Entre na sua conta daqui'}
         </Text>
       </View>
 
-      {ticket ? (
+      {loginFlow.mode !== 'login' ? (
         <>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Código de verificação</Text>
@@ -364,31 +282,39 @@ export default function WelcomeScreen() {
                 style={styles.input}
                 placeholder="000000"
                 placeholderTextColor={Colors.textTertiary}
-                value={code}
-                onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                value={loginFlow.code}
+                onChangeText={loginFlow.onCodeChange}
                 keyboardType="number-pad"
                 maxLength={6}
                 autoFocus
-                onKeyPress={submitOnEnter(handleVerify2fa)}
-                onSubmitEditing={handleVerify2fa}
+                onKeyPress={submitOnEnter(loginFlow.handleVerify)}
+                onSubmitEditing={loginFlow.handleVerify}
               />
             </View>
           </View>
 
-          {authError && (
+          {loginFlow.mode === 'verify' && (
+            <TouchableOpacity onPress={loginFlow.handleResend} disabled={loginFlow.resending} style={styles.forgotBtn}>
+              <Text style={styles.forgotText}>
+                {loginFlow.resending ? 'Reenviando…' : loginFlow.resent ? 'Código reenviado ✓' : 'Reenviar código'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {loginFlow.error && (
             <View style={styles.authErrorBox}>
               <Ionicons name="alert-circle" size={16} color={Colors.error} />
-              <Text style={styles.authErrorText}>{authError}</Text>
+              <Text style={styles.authErrorText}>{loginFlow.error}</Text>
             </View>
           )}
 
           <TouchableOpacity
-            style={[styles.btnPrimary, submitting && { opacity: 0.7 }]}
-            onPress={handleVerify2fa}
+            style={[styles.btnPrimary, loginFlow.submitting && { opacity: 0.7 }]}
+            onPress={loginFlow.handleVerify}
             activeOpacity={0.88}
-            disabled={submitting}
+            disabled={loginFlow.submitting}
           >
-            {submitting ? (
+            {loginFlow.submitting ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <>
@@ -408,12 +334,12 @@ export default function WelcomeScreen() {
             style={styles.input}
             placeholder="seu@email.com"
             placeholderTextColor={Colors.textTertiary}
-            value={email}
-            onChangeText={setEmail}
+            value={loginFlow.email}
+            onChangeText={loginFlow.setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            onKeyPress={submitOnEnter(handleLogin)}
-            onSubmitEditing={handleLogin}
+            onKeyPress={submitOnEnter(loginFlow.handleLogin)}
+            onSubmitEditing={loginFlow.handleLogin}
           />
         </View>
       </View>
@@ -426,36 +352,36 @@ export default function WelcomeScreen() {
             style={styles.inputFlex}
             placeholder="Sua senha"
             placeholderTextColor={Colors.textTertiary}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!showPassword}
-            onKeyPress={submitOnEnter(handleLogin)}
-            onSubmitEditing={handleLogin}
+            value={loginFlow.password}
+            onChangeText={loginFlow.setPassword}
+            secureTextEntry={!loginFlow.showPassword}
+            onKeyPress={submitOnEnter(loginFlow.handleLogin)}
+            onSubmitEditing={loginFlow.handleLogin}
           />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-            <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+          <TouchableOpacity onPress={() => loginFlow.setShowPassword(!loginFlow.showPassword)} style={styles.eyeBtn}>
+            <Ionicons name={loginFlow.showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.forgotBtn}>
+      <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/forgot-password')}>
         <Text style={styles.forgotText}>Esqueceu a senha?</Text>
       </TouchableOpacity>
 
-      {authError && (
+      {loginFlow.error && (
         <View style={styles.authErrorBox}>
           <Ionicons name="alert-circle" size={16} color={Colors.error} />
-          <Text style={styles.authErrorText}>{authError}</Text>
+          <Text style={styles.authErrorText}>{loginFlow.error}</Text>
         </View>
       )}
 
       <TouchableOpacity
-        style={[styles.btnPrimary, submitting && { opacity: 0.7 }]}
-        onPress={handleLogin}
+        style={[styles.btnPrimary, loginFlow.submitting && { opacity: 0.7 }]}
+        onPress={loginFlow.handleLogin}
         activeOpacity={0.88}
-        disabled={submitting}
+        disabled={loginFlow.submitting}
       >
-        {submitting ? (
+        {loginFlow.submitting ? (
           <ActivityIndicator color="#fff" />
         ) : (
           <>
@@ -525,10 +451,12 @@ export default function WelcomeScreen() {
 
       <View style={styles.formHeader}>
         <Text style={styles.formTitle}>
-          {step === 0 ? 'Crie sua conta' : 'Tudo certo!'}
+          {step === 0 ? 'Crie sua conta' : step === 1 ? 'Confirme seu e-mail' : 'Tudo certo!'}
         </Text>
         <Text style={styles.formSubtitle}>
-          {step === 0 ? 'Junte-se a milhares de vizinhos' : 'Sua conta foi criada com sucesso'}
+          {step === 0 ? 'Junte-se a milhares de vizinhos'
+            : step === 1 ? 'Enviamos um código de 6 dígitos para você'
+            : 'Sua conta foi criada com sucesso'}
         </Text>
       </View>
 
@@ -538,42 +466,79 @@ export default function WelcomeScreen() {
             <Text style={styles.label}>Nome completo</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="person-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Seu nome" placeholderTextColor={Colors.textTertiary} value={name} onChangeText={setName} autoCapitalize="words" onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
+              <TextInput style={styles.input} placeholder="Seu nome" placeholderTextColor={Colors.textTertiary} value={signupFlow.name} onChangeText={signupFlow.setName} autoCapitalize="words" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
             </View>
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nome de usuário</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="at-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="seu.usuario" placeholderTextColor={Colors.textTertiary} value={username} onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))} autoCapitalize="none" autoCorrect={false} maxLength={18} onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
-              <AvailabilityIcon state={usernameCheck} />
+              <TextInput style={styles.input} placeholder="seu.usuario" placeholderTextColor={Colors.textTertiary} value={signupFlow.username} onChangeText={(v) => signupFlow.setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))} autoCapitalize="none" autoCorrect={false} maxLength={18} onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <AvailabilityIcon state={signupFlow.usernameCheck} />
             </View>
-            {usernameCheck.status === 'error' && !!usernameCheck.error && (
-              <Text style={styles.fieldError}>{usernameCheck.error}</Text>
+            {signupFlow.usernameCheck.status === 'error' && !!signupFlow.usernameCheck.error && (
+              <Text style={styles.fieldError}>{signupFlow.usernameCheck.error}</Text>
             )}
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>E-mail</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={Colors.textTertiary} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
-              <AvailabilityIcon state={emailCheck} />
+              <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={Colors.textTertiary} value={signupFlow.email} onChangeText={signupFlow.setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <AvailabilityIcon state={signupFlow.emailCheck} />
             </View>
-            {emailCheck.status === 'error' && !!emailCheck.error && (
-              <Text style={styles.fieldError}>{emailCheck.error}</Text>
+            {signupFlow.emailCheck.status === 'error' && !!signupFlow.emailCheck.error && (
+              <Text style={styles.fieldError}>{signupFlow.emailCheck.error}</Text>
             )}
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Senha</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor={Colors.textTertiary} value={password} onChangeText={setPassword} secureTextEntry onKeyPress={submitOnEnter(handleSignupNext)} onSubmitEditing={handleSignupNext} />
+              <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor={Colors.textTertiary} value={signupFlow.password} onChangeText={signupFlow.setPassword} secureTextEntry onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
             </View>
           </View>
         </>
       )}
 
       {step === 1 && (
+        <View>
+          <View style={styles.twoFaIntro}>
+            <Ionicons name="mail-open-outline" size={22} color={Colors.primary} />
+            <Text style={styles.twoFaText}>
+              Enviamos um código de 6 dígitos para <Text style={{ fontWeight: '700' }}>{signupFlow.email.trim()}</Text>.
+              Ele vale por 10 minutos.
+            </Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Código de verificação</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="000000"
+                placeholderTextColor={Colors.textTertiary}
+                value={signupFlow.code}
+                onChangeText={signupFlow.onCodeChange}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+                onKeyPress={submitOnEnter(signupFlow.handleVerify)}
+                onSubmitEditing={signupFlow.handleVerify}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity onPress={signupFlow.handleResend} disabled={signupFlow.resending} style={styles.switchRow}>
+            <Text style={styles.switchLink}>
+              {signupFlow.resending ? 'Reenviando…' : signupFlow.resent ? 'Código reenviado ✓' : 'Reenviar código'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {step === 2 && (
         <View style={styles.successArea}>
           <LinearGradient colors={Colors.gradient.primary} style={styles.successIcon}>
             <Ionicons name="checkmark" size={32} color="#fff" />
@@ -586,21 +551,24 @@ export default function WelcomeScreen() {
         </View>
       )}
 
-      {authError && step === 0 && (
+      {signupFlow.error && (
         <View style={[styles.authErrorBox, { marginTop: 12 }]}>
           <Ionicons name="alert-circle" size={16} color={Colors.error} />
-          <Text style={styles.authErrorText}>{authError}</Text>
+          <Text style={styles.authErrorText}>{signupFlow.error}</Text>
         </View>
       )}
 
       {(() => {
-        const busy = submitting;
-        const label = step === 0 ? 'Continuar' : 'Começar a usar o Daqui';
-        const icon = step === 0 ? 'arrow-forward' : 'navigate';
+        const busy = signupFlow.submitting;
+        const label = step === 0 ? 'Continuar' : step === 1 ? 'Verificar' : 'Começar a usar o Daqui';
+        const icon = step === 2 ? 'navigate' : 'arrow-forward';
+        const onPress = step === 0 ? signupFlow.createAccount
+          : step === 1 ? signupFlow.handleVerify
+          : () => router.replace('/(tabs)');
         return (
           <TouchableOpacity
             style={[styles.btnPrimary, { marginTop: 16 }, busy && { opacity: 0.7 }]}
-            onPress={handleSignupNext}
+            onPress={onPress}
             activeOpacity={0.88}
             disabled={busy}
           >
@@ -821,7 +789,7 @@ const styles = StyleSheet.create({
   socialRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
   socialBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: Colors.surface, borderRadius: 12, paddingVertical: 13, borderWidth: 1.5, borderColor: Colors.border },
   socialText: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  switchRow: { flexDirection: 'row', justifyContent: 'center' },
+  switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
   switchText: { fontSize: 14, color: Colors.textSecondary },
   switchLink: { fontSize: 14, color: Colors.primaryDark, fontWeight: '700' },
 
@@ -837,6 +805,10 @@ const styles = StyleSheet.create({
   stepLabelActive: { color: Colors.text },
   stepLine: { width: 20, height: 1.5, backgroundColor: Colors.border, marginHorizontal: 4 },
   stepLineActive: { backgroundColor: Colors.primary },
+
+  // Verificação de e-mail (signup step 1 / login mode "verify")
+  twoFaIntro: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: Colors.primaryFaint, borderRadius: 12, padding: 14, marginBottom: 20 },
+  twoFaText: { flex: 1, fontSize: 13, color: Colors.primaryDark, lineHeight: 18 },
 
   infoBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: Colors.primaryFaint, borderRadius: 14, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: Colors.primaryLight },
   infoIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
