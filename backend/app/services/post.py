@@ -60,8 +60,13 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
         post_dao.count_quotes_by_author(db, post.id, viewer.id) > 0
     )
     # Morador: o bairro atual do autor ainda é o mesmo em que o post foi publicado
-    # (se o autor mudar de bairro depois, o selo some dos posts antigos).
-    author_is_resident = bool(post.neighborhood) and post.author.neighborhood == post.neighborhood
+    # (se o autor mudar de bairro depois, o selo some dos posts antigos). Autor
+    # pode desativar o selo por completo em "Ocultar selo de morador".
+    author_is_resident = (
+        not post.author.hide_resident_badge
+        and bool(post.neighborhood)
+        and post.author.neighborhood == post.neighborhood
+    )
     return PostOut(
         id=post.id,
         category=post.category,
@@ -341,6 +346,24 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
     mentions.notify_mentions(
         db, user, f"{post.title or ''} {post.content or ''}", post.id, post.content or post.title or ""
     )
+
+    # Aviso do bairro: post de categoria aviso/segurança notifica todos os vizinhos.
+    if post.category in (PostCategory.AVISO, PostCategory.SEGURANCA):
+        preview = (post.content or post.title or "")[:200]
+        neighbors = user_dao.get_neighbors(db, user.neighborhood, exclude_id=user.id, limit=10_000)
+        for neighbor in neighbors:
+            notification_service.notify(
+                db,
+                user_id=neighbor.id,
+                type_=NotificationType.NEIGHBORHOOD_ALERT,
+                content=f"novo aviso em {user.neighborhood}",
+                target_text=preview,
+                post_id=post.id,
+                actor_id=user.id,
+                push_title=f"Aviso em {user.neighborhood}",
+                push_body=preview or "Novo aviso no seu bairro",
+            )
+
     return _to_schema(post, user, db)
 
 
@@ -469,6 +492,18 @@ def toggle_like(db: Session, post_id: int, user: User) -> PostOut:
     else:
         post_dao.add_like(db, post_id, user.id)
         post.likes_count += 1
+        if post.author_id != user.id:
+            notification_service.notify(
+                db,
+                user_id=post.author_id,
+                type_=NotificationType.LIKE_POST,
+                content="curtiu seu post",
+                target_text=(post.content or post.title or "")[:200],
+                post_id=post.id,
+                actor_id=user.id,
+                push_title=f"{user.name} curtiu seu post",
+                push_body=(post.content or post.title or "")[:200] or "curtiu seu post",
+            )
 
     db.commit()
     db.refresh(post)

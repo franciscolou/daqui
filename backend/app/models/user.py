@@ -57,6 +57,16 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    # Privacidade (tela Configurações > Privacidade e segurança).
+    show_location: Mapped[bool] = mapped_column(Boolean, default=True)
+    searchable: Mapped[bool] = mapped_column(Boolean, default=True)
+    hide_resident_badge: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Preferências de notificação (Configurações > Notificações > No aplicativo).
+    # Menções e avisos de moderação sempre notificam, independente destas.
+    notify_likes: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_comments: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_messages: Mapped[bool] = mapped_column(Boolean, default=True)
+    notify_neighborhood_alerts: Mapped[bool] = mapped_column(Boolean, default=True)
 
     @property
     def two_factor_enabled(self) -> bool:

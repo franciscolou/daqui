@@ -10,9 +10,12 @@ import {
   ActivityIndicator,
   useWindowDimensions,
   Platform,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import QRCode from 'react-native-qrcode-svg';
@@ -174,12 +177,12 @@ function EditProfilePanel() {
   const [username, setUsername] = useState(user?.username ?? '');
   const [name, setName] = useState(user?.name ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
-  const [neighborhood, setNeighborhood] = useState(user?.neighborhood ?? '');
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
   const [uStatus, setUStatus] = useState<UsernameStatus>('idle');
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const [changeNeighborhoodOpen, setChangeNeighborhoodOpen] = useState(false);
 
   // Validação dinâmica do nome de usuário (formato local + disponibilidade no servidor, com debounce).
   useEffect(() => {
@@ -281,7 +284,6 @@ function EditProfilePanel() {
         username: uname,
         name: name.trim(),
         bio: bio.trim(),
-        neighborhood: neighborhood.trim(),
       });
       await refresh();
       setUsername(uname);
@@ -370,7 +372,18 @@ function EditProfilePanel() {
         hint="Pode ter espaços, acentos e emojis. Não precisa ser único."
       />
       <Field label="Bio" value={bio} onChangeText={setBio} placeholder="Fale um pouco sobre você" multiline />
-      <Field label="Bairro" value={neighborhood} onChangeText={setNeighborhood} placeholder="Seu bairro" />
+      <View style={styles.bairroRow}>
+        <View style={styles.bairroFieldWrap}>
+          <Field label="Bairro" value={user?.neighborhood ?? ''} onChangeText={() => {}} placeholder="Seu bairro" editable={false} />
+        </View>
+        <TouchableOpacity
+          style={styles.changeNeighborhoodBtn}
+          activeOpacity={0.8}
+          onPress={() => setChangeNeighborhoodOpen(true)}
+        >
+          <Text style={styles.changeNeighborhoodBtnText}>Alterar</Text>
+        </TouchableOpacity>
+      </View>
 
       {feedback && (
         <Text style={[styles.feedback, feedback.ok ? styles.feedbackOk : styles.feedbackErr]}>
@@ -386,18 +399,59 @@ function EditProfilePanel() {
       >
         {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Salvar alterações</Text>}
       </TouchableOpacity>
+
+      <ChangeNeighborhoodModal
+        visible={changeNeighborhoodOpen}
+        onClose={() => setChangeNeighborhoodOpen(false)}
+      />
     </View>
   );
 }
 
 function PrivacyPanel() {
   const styles = useThemedStyles(makeStyles);
+  const { user, refresh } = useAuth();
+  const [showLocation, setShowLocation] = useState(user?.showLocation ?? true);
+  const [searchable, setSearchable] = useState(user?.searchable ?? true);
+  const [hideResidentBadge, setHideResidentBadge] = useState(user?.hideResidentBadge ?? false);
+
+  const savePref = (
+    payload: Parameters<typeof api.updateProfile>[0],
+    revert: () => void,
+  ) => {
+    api.updateProfile(payload).then(() => refresh()).catch(() => revert());
+  };
+
   return (
     <View style={styles.panelGroup}>
       <SectionTitle>Visibilidade</SectionTitle>
-      <ToggleRow label="Perfil privado" desc="Só vizinhos aprovados veem seus posts" defaultValue={false} />
-      <ToggleRow label="Mostrar localização aproximada" desc="Exibe seu bairro no perfil" defaultValue />
-      <ToggleRow label="Aparecer em buscas" desc="Permite que vizinhos encontrem seu perfil" defaultValue />
+      <ToggleRow
+        label="Mostrar localização aproximada"
+        desc="Exibe seu bairro no perfil"
+        value={showLocation}
+        onValueChange={(v) => {
+          setShowLocation(v);
+          savePref({ show_location: v }, () => setShowLocation(!v));
+        }}
+      />
+      <ToggleRow
+        label="Aparecer em buscas"
+        desc="Permite que vizinhos encontrem seu perfil"
+        value={searchable}
+        onValueChange={(v) => {
+          setSearchable(v);
+          savePref({ searchable: v }, () => setSearchable(!v));
+        }}
+      />
+      <ToggleRow
+        label="Ocultar selo de morador"
+        desc="Não mostra o selo de Morador nos seus posts e comentários"
+        value={hideResidentBadge}
+        onValueChange={(v) => {
+          setHideResidentBadge(v);
+          savePref({ hide_resident_badge: v }, () => setHideResidentBadge(!v));
+        }}
+      />
 
       <SectionTitle>Segurança</SectionTitle>
       <TwoFactorSection />
@@ -839,7 +893,14 @@ const PUSH_ENABLED_KEY = 'daqui.pushEnabled';
 
 function NotificationsPanel() {
   const styles = useThemedStyles(makeStyles);
+  const { user, refresh } = useAuth();
   const [pushEnabled, setPushEnabled] = useState(true);
+  const [notifyLikes, setNotifyLikes] = useState(user?.notifyLikes ?? true);
+  const [notifyComments, setNotifyComments] = useState(user?.notifyComments ?? true);
+  const [notifyMessages, setNotifyMessages] = useState(user?.notifyMessages ?? true);
+  const [notifyNeighborhoodAlerts, setNotifyNeighborhoodAlerts] = useState(
+    user?.notifyNeighborhoodAlerts ?? true,
+  );
 
   useEffect(() => {
     getItem(PUSH_ENABLED_KEY).then((v) => {
@@ -854,6 +915,13 @@ function NotificationsPanel() {
     else unregisterPushToken();
   };
 
+  const savePref = (
+    payload: Parameters<typeof api.updateProfile>[0],
+    revert: () => void,
+  ) => {
+    api.updateProfile(payload).then(() => refresh()).catch(() => revert());
+  };
+
   return (
     <View style={styles.panelGroup}>
       <SectionTitle>Push</SectionTitle>
@@ -865,14 +933,43 @@ function NotificationsPanel() {
       />
 
       <SectionTitle>No aplicativo</SectionTitle>
-      <ToggleRow label="Curtidas" desc="Quando curtirem seus posts" defaultValue />
-      <ToggleRow label="Comentários" desc="Respostas e menções" defaultValue />
-      <ToggleRow label="Mensagens" desc="Novas conversas e respostas" defaultValue />
+      <ToggleRow
+        label="Curtidas"
+        desc="Quando curtirem seus posts"
+        value={notifyLikes}
+        onValueChange={(v) => {
+          setNotifyLikes(v);
+          savePref({ notify_likes: v }, () => setNotifyLikes(!v));
+        }}
+      />
+      <ToggleRow
+        label="Comentários"
+        desc="Quando comentarem no seu post"
+        value={notifyComments}
+        onValueChange={(v) => {
+          setNotifyComments(v);
+          savePref({ notify_comments: v }, () => setNotifyComments(!v));
+        }}
+      />
+      <ToggleRow
+        label="Mensagens"
+        desc="Novas conversas e respostas"
+        value={notifyMessages}
+        onValueChange={(v) => {
+          setNotifyMessages(v);
+          savePref({ notify_messages: v }, () => setNotifyMessages(!v));
+        }}
+      />
       <ToggleRow label="Novos vizinhos" desc="Quando alguém entra no seu bairro" defaultValue={false} />
-      <ToggleRow label="Avisos do bairro" desc="Alertas de segurança e eventos" defaultValue />
-
-      <SectionTitle>Por email</SectionTitle>
-      <ToggleRow label="Resumo semanal" desc="O que rolou no seu bairro" defaultValue={false} />
+      <ToggleRow
+        label="Avisos do bairro"
+        desc="Alertas de segurança e eventos"
+        value={notifyNeighborhoodAlerts}
+        onValueChange={(v) => {
+          setNotifyNeighborhoodAlerts(v);
+          savePref({ notify_neighborhood_alerts: v }, () => setNotifyNeighborhoodAlerts(!v));
+        }}
+      />
     </View>
   );
 }
@@ -1030,6 +1127,75 @@ function VisualSaveButton({ disabled = false }: { disabled?: boolean }) {
     >
       <Text style={styles.saveBtnText}>Salvar alterações</Text>
     </TouchableOpacity>
+  );
+}
+
+/**
+ * Confirmação de "Alterar bairro de moradia": avisa que atestar morar num
+ * bairro que não é o seu pode suspender a conta (ver Termos de Uso, seção 4)
+ * antes de zerar o bairro cadastrado e mandar o usuário de volta pro fluxo
+ * de configuração de bairro (feed > "Meu bairro", que detecta de novo por GPS).
+ */
+function ChangeNeighborhoodModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const styles = useThemedStyles(makeStyles);
+  const Colors = useTheme();
+  const { refresh } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const confirm = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.updateProfile({ neighborhood: '' });
+      await refresh();
+      onClose();
+      router.replace({ pathname: '/(tabs)', params: { view: 'meu' } } as any);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível iniciar a troca de bairro.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.confirmOverlay} onPress={busy ? undefined : onClose} tabIndex={-1}>
+        <Pressable style={styles.confirmCard} onPress={() => {}} tabIndex={-1}>
+          <View style={styles.confirmIconWrap}>
+            <Ionicons name="alert-circle-outline" size={24} color={Colors.error} />
+          </View>
+          <Text style={styles.confirmTitle}>Alterar bairro de moradia</Text>
+          <Text style={styles.confirmText}>
+            Você será levado de volta à configuração de bairro, que detecta sua localização
+            atual por GPS.
+          </Text>
+          <View style={styles.confirmWarningBox}>
+            <Ionicons name="warning-outline" size={16} color={Colors.error} />
+            <Text style={styles.confirmWarningText}>
+              Configurar seu bairro de moradia onde você não mora é uma violação dos Termos de Uso e 
+              implica na suspensão da sua conta.
+            </Text>
+          </View>
+          {error && (
+            <Text style={[styles.feedback, styles.feedbackErr]}>{error}</Text>
+          )}
+          <View style={styles.confirmBtnRow}>
+            <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8} onPress={onClose} disabled={busy}>
+              <Text style={styles.secondaryBtnText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.twoFaPrimaryBtn, busy && styles.saveBtnDisabled]}
+              activeOpacity={0.85}
+              onPress={confirm}
+              disabled={busy}
+            >
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Entendi, continuar</Text>}
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -1193,6 +1359,58 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderColor: Colors.surface,
   },
   coverEditSpacer: { height: 40 },
+  bairroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  bairroFieldWrap: { flex: 1, minWidth: 0 },
+  changeNeighborhoodBtn: {
+    marginBottom: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  changeNeighborhoodBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  // Modal de confirmação de "Alterar bairro de moradia"
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  confirmCard: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 22,
+    ...Colors.shadow.lg,
+  },
+  confirmIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.error + '15',
+    marginBottom: 14,
+  },
+  confirmTitle: { fontSize: 17, fontWeight: '800', color: Colors.text, marginBottom: 8 },
+  confirmText: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 8 },
+  confirmWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: Colors.error + '12',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 18,
+  },
+  confirmWarningText: { flex: 1, fontSize: 13, color: Colors.error, lineHeight: 18, fontWeight: '500' },
+  confirmBtnRow: { flexDirection: 'row', gap: 10 },
   secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',

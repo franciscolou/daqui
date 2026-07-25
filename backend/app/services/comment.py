@@ -29,7 +29,11 @@ def _to_schema(
 ) -> CommentOut:
     # Morador: o bairro atual do autor é o mesmo do post comentado (mesma regra do post).
     post_neighborhood = comment.post.neighborhood if comment.post else ""
-    author_is_resident = bool(post_neighborhood) and comment.author.neighborhood == post_neighborhood
+    author_is_resident = (
+        not comment.author.hide_resident_badge
+        and bool(post_neighborhood)
+        and comment.author.neighborhood == post_neighborhood
+    )
     return CommentOut(
         id=comment.id,
         post_id=comment.post_id,
@@ -93,6 +97,19 @@ def create(db: Session, post_id: int, user: User, payload: CommentCreate) -> Com
     user.comments_count = comment_dao.count_by_author(db, user.id)
     db.commit()
     db.refresh(comment)
+
+    if post.author_id != user.id:
+        notification_service.notify(
+            db,
+            user_id=post.author_id,
+            type_=NotificationType.COMMENT,
+            content="comentou no seu post",
+            target_text=content[:200],
+            post_id=post_id,
+            actor_id=user.id,
+            push_title=f"{user.name} comentou no seu post",
+            push_body=content[:200],
+        )
 
     # Notifica @menções no comentário (leva pro post ao tocar na novidade).
     mentions.notify_mentions(db, user, content, post_id, content)

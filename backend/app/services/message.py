@@ -128,7 +128,7 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         payload.reply_to_id,
         shared_comment_id=payload.shared_comment_id,
     )
-    if not mute_service.get_dm_status(db, receiver, user.id).is_muted:
+    if receiver.notify_messages and not mute_service.get_dm_status(db, receiver, user.id).is_muted:
         push_service.notify_user(
             db,
             receiver.id,

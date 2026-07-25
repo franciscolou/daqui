@@ -23,8 +23,13 @@ from app.services import audit_log as audit_log_service
 
 def public_view(viewer: User, target: User) -> UserPublic:
     """Serializa um usuário. Qualquer usuário pode ver o perfil completo de
-    qualquer bairro — o isolamento fica só no feed."""
-    return UserPublic.model_validate(target)
+    qualquer bairro — o isolamento fica só no feed. Se o alvo desativou
+    "Mostrar localização aproximada" e quem vê não é ele mesmo, o bairro
+    não é exposto."""
+    view = UserPublic.model_validate(target)
+    if viewer.id != target.id and not target.show_location:
+        view.neighborhood = ""
+    return view
 
 
 def get_neighbors(db: Session, user: User) -> list[User]:

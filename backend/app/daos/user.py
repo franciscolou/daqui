@@ -75,7 +75,10 @@ def search(db: Session, query: str, limit: int = 30) -> list[User]:
     like = f"%{query}%"
     return (
         db.query(User)
-        .filter(or_(User.name.ilike(like), User.username.ilike(like)))
+        .filter(
+            or_(User.name.ilike(like), User.username.ilike(like)),
+            User.searchable.is_(True),
+        )
         .order_by(desc(User.posts_count + User.comments_count))
         .limit(limit)
         .all()

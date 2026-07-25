@@ -40,7 +40,7 @@ export default function RateForm({ form, compact = false }: { form: RateFormStat
       </View>
       <Text style={styles.title}>Como está sendo sua experiência?</Text>
       <Text style={styles.subtitle}>
-        Sua opinião ajuda a melhorar o Daqui para todo o bairro.
+        Sua opinião ajuda a melhorar o Daqui para todo mundo.
       </Text>
 
       <View style={styles.starsWrap}>

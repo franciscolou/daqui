@@ -75,6 +75,22 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE users ADD COLUMN verification_code_expires_at DATETIME"))
             if "cover_url" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN cover_url VARCHAR(500)"))
+            if "show_location" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN show_location BOOLEAN DEFAULT 1 NOT NULL"))
+            if "searchable" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN searchable BOOLEAN DEFAULT 1 NOT NULL"))
+            if "hide_resident_badge" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN hide_resident_badge BOOLEAN DEFAULT 0 NOT NULL"))
+            if "notify_likes" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN notify_likes BOOLEAN DEFAULT 1 NOT NULL"))
+            if "notify_comments" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN notify_comments BOOLEAN DEFAULT 1 NOT NULL"))
+            if "notify_messages" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN notify_messages BOOLEAN DEFAULT 1 NOT NULL"))
+            if "notify_neighborhood_alerts" not in columns:
+                conn.execute(
+                    text("ALTER TABLE users ADD COLUMN notify_neighborhood_alerts BOOLEAN DEFAULT 1 NOT NULL")
+                )
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}

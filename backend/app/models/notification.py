@@ -9,9 +9,9 @@ from app.database import Base
 
 
 class NotificationType(StrEnum):
-    """Tipos de notificação ("novidade"). LIKE_POST/LIKE_COMMENT/COMMENT/FOLLOW
-    e WELCOME não são gerados por nenhum fluxo atual do backend (só aparecem
-    em dados de seed) mas seguem reconhecidos pelo frontend
+    """Tipos de notificação ("novidade"). LIKE_COMMENT/FOLLOW/WELCOME/EVENT
+    não são gerados por nenhum fluxo atual do backend (só aparecem em dados
+    de seed) mas seguem reconhecidos pelo frontend
     (`constants/notifications.ts::NOTIF_ICONS`)."""
 
     LIKE_POST = "like_post"
@@ -25,6 +25,8 @@ class NotificationType(StrEnum):
     COMMENT_REMOVED = "comment_removed"
     # Menção: alguém citou @usuario num post ou comentário.
     MENTION = "mention"
+    # Aviso do bairro: post novo em categoria "aviso"/"segurança" no seu bairro.
+    NEIGHBORHOOD_ALERT = "neighborhood_alert"
 
 
 MODERATION_NOTICE_TYPES = (NotificationType.POST_REMOVED, NotificationType.COMMENT_REMOVED)

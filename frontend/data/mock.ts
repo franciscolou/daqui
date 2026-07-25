@@ -50,6 +50,14 @@ export interface User {
   twoFactorEnabled?: boolean; // só presente em /auth/me (conta do próprio usuário)
   pendingNotice?: string;     // aviso de moderação (post/comentário removido), só em /auth/me
   email?: string;             // só presente em /auth/me — usado p/ escopar "Meus anúncios" no ads-backend
+  // Privacidade e preferências de notificação — só presentes em /auth/me (tela Configurações).
+  showLocation?: boolean;
+  searchable?: boolean;
+  hideResidentBadge?: boolean;
+  notifyLikes?: boolean;
+  notifyComments?: boolean;
+  notifyMessages?: boolean;
+  notifyNeighborhoodAlerts?: boolean;
 }
 
 export interface PostMedia {

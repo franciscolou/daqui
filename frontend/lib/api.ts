@@ -185,6 +185,13 @@ interface BackendUser {
   email?: string;
   two_factor_enabled?: boolean;
   pending_notice?: string | null;
+  show_location?: boolean;
+  searchable?: boolean;
+  hide_resident_badge?: boolean;
+  notify_likes?: boolean;
+  notify_comments?: boolean;
+  notify_messages?: boolean;
+  notify_neighborhood_alerts?: boolean;
 }
 
 interface BackendPollOption {
@@ -666,6 +673,13 @@ export function mapUser(u: BackendUser): User {
     twoFactorEnabled: u.two_factor_enabled,
     pendingNotice: u.pending_notice ?? undefined,
     email: u.email ?? undefined,
+    showLocation: u.show_location,
+    searchable: u.searchable,
+    hideResidentBadge: u.hide_resident_badge,
+    notifyLikes: u.notify_likes,
+    notifyComments: u.notify_comments,
+    notifyMessages: u.notify_messages,
+    notifyNeighborhoodAlerts: u.notify_neighborhood_alerts,
   };
 }
 
@@ -1039,6 +1053,13 @@ export const api = {
     state?: string;
     latitude?: number;
     longitude?: number;
+    show_location?: boolean;
+    searchable?: boolean;
+    hide_resident_badge?: boolean;
+    notify_likes?: boolean;
+    notify_comments?: boolean;
+    notify_messages?: boolean;
+    notify_neighborhood_alerts?: boolean;
   }): Promise<User> {
     return mapUser(
       await request<BackendUser>('/users/me', { method: 'PATCH', body: payload }),

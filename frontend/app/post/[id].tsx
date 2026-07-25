@@ -622,7 +622,7 @@ export default function PostDetailScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 16 }}
             ListEmptyComponent={
-              <Text style={styles.noComments}>Seja o primeiro a comentar 💬</Text>
+              <Text style={styles.noComments}>Nenhum comentário ainda.</Text>
             }
             renderItem={({ item }) => renderComment(item, 0)}
           />
@@ -646,7 +646,7 @@ export default function PostDetailScreen() {
               containerStyle={styles.composerInputWrap}
               style={[styles.composerInput, styles.composerInputInner]}
               dropdownDirection="up"
-              placeholder={replyingTo ? `Responder a ${replyingTo.author.name}...` : 'Escreva um comentário... use @ para mencionar'}
+              placeholder={replyingTo ? `Responder a ${replyingTo.author.name}...` : 'Escreva um comentário...'}
               placeholderTextColor={Colors.textTertiary}
               value={text}
               onChangeText={setText}

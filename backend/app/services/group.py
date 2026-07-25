@@ -356,6 +356,8 @@ def send_message(
     for other_member in group_dao.list_members(db, group.id):
         if other_member.user_id == user.id:
             continue
+        if not other_member.user.notify_messages:
+            continue
         if mute_service.get_group_status(db, other_member.user_id, group.id).is_muted:
             continue
         push_service.notify_user(

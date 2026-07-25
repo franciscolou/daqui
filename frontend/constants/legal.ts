@@ -2,7 +2,7 @@
 // Mantido separado das telas (app/legal/*) pro mesmo padrão de data/mock.ts —
 // tela só renderiza, conteúdo vive aqui.
 
-export const LEGAL_UPDATED_AT = '24 de julho de 2026';
+export const LEGAL_UPDATED_AT = '25 de julho de 2026';
 export const LEGAL_CONTACT_EMAIL = 'franciscogardenberg@gmail.com';
 
 export type LegalBlock =
@@ -49,6 +49,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
     blocks: [
       p('O bairro exibido no seu perfil é o do seu cadastro. A localização usada em "Perto de mim" e no mapa serve para mostrar o feed do bairro mais próximo e posicionar avisos e eventos. Seu endereço exato nunca é exibido a outros usuários, apenas o nome do bairro.'),
       p('O selo "Morador" identifica quem mora de fato no bairro de um post ou comentário, diferenciando de quem só está vendo aquele bairro por "Perto de mim" ou "Incluir redondezas".'),
+      p('O bairro cadastrado como "Meu bairro" deve ser onde você realmente mora. Você pode optar por esconder o selo de morador em Privacidade e segurança > Ocultar selo de morador.Ao configurá-lo ou alterá-lo (em Configurações > Editar perfil > Bairro > Alterar), você atesta a veracidade dessa informação. Configurar sua residência em um bairro onde você não mora configura-se como uma violação da organização do aplicativo e acarreta em suspensão da sua conta.'),
     ],
   },
   {

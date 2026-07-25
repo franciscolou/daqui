@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, Image, Modal, Pressable, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { CATEGORY_ICONS, CATEGORY_LABELS, PostCategory } from '../data/mock';
@@ -77,7 +78,8 @@ export default function RemovedContentModal({
               <View style={styles.noticeBox}>
                 <Ionicons name="information-circle-outline" size={15} color={Colors.textTertiary} />
                 <Text style={styles.noticeText}>
-                  Este conteúdo foi removido pela moderação e não está mais disponível no app. Consulte a seção 5 dos Termos de Uso.
+                  Este conteúdo foi removido pela moderação e não está mais disponível no app. Consulte a seção 5 dos{' '}
+                  <Text style={styles.noticeLink} onPress={() => { onClose(); router.push('/legal/terms'); }}>Termos de Uso</Text>.
                 </Text>
               </View>
             </View>
@@ -141,4 +143,5 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     marginTop: 16,
   },
   noticeText: { flex: 1, fontSize: 12, color: Colors.textSecondary, lineHeight: 17 },
+  noticeLink: { textDecorationLine: 'underline' },
 });

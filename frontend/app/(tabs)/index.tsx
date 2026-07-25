@@ -15,7 +15,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
@@ -46,6 +46,7 @@ export default function FeedScreen() {
   const { user } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { view: requestedView } = useLocalSearchParams<{ view?: string }>();
 
   const [activeCategory, setActiveCategory] = useState<FilterKey>('todos');
   const [importantOnly, setImportantOnly] = useState(false);
@@ -270,6 +271,18 @@ export default function FeedScreen() {
     setViewMode(mode);
     if (mode === 'perto') fetchPertoLocation();
   }, [viewMode, fetchPertoLocation, contentX, contentOpacity, indicator]);
+
+  // Redirecionamento de "Alterar bairro de moradia" (Configurações > Editar
+  // perfil): chega aqui com ?view=meu pra cair direto na aba "Meu bairro",
+  // que mostra o HomeNeighborhoodSetup assim que o bairro estiver vazio.
+  useFocusEffect(
+    useCallback(() => {
+      if (requestedView === 'meu') {
+        switchView('meu');
+        router.setParams({ view: undefined });
+      }
+    }, [requestedView, switchView]),
+  );
 
   const onIncludeNearbyChange = useCallback(
     (value: boolean) => {

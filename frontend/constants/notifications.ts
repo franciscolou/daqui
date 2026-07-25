@@ -9,6 +9,7 @@ export const NOTIF_ICONS: Record<string, { icon: string; bg: string; color: stri
   follow: { icon: 'person-add', bg: Colors.primaryFaint, color: Colors.primary },
   post_removed: { icon: 'trash-outline', bg: '#FEE2E2', color: Colors.error },
   comment_removed: { icon: 'trash-outline', bg: '#FEE2E2', color: Colors.error },
+  neighborhood_alert: { icon: 'megaphone', bg: Colors.indigoLight, color: Colors.indigo },
   // Fallback para tipos antigos/desconhecidos
   welcome: { icon: 'sparkles', bg: Colors.accentLight, color: Colors.accent },
   ad: { icon: 'megaphone', bg: Colors.accentLight, color: Colors.accent },

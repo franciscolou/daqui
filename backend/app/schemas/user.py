@@ -40,6 +40,14 @@ class UserMe(UserPublic):
     # Aviso de moderação pendente (post/comentário removido) — não persistido no
     # modelo, computado e "consumido" (marcado como lido) a cada /auth/me.
     pending_notice: str | None = None
+    # Privacidade e preferências de notificação (só visíveis para o próprio usuário).
+    show_location: bool = True
+    searchable: bool = True
+    hide_resident_badge: bool = False
+    notify_likes: bool = True
+    notify_comments: bool = True
+    notify_messages: bool = True
+    notify_neighborhood_alerts: bool = True
 
 
 class UserAdminOut(UserPublic):
@@ -86,6 +94,13 @@ class UserUpdate(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     avatar_url: str | None = None
+    show_location: bool | None = None
+    searchable: bool | None = None
+    hide_resident_badge: bool | None = None
+    notify_likes: bool | None = None
+    notify_comments: bool | None = None
+    notify_messages: bool | None = None
+    notify_neighborhood_alerts: bool | None = None
 
     @field_validator("username")
     @classmethod

@@ -10,6 +10,15 @@ from app.models.notification import (
 from app.models.user import User
 from app.services import push as push_service
 
+# Tipos cobertos por uma preferência do destinatário (Configurações > Notificações
+# > No aplicativo). Menções e avisos de moderação não entram aqui — sempre notificam.
+_PREFERENCE_BY_TYPE: dict[NotificationType, str] = {
+    NotificationType.LIKE_POST: "notify_likes",
+    NotificationType.LIKE_COMMENT: "notify_likes",
+    NotificationType.COMMENT: "notify_comments",
+    NotificationType.NEIGHBORHOOD_ALERT: "notify_neighborhood_alerts",
+}
+
 
 def notify(
     db: Session,
@@ -23,11 +32,18 @@ def notify(
     target_text: str | None = None,
     post_id: int | None = None,
     snapshot: dict | None = None,
-) -> Notification:
+) -> Notification | None:
     """Cria a `Notification`, acorda o websocket do usuário e dispara o push
     — os 3 passos que toda notificação real do backend precisa (menção,
-    avisos de moderação). Ponto único pra não duplicar essa sequência em
-    cada service que cria uma notificação."""
+    avisos de moderação, curtida, comentário, aviso do bairro). Ponto único
+    pra não duplicar essa sequência em cada service que cria uma notificação.
+    Retorna None (sem criar nada) se o destinatário desativou a preferência
+    correspondente a este tipo."""
+    pref_attr = _PREFERENCE_BY_TYPE.get(type_)
+    if pref_attr:
+        recipient = db.get(User, user_id)
+        if recipient and not getattr(recipient, pref_attr):
+            return None
     notif = notification.create(
         db,
         user_id=user_id,
