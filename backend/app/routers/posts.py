@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.controllers import post
 from app.schemas.post import PostFeed, PostMediaItem, PostOut
+from app.schemas.user import UserPublic
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -57,6 +58,11 @@ router.post(
     "/{post_id}/like",
     response_model=PostOut,
 )(post.toggle_like)
+
+router.get(
+    "/{post_id}/likes",
+    response_model=list[UserPublic],
+)(post.list_likers)
 
 router.post(
     "/{post_id}/repost",

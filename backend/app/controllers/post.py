@@ -14,7 +14,9 @@ from app.schemas.post import (
     PostOut,
     PostUpdate,
 )
+from app.schemas.user import UserPublic
 from app.services import post
+from app.services import user as user_service
 
 
 def get_feed(
@@ -120,6 +122,15 @@ def toggle_like(
     current_user: User = Depends(get_current_user),
 ) -> PostOut:
     return post.toggle_like(db, post_id, current_user)
+
+
+def list_likers(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[UserPublic]:
+    likers = post.list_likers(db, post_id)
+    return [user_service.public_view(current_user, u) for u in likers]
 
 
 def toggle_repost(

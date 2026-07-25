@@ -46,9 +46,17 @@ class Notification(Base):
     # Cópia do conteúdo removido (post/comentário já não existe mais no banco) —
     # permite ao usuário ver "o que era" o post/comentário removido pela moderação.
     snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Mesclagem estilo Instagram: quando mais de N pessoas curtem o mesmo post,
+    # as notificações individuais viram uma só, com o segundo curtidor mais
+    # recente em extra_actor_id e o total de curtidores em group_count (o
+    # frontend usa os dois pra montar "fulano, ciclano e outras X pessoas
+    # curtiram seu post"). None em ambos = notificação normal (1 só ator).
+    extra_actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    group_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     read: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[actor_id])  # noqa: F821
+    extra_actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[extra_actor_id])  # noqa: F821

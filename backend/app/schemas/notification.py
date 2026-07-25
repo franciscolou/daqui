@@ -17,6 +17,9 @@ class NotificationOut(BaseModel):
     snapshot: dict[str, Any] | None = None
     created_at: datetime
     actor: UserPublic | None
+    # Preenchidos só na notificação mesclada de curtidas (ver Notification.group_count).
+    extra_actor: UserPublic | None = None
+    group_count: int | None = None
 
     model_config = {"from_attributes": True}
 

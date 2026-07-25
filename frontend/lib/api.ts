@@ -403,6 +403,9 @@ interface BackendNotification {
   snapshot: BackendRemovedSnapshot | null;
   created_at: string;
   actor: BackendUser | null;
+  // Só presentes na notificação mesclada de curtidas (mais de 3 curtidores).
+  extra_actor?: BackendUser | null;
+  group_count?: number | null;
 }
 
 interface BackendSupportTicket {
@@ -628,6 +631,10 @@ export interface AppNotification {
   postId?: string;
   actor?: User;
   snapshot?: RemovedContentSnapshot;
+  // Só presentes na notificação mesclada de curtidas (mais de 3 curtidores):
+  // extraActor é o segundo curtidor mais recente, groupCount é o total.
+  extraActor?: User;
+  groupCount?: number;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -884,6 +891,8 @@ function mapNotification(n: BackendNotification): AppNotification {
     read: n.read,
     postId: n.post_id != null ? String(n.post_id) : undefined,
     actor: n.actor ? mapUser(n.actor) : undefined,
+    extraActor: n.extra_actor ? mapUser(n.extra_actor) : undefined,
+    groupCount: n.group_count ?? undefined,
     snapshot: n.snapshot
       ? {
           content: n.snapshot.content,
@@ -1208,6 +1217,11 @@ export const api = {
 
   async toggleLike(id: string): Promise<Post> {
     return mapPost(await request<BackendPost>(`/posts/${id}/like`, { method: 'POST' }));
+  },
+
+  // Quem curtiu o post, curtida mais recente primeiro — dono do post vê no modal "Curtidas".
+  async getPostLikers(id: string): Promise<User[]> {
+    return (await request<BackendUser[]>(`/posts/${id}/likes`)).map(mapUser);
   },
 
   async toggleRepost(id: string): Promise<Post> {

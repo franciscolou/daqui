@@ -480,6 +480,65 @@ def unvote_poll(db: Session, post_id: int, user: User) -> PostOut:
     return _to_schema(post, user, db)
 
 
+# A partir do 4º curtidor (total > este limite), as notificações de curtida
+# de um mesmo post mesclam numa só, estilo Instagram (menos poluição na aba
+# de novidades). Abaixo disso cada curtida ainda gera sua própria notificação.
+LIKE_MERGE_THRESHOLD = 3
+
+
+def _like_notification_text(actor_name: str, extra_actor_name: str | None, total: int) -> str:
+    if not extra_actor_name:
+        others = total - 1
+        who = actor_name
+    else:
+        others = total - 2
+        who = f"{actor_name}, {extra_actor_name}"
+    if others <= 0:
+        return f"{who} curtiram seu post"
+    pessoas = "outra pessoa" if others == 1 else f"outras {others} pessoas"
+    return f"{who} e {pessoas} curtiram seu post"
+
+
+def _notify_like(db: Session, post: Post, actor: User) -> None:
+    if post.author_id == actor.id:
+        return
+    total = post_dao.count_likers(db, post.id, exclude_user_id=post.author_id)
+    if total > LIKE_MERGE_THRESHOLD:
+        existing_rows = notification_service.list_like_notifications(db, post.author_id, post.id)
+        extra_actor_id = existing_rows[0].actor_id if existing_rows else None
+        for row in existing_rows:
+            notification_service.delete_notification(db, row)
+        extra_actor = db.get(User, extra_actor_id) if extra_actor_id else None
+        content = _like_notification_text(
+            actor.name, extra_actor.name if extra_actor else None, total
+        )
+        notification_service.notify(
+            db,
+            user_id=post.author_id,
+            type_=NotificationType.LIKE_POST,
+            content=content,
+            target_text=(post.content or post.title or "")[:200],
+            post_id=post.id,
+            actor_id=actor.id,
+            extra_actor_id=extra_actor_id,
+            group_count=total,
+            push_title="Novas curtidas no seu post",
+            push_body=content,
+        )
+    else:
+        notification_service.notify(
+            db,
+            user_id=post.author_id,
+            type_=NotificationType.LIKE_POST,
+            content="curtiu seu post",
+            target_text=(post.content or post.title or "")[:200],
+            post_id=post.id,
+            actor_id=actor.id,
+            push_title=f"{actor.name} curtiu seu post",
+            push_body=(post.content or post.title or "")[:200] or "curtiu seu post",
+        )
+
+
 def toggle_like(db: Session, post_id: int, user: User) -> PostOut:
     post = post_dao.get_by_id(db, post_id)
     if not post:
@@ -492,22 +551,20 @@ def toggle_like(db: Session, post_id: int, user: User) -> PostOut:
     else:
         post_dao.add_like(db, post_id, user.id)
         post.likes_count += 1
-        if post.author_id != user.id:
-            notification_service.notify(
-                db,
-                user_id=post.author_id,
-                type_=NotificationType.LIKE_POST,
-                content="curtiu seu post",
-                target_text=(post.content or post.title or "")[:200],
-                post_id=post.id,
-                actor_id=user.id,
-                push_title=f"{user.name} curtiu seu post",
-                push_body=(post.content or post.title or "")[:200] or "curtiu seu post",
-            )
+        db.flush()  # count_likers precisa enxergar a curtida recém-adicionada
+        _notify_like(db, post, user)
 
     db.commit()
     db.refresh(post)
     return _to_schema(post, user, db)
+
+
+def list_likers(db: Session, post_id: int) -> list[User]:
+    """Quem curtiu o post — usado pelo dono no modal "Curtidas" da tela de detalhe."""
+    post = post_dao.get_by_id(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+    return post_dao.list_likers(db, post_id)
 
 
 def toggle_repost(db: Session, post_id: int, user: User) -> PostOut:

@@ -158,6 +158,25 @@ def remove_like(db: Session, like: PostLike) -> None:
     db.delete(like)
 
 
+def count_likers(db: Session, post_id: int, exclude_user_id: int | None = None) -> int:
+    q = db.query(func.count(PostLike.id)).filter(PostLike.post_id == post_id)
+    if exclude_user_id is not None:
+        q = q.filter(PostLike.user_id != exclude_user_id)
+    return q.scalar() or 0
+
+
+def list_likers(db: Session, post_id: int) -> list[User]:
+    """Quem curtiu o post, curtida mais recente primeiro — usado no modal
+    "Curtidas" da tela de detalhe do post."""
+    return (
+        db.query(User)
+        .join(PostLike, PostLike.user_id == User.id)
+        .filter(PostLike.post_id == post_id)
+        .order_by(desc(PostLike.created_at))
+        .all()
+    )
+
+
 # ── Repost simples (sem citação) ─────────────────────────────────────
 def get_repost(db: Session, post_id: int, user_id: int) -> PostRepost | None:
     return (

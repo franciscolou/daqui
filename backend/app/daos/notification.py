@@ -13,6 +13,8 @@ def create(
     post_id: int | None = None,
     actor_id: int | None = None,
     snapshot: dict | None = None,
+    extra_actor_id: int | None = None,
+    group_count: int | None = None,
 ) -> Notification:
     notif = Notification(
         user_id=user_id,
@@ -22,11 +24,36 @@ def create(
         target_text=target_text,
         post_id=post_id,
         snapshot=snapshot,
+        extra_actor_id=extra_actor_id,
+        group_count=group_count,
     )
     db.add(notif)
     db.commit()
     db.refresh(notif)
     return notif
+
+
+def list_like_notifications_for_post(
+    db: Session, user_id: int, post_id: int
+) -> list[Notification]:
+    """Notificações de curtida (mescladas ou não) já existentes pro dono do post
+    — usado por `services.post` pra decidir se cria uma nova ou consolida numa
+    mesclada. Mais recente primeiro."""
+    return (
+        db.query(Notification)
+        .filter(
+            Notification.user_id == user_id,
+            Notification.post_id == post_id,
+            Notification.type == NotificationType.LIKE_POST,
+        )
+        .order_by(desc(Notification.created_at))
+        .all()
+    )
+
+
+def delete(db: Session, notif: Notification) -> None:
+    db.delete(notif)
+    db.commit()
 
 
 def list_unread_by_types(

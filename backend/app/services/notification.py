@@ -32,6 +32,8 @@ def notify(
     target_text: str | None = None,
     post_id: int | None = None,
     snapshot: dict | None = None,
+    extra_actor_id: int | None = None,
+    group_count: int | None = None,
 ) -> Notification | None:
     """Cria a `Notification`, acorda o websocket do usuário e dispara o push
     — os 3 passos que toda notificação real do backend precisa (menção,
@@ -53,6 +55,8 @@ def notify(
         post_id=post_id,
         actor_id=actor_id,
         snapshot=snapshot,
+        extra_actor_id=extra_actor_id,
+        group_count=group_count,
     )
     realtime_registry.wake(user_id)
     push_service.notify_user(db, user_id, push_title, push_body)
@@ -61,6 +65,14 @@ def notify(
 
 def list_for_user(db: Session, user: User) -> list[Notification]:
     return notification.list_for_user(db, user.id)
+
+
+def list_like_notifications(db: Session, user_id: int, post_id: int) -> list[Notification]:
+    return notification.list_like_notifications_for_post(db, user_id, post_id)
+
+
+def delete_notification(db: Session, notif: Notification) -> None:
+    notification.delete(db, notif)
 
 
 def mark_all_read(db: Session, user: User) -> None:

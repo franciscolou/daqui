@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ViewProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { Palette } from '../../constants/Colors';
 import { CATEGORY_ICONS, CATEGORY_LABELS, Post } from '../../data/mock';
 import { api, Comment } from '../../lib/api';
@@ -36,6 +37,12 @@ import SharedCommentPreview from '../../components/SharedCommentPreview';
 import SharedPostPreview from '../../components/SharedPostPreview';
 import MentionInput from '../../components/MentionInput';
 import MentionText from '../../components/MentionText';
+import LikersModal from '../../components/LikersModal';
+
+// react-native-web repassa onMouseEnter/onMouseLeave pro elemento, mas os
+// tipos de View (focados no nativo) não os declaram (mesmo padrão de HoverTime.tsx).
+type WebViewProps = ViewProps & { onMouseEnter?: () => void; onMouseLeave?: () => void };
+const HoverableView = View as unknown as ComponentType<WebViewProps>;
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -50,6 +57,8 @@ export default function PostDetailScreen() {
   const [sending, setSending] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
+  const [likesHovered, setLikesHovered] = useState(false);
+  const [likersModalVisible, setLikersModalVisible] = useState(false);
   const [reposted, setReposted] = useState(false);
   const [sharesCount, setSharesCount] = useState(0);
   const [repostMenuVisible, setRepostMenuVisible] = useState(false);
@@ -545,14 +554,42 @@ export default function PostDetailScreen() {
         <Text style={styles.exactTime}>{formatExactDateTime(post.createdAt)}</Text>
 
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={toggleLike}>
-            <Ionicons
-              name={liked ? 'heart' : 'heart-outline'}
-              size={20}
-              color={liked ? Colors.error : Colors.textTertiary}
-            />
-            <Text style={[styles.actionCount, liked && { color: Colors.error }]}>{likesCount}</Text>
-          </TouchableOpacity>
+          <View style={styles.likeGroup}>
+            <TouchableOpacity style={styles.likeIconBtn} onPress={toggleLike} hitSlop={8}>
+              <Ionicons
+                name={liked ? 'heart' : 'heart-outline'}
+                size={20}
+                color={liked ? Colors.error : Colors.textTertiary}
+              />
+            </TouchableOpacity>
+            {isPostAuthor ? (
+              <HoverableView
+                onMouseEnter={() => setLikesHovered(true)}
+                onMouseLeave={() => setLikesHovered(false)}
+              >
+                <TouchableOpacity
+                  style={styles.likeCountBtn}
+                  onPress={() => likesCount > 0 && setLikersModalVisible(true)}
+                  disabled={likesCount === 0}
+                  activeOpacity={1}
+                  hitSlop={4}
+                  {...({ tabIndex: -1 } as any)}
+                >
+                  <Text
+                    style={[
+                      styles.actionCount,
+                      liked && { color: Colors.error },
+                      likesHovered && likesCount > 0 && styles.actionCountUnderline,
+                    ]}
+                  >
+                    {likesCount}
+                  </Text>
+                </TouchableOpacity>
+              </HoverableView>
+            ) : (
+              <Text style={[styles.actionCount, liked && { color: Colors.error }]}>{likesCount}</Text>
+            )}
+          </View>
           <View style={styles.actionBtn}>
             <Ionicons name="chatbubble-outline" size={18} color={Colors.textTertiary} />
             <Text style={styles.actionCount}>{commentCount}</Text>
@@ -786,6 +823,13 @@ export default function PostDetailScreen() {
         onConfirm={doDeletePost}
         onClose={() => setConfirmDeletePost(false)}
       />
+      {post && (
+        <LikersModal
+          visible={likersModalVisible}
+          postId={post.id}
+          onClose={() => setLikersModalVisible(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -857,7 +901,14 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
+  likeGroup: { flexDirection: 'row', alignItems: 'center' },
+  // borderRadius aqui (não só num filho) é o que dá o hover redondo — ver globalStyles.web.ts.
+  likeIconBtn: { padding: 6, borderRadius: 14 },
+  // tabIndex={-1} no touchable tira ele da regra de hover global (ver globalStyles.web.ts):
+  // aqui o feedback de hover é só o sublinhado (actionCountUnderline), sem tint de fundo.
+  likeCountBtn: { paddingHorizontal: 4, paddingVertical: 6 },
   actionCount: { fontSize: 14, color: Colors.textTertiary, fontWeight: '600' },
+  actionCountUnderline: { textDecorationLine: 'underline' },
   iconBtn: {
     padding: 6,
     borderRadius: 14,
