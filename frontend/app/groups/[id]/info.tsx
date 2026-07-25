@@ -270,18 +270,20 @@ export default function GroupInfoScreen() {
                 </View>
               )}
               {canManage && (
-                <TouchableOpacity
-                  style={styles.editAvatarBtn}
-                  activeOpacity={0.85}
-                  onPress={pickGroupAvatar}
-                  disabled={avatarBusy}
-                >
-                  {avatarBusy ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Ionicons name="camera" size={16} color="#fff" />
-                  )}
-                </TouchableOpacity>
+                <View style={styles.editAvatarBtnWrap}>
+                  <TouchableOpacity
+                    style={styles.editAvatarBtn}
+                    activeOpacity={0.85}
+                    onPress={pickGroupAvatar}
+                    disabled={avatarBusy}
+                  >
+                    {avatarBusy ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Ionicons name="camera" size={16} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
             <View style={styles.privacyPill}>
@@ -334,6 +336,7 @@ export default function GroupInfoScreen() {
                       style={[styles.privacyOption, optSelected && styles.privacyOptionSelected]}
                       activeOpacity={0.8}
                       onPress={() => setPrivacy(option)}
+                      {...({ tabIndex: -1 } as any)}
                     >
                       <Ionicons
                         name={info.icon as any}
@@ -660,10 +663,12 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   body: { padding: 16, paddingBottom: 48 },
   hero: { alignItems: 'center', gap: 8, paddingVertical: 8 },
   heroAvatarWrap: { position: 'relative' },
-  editAvatarBtn: {
+  editAvatarBtnWrap: {
     position: 'absolute',
     bottom: -2,
     right: -2,
+  },
+  editAvatarBtn: {
     width: 30,
     height: 30,
     borderRadius: 10,
