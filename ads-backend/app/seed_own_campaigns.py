@@ -1,7 +1,7 @@
 """Popula campanhas de exemplo pro usuário de teste do Daqui
 (francisco@daqui.com, ver CLAUDE.md) — pra ter dado real ao testar "Meus
 anúncios" na sidebar do app (LeftSidebar.tsx) e o painel comparativo em
-`/anunciar/painel`, sem precisar criar campanhas na mão a cada setup.
+`/advertise/dashboard`, sem precisar criar campanhas na mão a cada setup.
 Idempotente: pula se esse e-mail já tiver alguma campanha.
 Execute: python -m app.seed_own_campaigns
 """
@@ -10,7 +10,16 @@ from datetime import datetime, timedelta, timezone
 
 from app.daos import ad as ad_dao
 from app.database import SessionLocal, create_tables
-from app.models.ad import STATUS_ACTIVE, STATUS_PAUSED, default_schedule, default_targeting
+from app.models.ad import (
+    AdCampaignStatus,
+    AdFormat,
+    AdObjective,
+    AdPacing,
+    GeoScope,
+    PaymentProvider,
+    default_schedule,
+    default_targeting,
+)
 
 OWNER_EMAIL = "francisco@daqui.com"
 
@@ -20,10 +29,10 @@ now = datetime.now(timezone.utc)
 def _targeting(*, neighborhoods=None, citywide=False, city=None) -> dict:
     t = default_targeting()
     if citywide:
-        t["geo_scope"] = "citywide"
+        t["geo_scope"] = GeoScope.CITYWIDE
         t["city"] = city or "São Paulo"
     else:
-        t["geo_scope"] = "neighborhood"
+        t["geo_scope"] = GeoScope.NEIGHBORHOOD
         t["neighborhoods"] = neighborhoods or []
     return t
 
@@ -31,13 +40,13 @@ def _targeting(*, neighborhoods=None, citywide=False, city=None) -> dict:
 CAMPAIGNS = [
     dict(
         advertiser_name="Francisco — Aulas de Violão",
-        formats=["post"],
+        formats=[AdFormat.POST],
         price_cents=2_990,
         duration_days=14,
         targeting=_targeting(neighborhoods=["Leme"]),
-        status=STATUS_ACTIVE,
+        status=AdCampaignStatus.ACTIVE,
         started_days_ago=6,
-        objective="whatsapp_opens",
+        objective=AdObjective.WHATSAPP_OPENS,
         creative=dict(
             title="Aulas de violão particulares no Leme",
             content="Do zero ao primeiro show: aulas presenciais, no seu ritmo. Primeira aula é cortesia.",
@@ -50,13 +59,13 @@ CAMPAIGNS = [
     ),
     dict(
         advertiser_name="Francisco — Jardinagem",
-        formats=["post", "notification"],
+        formats=[AdFormat.POST, AdFormat.NOTIFICATION],
         price_cents=5_990,
         duration_days=21,
         targeting=_targeting(neighborhoods=["Leme", "Copacabana"]),
-        status=STATUS_PAUSED,
+        status=AdCampaignStatus.PAUSED,
         started_days_ago=20,
-        objective="clicks",
+        objective=AdObjective.CLICKS,
         creative=dict(
             title="Manutenção de jardim e vasos — orçamento sem compromisso",
             content="Poda, adubação e paisagismo simples para apartamentos e casas com quintal.",
@@ -113,12 +122,12 @@ def seed_own_campaigns():
                 objective=data["objective"],
                 priority=3,
                 rotation_weight=1.0,
-                pacing="asap",
+                pacing=AdPacing.ASAP,
                 schedule=default_schedule(),
                 starts_at=starts_at,
                 ends_at=ends_at,
                 paid_at=starts_at,
-                payment_provider="manual",
+                payment_provider=PaymentProvider.MANUAL,
                 payment_reference=f"seed_own_{data['advertiser_name']}",
             )
             print(f"✅ campanha '{campaign.advertiser_name}' criada ({campaign.status}).")

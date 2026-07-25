@@ -12,7 +12,7 @@ export default function CheckoutSuccessScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const [copied, setCopied] = useState(false);
 
-  const panelPath = token ? `/anunciar/painel/${token}` : '';
+  const panelPath = token ? `/advertise/dashboard/${token}` : '';
   const panelUrl =
     Platform.OS === 'web' && typeof window !== 'undefined'
       ? `${window.location.origin}${panelPath}`
@@ -54,7 +54,7 @@ export default function CheckoutSuccessScreen() {
             <TouchableOpacity
               style={styles.primaryBtn}
               activeOpacity={0.85}
-              onPress={() => router.replace(`/anunciar/painel/${token}` as any)}
+              onPress={() => router.replace(`/advertise/dashboard/${token}` as any)}
             >
               <Text style={styles.primaryBtnText}>Ver meu anúncio</Text>
             </TouchableOpacity>

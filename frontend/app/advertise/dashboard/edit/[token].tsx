@@ -86,7 +86,7 @@ export default function EditCampaignScreen() {
         advertiserDocument: advertiserDocument.trim(),
         creatives: blocksToCreatives(blocks),
       });
-      router.replace(`/anunciar/painel/${token}` as any);
+      router.replace(`/advertise/dashboard/${token}` as any);
     } catch (e) {
       setError(e instanceof AdsApiError ? e.message : 'Não foi possível salvar as alterações.');
     } finally {
@@ -97,7 +97,7 @@ export default function EditCampaignScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack(`/anunciar/painel/${token}` as any)}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack(`/advertise/dashboard/${token}` as any)}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Editar anúncio</Text>

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
@@ -7,12 +8,26 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
 
+class PostCategory(StrEnum):
+    AVISO = "aviso"
+    EVENTO = "evento"
+    RECOMENDACAO = "recomendacao"
+    SEGURANCA = "seguranca"
+    AJUDA = "ajuda"
+    GERAL = "geral"
+    PETS = "pets"
+    VENDA = "venda"
+    PERDIDOS = "perdidos"
+    # Enquete: post com PollOption/PollVote em vez de conteúdo livre (ver poll_multiple/poll_closes_at).
+    ENQUETE = "enquete"
+
+
 class Post(Base):
     __tablename__ = "posts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    category: Mapped[str] = mapped_column(String(30), nullable=False)
+    category: Mapped[PostCategory] = mapped_column(String(30), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(200))
     content: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String(500))  # legado; ver media

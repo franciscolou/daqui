@@ -2,10 +2,11 @@ from sqlalchemy.orm import Session
 
 from app.core.push import send_push
 from app.daos import push_token as push_token_dao
+from app.models.push_token import PushPlatform
 from app.models.user import User
 
 
-def register(db: Session, user: User, token: str, platform: str) -> None:
+def register(db: Session, user: User, token: str, platform: PushPlatform) -> None:
     push_token_dao.upsert(db, user.id, token, platform)
 
 

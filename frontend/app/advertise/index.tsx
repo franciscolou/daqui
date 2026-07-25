@@ -97,7 +97,7 @@ function PressableScale({
   );
 }
 
-export default function AnunciarScreen() {
+export default function AdvertiseScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { width } = useWindowDimensions();
@@ -218,7 +218,7 @@ export default function AnunciarScreen() {
                           : (plan.maxNeighborhoods ? `até ${plan.maxNeighborhoods} bairro(s)` : 'cidade toda')}
                       </Text>
                       <PressableScale
-                        onPress={() => router.push({ pathname: '/anunciar/personalizar', params: { planId: String(plan.id) } })}
+                        onPress={() => router.push({ pathname: '/advertise/customize', params: { planId: String(plan.id) } })}
                         radius={13}
                       >
                         {popular ? (
@@ -238,7 +238,7 @@ export default function AnunciarScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.customBtn} activeOpacity={0.85} onPress={() => router.push('/anunciar/personalizar')}>
+          <TouchableOpacity style={styles.customBtn} activeOpacity={0.85} onPress={() => router.push('/advertise/customize')}>
             <Ionicons name="options-outline" size={18} color={Colors.primary} />
             <Text style={styles.customBtnText}>Ou monte seu próprio plano</Text>
           </TouchableOpacity>

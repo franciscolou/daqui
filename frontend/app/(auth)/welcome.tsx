@@ -326,9 +326,9 @@ export default function WelcomeScreen() {
 
       <Text style={styles.terms}>
         Ao continuar, você aceita os{' '}
-        <Text style={styles.termsLink} onPress={() => router.push('/legal/termos')}>Termos de Uso</Text>
+        <Text style={styles.termsLink} onPress={() => router.push('/legal/terms')}>Termos de Uso</Text>
         {' '}e a{' '}
-        <Text style={styles.termsLink} onPress={() => router.push('/legal/privacidade')}>Política de Privacidade</Text>
+        <Text style={styles.termsLink} onPress={() => router.push('/legal/privacy')}>Política de Privacidade</Text>
       </Text>
     </ScrollView>
   );
@@ -725,9 +725,9 @@ export default function WelcomeScreen() {
           </View>
           <Text style={styles.mobileTerms}>
             Ao continuar, você aceita os{' '}
-            <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/termos')}>Termos de Uso</Text>
+            <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/terms')}>Termos de Uso</Text>
             {' '}e a{' '}
-            <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/privacidade')}>Política de Privacidade</Text>
+            <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/privacy')}>Política de Privacidade</Text>
           </Text>
         </ScrollView>
       </LinearGradient>

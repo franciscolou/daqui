@@ -3,12 +3,13 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.models.audit_log import AuditLogAction
 from app.schemas.user import UserPublic
 
 
 class AuditLogOut(BaseModel):
     id: int
-    action: str
+    action: AuditLogAction
     detail: str
     created_at: datetime
     moderator: UserPublic

@@ -9,53 +9,62 @@ contagem já pronta (calculada em `daos/ad.py::count_competing_campaigns`),
 então esta função continua pura e testável isoladamente.
 """
 
+from app.models.ad import (
+    AdFormat,
+    AdObjective,
+    Audience,
+    EngagementLevel,
+    GeoScope,
+    UserRecency,
+)
+
 FORMAT_DAILY_RATE_CENTS = {
-    "post": 500,  # aparece em 2 lugares (feed + pin no mapa) — o mais caro
-    "conversation": 300,
-    "notification": 250,
-    "search_poster": 200,
+    AdFormat.POST: 500,  # aparece em 2 lugares (feed + pin no mapa) — o mais caro
+    AdFormat.CONVERSATION: 300,
+    AdFormat.NOTIFICATION: 250,
+    AdFormat.SEARCH_POSTER: 200,
 }
 
 OBJECTIVE_MULTIPLIERS = {
-    "reach": 0.9,
-    "clicks": 1.0,
-    "profile_visits": 1.05,
-    "map_opens": 1.05,
-    "instagram_opens": 1.1,
-    "whatsapp_opens": 1.15,
-    "website_opens": 1.15,
+    AdObjective.REACH: 0.9,
+    AdObjective.CLICKS: 1.0,
+    AdObjective.PROFILE_VISITS: 1.05,
+    AdObjective.MAP_OPENS: 1.05,
+    AdObjective.INSTAGRAM_OPENS: 1.1,
+    AdObjective.WHATSAPP_OPENS: 1.15,
+    AdObjective.WEBSITE_OPENS: 1.15,
 }
 
 PEAK_HOURS = set(range(18, 23))  # 18h-22h
 
 
 def reach_multiplier(targeting: dict) -> float:
-    scope = targeting.get("geo_scope", "neighborhood")
-    if scope == "country":
+    scope = targeting.get("geo_scope", GeoScope.NEIGHBORHOOD)
+    if scope == GeoScope.COUNTRY:
         # Brasil todo — maior salto possível, reflete alcançar toda a base de
         # usuários do app de uma vez, não só uma cidade ou um punhado delas.
         m = 12.0
-    elif scope == "cities":
+    elif scope == GeoScope.CITIES:
         # Várias cidades específicas (ex.: capitais de vários estados) —
         # cresce por cidade a partir do mesmo patamar de "cidade toda",
         # sem chegar ao alcance de "país todo".
         n = max(1, len(targeting.get("cities", [])))
         m = 3.0 + 0.4 * (n - 1)
-    elif scope == "citywide":
+    elif scope == GeoScope.CITYWIDE:
         m = 3.0
     else:
         m = 1 + 0.15 * max(0, len(targeting.get("neighborhoods", [])) - 1)
     if targeting.get("include_nearby"):
         m *= 1.1
-    if targeting.get("audience", "all") != "all":
+    if targeting.get("audience", Audience.ALL) != Audience.ALL:
         m *= 0.9
     if targeting.get("categories"):
         m *= 0.95
     if targeting.get("group_ids"):
         m *= 0.95
-    if targeting.get("user_recency", "all") != "all":
+    if targeting.get("user_recency", UserRecency.ALL) != UserRecency.ALL:
         m *= 0.95
-    if targeting.get("engagement", "any") == "active":
+    if targeting.get("engagement", EngagementLevel.ANY) == EngagementLevel.ACTIVE:
         m *= 0.95
     return max(0.5, min(m, 13.0))
 
@@ -85,7 +94,7 @@ def daypart_multiplier(schedule: dict) -> float:
     return 1.0
 
 
-def objective_multiplier(objective: str) -> float:
+def objective_multiplier(objective: AdObjective) -> float:
     return OBJECTIVE_MULTIPLIERS.get(objective, 1.0)
 
 
@@ -137,11 +146,11 @@ def duration_discount(duration_days: int) -> float:
 
 def quote(
     *,
-    formats: list[str],
+    formats: list[AdFormat],
     duration_days: int,
     targeting: dict,
     schedule: dict,
-    objective: str = "clicks",
+    objective: AdObjective = AdObjective.CLICKS,
     priority: int = 3,
     daily_impression_cap: int | None = None,
     per_user_impression_cap: int | None = None,

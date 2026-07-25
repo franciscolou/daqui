@@ -10,11 +10,13 @@ from app.core.uploads import save_upload_media
 from app.daos import ad as ad_dao
 from app.daos import settings as settings_dao
 from app.models.ad import (
-    EVENT_CLICK,
-    EVENT_IMPRESSION,
-    STATUS_ACTIVE,
-    STATUS_PENDING_PAYMENT,
     AdCampaign,
+    AdCampaignStatus,
+    AdEventType,
+    AdFormat,
+    AdObjective,
+    GeoScope,
+    PaymentProvider,
 )
 from app.models.admin import AdAdmin
 from app.schemas.ad import (
@@ -55,10 +57,10 @@ from app.services import ad_pricing
 WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 
 FORMAT_LABELS = {
-    "post": "Post + mapa",
-    "conversation": "Conversa (Mensagens)",
-    "notification": "Novidades",
-    "search_poster": "Poster de busca",
+    AdFormat.POST: "Post + mapa",
+    AdFormat.CONVERSATION: "Conversa (Mensagens)",
+    AdFormat.NOTIFICATION: "Novidades",
+    AdFormat.SEARCH_POSTER: "Poster de busca",
 }
 
 
@@ -69,22 +71,22 @@ def _fmt_brl(cents: int) -> str:
 
 
 def _check_targeting(targeting: TargetingIn) -> None:
-    if targeting.geo_scope == "neighborhood" and not targeting.neighborhoods:
+    if targeting.geo_scope == GeoScope.NEIGHBORHOOD and not targeting.neighborhoods:
         raise HTTPException(status_code=400, detail="Selecione ao menos um bairro")
-    if targeting.geo_scope == "citywide" and not targeting.city:
+    if targeting.geo_scope == GeoScope.CITYWIDE and not targeting.city:
         raise HTTPException(status_code=400, detail="Selecione a cidade")
-    if targeting.geo_scope == "cities" and not targeting.cities:
+    if targeting.geo_scope == GeoScope.CITIES and not targeting.cities:
         raise HTTPException(status_code=400, detail="Selecione ao menos uma cidade")
 
 
 def _quote_breakdown(
     db: Session,
     *,
-    formats: list[str],
+    formats: list[AdFormat],
     duration_days: int,
     targeting: TargetingIn,
     schedule: ScheduleIn,
-    objective: str,
+    objective: AdObjective,
     priority: int,
     daily_impression_cap: int | None,
     per_user_impression_cap: int | None,
@@ -215,7 +217,7 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
         db,
         creatives=creatives,
         plan_id=payload.plan_id,
-        status=STATUS_PENDING_PAYMENT,
+        status=AdCampaignStatus.PENDING_PAYMENT,
         advertiser_name=payload.advertiser_name,
         advertiser_email=payload.advertiser_email,
         advertiser_phone=payload.advertiser_phone,
@@ -232,7 +234,7 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
         per_user_impression_cap=payload.per_user_impression_cap,
         pacing=payload.pacing,
         schedule=schedule.model_dump(),
-        payment_provider="stripe",
+        payment_provider=PaymentProvider.STRIPE,
         renewed_from_id=renewed_from_id,
         root_campaign_id=root_campaign_id,
     )
@@ -265,7 +267,7 @@ def _activate(
 ) -> None:
     now = datetime.now(timezone.utc)
     fields = dict(
-        status=STATUS_ACTIVE,
+        status=AdCampaignStatus.ACTIVE,
         starts_at=now,
         ends_at=now + timedelta(days=campaign.duration_days),
         paid_at=now,
@@ -283,11 +285,11 @@ def handle_stripe_webhook(db: Session, payload: bytes, signature: str) -> None:
     session = event["data"]["object"]
     campaign_id = int(session["metadata"]["campaign_id"])
     campaign = ad_dao.get_campaign(db, campaign_id)
-    if campaign and campaign.status == STATUS_PENDING_PAYMENT:
+    if campaign and campaign.status == AdCampaignStatus.PENDING_PAYMENT:
         _activate(db, campaign, session.get("id"))
 
 
-def get_active_ad(db: Session, format: str, ctx: dict) -> AdOut | None:
+def get_active_ad(db: Session, format: AdFormat, ctx: dict) -> AdOut | None:
     campaign = ad_dao.get_active_for_format(db, format, ctx)
     if not campaign:
         return None
@@ -295,7 +297,7 @@ def get_active_ad(db: Session, format: str, ctx: dict) -> AdOut | None:
 
 
 def _campaign_to_ad_out(
-    db: Session, campaign: AdCampaign, format: str, ctx: dict
+    db: Session, campaign: AdCampaign, format: AdFormat, ctx: dict
 ) -> AdOut | None:
     creative = ad_dao.pick_creative(campaign, format)
     if not creative:
@@ -304,7 +306,7 @@ def _campaign_to_ad_out(
         db,
         campaign=campaign,
         creative=creative,
-        event_type=EVENT_IMPRESSION,
+        event_type=AdEventType.IMPRESSION,
         format=format,
         neighborhood=ctx.get("neighborhood"),
         viewer_id=ctx.get("viewer_id"),
@@ -326,7 +328,7 @@ def _campaign_to_ad_out(
 
 
 def get_active_ad_list(
-    db: Session, format: str, ctx: dict, exclude_ids: list[int], limit: int
+    db: Session, format: AdFormat, ctx: dict, exclude_ids: list[int], limit: int
 ) -> list[AdOut]:
     campaigns = ad_dao.get_active_list_for_format(db, format, ctx, exclude_ids, limit)
     ads = []
@@ -349,7 +351,7 @@ def track_click(db: Session, campaign_id: int, payload: ClickIn | None) -> None:
         db,
         campaign=campaign,
         creative=creative,
-        event_type=EVENT_CLICK,
+        event_type=AdEventType.CLICK,
         format=payload.format or "",
         neighborhood=None,
         viewer_id=payload.viewer_id,
@@ -432,7 +434,7 @@ def admin_create_manual_campaign(
         db,
         creatives=creatives,
         plan_id=payload.plan_id,
-        status=STATUS_PENDING_PAYMENT,
+        status=AdCampaignStatus.PENDING_PAYMENT,
         advertiser_name=payload.advertiser_name,
         advertiser_email=payload.advertiser_email,
         advertiser_phone=payload.advertiser_phone,
@@ -450,7 +452,7 @@ def admin_create_manual_campaign(
         pacing=payload.pacing,
         schedule=schedule.model_dump(),
         created_by_admin_id=admin.id,
-        payment_provider="stripe",
+        payment_provider=PaymentProvider.STRIPE,
         renewed_from_id=renewed_from_id,
         root_campaign_id=root_campaign_id,
     )
@@ -472,11 +474,11 @@ def admin_mark_campaign_paid(db: Session, campaign_id: int) -> CampaignAdminOut:
     campaign = ad_dao.get_campaign(db, campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Campanha não encontrada")
-    if campaign.status != STATUS_PENDING_PAYMENT:
+    if campaign.status != AdCampaignStatus.PENDING_PAYMENT:
         raise HTTPException(
             status_code=400, detail="Campanha não está aguardando pagamento"
         )
-    _activate(db, campaign, payment_reference=None, payment_provider="manual_confirmation")
+    _activate(db, campaign, payment_reference=None, payment_provider=PaymentProvider.MANUAL_CONFIRMATION)
     db.refresh(campaign)
     return CampaignAdminOut.model_validate(campaign)
 
@@ -520,8 +522,8 @@ def admin_update_creative(
 
 def _campaign_analytics(db: Session, campaign: AdCampaign, group_by: str) -> AnalyticsOut:
     events = ad_dao.list_events(db, campaign.id)
-    impressions = [e for e in events if e.event_type == EVENT_IMPRESSION]
-    clicks = [e for e in events if e.event_type == EVENT_CLICK]
+    impressions = [e for e in events if e.event_type == AdEventType.IMPRESSION]
+    clicks = [e for e in events if e.event_type == AdEventType.CLICK]
     n_imp, n_clk = len(impressions), len(clicks)
 
     summary = AnalyticsSummary(
@@ -702,8 +704,8 @@ def _campaigns_analytics(
     campaigns_by_id = {c.id: c for c in campaigns}
     events = ad_dao.list_events_for_campaigns(db, campaign_ids, date_from, date_to)
 
-    impressions = [e for e in events if e.event_type == EVENT_IMPRESSION]
-    clicks = [e for e in events if e.event_type == EVENT_CLICK]
+    impressions = [e for e in events if e.event_type == AdEventType.IMPRESSION]
+    clicks = [e for e in events if e.event_type == AdEventType.CLICK]
     n_imp, n_clk = len(impressions), len(clicks)
 
     def in_range(dt: datetime | None) -> bool:
@@ -721,7 +723,7 @@ def _campaigns_analytics(
 
     summary = GlobalAnalyticsSummary(
         campaigns_count=len(campaigns),
-        active_campaigns=sum(1 for c in campaigns if c.status == STATUS_ACTIVE),
+        active_campaigns=sum(1 for c in campaigns if c.status == AdCampaignStatus.ACTIVE),
         impressions=n_imp,
         clicks=n_clk,
         ctr=(n_clk / n_imp) if n_imp else 0.0,

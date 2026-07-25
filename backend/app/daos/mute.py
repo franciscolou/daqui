@@ -2,10 +2,10 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models.mute import ConversationMute
+from app.models.mute import ConversationMute, MuteKind
 
 
-def get(db: Session, user_id: int, kind: str, target_id: int) -> ConversationMute | None:
+def get(db: Session, user_id: int, kind: MuteKind, target_id: int) -> ConversationMute | None:
     return (
         db.query(ConversationMute)
         .filter(
@@ -18,7 +18,7 @@ def get(db: Session, user_id: int, kind: str, target_id: int) -> ConversationMut
 
 
 def upsert(
-    db: Session, user_id: int, kind: str, target_id: int, muted_until: datetime | None
+    db: Session, user_id: int, kind: MuteKind, target_id: int, muted_until: datetime | None
 ) -> ConversationMute:
     row = get(db, user_id, kind, target_id)
     if row:
@@ -33,14 +33,14 @@ def upsert(
     return row
 
 
-def remove(db: Session, user_id: int, kind: str, target_id: int) -> None:
+def remove(db: Session, user_id: int, kind: MuteKind, target_id: int) -> None:
     row = get(db, user_id, kind, target_id)
     if row:
         db.delete(row)
         db.commit()
 
 
-def active_map(db: Session, user_id: int, kind: str) -> dict[int, ConversationMute]:
+def active_map(db: Session, user_id: int, kind: MuteKind) -> dict[int, ConversationMute]:
     """target_id → linha, só as ainda ativas — usado nas listagens (evita
     reconsultar uma-a-uma pra cada conversa/grupo)."""
     rows = (

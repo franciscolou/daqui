@@ -1,20 +1,23 @@
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
 
-# Silenciamento de notificações por conversa (DM) ou grupo — por usuário, não
-# afeta ninguém além de quem silenciou. Mesma dupla usada pra suspensão de
-# conta (`User.is_suspended`/`suspended_until`, ver models/user.py): a
-# presença da linha é o "está silenciado"; `muted_until=None` é silenciado por
-# tempo indeterminado ("até eu reativar"); com data, expira sozinho — sem
-# precisar de um job, a leitura já trata data no passado como não-silenciado
-# (ver `is_active` abaixo).
-KIND_DM = "dm"
-KIND_GROUP = "group"
-MUTE_KINDS = (KIND_DM, KIND_GROUP)
+
+class MuteKind(StrEnum):
+    """Silenciamento de notificações por conversa (DM) ou grupo — por usuário,
+    não afeta ninguém além de quem silenciou. Mesma dupla usada pra suspensão
+    de conta (`User.is_suspended`/`suspended_until`, ver models/user.py): a
+    presença da linha é o "está silenciado"; `muted_until=None` é silenciado
+    por tempo indeterminado ("até eu reativar"); com data, expira sozinho —
+    sem precisar de um job, a leitura já trata data no passado como
+    não-silenciado (ver `is_active` abaixo)."""
+
+    DM = "dm"
+    GROUP = "group"
 
 
 class ConversationMute(Base):
@@ -25,7 +28,7 @@ class ConversationMute(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    kind: Mapped[str] = mapped_column(String(10), nullable=False)
+    kind: Mapped[MuteKind] = mapped_column(String(10), nullable=False)
     # "dm": id do outro usuário da conversa. "group": id do grupo.
     target_id: Mapped[int] = mapped_column(Integer, nullable=False)
     muted_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.daos import audit_log as audit_log_dao
-from app.models.audit_log import AuditLog
+from app.models.audit_log import AuditLog, AuditLogAction
 from app.models.user import User
 from app.schemas.audit_log import AuditLogOut
 from app.schemas.user import UserPublic
@@ -10,7 +10,7 @@ from app.schemas.user import UserPublic
 def log(
     db: Session,
     moderator: User,
-    action: str,
+    action: AuditLogAction,
     target_user_id: int | None = None,
     detail: str = "",
 ) -> None:
@@ -28,7 +28,7 @@ def admin_list(
     db: Session,
     moderator: str | None,
     target_user: str | None,
-    action: str | None,
+    action: AuditLogAction | None,
     page: int,
     page_size: int,
 ) -> list[AuditLogOut]:

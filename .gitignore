@@ -27,6 +27,8 @@ web-build/
 .env
 .env.local
 .env.*.local
+moderator/config.js
+ads-admin/config.js
 
 # IDEs
 .idea/

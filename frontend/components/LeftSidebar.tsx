@@ -58,8 +58,8 @@ const APP_ITEMS: {
 }[] = [
   { key: 'rate', label: 'Avaliar o Daqui', icon: 'star-outline' },
   { key: 'help',   label: 'Ajuda e suporte', icon: 'help-circle-outline', route: '/help' },
-  { key: 'ads',    label: 'Anuncie conosco', icon: 'megaphone-outline', route: '/anunciar' },
-  { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline', route: '/legal/termos' },
+  { key: 'ads',    label: 'Anuncie conosco', icon: 'megaphone-outline', route: '/advertise' },
+  { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline', route: '/legal/terms' },
 ];
 
 export default function LeftSidebar({
@@ -311,7 +311,7 @@ export default function LeftSidebar({
         {APP_ITEMS.map((item) => {
           const isAds = item.key === 'ads';
           const label = isAds ? (hasMyAds ? 'Meus anúncios' : item.label) : item.label;
-          const route = isAds ? (hasMyAds ? '/anunciar/painel' : item.route) : item.route;
+          const route = isAds ? (hasMyAds ? '/advertise/dashboard' : item.route) : item.route;
           const icon = isAds && hasMyAds ? 'stats-chart-outline' : item.icon;
           return (
             <Pressable
@@ -370,9 +370,9 @@ export default function LeftSidebar({
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          <Text style={styles.footerLink} onPress={() => navigate('/legal/privacidade')}>Privacidade</Text>
+          <Text style={styles.footerLink} onPress={() => navigate('/legal/privacy')}>Privacidade</Text>
           {' · '}
-          <Text style={styles.footerLink} onPress={() => navigate('/legal/termos')}>Termos</Text>
+          <Text style={styles.footerLink} onPress={() => navigate('/legal/terms')}>Termos</Text>
         </Text>
         <Text style={styles.footerVersion}>Daqui © 2025</Text>
       </View>

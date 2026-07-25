@@ -2,6 +2,7 @@ from fastapi import Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_moderator, get_current_user, get_db
+from app.models.report import ReportStatus, ReportTargetType
 from app.models.user import User
 from app.schemas.attachment import AttachmentItem
 from app.schemas.report import (
@@ -33,8 +34,8 @@ def submit_report(
 
 # ── Moderador (app de moderação) ──────────────────────────────────────
 def list_reports(
-    status: str | None = Query(None, description="Filtra por status"),
-    target_type: str | None = Query(None, description="Filtra por tipo de alvo"),
+    status: ReportStatus | None = Query(None, description="Filtra por status"),
+    target_type: ReportTargetType | None = Query(None, description="Filtra por tipo de alvo"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),

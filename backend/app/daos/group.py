@@ -2,21 +2,18 @@ from sqlalchemy import case, desc, func
 from sqlalchemy.orm import Session
 
 from app.models.group import (
-    PRIVACY_PUBLIC,
-    PRIVACY_REQUEST,
-    ROLE_ADMIN,
-    ROLE_MEMBER,
-    ROLE_OWNER,
     Group,
     GroupJoinRequest,
     GroupMember,
     GroupMessage,
+    GroupPrivacy,
+    GroupRole,
 )
 
 # Ordena membros: dono, depois admins, depois membros comuns.
 _ROLE_RANK = case(
-    (GroupMember.role == ROLE_OWNER, 0),
-    (GroupMember.role == ROLE_ADMIN, 1),
+    (GroupMember.role == GroupRole.OWNER, 0),
+    (GroupMember.role == GroupRole.ADMIN, 1),
     else_=2,
 )
 
@@ -27,7 +24,7 @@ def create_group(
     *,
     name: str,
     description: str,
-    privacy: str,
+    privacy: GroupPrivacy,
     avatar_url: str | None,
     owner_id: int,
     neighborhood: str,
@@ -43,7 +40,7 @@ def create_group(
     )
     db.add(group)
     db.flush()  # garante group.id antes de inserir o dono como membro
-    db.add(GroupMember(group_id=group.id, user_id=owner_id, role=ROLE_OWNER))
+    db.add(GroupMember(group_id=group.id, user_id=owner_id, role=GroupRole.OWNER))
     group.members_count = 1
     db.commit()
     db.refresh(group)
@@ -87,7 +84,7 @@ def discover_open(
         GroupMember.user_id == user_id
     )
     q = db.query(Group).filter(
-        Group.privacy.in_([PRIVACY_PUBLIC, PRIVACY_REQUEST]),
+        Group.privacy.in_([GroupPrivacy.PUBLIC, GroupPrivacy.REQUEST]),
         Group.neighborhood == neighborhood,
         Group.id.notin_(member_group_ids),
     )
@@ -115,7 +112,7 @@ def list_members(db: Session, group_id: int) -> list[GroupMember]:
     )
 
 
-def add_member(db: Session, group_id: int, user_id: int, role: str = ROLE_MEMBER) -> GroupMember:
+def add_member(db: Session, group_id: int, user_id: int, role: GroupRole = GroupRole.MEMBER) -> GroupMember:
     member = GroupMember(group_id=group_id, user_id=user_id, role=role)
     db.add(member)
     group = db.get(Group, group_id)
@@ -134,7 +131,7 @@ def remove_member(db: Session, member: GroupMember) -> None:
     db.commit()
 
 
-def set_role(db: Session, member: GroupMember, role: str) -> GroupMember:
+def set_role(db: Session, member: GroupMember, role: GroupRole) -> GroupMember:
     member.role = role
     db.commit()
     db.refresh(member)

@@ -26,20 +26,20 @@ const TITLES: Record<ReportTargetType, string> = {
 
 const REASONS: Record<ReportTargetType, { value: string; label: string }[]> = {
   post: [
-    { value: 'ofensivo', label: 'Ofensivo e/ou propaga ódio' },
-    { value: 'categoria_errada', label: 'Está na categoria errada' },
+    { value: 'offensive', label: 'Ofensivo e/ou propaga ódio' },
+    { value: 'wrong_category', label: 'Está na categoria errada' },
     { value: 'spam', label: 'É spam' },
-    { value: 'nocivo', label: 'É nocivo para a comunidade' },
+    { value: 'harmful', label: 'É nocivo para a comunidade' },
   ],
   comment: [
-    { value: 'ofensivo', label: 'Ofensivo e/ou propaga ódio' },
+    { value: 'offensive', label: 'Ofensivo e/ou propaga ódio' },
     { value: 'spam', label: 'É spam' },
-    { value: 'nocivo', label: 'É nocivo para a comunidade' },
+    { value: 'harmful', label: 'É nocivo para a comunidade' },
   ],
   user: [
     { value: 'fake', label: 'É uma conta falsa/fake' },
-    { value: 'nao_vizinho', label: 'Essa pessoa não é moradora desse bairro' },
-    { value: 'nocivo_pessoa', label: 'Essa pessoa é nociva para a comunidade' },
+    { value: 'not_neighbor', label: 'Essa pessoa não é moradora desse bairro' },
+    { value: 'harmful_person', label: 'Essa pessoa é nociva para a comunidade' },
   ],
 };
 

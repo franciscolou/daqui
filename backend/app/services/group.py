@@ -7,14 +7,11 @@ from app.core.uploads import save_data_url_image
 from app.daos import group as group_dao
 from app.daos import user as user_dao
 from app.models.group import (
-    PRIVACY_CLOSED,
-    PRIVACY_REQUEST,
-    ROLE_ADMIN,
-    ROLE_MEMBER,
-    ROLE_OWNER,
     Group,
     GroupMember,
     GroupMessage,
+    GroupPrivacy,
+    GroupRole,
 )
 from app.models.user import User
 from app.schemas.group import (
@@ -48,7 +45,7 @@ def _require_membership(db: Session, group: Group, user: User) -> GroupMember:
 
 def _require_manager(db: Session, group: Group, user: User) -> GroupMember:
     member = _require_membership(db, group, user)
-    if member.role not in (ROLE_OWNER, ROLE_ADMIN):
+    if member.role not in (GroupRole.OWNER, GroupRole.ADMIN):
         raise HTTPException(status_code=403, detail="Ação restrita a administradores")
     return member
 
@@ -56,13 +53,13 @@ def _require_manager(db: Session, group: Group, user: User) -> GroupMember:
 # ── Serialização ──────────────────────────────────────────────────────
 def _to_out(
     group: Group,
-    my_role: str | None,
+    my_role: GroupRole | None,
     my_request_pending: bool = False,
     is_muted: bool = False,
     muted_until: datetime | None = None,
 ) -> GroupOut:
     out = GroupOut.model_validate(group)
-    out.my_role = my_role
+    out.my_role = GroupRole(my_role) if my_role is not None else None
     out.my_request_pending = my_request_pending
     out.is_muted = is_muted
     out.muted_until = muted_until
@@ -73,16 +70,16 @@ def _detail_out(
     db: Session,
     group: Group,
     user: User,
-    my_role: str | None,
+    my_role: GroupRole | None,
 ) -> GroupDetailOut:
     members = group_dao.list_members(db, group.id)
     out = GroupDetailOut.model_validate(group)
-    out.my_role = my_role
+    out.my_role = GroupRole(my_role) if my_role is not None else None
     out.members = [GroupMemberOut.model_validate(m) for m in members]
     mute_status = mute_service.get_group_status(db, user.id, group.id)
     out.is_muted = mute_status.is_muted
     out.muted_until = mute_status.muted_until
-    if my_role in (ROLE_OWNER, ROLE_ADMIN):
+    if my_role in (GroupRole.OWNER, GroupRole.ADMIN):
         requests = group_dao.list_join_requests(db, group.id)
         out.join_requests = [GroupJoinRequestOut.model_validate(r) for r in requests]
     elif my_role is None:
@@ -125,17 +122,17 @@ def create_group(db: Session, user: User, payload: GroupCreate) -> GroupDetailOu
             continue
         if group_dao.get_membership(db, group.id, uid):
             continue
-        group_dao.add_member(db, group.id, uid, ROLE_MEMBER)
+        group_dao.add_member(db, group.id, uid, GroupRole.MEMBER)
 
     db.refresh(group)
-    return _detail_out(db, group, user, ROLE_OWNER)
+    return _detail_out(db, group, user, GroupRole.OWNER)
 
 
 def get_group(db: Session, user: User, group_id: int) -> GroupDetailOut:
     group = _require_group(db, group_id)
     member = group_dao.get_membership(db, group.id, user.id)
     # Grupo fechado só é visível para membros.
-    if member is None and group.privacy == PRIVACY_CLOSED:
+    if member is None and group.privacy == GroupPrivacy.CLOSED:
         raise HTTPException(status_code=403, detail="Grupo fechado")
     return _detail_out(db, group, user, member.role if member else None)
 
@@ -219,7 +216,7 @@ def discover(db: Session, user: User, query: str) -> list[GroupOut]:
 # ── Membros ───────────────────────────────────────────────────────────
 def join(db: Session, user: User, group_id: int) -> GroupDetailOut:
     group = _require_group(db, group_id)
-    if group.privacy == PRIVACY_CLOSED:
+    if group.privacy == GroupPrivacy.CLOSED:
         raise HTTPException(status_code=403, detail="Grupo fechado: entrada só por convite")
     if user.neighborhood != group.neighborhood:
         raise HTTPException(
@@ -229,13 +226,13 @@ def join(db: Session, user: User, group_id: int) -> GroupDetailOut:
     if existing:
         return _detail_out(db, group, user, existing.role)
 
-    if group.privacy == PRIVACY_REQUEST:
+    if group.privacy == GroupPrivacy.REQUEST:
         if not group_dao.get_join_request(db, group.id, user.id):
             group_dao.create_join_request(db, group.id, user.id)
         return _detail_out(db, group, user, None)
 
-    group_dao.add_member(db, group.id, user.id, ROLE_MEMBER)
-    return _detail_out(db, group, user, ROLE_MEMBER)
+    group_dao.add_member(db, group.id, user.id, GroupRole.MEMBER)
+    return _detail_out(db, group, user, GroupRole.MEMBER)
 
 
 def cancel_join_request(db: Session, user: User, group_id: int) -> None:
@@ -260,7 +257,7 @@ def approve_join_request(db: Session, user: User, group_id: int, target_id: int)
         raise HTTPException(status_code=404, detail="Solicitação não encontrada")
     group_dao.delete_join_request(db, request)
     if not group_dao.get_membership(db, group.id, target_id):
-        group_dao.add_member(db, group.id, target_id, ROLE_MEMBER)
+        group_dao.add_member(db, group.id, target_id, GroupRole.MEMBER)
     return _detail_out(db, group, user, manager.role)
 
 
@@ -277,7 +274,7 @@ def reject_join_request(db: Session, user: User, group_id: int, target_id: int) 
 def leave(db: Session, user: User, group_id: int) -> None:
     group = _require_group(db, group_id)
     member = _require_membership(db, group, user)
-    if member.role == ROLE_OWNER:
+    if member.role == GroupRole.OWNER:
         raise HTTPException(
             status_code=400,
             detail="O dono não pode sair; transfira ou exclua o grupo",
@@ -297,7 +294,7 @@ def add_member(db: Session, user: User, group_id: int, target_id: int) -> GroupD
         )
     if group_dao.get_membership(db, group.id, target_id):
         raise HTTPException(status_code=400, detail="Usuário já é membro")
-    group_dao.add_member(db, group.id, target_id, ROLE_MEMBER)
+    group_dao.add_member(db, group.id, target_id, GroupRole.MEMBER)
     return _detail_out(db, group, user, manager.role)
 
 
@@ -307,10 +304,10 @@ def remove_member(db: Session, user: User, group_id: int, target_id: int) -> Gro
     target = group_dao.get_membership(db, group.id, target_id)
     if not target:
         raise HTTPException(status_code=404, detail="Membro não encontrado")
-    if target.role == ROLE_OWNER:
+    if target.role == GroupRole.OWNER:
         raise HTTPException(status_code=400, detail="Não é possível remover o dono")
     # Admin não pode remover outro admin; só o dono pode.
-    if target.role == ROLE_ADMIN and manager.role != ROLE_OWNER:
+    if target.role == GroupRole.ADMIN and manager.role != GroupRole.OWNER:
         raise HTTPException(status_code=403, detail="Só o dono pode remover um administrador")
     group_dao.remove_member(db, target)
     return _detail_out(db, group, user, manager.role)
@@ -325,10 +322,10 @@ def set_admin(
     target = group_dao.get_membership(db, group.id, target_id)
     if not target:
         raise HTTPException(status_code=404, detail="Membro não encontrado")
-    if target.role == ROLE_OWNER:
+    if target.role == GroupRole.OWNER:
         raise HTTPException(status_code=400, detail="O dono já administra o grupo")
-    group_dao.set_role(db, target, ROLE_ADMIN if make_admin else ROLE_MEMBER)
-    return _detail_out(db, group, user, ROLE_OWNER)
+    group_dao.set_role(db, target, GroupRole.ADMIN if make_admin else GroupRole.MEMBER)
+    return _detail_out(db, group, user, GroupRole.OWNER)
 
 
 # ── Mensagens ─────────────────────────────────────────────────────────

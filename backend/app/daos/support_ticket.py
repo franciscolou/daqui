@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from app.models.support_ticket import STATUS_ANSWERED, SupportTicket
+from app.models.support_ticket import SupportTicket, SupportTicketStatus
 
 
 def get_by_id(db: Session, ticket_id: int) -> SupportTicket | None:
@@ -31,14 +31,16 @@ def list_for_user(db: Session, user_id: int) -> list[SupportTicket]:
     )
 
 
-def list_all(db: Session, status: str | None, offset: int, limit: int) -> list[SupportTicket]:
+def list_all(
+    db: Session, status: SupportTicketStatus | None, offset: int, limit: int
+) -> list[SupportTicket]:
     q = db.query(SupportTicket)
     if status:
         q = q.filter(SupportTicket.status == status)
     return q.order_by(desc(SupportTicket.created_at)).offset(offset).limit(limit).all()
 
 
-def count(db: Session, status: str | None) -> int:
+def count(db: Session, status: SupportTicketStatus | None) -> int:
     q = db.query(func.count(SupportTicket.id))
     if status:
         q = q.filter(SupportTicket.status == status)
@@ -47,7 +49,7 @@ def count(db: Session, status: str | None) -> int:
 
 def reply(db: Session, ticket: SupportTicket, response: str) -> SupportTicket:
     ticket.response = response
-    ticket.status = STATUS_ANSWERED
+    ticket.status = SupportTicketStatus.ANSWERED
     ticket.responded_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ticket)

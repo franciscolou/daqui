@@ -3,7 +3,7 @@
 Uma única fonte de verdade pra: extrair os @handles de um texto e notificar
 os usuários mencionados. O texto continua guardado como está (com o `@handle`
 literal) — o frontend resolve o link ao renderizar. Aqui só disparamos as
-notificações de menção (ver `models/notification.py::TYPE_MENTION`).
+notificações de menção (ver `models/notification.py::NotificationType.MENTION`).
 """
 
 import re
@@ -11,7 +11,7 @@ import re
 from sqlalchemy.orm import Session
 
 from app.daos import user as user_dao
-from app.models.notification import TYPE_MENTION
+from app.models.notification import NotificationType
 from app.models.user import User
 from app.services import notification as notification_service
 
@@ -51,7 +51,7 @@ def notify_mentions(
         notification_service.notify(
             db,
             user_id=target.id,
-            type_=TYPE_MENTION,
+            type_=NotificationType.MENTION,
             content="mencionou você",
             target_text=(target_text or "")[:_PREVIEW_MAX],
             post_id=post_id,

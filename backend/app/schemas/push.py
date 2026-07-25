@@ -1,8 +1,8 @@
-from typing import Literal
-
 from pydantic import BaseModel
+
+from app.models.push_token import PushPlatform
 
 
 class PushTokenIn(BaseModel):
     token: str
-    platform: Literal["ios", "android"]
+    platform: PushPlatform

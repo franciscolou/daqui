@@ -95,14 +95,14 @@ export default function AdvertiserPanelScreen() {
         linkedUserId: c.linkedUserId,
       })),
     });
-    router.push({ pathname: '/anunciar/personalizar', params: { prefill, renewedFromToken: token } });
+    router.push({ pathname: '/advertise/customize', params: { prefill, renewedFromToken: token } });
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.headerInner}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.replace('/anunciar/painel')}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.replace('/advertise/dashboard')}>
             <Ionicons name="arrow-back" size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Meu anúncio</Text>
@@ -110,7 +110,7 @@ export default function AdvertiserPanelScreen() {
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.actionPill}
-                onPress={() => router.push(`/anunciar/painel/editar/${token}` as any)}
+                onPress={() => router.push(`/advertise/dashboard/edit/${token}` as any)}
               >
                 <Ionicons name="pencil-outline" size={14} color={Colors.primary} />
                 <Text style={styles.actionPillText}>Editar</Text>
@@ -196,7 +196,7 @@ export default function AdvertiserPanelScreen() {
                       style={[styles.historyRow, isCurrent && styles.historyRowCurrent]}
                       activeOpacity={isCurrent ? 1 : 0.8}
                       disabled={isCurrent}
-                      onPress={() => router.replace(`/anunciar/painel/${p.accessToken}` as any)}
+                      onPress={() => router.replace(`/advertise/dashboard/${p.accessToken}` as any)}
                     >
                       <View style={[styles.statusDot, { backgroundColor: Colors[STATUS_META[p.status].color] as string }]} />
                       <View style={{ flex: 1 }}>

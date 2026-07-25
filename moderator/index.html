@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Moderação | Daqui</title>
   <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+  <!-- Config local por ambiente (gitignored) — copie config.example.js pra
+       config.js e ajuste API_URL/APP_URL. Sem esse arquivo, cai no default
+       de localhost abaixo (nada quebra se ele não existir). -->
+  <script src="config.js"></script>
   <script>
     // Aplica o tema antes do primeiro paint (evita flash do tema errado).
     (function () {
@@ -235,9 +239,9 @@
 
       <div id="loginStepCreds">
         <label>Servidor da API</label>
-        <input id="api" value="http://localhost:8000/api/v1" />
+        <input id="api" />
         <label>URL do app Daqui</label>
-        <input id="appUrl" value="http://localhost:8081" />
+        <input id="appUrl" />
         <label>E-mail</label>
         <input id="email" type="email" placeholder="moderador@daqui.com" autocomplete="username" />
         <label>Senha</label>
@@ -394,6 +398,13 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
+    // Defaults preenchidos no login — vêm de config.js (ver <head>) quando
+    // existe; sem ele, cai no localhost de dev (mesmo valor de sempre).
+    const CONFIG = window.DAQUI_CONFIG || {};
+    const DEFAULT_API_URL = CONFIG.API_URL || 'http://localhost:8000/api/v1';
+    const DEFAULT_APP_URL = CONFIG.APP_URL || 'http://localhost:8081';
+    $('api').value = DEFAULT_API_URL;
+    $('appUrl').value = DEFAULT_APP_URL;
     let API = '';
     let APP_URL = '';
     let token = '';
@@ -744,13 +755,13 @@
     const REPORT_STATUS_LABEL = { pending: 'Pendente', reviewed: 'Revisada', dismissed: 'Descartada' };
     const REPORT_TARGET_LABEL = { post: 'Publicação', comment: 'Comentário', user: 'Perfil' };
     const REPORT_REASON_LABEL = {
-      ofensivo: 'Ofensivo e/ou propaga ódio',
-      categoria_errada: 'Está na categoria errada',
+      offensive: 'Ofensivo e/ou propaga ódio',
+      wrong_category: 'Está na categoria errada',
       spam: 'É spam',
-      nocivo: 'É nocivo para a comunidade',
+      harmful: 'É nocivo para a comunidade',
       fake: 'É uma conta falsa/fake',
-      nao_vizinho: 'Essa pessoa não é moradora desse bairro',
-      nocivo_pessoa: 'Essa pessoa é nociva para a comunidade',
+      not_neighbor: 'Essa pessoa não é moradora desse bairro',
+      harmful_person: 'Essa pessoa é nociva para a comunidade',
     };
 
     function renderReportTabs() {

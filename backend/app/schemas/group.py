@@ -1,17 +1,16 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 
+from app.models.group import GroupPrivacy, GroupRole
 from app.schemas.message import MessageReplyOut
 from app.schemas.user import UserPublic
-
-GroupPrivacy = Literal["public", "request", "closed"]
 
 
 class GroupMemberOut(BaseModel):
     user: UserPublic
-    role: str
+    role: GroupRole
     joined_at: datetime
 
     model_config = {"from_attributes": True}
@@ -35,7 +34,7 @@ class GroupOut(BaseModel):
     members_count: int
     created_at: datetime
     # Papel do usuário logado no grupo (None se não for membro).
-    my_role: Optional[str] = None
+    my_role: Optional[GroupRole] = None
     # True se o usuário logado já tem uma solicitação de entrada pendente
     # (só relevante para privacy="request" e quando my_role é None).
     my_request_pending: Optional[bool] = None
@@ -62,7 +61,7 @@ class GroupConversationOut(BaseModel):
 class GroupCreate(BaseModel):
     name: str
     description: str = ""
-    privacy: GroupPrivacy = "closed"
+    privacy: GroupPrivacy = GroupPrivacy.CLOSED
     avatar_url: Optional[str] = None
     member_ids: list[int] = []
 

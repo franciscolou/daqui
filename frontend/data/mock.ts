@@ -39,7 +39,7 @@ export interface User {
   neighborhood: string;
   city?: string;
   state?: string;
-  badge?: 'morador' | 'lider' | 'comerciante';
+  badge?: 'resident' | 'leader' | 'business';
   verified: boolean;
   joinedAt: string;
   postsCount: number;
@@ -117,7 +117,7 @@ export const CURRENT_USER: User = {
   name: 'Francisco Gardenberg',
   avatar: 'https://i.pravatar.cc/150?img=68',
   neighborhood: 'Vila Madalena',
-  badge: 'lider',
+  badge: 'leader',
   verified: true,
   joinedAt: 'Março 2024',
   postsCount: 47,
@@ -131,7 +131,7 @@ export const USERS: User[] = [
     name: 'Ana Paula Lima',
     avatar: 'https://i.pravatar.cc/150?img=47',
     neighborhood: 'Vila Madalena',
-    badge: 'lider',
+    badge: 'leader',
     verified: true,
     joinedAt: 'Jan 2023',
     postsCount: 134,
@@ -143,7 +143,7 @@ export const USERS: User[] = [
     name: 'Carlos Mendes',
     avatar: 'https://i.pravatar.cc/150?img=52',
     neighborhood: 'Pinheiros',
-    badge: 'morador',
+    badge: 'resident',
     verified: true,
     joinedAt: 'Mar 2023',
     postsCount: 28,
@@ -155,7 +155,7 @@ export const USERS: User[] = [
     name: 'Beatriz Santos',
     avatar: 'https://i.pravatar.cc/150?img=44',
     neighborhood: 'Vila Madalena',
-    badge: 'comerciante',
+    badge: 'business',
     verified: true,
     joinedAt: 'Jun 2022',
     postsCount: 256,
@@ -167,7 +167,7 @@ export const USERS: User[] = [
     name: 'Roberto Alves',
     avatar: 'https://i.pravatar.cc/150?img=57',
     neighborhood: 'Jardins',
-    badge: 'morador',
+    badge: 'resident',
     verified: false,
     joinedAt: 'Ago 2023',
     postsCount: 12,
@@ -179,7 +179,7 @@ export const USERS: User[] = [
     name: 'Mariana Costa',
     avatar: 'https://i.pravatar.cc/150?img=25',
     neighborhood: 'Vila Madalena',
-    badge: 'morador',
+    badge: 'resident',
     verified: true,
     joinedAt: 'Fev 2024',
     postsCount: 8,
@@ -191,7 +191,7 @@ export const USERS: User[] = [
     name: 'Thiago Ferreira',
     avatar: 'https://i.pravatar.cc/150?img=61',
     neighborhood: 'Perdizes',
-    badge: 'morador',
+    badge: 'resident',
     verified: true,
     joinedAt: 'Nov 2022',
     postsCount: 55,

@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from sqlalchemy import (
     JSON,
@@ -14,80 +15,121 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.br_documents import AdvertiserType
 from app.database import Base
 
-# Os 4 formatos em que um anúncio pode aparecer no app Daqui. "post" cobre
-# tanto o card no feed quanto o pin no mapa (mesmo anúncio, mesma lat/lng) —
-# não existe um formato "map" separado.
-FORMATS = ("post", "conversation", "notification", "search_poster")
 
-STATUS_PENDING_PAYMENT = "pending_payment"
-STATUS_ACTIVE = "active"
-STATUS_PAUSED = "paused"
-STATUS_EXPIRED = "expired"
-STATUS_REJECTED = "rejected"
-STATUSES = (
-    STATUS_PENDING_PAYMENT,
-    STATUS_ACTIVE,
-    STATUS_PAUSED,
-    STATUS_EXPIRED,
-    STATUS_REJECTED,
-)
+class AdFormat(StrEnum):
+    """Os 4 formatos em que um anúncio pode aparecer no app Daqui. POST cobre
+    tanto o card no feed quanto o pin no mapa (mesmo anúncio, mesma lat/lng) —
+    não existe um formato "map" separado."""
 
-# Objetivo da campanha: define o CTA/ação em destaque, a métrica-alvo no
-# analytics e um fator leve de precificação (ver services/ad_pricing.py).
-OBJECTIVES = (
-    "reach",
-    "clicks",
-    "profile_visits",
-    "map_opens",
-    "whatsapp_opens",
-    "instagram_opens",
-    "website_opens",
-)
-DEFAULT_OBJECTIVE = "clicks"
+    POST = "post"
+    CONVERSATION = "conversation"
+    NOTIFICATION = "notification"
+    SEARCH_POSTER = "search_poster"
 
-PACING_ASAP = "asap"
-PACING_EVEN = "even"
-PACING_MODES = (PACING_ASAP, PACING_EVEN)
 
-AUDIENCES = ("all", "residents", "visitors")
-USER_RECENCIES = ("all", "new", "returning")
-ENGAGEMENT_LEVELS = ("any", "active")
+class AdCampaignStatus(StrEnum):
+    PENDING_PAYMENT = "pending_payment"
+    ACTIVE = "active"
+    PAUSED = "paused"
+    EXPIRED = "expired"
+    REJECTED = "rejected"
 
-# Escopo geográfico de uma campanha (ou de um plano — ver AdPlan.geo_scope):
-# do mais estreito ao mais amplo. "neighborhood" usa `neighborhoods` (lista de
-# bairros), "citywide" usa `city` (uma cidade inteira), "cities" usa `cities`
-# (lista de cidades específicas — ex.: capitais de vários estados) e "country"
-# não precisa de nenhum campo extra (Brasil todo, o app é só nacional).
-GEO_SCOPE_NEIGHBORHOOD = "neighborhood"
-GEO_SCOPE_CITYWIDE = "citywide"
-GEO_SCOPE_CITIES = "cities"
-GEO_SCOPE_COUNTRY = "country"
-GEO_SCOPES = (
-    GEO_SCOPE_NEIGHBORHOOD,
-    GEO_SCOPE_CITYWIDE,
-    GEO_SCOPE_CITIES,
-    GEO_SCOPE_COUNTRY,
-)
 
-EVENT_IMPRESSION = "impression"
-EVENT_CLICK = "click"
-EVENT_TYPES = (EVENT_IMPRESSION, EVENT_CLICK)
+class AdObjective(StrEnum):
+    """Objetivo da campanha: define o CTA/ação em destaque, a métrica-alvo no
+    analytics e um fator leve de precificação (ver services/ad_pricing.py)."""
 
-# Ações específicas logadas num clique — usadas pra medir objetivos como
-# "abertura do WhatsApp/Instagram/site" (ver "Objetivo da campanha" no plano).
-OBJECTIVE_ACTIONS = ("whatsapp", "instagram", "website", "map", "profile")
+    REACH = "reach"
+    CLICKS = "clicks"
+    PROFILE_VISITS = "profile_visits"
+    MAP_OPENS = "map_opens"
+    WHATSAPP_OPENS = "whatsapp_opens"
+    INSTAGRAM_OPENS = "instagram_opens"
+    WEBSITE_OPENS = "website_opens"
+
+
+DEFAULT_OBJECTIVE = AdObjective.CLICKS
+
+
+class AdPacing(StrEnum):
+    ASAP = "asap"
+    EVEN = "even"
+
+
+class Audience(StrEnum):
+    ALL = "all"
+    RESIDENTS = "residents"
+    VISITORS = "visitors"
+
+
+class UserRecency(StrEnum):
+    ALL = "all"
+    NEW = "new"
+    RETURNING = "returning"
+
+
+class EngagementLevel(StrEnum):
+    ANY = "any"
+    ACTIVE = "active"
+
+
+class GeoScope(StrEnum):
+    """Escopo geográfico de uma campanha (ou de um plano — ver AdPlan.geo_scope):
+    do mais estreito ao mais amplo. NEIGHBORHOOD usa `neighborhoods` (lista de
+    bairros), CITYWIDE usa `city` (uma cidade inteira), CITIES usa `cities`
+    (lista de cidades específicas — ex.: capitais de vários estados) e COUNTRY
+    não precisa de nenhum campo extra (Brasil todo, o app é só nacional)."""
+
+    NEIGHBORHOOD = "neighborhood"
+    CITYWIDE = "citywide"
+    CITIES = "cities"
+    COUNTRY = "country"
+
+
+class AdEventType(StrEnum):
+    IMPRESSION = "impression"
+    CLICK = "click"
+
+
+class ObjectiveAction(StrEnum):
+    """Ações específicas logadas num clique — usadas pra medir objetivos como
+    "abertura do WhatsApp/Instagram/site" (ver "Objetivo da campanha" no plano)."""
+
+    WHATSAPP = "whatsapp"
+    INSTAGRAM = "instagram"
+    WEBSITE = "website"
+    MAP = "map"
+    PROFILE = "profile"
+
+
+class AdPlanCategory(StrEnum):
+    """Agrupamento na tela de anúncios — puramente de apresentação, não afeta
+    preço/entrega. Mesmos valores de `AdPlanCategory` no frontend
+    (`lib/adsApi.ts`)."""
+
+    LOCAL_BUSINESS = "local_business"
+    EVENT = "event"
+    ENTERPRISE = "enterprise"
+    NATIONAL = "national"
+
+
+class PaymentProvider(StrEnum):
+    STRIPE = "stripe"
+    MANUAL = "manual"
+    MANUAL_CONFIRMATION = "manual_confirmation"
 
 
 def default_targeting() -> dict:
     """Alvo de audiência: bloco único em JSON (mesmo idioma de `formats`),
     pra não exigir migração a cada novo eixo de segmentação. `geo_scope`
     decide qual dos 3 campos de área (`neighborhoods`/`city`/`cities`) vale —
-    ver GEO_SCOPES.
+    ver GeoScope.
     """
     return {
-        "geo_scope": GEO_SCOPE_NEIGHBORHOOD,
+        "geo_scope": GeoScope.NEIGHBORHOOD,
         "neighborhoods": [],
         "city": None,
         "cities": [],
@@ -95,11 +137,11 @@ def default_targeting() -> dict:
         "radius_km": None,
         "center_lat": None,
         "center_lng": None,
-        "audience": "all",
+        "audience": Audience.ALL,
         "categories": [],
         "group_ids": [],
-        "user_recency": "all",
-        "engagement": "any",
+        "user_recency": UserRecency.ALL,
+        "engagement": EngagementLevel.ANY,
     }
 
 
@@ -125,21 +167,19 @@ class AdPlan(Base):
     currency: Mapped[str] = mapped_column(String(3), default="BRL")
     duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
     formats: Mapped[list[str]] = mapped_column(JSON, default=list)
-    # Escopo geográfico fixo do plano (ver GEO_SCOPES) — decide qual dos 2
+    # Escopo geográfico fixo do plano (ver GeoScope) — decide qual dos 2
     # campos abaixo vale: "neighborhood" usa `max_neighborhoods` (limite de
     # bairros que o anunciante escolhe), "cities" usa `max_cities` (limite de
     # cidades). "citywide" e "country" não usam nenhum dos dois (o anunciante
     # só escolhe QUAL cidade, no caso de "citywide" — ver targeting da campanha).
-    geo_scope: Mapped[str] = mapped_column(
-        String(20), default=GEO_SCOPE_NEIGHBORHOOD, nullable=False
+    geo_scope: Mapped[GeoScope] = mapped_column(
+        String(20), default=GeoScope.NEIGHBORHOOD, nullable=False
     )
     max_neighborhoods: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_cities: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    # Agrupamento na tela de anúncios (ex.: "local_business", "event",
-    # "enterprise") — puramente de apresentação, não afeta preço/entrega.
-    category: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    category: Mapped[AdPlanCategory | None] = mapped_column(String(30), nullable=True)
     # Texto curto de destaque (ex. "Mais popular"), opcional.
     badge: Mapped[str | None] = mapped_column(String(40), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -165,8 +205,8 @@ class AdCampaign(Base):
     plan_id: Mapped[int | None] = mapped_column(
         ForeignKey("ad_plans.id"), nullable=True
     )
-    status: Mapped[str] = mapped_column(
-        String(20), default=STATUS_PENDING_PAYMENT, nullable=False
+    status: Mapped[AdCampaignStatus] = mapped_column(
+        String(20), default=AdCampaignStatus.PENDING_PAYMENT, nullable=False
     )
 
     advertiser_name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -174,12 +214,12 @@ class AdCampaign(Base):
     advertiser_phone: Mapped[str] = mapped_column(String(30), default="")
     # Pessoa Física (CPF) ou Jurídica (CNPJ) — ver core/br_documents.py.
     # `advertiser_document` guarda só os dígitos, já validados no checkout.
-    advertiser_type: Mapped[str] = mapped_column(
-        String(20), default="individual", nullable=False
+    advertiser_type: Mapped[AdvertiserType] = mapped_column(
+        String(20), default=AdvertiserType.INDIVIDUAL, nullable=False
     )
     advertiser_document: Mapped[str] = mapped_column(String(20), default="")
 
-    # Link de acesso do anunciante ao próprio painel (`/anunciar/painel/{token}`,
+    # Link de acesso do anunciante ao próprio painel (`/advertise/dashboard/{token}`,
     # ver routers/ads.py::"/my-campaign/{token}") — capability token em vez de
     # login, já que não existe conta de anunciante neste sistema. Único segredo
     # que dá acesso; nunca reexposto em nenhuma resposta pública além desta.
@@ -198,14 +238,14 @@ class AdCampaign(Base):
     duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Objetivo, prioridade e controle de entrega.
-    objective: Mapped[str] = mapped_column(
+    objective: Mapped[AdObjective] = mapped_column(
         String(30), default=DEFAULT_OBJECTIVE, nullable=False
     )
     priority: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     rotation_weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     daily_impression_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
     per_user_impression_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    pacing: Mapped[str] = mapped_column(String(10), default=PACING_ASAP, nullable=False)
+    pacing: Mapped[AdPacing] = mapped_column(String(10), default=AdPacing.ASAP, nullable=False)
     schedule: Mapped[dict] = mapped_column(JSON, default=default_schedule)
 
     starts_at: Mapped[datetime | None] = mapped_column(
@@ -232,7 +272,7 @@ class AdCampaign(Base):
         ForeignKey("ad_campaigns.id"), nullable=True, index=True
     )
 
-    payment_provider: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    payment_provider: Mapped[PaymentProvider | None] = mapped_column(String(30), nullable=True)
     payment_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
     paid_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -263,8 +303,8 @@ class AdCampaign(Base):
     # filtro de elegibilidade (`daos/ad.py`) e a precificação continuam
     # lendo `campaign.geo_scope`/`campaign.neighborhoods`/etc como antes.
     @property
-    def geo_scope(self) -> str:
-        return self.targeting.get("geo_scope", GEO_SCOPE_NEIGHBORHOOD)
+    def geo_scope(self) -> GeoScope:
+        return self.targeting.get("geo_scope", GeoScope.NEIGHBORHOOD)
 
     @property
     def neighborhoods(self) -> list[str]:
@@ -293,7 +333,7 @@ class AdCreative(Base):
     campaign_id: Mapped[int] = mapped_column(
         ForeignKey("ad_campaigns.id"), nullable=False, index=True
     )
-    format: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    format: Mapped[AdFormat | None] = mapped_column(String(20), nullable=True)
 
     title: Mapped[str] = mapped_column(String(120), nullable=False)
     content: Mapped[str] = mapped_column(Text, default="")
@@ -345,11 +385,11 @@ class AdEvent(Base):
     creative_id: Mapped[int | None] = mapped_column(
         ForeignKey("ad_creatives.id"), nullable=True
     )
-    event_type: Mapped[str] = mapped_column(String(12), nullable=False)
-    format: Mapped[str] = mapped_column(String(20), nullable=False)
+    event_type: Mapped[AdEventType] = mapped_column(String(12), nullable=False)
+    format: Mapped[AdFormat] = mapped_column(String(20), nullable=False)
     neighborhood: Mapped[str | None] = mapped_column(String(120), nullable=True)
     viewer_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    objective_action: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    objective_action: Mapped[ObjectiveAction | None] = mapped_column(String(20), nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

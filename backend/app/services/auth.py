@@ -201,7 +201,7 @@ def forgot_password(db: Session, payload: ForgotPasswordRequest) -> None:
     user = user_dao.get_by_email(db, payload.email)
     if user:
         token = create_password_reset_token(user.id)
-        link = f"{settings.FRONTEND_URL}/redefinir-senha?token={token}"
+        link = f"{settings.FRONTEND_URL}/reset-password?token={token}"
         send_email(
             user.email,
             "Redefinição de senha — Daqui",

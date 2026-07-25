@@ -5,6 +5,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 # Regra única de username (compartilhada com o cadastro).
 from app.core.username import USERNAME_RE
 from app.core.username import validate as _validate_username
+from app.models.user import UserBadge
 
 __all__ = ["USERNAME_RE"]  # re-exportado para quem importa daqui
 
@@ -19,7 +20,7 @@ class UserPublic(BaseModel):
     neighborhood: str
     city: str | None = None
     state: str | None = None
-    badge: str | None
+    badge: UserBadge | None
     verified: bool
     posts_count: int
     interactions_count: int

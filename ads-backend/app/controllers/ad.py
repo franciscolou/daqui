@@ -4,6 +4,7 @@ from fastapi import Body, Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin, get_db
+from app.models.ad import AdCampaignStatus, AdFormat
 from app.models.admin import AdAdmin
 from app.schemas.ad import (
     AdOut,
@@ -74,7 +75,7 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dic
 
 
 def get_active_ad(
-    format: str,
+    format: AdFormat,
     neighborhood: str | None = Query(None),
     city: str | None = Query(None),
     nearby_neighborhoods: str | None = Query(None),
@@ -105,7 +106,7 @@ def get_active_ad(
 
 
 def get_active_ad_list(
-    format: str,
+    format: AdFormat,
     neighborhood: str | None = Query(None),
     city: str | None = Query(None),
     nearby_neighborhoods: str | None = Query(None),
@@ -151,7 +152,7 @@ def get_my_campaign(
     db: Session = Depends(get_db),
 ) -> MyCampaignOut:
     # Público — o token (não uma sessão de admin) é a própria autorização,
-    # ver `/anunciar/painel/[token].tsx` no frontend.
+    # ver `/advertise/dashboard/[token].tsx` no frontend.
     return ad_service.get_my_campaign(db, token, group_by)
 
 
@@ -210,7 +211,7 @@ def admin_update_settings(
 
 
 def admin_list_campaigns(
-    status: str | None = Query(None),
+    status: AdCampaignStatus | None = Query(None),
     db: Session = Depends(get_db),
     _admin: AdAdmin = Depends(get_current_admin),
 ) -> list[CampaignAdminOut]:
@@ -330,7 +331,7 @@ def admin_get_global_analytics(
     date_from: str | None = Query(None),
     date_to: str | None = Query(None),
     advertiser: str | None = Query(None),
-    status: str | None = Query(None),
+    status: AdCampaignStatus | None = Query(None),
     db: Session = Depends(get_db),
     _admin: AdAdmin = Depends(get_current_admin),
 ) -> GlobalAnalyticsOut:

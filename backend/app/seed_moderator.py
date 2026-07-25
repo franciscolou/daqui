@@ -6,7 +6,7 @@ Login: moderador@daqui.com / senha123
 """
 from app.core.security import hash_password
 from app.database import SessionLocal, create_tables
-from app.models.user import User
+from app.models.user import User, UserBadge
 
 EMAIL = "moderador@daqui.com"
 USERNAME = "moderador"
@@ -35,7 +35,7 @@ def seed_moderator():
             neighborhood="Leme",
             city="Rio de Janeiro",
             state="RJ",
-            badge="lider",
+            badge=UserBadge.LEADER,
             verified=True,
             is_moderator=True,
             email_verified=True,

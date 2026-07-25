@@ -1,7 +1,7 @@
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session
 
-from app.models.user import User
+from app.models.user import User, UserBadge
 
 
 def get_by_id(db: Session, user_id: int) -> User | None:
@@ -39,7 +39,7 @@ def create(
         state=state,
         latitude=latitude,
         longitude=longitude,
-        badge="morador",
+        badge=UserBadge.RESIDENT,
         verified=False,
     )
     db.add(user)

@@ -3,7 +3,12 @@ from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
-from app.models.report import MAX_COMMENT_LENGTH, TARGETS
+from app.models.report import (
+    MAX_COMMENT_LENGTH,
+    ReportReason,
+    ReportStatus,
+    ReportTargetType,
+)
 from app.schemas.attachment import MAX_ATTACHMENTS, AttachmentItem
 from app.schemas.comment import CommentOut
 from app.schemas.post import PostOut
@@ -11,19 +16,12 @@ from app.schemas.user import UserPublic
 
 
 class ReportCreate(BaseModel):
-    target_type: str
+    target_type: ReportTargetType
     target_id: int
-    reason: str
+    reason: ReportReason
     comment: str = ""
     # Já enviados via POST /reports/attachments, até MAX_ATTACHMENTS itens.
     attachments: list[AttachmentItem] = []
-
-    @field_validator("target_type")
-    @classmethod
-    def check_target_type(cls, v: str) -> str:
-        if v not in TARGETS:
-            raise ValueError("Tipo de alvo inválido")
-        return v
 
     @field_validator("comment")
     @classmethod
@@ -43,11 +41,11 @@ class ReportCreate(BaseModel):
 
 class ReportOut(BaseModel):
     id: int
-    target_type: str
-    reason: str
+    target_type: ReportTargetType
+    reason: ReportReason
     comment: str
     attachments: list[AttachmentItem] = []
-    status: str
+    status: ReportStatus
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -61,7 +59,7 @@ class ReportAdminOut(ReportOut):
 
 
 class ReportStatusUpdate(BaseModel):
-    status: str
+    status: ReportStatus
 
 
 class ReportStats(BaseModel):

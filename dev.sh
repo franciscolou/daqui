@@ -25,7 +25,9 @@ ADS_BACKEND_PID=$!
 
 echo "▶ Frontend   → http://localhost:8081"
 cd "$ROOT/frontend"
-EXPO_PUBLIC_ADS_API_URL="http://localhost:8001/api/v1" npx expo start --web &
+# EXPO_PUBLIC_API_URL / EXPO_PUBLIC_ADS_API_URL não são setados aqui de propósito —
+# lib/api.ts e lib/adsApi.ts já caem em localhost:8000/8001 por padrão (ver CLAUDE.md).
+npx expo start --web &
 FRONTEND_PID=$!
 
 # App de moderação (estático). Login: moderador@daqui.com / senha123

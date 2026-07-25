@@ -7,14 +7,13 @@ from app.core.uploads import save_upload_media
 from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
-from app.models.audit_log import ACTION_POST_DELETE
-from app.models.notification import TYPE_POST_REMOVED
-from app.models.post import Post
+from app.models.audit_log import AuditLogAction
+from app.models.notification import NotificationType
+from app.models.post import Post, PostCategory
 from app.models.user import User
 from app.schemas.message import SharedCommentOut, SharedPostOut
 from app.schemas.post import (
     MAX_MEDIA_ITEMS,
-    PollCreate,
     PollOptionOut,
     PollOut,
     PollUpdate,
@@ -25,8 +24,7 @@ from app.schemas.post import (
     PostUpdate,
 )
 from app.services import audit_log as audit_log_service
-from app.services import geo
-from app.services import mentions
+from app.services import geo, mentions
 from app.services import notification as notification_service
 
 
@@ -36,7 +34,7 @@ def _aware(dt: datetime) -> datetime:
 
 
 def _poll_schema(post: Post, viewer: User, db: Session) -> PollOut | None:
-    if post.category != "enquete" or post.poll_closes_at is None:
+    if post.category != PostCategory.ENQUETE or post.poll_closes_at is None:
         return None
     my_votes = post_dao.get_user_votes(db, post.id, viewer.id)
     options = [
@@ -97,7 +95,7 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
 def get_feed(
     db: Session,
     user: User,
-    category: str | None,
+    category: PostCategory | None,
     page: int,
     page_size: int,
     neighborhood: str | None = None,
@@ -168,7 +166,7 @@ def _clean_str(value) -> str | None:
     return value or None
 
 
-def _build_details(category: str, raw: dict | None) -> dict | None:
+def _build_details(category: PostCategory, raw: dict | None) -> dict | None:
     """Valida e normaliza os campos específicos da categoria.
 
     Mantém apenas as chaves relevantes; levanta HTTPException 400 quando faltam
@@ -176,7 +174,7 @@ def _build_details(category: str, raw: dict | None) -> dict | None:
     """
     raw = raw or {}
 
-    if category == "evento":
+    if category == PostCategory.EVENTO:
         dates = raw.get("event_dates")
         if not isinstance(dates, list) or not dates:
             raise HTTPException(status_code=400, detail="Selecione ao menos uma data para o evento")
@@ -201,13 +199,13 @@ def _build_details(category: str, raw: dict | None) -> dict | None:
             "location": _clean_str(raw.get("location")),
         }
 
-    if category == "recomendacao":
+    if category == PostCategory.RECOMENDACAO:
         return {
             "place_name": _clean_str(raw.get("place_name")),
             "location": _clean_str(raw.get("location")),
         }
 
-    if category == "venda":
+    if category == PostCategory.VENDA:
         negotiable = bool(raw.get("price_negotiable"))
         price = raw.get("price")
         if not negotiable:
@@ -222,10 +220,10 @@ def _build_details(category: str, raw: dict | None) -> dict | None:
             "location": _clean_str(raw.get("location")),
         }
 
-    if category == "perdidos":
+    if category == PostCategory.PERDIDOS:
         return {"location": _clean_str(raw.get("location"))}
 
-    if category == "seguranca":
+    if category == PostCategory.SEGURANCA:
         return {"location": _clean_str(raw.get("location"))}
 
     return None
@@ -266,7 +264,7 @@ def upload_media(user: User, base_url: str, file: UploadFile) -> PostMediaItem:
 
 
 def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> PostOut:
-    is_poll = payload.category == "enquete"
+    is_poll = payload.category == PostCategory.ENQUETE
     if is_poll and payload.poll is None:
         raise HTTPException(status_code=400, detail="Configure a enquete")
 
@@ -362,7 +360,7 @@ def update_post(db: Session, post_id: int, user: User, payload: PostUpdate) -> P
         post.content = content
 
     if payload.poll is not None:
-        if post.category != "enquete":
+        if post.category != PostCategory.ENQUETE:
             raise HTTPException(status_code=400, detail="Este post não é uma enquete")
         _apply_poll_update(db, post, payload.poll)
 
@@ -418,7 +416,7 @@ def vote_poll(db: Session, post_id: int, user: User, option_ids: list[int]) -> P
     post = post_dao.get_by_id(db, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
-    if post.category != "enquete" or post.poll_closes_at is None:
+    if post.category != PostCategory.ENQUETE or post.poll_closes_at is None:
         raise HTTPException(status_code=400, detail="Este post não é uma enquete")
     if datetime.now(timezone.utc) >= _aware(post.poll_closes_at):
         raise HTTPException(status_code=400, detail="Esta enquete já encerrou")
@@ -446,7 +444,7 @@ def unvote_poll(db: Session, post_id: int, user: User) -> PostOut:
     post = post_dao.get_by_id(db, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
-    if post.category != "enquete" or post.poll_closes_at is None:
+    if post.category != PostCategory.ENQUETE or post.poll_closes_at is None:
         raise HTTPException(status_code=400, detail="Este post não é uma enquete")
     if datetime.now(timezone.utc) >= _aware(post.poll_closes_at):
         raise HTTPException(status_code=400, detail="Esta enquete já encerrou")
@@ -544,11 +542,11 @@ def admin_delete_post(db: Session, post_id: int, moderator: User) -> None:
     notification_service.notify(
         db,
         user_id=author_id,
-        type_=TYPE_POST_REMOVED,
+        type_=NotificationType.POST_REMOVED,
         content="Seu post foi removido pela moderação por não seguir as diretrizes da comunidade.",
         target_text=content_preview,
         snapshot=snapshot,
         push_title="Aviso da moderação",
         push_body="Seu post foi removido por não seguir as diretrizes da comunidade.",
     )
-    audit_log_service.log(db, moderator, ACTION_POST_DELETE, author_id, content_preview)
+    audit_log_service.log(db, moderator, AuditLogAction.POST_DELETE, author_id, content_preview)

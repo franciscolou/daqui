@@ -7,7 +7,7 @@ from app.core import realtime_registry
 from app.core.uploads import save_data_url_image
 from app.daos import post as post_dao
 from app.daos import user as user_dao
-from app.models.audit_log import ACTION_USER_SUSPEND, ACTION_USER_UNSUSPEND
+from app.models.audit_log import AuditLogAction
 from app.models.user import User
 from app.schemas.user import (
     USERNAME_RE,
@@ -141,7 +141,7 @@ def admin_suspend(db: Session, user_id: int, payload: UserSuspendIn, moderator: 
 
     period = "por tempo indeterminado" if until is None else f"até {until.strftime('%d/%m/%Y %H:%M')}"
     detail = f"Suspensão {period}" + (f" — {reason}" if reason else "")
-    audit_log_service.log(db, moderator, ACTION_USER_SUSPEND, target.id, detail)
+    audit_log_service.log(db, moderator, AuditLogAction.USER_SUSPEND, target.id, detail)
     realtime_registry.wake(target.id)
     return _admin_out(target)
 
@@ -154,5 +154,5 @@ def admin_unsuspend(db: Session, user_id: int, moderator: User) -> UserAdminOut:
     user_dao.update(
         db, target, {"is_suspended": False, "suspended_until": None, "suspension_reason": ""}
     )
-    audit_log_service.log(db, moderator, ACTION_USER_UNSUSPEND, target.id, "Suspensão revogada")
+    audit_log_service.log(db, moderator, AuditLogAction.USER_UNSUSPEND, target.id, "Suspensão revogada")
     return _admin_out(target)

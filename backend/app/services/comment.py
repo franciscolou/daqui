@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
-from app.models.audit_log import ACTION_COMMENT_DELETE
+from app.models.audit_log import AuditLogAction
 from app.models.comment import Comment
-from app.models.notification import TYPE_COMMENT_REMOVED
+from app.models.notification import NotificationType
 from app.models.user import User
 from app.schemas.comment import CommentCreate, CommentOut
 from app.schemas.user import UserPublic
@@ -204,11 +204,11 @@ def admin_delete(db: Session, comment_id: int, moderator: User) -> None:
     notification_service.notify(
         db,
         user_id=author_id,
-        type_=TYPE_COMMENT_REMOVED,
+        type_=NotificationType.COMMENT_REMOVED,
         content="Seu comentário foi removido pela moderação por não seguir as diretrizes da comunidade.",
         target_text=content_preview,
         snapshot=snapshot,
         push_title="Aviso da moderação",
         push_body="Seu comentário foi removido por não seguir as diretrizes da comunidade.",
     )
-    audit_log_service.log(db, moderator, ACTION_COMMENT_DELETE, author_id, content_preview)
+    audit_log_service.log(db, moderator, AuditLogAction.COMMENT_DELETE, author_id, content_preview)

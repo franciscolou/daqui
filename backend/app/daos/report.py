@@ -1,7 +1,7 @@
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from app.models.report import Report
+from app.models.report import Report, ReportReason, ReportStatus, ReportTargetType
 
 
 def get_by_id(db: Session, report_id: int) -> Report | None:
@@ -11,9 +11,9 @@ def get_by_id(db: Session, report_id: int) -> Report | None:
 def create(
     db: Session,
     reporter_id: int,
-    target_type: str,
+    target_type: ReportTargetType,
     target_id: int,
-    reason: str,
+    reason: ReportReason,
     comment: str,
     attachments: list[dict],
 ) -> Report:
@@ -23,9 +23,9 @@ def create(
         reason=reason,
         comment=comment,
         attachments=attachments,
-        post_id=target_id if target_type == "post" else None,
-        comment_id=target_id if target_type == "comment" else None,
-        reported_user_id=target_id if target_type == "user" else None,
+        post_id=target_id if target_type == ReportTargetType.POST else None,
+        comment_id=target_id if target_type == ReportTargetType.COMMENT else None,
+        reported_user_id=target_id if target_type == ReportTargetType.USER else None,
     )
     db.add(report)
     db.commit()
@@ -34,7 +34,11 @@ def create(
 
 
 def list_all(
-    db: Session, status: str | None, target_type: str | None, offset: int, limit: int
+    db: Session,
+    status: ReportStatus | None,
+    target_type: ReportTargetType | None,
+    offset: int,
+    limit: int,
 ) -> list[Report]:
     q = db.query(Report)
     if status:
@@ -44,7 +48,7 @@ def list_all(
     return q.order_by(desc(Report.created_at)).offset(offset).limit(limit).all()
 
 
-def count(db: Session, status: str | None, target_type: str | None) -> int:
+def count(db: Session, status: ReportStatus | None, target_type: ReportTargetType | None) -> int:
     q = db.query(func.count(Report.id))
     if status:
         q = q.filter(Report.status == status)
@@ -53,7 +57,7 @@ def count(db: Session, status: str | None, target_type: str | None) -> int:
     return q.scalar() or 0
 
 
-def set_status(db: Session, report: Report, status: str) -> Report:
+def set_status(db: Session, report: Report, status: ReportStatus) -> Report:
     report.status = status
     db.commit()
     db.refresh(report)

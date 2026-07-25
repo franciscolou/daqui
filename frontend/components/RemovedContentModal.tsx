@@ -77,7 +77,7 @@ export default function RemovedContentModal({
               <View style={styles.noticeBox}>
                 <Ionicons name="information-circle-outline" size={15} color={Colors.textTertiary} />
                 <Text style={styles.noticeText}>
-                  Este conteúdo foi removido pela moderação e não está mais disponível no app.
+                  Este conteúdo foi removido pela moderação e não está mais disponível no app. Consulte a seção 5 dos Termos de Uso.
                 </Text>
               </View>
             </View>

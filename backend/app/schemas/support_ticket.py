@@ -7,6 +7,7 @@ from app.models.support_ticket import (
     MAX_MESSAGE_LENGTH,
     MAX_RESPONSE_LENGTH,
     MAX_SUBJECT_LENGTH,
+    SupportTicketStatus,
 )
 from app.schemas.attachment import MAX_ATTACHMENTS, AttachmentItem
 from app.schemas.user import UserPublic
@@ -51,7 +52,7 @@ class SupportTicketOut(BaseModel):
     subject: str
     message: str
     attachments: list[AttachmentItem] = []
-    status: str
+    status: SupportTicketStatus
     response: Optional[str] = None
     responded_at: Optional[datetime] = None
     created_at: datetime

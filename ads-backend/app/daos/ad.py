@@ -6,13 +6,18 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.models.ad import (
-    EVENT_IMPRESSION,
-    STATUS_ACTIVE,
-    STATUS_PENDING_PAYMENT,
     AdCampaign,
+    AdCampaignStatus,
     AdCreative,
     AdEvent,
+    AdEventType,
+    AdFormat,
     AdPlan,
+    Audience,
+    EngagementLevel,
+    GeoScope,
+    ObjectiveAction,
+    UserRecency,
 )
 
 
@@ -100,7 +105,7 @@ def list_campaign_family(db: Session, root_campaign_id: int) -> list[AdCampaign]
     )
 
 
-def list_campaigns(db: Session, status: str | None = None) -> list[AdCampaign]:
+def list_campaigns(db: Session, status: AdCampaignStatus | None = None) -> list[AdCampaign]:
     q = db.query(AdCampaign)
     if status:
         q = q.filter(AdCampaign.status == status)
@@ -121,11 +126,11 @@ def _scope_cities(targeting: dict) -> set[str] | None:
     `None` quando o escopo é `neighborhood` (cidade desconhecida: nada nos
     modelos guarda a cidade dos bairros hoje) ou `country` (não faz sentido
     comparar por conjunto, sempre disputa com tudo — ver `_competes`)."""
-    scope = targeting.get("geo_scope", "neighborhood")
-    if scope == "citywide":
+    scope = targeting.get("geo_scope", GeoScope.NEIGHBORHOOD)
+    if scope == GeoScope.CITYWIDE:
         city = targeting.get("city")
         return {city.strip().lower()} if city else set()
-    if scope == "cities":
+    if scope == GeoScope.CITIES:
         return {c.strip().lower() for c in targeting.get("cities", []) if c}
     return None
 
@@ -137,11 +142,11 @@ def _competes(a: dict, b: dict) -> bool:
     compara bairros; qualquer combinação envolvendo um `neighborhood` (cidade
     desconhecida) contra um escopo com cidade é tratada, por cautela, como
     concorrência (mesmo espírito permissivo do `citywide` de antes)."""
-    a_scope = a.get("geo_scope", "neighborhood")
-    b_scope = b.get("geo_scope", "neighborhood")
-    if a_scope == "country" or b_scope == "country":
+    a_scope = a.get("geo_scope", GeoScope.NEIGHBORHOOD)
+    b_scope = b.get("geo_scope", GeoScope.NEIGHBORHOOD)
+    if a_scope == GeoScope.COUNTRY or b_scope == GeoScope.COUNTRY:
         return True
-    if a_scope == "neighborhood" and b_scope == "neighborhood":
+    if a_scope == GeoScope.NEIGHBORHOOD and b_scope == GeoScope.NEIGHBORHOOD:
         return bool(set(a.get("neighborhoods", [])) & set(b.get("neighborhoods", [])))
     a_cities, b_cities = _scope_cities(a), _scope_cities(b)
     if a_cities is not None and b_cities is not None:
@@ -154,7 +159,7 @@ def count_competing_campaigns(db: Session, targeting: dict) -> int:
     usado só pelo fator `competition_multiplier` da precificação."""
     candidates = (
         db.query(AdCampaign)
-        .filter(AdCampaign.status.in_([STATUS_ACTIVE, STATUS_PENDING_PAYMENT]))
+        .filter(AdCampaign.status.in_([AdCampaignStatus.ACTIVE, AdCampaignStatus.PENDING_PAYMENT]))
         .all()
     )
     return sum(1 for c in candidates if _competes(targeting, c.targeting))
@@ -210,7 +215,7 @@ def upsert_creatives_by_format(
     db.refresh(campaign)
 
 
-def pick_creative(campaign: AdCampaign, format: str) -> AdCreative | None:
+def pick_creative(campaign: AdCampaign, format: AdFormat) -> AdCreative | None:
     """Escolhe um criativo elegível pro formato pedido. Único ponto de
     aleatoriedade intencional do sistema (teste A/B por peso) — a
     precificação continua 100% determinística."""
@@ -277,11 +282,11 @@ def _matches_targeting(targeting: dict, ctx: dict) -> bool:
             if _haversine_km(center_lat, center_lng, lat, lng) > radius_km:
                 return False
 
-    audience = targeting.get("audience", "all")
+    audience = targeting.get("audience", Audience.ALL)
     view_mode = ctx.get("view_mode")
-    if audience == "residents" and view_mode not in (None, "home"):
+    if audience == Audience.RESIDENTS and view_mode not in (None, "home"):
         return False
-    if audience == "visitors" and view_mode not in (None, "nearby"):
+    if audience == Audience.VISITORS and view_mode not in (None, "nearby"):
         return False
 
     categories = targeting.get("categories") or []
@@ -296,16 +301,16 @@ def _matches_targeting(targeting: dict, ctx: dict) -> bool:
         if ctx_groups and not (set(ctx_groups) & set(group_ids)):
             return False
 
-    user_recency = targeting.get("user_recency", "all")
-    if user_recency != "all":
+    user_recency = targeting.get("user_recency", UserRecency.ALL)
+    if user_recency != UserRecency.ALL:
         recency = ctx.get("recency")
         if recency is not None and recency != user_recency:
             return False
 
-    engagement = targeting.get("engagement", "any")
-    if engagement == "active":
+    engagement = targeting.get("engagement", EngagementLevel.ANY)
+    if engagement == EngagementLevel.ACTIVE:
         ctx_engagement = ctx.get("engagement")
-        if ctx_engagement is not None and ctx_engagement != "active":
+        if ctx_engagement is not None and ctx_engagement != EngagementLevel.ACTIVE:
             return False
 
     return True
@@ -327,14 +332,14 @@ def _matches_schedule(schedule: dict, now: datetime) -> bool:
     return True
 
 
-def _candidates_for_format(db: Session, format: str) -> list[AdCampaign]:
+def _candidates_for_format(db: Session, format: AdFormat) -> list[AdCampaign]:
     # SQLite não filtra bem dentro de uma coluna JSON list em SQL puro — como
     # em outras partes do projeto (ver CLAUDE.md sobre greatest/least), o
     # filtro fino (formato/segmentação/agenda) é feito em Python sobre um
     # conjunto já reduzido por status e janela de tempo.
     now = datetime.now(timezone.utc)
     q = db.query(AdCampaign).filter(
-        AdCampaign.status == STATUS_ACTIVE,
+        AdCampaign.status == AdCampaignStatus.ACTIVE,
         or_(AdCampaign.starts_at.is_(None), AdCampaign.starts_at <= now),
         or_(AdCampaign.ends_at.is_(None), AdCampaign.ends_at >= now),
     )
@@ -350,7 +355,7 @@ def _within_caps(db: Session, campaign: AdCampaign, viewer_id: str | None) -> bo
             db.query(AdEvent)
             .filter(
                 AdEvent.campaign_id == campaign.id,
-                AdEvent.event_type == EVENT_IMPRESSION,
+                AdEvent.event_type == AdEventType.IMPRESSION,
                 AdEvent.occurred_at >= start_of_day,
             )
             .count()
@@ -363,7 +368,7 @@ def _within_caps(db: Session, campaign: AdCampaign, viewer_id: str | None) -> bo
             db.query(AdEvent)
             .filter(
                 AdEvent.campaign_id == campaign.id,
-                AdEvent.event_type == EVENT_IMPRESSION,
+                AdEvent.event_type == AdEventType.IMPRESSION,
                 AdEvent.viewer_id == viewer_id,
             )
             .count()
@@ -384,7 +389,7 @@ def _pacing_factor(db: Session, campaign: AdCampaign, now: datetime) -> float:
         db.query(AdEvent)
         .filter(
             AdEvent.campaign_id == campaign.id,
-            AdEvent.event_type == EVENT_IMPRESSION,
+            AdEvent.event_type == AdEventType.IMPRESSION,
             AdEvent.occurred_at >= start_of_day,
         )
         .count()
@@ -392,7 +397,7 @@ def _pacing_factor(db: Session, campaign: AdCampaign, now: datetime) -> float:
     return 0.3 if served_today >= target_so_far else 1.0
 
 
-def _eligible_for_format(db: Session, format: str, ctx: dict, now: datetime) -> list[AdCampaign]:
+def _eligible_for_format(db: Session, format: AdFormat, ctx: dict, now: datetime) -> list[AdCampaign]:
     candidates = _candidates_for_format(db, format)
     return [
         c
@@ -403,7 +408,7 @@ def _eligible_for_format(db: Session, format: str, ctx: dict, now: datetime) -> 
     ]
 
 
-def get_active_for_format(db: Session, format: str, ctx: dict) -> AdCampaign | None:
+def get_active_for_format(db: Session, format: AdFormat, ctx: dict) -> AdCampaign | None:
     now = datetime.now(timezone.utc)
     eligible = _eligible_for_format(db, format, ctx, now)
     if not eligible:
@@ -418,7 +423,7 @@ def get_active_for_format(db: Session, format: str, ctx: dict) -> AdCampaign | N
 
 
 def get_active_list_for_format(
-    db: Session, format: str, ctx: dict, exclude_ids: list[int], limit: int
+    db: Session, format: AdFormat, ctx: dict, exclude_ids: list[int], limit: int
 ) -> list[AdCampaign]:
     """Várias campanhas elegíveis pro formato (rolagem infinita da Busca, que
     pode mostrar mais de um anúncio). Nunca repete uma campanha já mostrada
@@ -456,11 +461,11 @@ def log_event(
     *,
     campaign: AdCampaign,
     creative: AdCreative | None,
-    event_type: str,
-    format: str,
+    event_type: AdEventType,
+    format: AdFormat,
     neighborhood: str | None,
     viewer_id: str | None,
-    objective_action: str | None = None,
+    objective_action: ObjectiveAction | None = None,
 ) -> None:
     db.add(
         AdEvent(
@@ -473,7 +478,7 @@ def log_event(
             objective_action=objective_action,
         )
     )
-    if event_type == EVENT_IMPRESSION:
+    if event_type == AdEventType.IMPRESSION:
         campaign.impressions_count += 1
         campaign.last_served_at = datetime.now(timezone.utc)
         if creative:
@@ -509,7 +514,7 @@ def count_campaigns_by_email(db: Session, email: str) -> int:
 
 
 def list_campaigns_filtered(
-    db: Session, *, advertiser: str | None = None, status: str | None = None
+    db: Session, *, advertiser: str | None = None, status: AdCampaignStatus | None = None
 ) -> list[AdCampaign]:
     q = db.query(AdCampaign)
     if status:

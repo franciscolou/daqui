@@ -49,16 +49,16 @@ export default function RootLayout() {
                 <Stack.Screen name="help/index" />
                 <Stack.Screen name="forward/[postId]" />
                 <Stack.Screen name="quote/[postId]" />
-                <Stack.Screen name="anunciar/index" />
-                <Stack.Screen name="anunciar/personalizar" />
-                <Stack.Screen name="anunciar/checkout" />
-                <Stack.Screen name="anunciar/checkout/sucesso" />
-                <Stack.Screen name="anunciar/painel/index" />
-                <Stack.Screen name="anunciar/painel/editar/[token]" />
-                <Stack.Screen name="anunciar/painel/[token]" />
+                <Stack.Screen name="advertise/index" />
+                <Stack.Screen name="advertise/customize" />
+                <Stack.Screen name="advertise/checkout" />
+                <Stack.Screen name="advertise/checkout/success" />
+                <Stack.Screen name="advertise/dashboard/index" />
+                <Stack.Screen name="advertise/dashboard/edit/[token]" />
+                <Stack.Screen name="advertise/dashboard/[token]" />
                 <Stack.Screen name="settings" />
-                <Stack.Screen name="legal/termos" />
-                <Stack.Screen name="legal/privacidade" />
+                <Stack.Screen name="legal/terms" />
+                <Stack.Screen name="legal/privacy" />
               </Stack>
             </ScrollToTopProvider>
           </RealtimeProvider>

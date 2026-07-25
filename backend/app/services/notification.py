@@ -2,7 +2,11 @@ from sqlalchemy.orm import Session
 
 from app.core import realtime_registry
 from app.daos import notification
-from app.models.notification import MODERATION_NOTICE_TYPES, Notification
+from app.models.notification import (
+    MODERATION_NOTICE_TYPES,
+    Notification,
+    NotificationType,
+)
 from app.models.user import User
 from app.services import push as push_service
 
@@ -11,7 +15,7 @@ def notify(
     db: Session,
     *,
     user_id: int,
-    type_: str,
+    type_: NotificationType,
     content: str,
     push_title: str,
     push_body: str,

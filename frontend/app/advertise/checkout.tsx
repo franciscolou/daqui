@@ -110,7 +110,7 @@ export default function CheckoutScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/anunciar')}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/advertise')}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{params.renewedFromToken ? 'Reativar campanha' : 'Dados do anúncio'}</Text>

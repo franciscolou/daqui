@@ -4,13 +4,21 @@ from fastapi import Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_moderator, get_current_user, get_db
+from app.models.post import PostCategory
 from app.models.user import User
-from app.schemas.post import PollVoteIn, PostCreate, PostFeed, PostMediaItem, PostOut, PostUpdate
+from app.schemas.post import (
+    PollVoteIn,
+    PostCreate,
+    PostFeed,
+    PostMediaItem,
+    PostOut,
+    PostUpdate,
+)
 from app.services import post
 
 
 def get_feed(
-    category: Optional[str] = Query(None),
+    category: Optional[PostCategory] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     neighborhood: Optional[str] = Query(None),

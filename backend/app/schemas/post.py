@@ -1,8 +1,10 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 
+from app.core.uploads import MediaType
+from app.models.post import PostCategory
 from app.schemas.message import SharedCommentOut, SharedPostOut
 from app.schemas.user import UserPublic
 
@@ -11,7 +13,7 @@ MAX_MEDIA_ITEMS = 10
 
 class PostMediaItem(BaseModel):
     url: str
-    type: Literal["image", "video"]
+    type: MediaType
 
 
 # ── Enquete ───────────────────────────────────────────────────────────
@@ -53,7 +55,7 @@ class PollOut(BaseModel):
 
 
 class PostCreate(BaseModel):
-    category: str
+    category: PostCategory
     title: Optional[str] = None
     content: str
     # Já enviados via POST /posts/media (imagens e/ou vídeos), até 10 itens.
@@ -75,7 +77,7 @@ class PostUpdate(BaseModel):
 
 class PostOut(BaseModel):
     id: int
-    category: str
+    category: PostCategory
     title: Optional[str]
     content: str
     media: list[PostMediaItem] = []

@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     EMAIL_FROM: str = "Daqui <onboarding@resend.dev>"
     # Usado para montar o link de redefinição de senha enviado por e-mail.
-    FRONTEND_URL: str = "http://localhost:8081"
+    # Sem default de propósito: um FRONTEND_URL errado silenciosamente aponta
+    # o link do e-mail pro ambiente errado, então preferimos falhar ao subir
+    # (ver .env/.env.example) a mandar e-mail com link quebrado em produção.
+    FRONTEND_URL: str
 
     # Push notification (Expo Push Service). Opcional: só necessário se o
     # projeto Expo tiver "enhanced push security" habilitado.

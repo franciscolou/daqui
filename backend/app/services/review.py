@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.daos import review as review_dao
-from app.models.audit_log import ACTION_REVIEW_DELETE
+from app.models.audit_log import AuditLogAction
 from app.models.review import Review
 from app.models.user import User
 from app.schemas.review import (
@@ -55,4 +55,4 @@ def admin_delete(db: Session, review_id: int, moderator: User) -> None:
     target_user_id = review.user_id
     detail = f"Nota {review.rating} — " + (review.comment[:200] if review.comment else "sem comentário")
     review_dao.delete(db, review)
-    audit_log_service.log(db, moderator, ACTION_REVIEW_DELETE, target_user_id, detail)
+    audit_log_service.log(db, moderator, AuditLogAction.REVIEW_DELETE, target_user_id, detail)

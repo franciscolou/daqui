@@ -7,6 +7,10 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/qrcode-generator@1.4.4/qrcode.js"></script>
+  <!-- Config local por ambiente (gitignored) — copie config.example.js pra
+       config.js e ajuste API_URL/APP_URL. Sem esse arquivo, cai no default
+       de localhost abaixo (nada quebra se ele não existir). -->
+  <script src="config.js"></script>
   <script>
     (function () {
       try {
@@ -291,7 +295,7 @@
 
       <div id="loginStepCreds">
         <label>Servidor do ads-backend</label>
-        <input id="api" value="http://localhost:8001/api/v1" />
+        <input id="api" />
         <label>E-mail</label>
         <input id="email" type="email" placeholder="ads@daqui.com" autocomplete="username" />
         <label>Senha</label>
@@ -329,7 +333,7 @@
       <div class="brand"><div class="dot">d</div><h1>Nova senha</h1></div>
       <p class="muted">Escolha uma nova senha para sua conta do painel de anúncios.</p>
       <label>Servidor do ads-backend</label>
-      <input id="resetApi" value="http://localhost:8001/api/v1" />
+      <input id="resetApi" />
       <label>Nova senha</label>
       <input id="resetNewPassword" type="password" placeholder="••••••••" autocomplete="new-password" />
       <label>Confirmar nova senha</label>
@@ -584,11 +588,17 @@
 
   <script>
     const $ = (id) => document.getElementById(id);
+    // Defaults preenchidos no login — vêm de config.js (ver <head>) quando
+    // existe; sem ele, cai no localhost de dev (mesmo valor de sempre).
+    const CONFIG = window.DAQUI_CONFIG || {};
+    const DEFAULT_API_URL = CONFIG.API_URL || 'http://localhost:8001/api/v1';
+    $('api').value = DEFAULT_API_URL;
+    $('resetApi').value = DEFAULT_API_URL;
     let API = '';
     let token = '';
     // App Daqui (frontend Expo web) — onde vive o painel do próprio
-    // anunciante (/anunciar/painel/{access_token}), ver renderCampaignList.
-    const APP_URL = 'http://localhost:8081';
+    // anunciante (/advertise/dashboard/{access_token}), ver renderCampaignList.
+    const APP_URL = CONFIG.APP_URL || 'http://localhost:8081';
 
     function copyToClipboard(text, btn) {
       navigator.clipboard.writeText(text).then(() => {
@@ -1079,7 +1089,7 @@
         if (activateBtn) activateBtn.onclick = () => setCampaignStatus(c.id, 'active');
         if (markPaidBtn) markPaidBtn.onclick = () => markCampaignPaid(c.id);
         detailsBtn.onclick = () => toggleDetails(c.id, card.querySelector('[data-details]'));
-        copyLinkBtn.onclick = () => copyToClipboard(`${APP_URL}/anunciar/painel/${c.access_token}`, copyLinkBtn);
+        copyLinkBtn.onclick = () => copyToClipboard(`${APP_URL}/advertise/dashboard/${c.access_token}`, copyLinkBtn);
         $('campaignList').appendChild(card);
       }
     }

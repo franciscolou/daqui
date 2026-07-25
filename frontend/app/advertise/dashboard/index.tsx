@@ -91,7 +91,7 @@ export default function MyCampaignsDashboard() {
         <View style={styles.centerFill}>
           <Ionicons name="megaphone-outline" size={32} color={Colors.textTertiary} />
           <Text style={styles.emptyText}>Você ainda não tem campanhas.</Text>
-          <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.85} onPress={() => router.push('/anunciar')}>
+          <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.85} onPress={() => router.push('/advertise')}>
             <LinearGradient colors={Colors.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBtnGrad}>
               <Ionicons name="add-circle-outline" size={18} color="#fff" />
               <Text style={styles.ctaBtnText}>Criar minha primeira campanha</Text>
@@ -100,7 +100,7 @@ export default function MyCampaignsDashboard() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.85} onPress={() => router.push('/anunciar')}>
+          <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.85} onPress={() => router.push('/advertise')}>
             <LinearGradient colors={Colors.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBtnGrad}>
               <Ionicons name="add-circle-outline" size={20} color="#fff" />
               <Text style={styles.ctaBtnText}>Criar nova campanha</Text>
@@ -209,7 +209,7 @@ export default function MyCampaignsDashboard() {
                       key={c.id}
                       style={styles.campaignCard}
                       activeOpacity={0.8}
-                      onPress={() => router.push(`/anunciar/painel/${c.accessToken}` as any)}
+                      onPress={() => router.push(`/advertise/dashboard/${c.accessToken}` as any)}
                     >
                       <View style={styles.campaignCardHead}>
                         <Text style={styles.campaignTitle} numberOfLines={1}>{c.title}</Text>

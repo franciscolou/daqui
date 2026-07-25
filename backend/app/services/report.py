@@ -6,20 +6,12 @@ from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import report as report_dao
 from app.daos import user as user_dao
-from app.models.audit_log import (
-    ACTION_REPORT_DELETE,
-    ACTION_REPORT_DISMISS,
-    ACTION_REPORT_RESOLVE,
-)
+from app.models.audit_log import AuditLogAction
 from app.models.report import (
     REASONS_BY_TARGET,
-    STATUS_DISMISSED,
-    STATUS_REVIEWED,
-    STATUSES,
-    TARGET_COMMENT,
-    TARGET_POST,
-    TARGET_USER,
     Report,
+    ReportStatus,
+    ReportTargetType,
 )
 from app.models.user import User
 from app.schemas.attachment import AttachmentItem
@@ -40,9 +32,9 @@ def submit(db: Session, user: User, payload: ReportCreate) -> ReportOut:
     if reasons is None or payload.reason not in reasons:
         raise HTTPException(status_code=400, detail="Motivo inválido para este tipo de denúncia")
 
-    if payload.target_type == TARGET_POST:
+    if payload.target_type == ReportTargetType.POST:
         target = post_dao.get_by_id(db, payload.target_id)
-    elif payload.target_type == TARGET_COMMENT:
+    elif payload.target_type == ReportTargetType.COMMENT:
         target = comment_dao.get_by_id(db, payload.target_id)
     else:
         target = user_dao.get_by_id(db, payload.target_id)
@@ -74,20 +66,22 @@ def _admin_out(report: Report) -> ReportAdminOut:
 
 def _affected_user_id(report: Report) -> int | None:
     """Usuário afetado pela denúncia: o autor do conteúdo (ou o perfil denunciado)."""
-    if report.target_type == TARGET_POST:
+    if report.target_type == ReportTargetType.POST:
         return report.post.author_id if report.post else None
-    if report.target_type == TARGET_COMMENT:
+    if report.target_type == ReportTargetType.COMMENT:
         return report.comment_target.author_id if report.comment_target else None
-    if report.target_type == TARGET_USER:
+    if report.target_type == ReportTargetType.USER:
         return report.reported_user_id
     return None
 
 
 def admin_list(
-    db: Session, status: str | None, target_type: str | None, page: int, page_size: int
+    db: Session,
+    status: ReportStatus | None,
+    target_type: ReportTargetType | None,
+    page: int,
+    page_size: int,
 ) -> list[ReportAdminOut]:
-    if status and status not in STATUSES:
-        raise HTTPException(status_code=400, detail="Status inválido")
     offset = (page - 1) * page_size
     reports = report_dao.list_all(db, status, target_type, offset, page_size)
     return [_admin_out(r) for r in reports]
@@ -96,23 +90,23 @@ def admin_list(
 def admin_stats(db: Session) -> ReportStats:
     return ReportStats(
         total=report_dao.count(db, None, None),
-        pending=report_dao.count(db, "pending", None),
+        pending=report_dao.count(db, ReportStatus.PENDING, None),
     )
 
 
-def admin_set_status(db: Session, report_id: int, status: str, moderator: User) -> ReportAdminOut:
-    if status not in STATUSES:
-        raise HTTPException(status_code=400, detail="Status inválido")
+def admin_set_status(
+    db: Session, report_id: int, status: ReportStatus, moderator: User
+) -> ReportAdminOut:
     report = report_dao.get_by_id(db, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Denúncia não encontrada")
     affected = _affected_user_id(report)
     detail = f"Denúncia #{report.id} ({report.reason})"
     report = report_dao.set_status(db, report, status)
-    if status == STATUS_REVIEWED:
-        audit_log_service.log(db, moderator, ACTION_REPORT_RESOLVE, affected, detail)
-    elif status == STATUS_DISMISSED:
-        audit_log_service.log(db, moderator, ACTION_REPORT_DISMISS, affected, detail)
+    if status == ReportStatus.REVIEWED:
+        audit_log_service.log(db, moderator, AuditLogAction.REPORT_RESOLVE, affected, detail)
+    elif status == ReportStatus.DISMISSED:
+        audit_log_service.log(db, moderator, AuditLogAction.REPORT_DISMISS, affected, detail)
     return _admin_out(report)
 
 
@@ -123,4 +117,4 @@ def admin_delete(db: Session, report_id: int, moderator: User) -> None:
     affected = _affected_user_id(report)
     detail = f"Denúncia #{report.id} ({report.reason})"
     report_dao.delete(db, report)
-    audit_log_service.log(db, moderator, ACTION_REPORT_DELETE, affected, detail)
+    audit_log_service.log(db, moderator, AuditLogAction.REPORT_DELETE, affected, detail)

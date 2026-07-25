@@ -11,11 +11,11 @@ import {
 import { goBack } from '../lib/navigation';
 import { useTheme, useThemedStyles } from '../lib/theme';
 
-export type LegalDoc = 'termos' | 'privacidade';
+export type LegalDoc = 'terms' | 'privacy';
 
 const DOCS: { key: LegalDoc; label: string }[] = [
-  { key: 'termos', label: 'Termos de Uso' },
-  { key: 'privacidade', label: 'Política de Privacidade' },
+  { key: 'terms', label: 'Termos de Uso' },
+  { key: 'privacy', label: 'Política de Privacidade' },
 ];
 
 export default function LegalPage({ doc }: { doc: LegalDoc }) {
@@ -24,9 +24,9 @@ export default function LegalPage({ doc }: { doc: LegalDoc }) {
   const { width } = useWindowDimensions();
   const isWide = width >= 700;
 
-  const intro = doc === 'termos' ? TERMS_INTRO : PRIVACY_INTRO;
-  const sections = doc === 'termos' ? TERMS_SECTIONS : PRIVACY_SECTIONS;
-  const title = doc === 'termos' ? 'Termos de Uso' : 'Política de Privacidade';
+  const intro = doc === 'terms' ? TERMS_INTRO : PRIVACY_INTRO;
+  const sections = doc === 'terms' ? TERMS_SECTIONS : PRIVACY_SECTIONS;
+  const title = doc === 'terms' ? 'Termos de Uso' : 'Política de Privacidade';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

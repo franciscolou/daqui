@@ -193,7 +193,7 @@ function mapAdPlan(b: BackendAdPlan): AdPlan {
   };
 }
 
-// ── Segmentação/agenda avançadas — "Configurações avançadas" no personalizar ──
+// ── Segmentação/agenda avançadas — "Configurações avançadas" no customize ──
 export interface TargetingParams {
   includeNearby?: boolean;
   radiusKm?: number;
@@ -318,7 +318,7 @@ function creativeBody(c: CreativeInput) {
   };
 }
 
-// ── Painel do anunciante (`/anunciar/painel/[token]`) ──────────────────
+// ── Painel do anunciante (`/advertise/dashboard/[token]`) ──────────────────
 export type CampaignStatus = 'pending_payment' | 'active' | 'paused' | 'expired' | 'rejected';
 
 export interface MyCampaignCreative {

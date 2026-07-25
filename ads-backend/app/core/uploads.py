@@ -1,8 +1,15 @@
 import secrets
+from enum import StrEnum
 
 from fastapi import HTTPException, UploadFile
 
 from app.core.config import UPLOAD_DIR
+
+
+class MediaType(StrEnum):
+    IMAGE = "image"
+    VIDEO = "video"
+
 
 # Extensões de imagem/vídeo aceitas, por mime type.
 _IMAGE_EXTS = {
@@ -21,19 +28,16 @@ _VIDEO_EXTS = {
 _MAX_IMAGE_BYTES = 6 * 1024 * 1024  # 6 MB
 _MAX_VIDEO_BYTES = 30 * 1024 * 1024  # 30 MB
 
-MEDIA_TYPE_IMAGE = "image"
-MEDIA_TYPE_VIDEO = "video"
 
-
-def save_upload_media(base_url: str, file: UploadFile, prefix: str) -> tuple[str, str]:
+def save_upload_media(base_url: str, file: UploadFile, prefix: str) -> tuple[str, MediaType]:
     """Salva o criativo (imagem ou vídeo) de um anúncio, via multipart
     (streaming, sem carregar tudo em memória), e devolve `(url_publica, tipo)`.
     """
     mime = (file.content_type or "").lower()
     if mime in _IMAGE_EXTS:
-        media_type, ext, max_bytes = MEDIA_TYPE_IMAGE, _IMAGE_EXTS[mime], _MAX_IMAGE_BYTES
+        media_type, ext, max_bytes = MediaType.IMAGE, _IMAGE_EXTS[mime], _MAX_IMAGE_BYTES
     elif mime in _VIDEO_EXTS:
-        media_type, ext, max_bytes = MEDIA_TYPE_VIDEO, _VIDEO_EXTS[mime], _MAX_VIDEO_BYTES
+        media_type, ext, max_bytes = MediaType.VIDEO, _VIDEO_EXTS[mime], _MAX_VIDEO_BYTES
     else:
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
@@ -6,10 +7,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
-# Estados de um chamado de suporte.
-STATUS_PENDING = "pending"
-STATUS_ANSWERED = "answered"
-STATUSES = {STATUS_PENDING, STATUS_ANSWERED}
+
+class SupportTicketStatus(StrEnum):
+    """Estados de um chamado de suporte."""
+
+    PENDING = "pending"
+    ANSWERED = "answered"
+
 
 MAX_SUBJECT_LENGTH = 120
 MAX_MESSAGE_LENGTH = 2000
@@ -32,7 +36,9 @@ class SupportTicket(Base):
     # Até MAX_ATTACHMENTS (ver schemas/attachment.py) imagens/vídeos anexados
     # pelo usuário: [{"url": ..., "type": "image"|"video"}, ...].
     attachments: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default=STATUS_PENDING, index=True)
+    status: Mapped[SupportTicketStatus] = mapped_column(
+        String(20), default=SupportTicketStatus.PENDING, index=True
+    )
     response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

@@ -1,9 +1,16 @@
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+
+class UserBadge(StrEnum):
+    LEADER = "leader"
+    BUSINESS = "business"
+    RESIDENT = "resident"
 
 
 class User(Base):
@@ -24,7 +31,7 @@ class User(Base):
     # Coordenadas capturadas no cadastro (usadas p/ centralizar o mapa do bairro).
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
-    badge: Mapped[str | None] = mapped_column(String(30))  # lider | comerciante | morador
+    badge: Mapped[UserBadge | None] = mapped_column(String(30))
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
     # E-mail confirmado via código de 6 dígitos no cadastro (ver services/auth.py).
     # Não confundir com `verified` acima (selo de perfil confiável).

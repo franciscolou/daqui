@@ -2,44 +2,35 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator, model_validator
 
-from app.core.br_documents import ADVERTISER_TYPES, validate_document
+from app.core.br_documents import AdvertiserType, validate_document
+from app.core.uploads import MediaType
 from app.models.ad import (
-    AUDIENCES,
-    ENGAGEMENT_LEVELS,
-    FORMATS,
-    GEO_SCOPE_NEIGHBORHOOD,
-    GEO_SCOPES,
-    OBJECTIVES,
-    PACING_MODES,
-    STATUSES,
-    USER_RECENCIES,
+    AdCampaignStatus,
+    AdFormat,
+    AdObjective,
+    AdPacing,
+    AdPlanCategory,
+    Audience,
+    EngagementLevel,
+    GeoScope,
+    ObjectiveAction,
+    PaymentProvider,
+    UserRecency,
 )
 
 
-def _check_formats(v: list[str]) -> list[str]:
+def _check_formats(v: list[AdFormat]) -> list[AdFormat]:
     if not v:
         raise ValueError("Escolha ao menos um formato de anúncio")
-    invalid = set(v) - set(FORMATS)
-    if invalid:
-        raise ValueError(f"Formato(s) inválido(s): {', '.join(sorted(invalid))}")
     return v
-
-
-def _check_one_of(name: str, choices: tuple[str, ...]):
-    def _validate(v: str) -> str:
-        if v not in choices:
-            raise ValueError(f"{name} inválido: {v}")
-        return v
-
-    return _validate
 
 
 # ── Segmentação e agenda ────────────────────────────────────────────────
 class TargetingIn(BaseModel):
-    # Escopo geográfico (ver GEO_SCOPES): decide qual dos 3 campos de área
-    # abaixo vale — `neighborhoods` ("neighborhood"), `city` ("citywide") ou
-    # `cities` ("cities"); "country" não usa nenhum dos três.
-    geo_scope: str = GEO_SCOPE_NEIGHBORHOOD
+    # Escopo geográfico (ver GeoScope): decide qual dos 3 campos de área
+    # abaixo vale — `neighborhoods` (NEIGHBORHOOD), `city` (CITYWIDE) ou
+    # `cities` (CITIES); COUNTRY não usa nenhum dos três.
+    geo_scope: GeoScope = GeoScope.NEIGHBORHOOD
     neighborhoods: list[str] = []
     city: str | None = None
     cities: list[str] = []
@@ -47,24 +38,11 @@ class TargetingIn(BaseModel):
     radius_km: float | None = None
     center_lat: float | None = None
     center_lng: float | None = None
-    audience: str = "all"
+    audience: Audience = Audience.ALL
     categories: list[str] = []
     group_ids: list[int] = []
-    user_recency: str = "all"
-    engagement: str = "any"
-
-    _validate_geo_scope = field_validator("geo_scope")(
-        _check_one_of("Escopo geográfico", GEO_SCOPES)
-    )
-    _validate_audience = field_validator("audience")(
-        _check_one_of("audience", AUDIENCES)
-    )
-    _validate_recency = field_validator("user_recency")(
-        _check_one_of("user_recency", USER_RECENCIES)
-    )
-    _validate_engagement = field_validator("engagement")(
-        _check_one_of("engagement", ENGAGEMENT_LEVELS)
-    )
+    user_recency: UserRecency = UserRecency.ALL
+    engagement: EngagementLevel = EngagementLevel.ANY
 
 
 class ScheduleIn(BaseModel):
@@ -76,11 +54,11 @@ class ScheduleIn(BaseModel):
 # ── Criativos ────────────────────────────────────────────────────────────
 class MediaUploadOut(BaseModel):
     url: str
-    type: str  # "image" | "video"
+    type: MediaType
 
 
 class CreativeIn(BaseModel):
-    format: str | None = None
+    format: AdFormat | None = None
     title: str
     content: str = ""
     image_url: str | None = None
@@ -91,13 +69,6 @@ class CreativeIn(BaseModel):
     longitude: float | None = None
     linked_user_id: int | None = None
     weight: int = 1
-
-    @field_validator("format")
-    @classmethod
-    def check_format(cls, v: str | None) -> str | None:
-        if v is not None and v not in FORMATS:
-            raise ValueError(f"Formato inválido: {v}")
-        return v
 
 
 class CreativeUpdate(BaseModel):
@@ -117,7 +88,7 @@ class CreativeUpdate(BaseModel):
 class CreativeOut(BaseModel):
     id: int
     campaign_id: int
-    format: str | None
+    format: AdFormat | None
     title: str
     content: str
     image_url: str | None
@@ -145,13 +116,13 @@ class AdPlanOut(BaseModel):
     price_cents: int
     currency: str
     duration_days: int
-    formats: list[str]
-    geo_scope: str
+    formats: list[AdFormat]
+    geo_scope: GeoScope
     max_neighborhoods: int | None
     max_cities: int | None
     is_public: bool
     sort_order: int
-    category: str | None
+    category: AdPlanCategory | None
     badge: str | None
 
     model_config = {"from_attributes": True}
@@ -164,19 +135,16 @@ class AdPlanCreate(BaseModel):
     price_cents: int
     currency: str = "BRL"
     duration_days: int
-    formats: list[str]
-    geo_scope: str = GEO_SCOPE_NEIGHBORHOOD
+    formats: list[AdFormat]
+    geo_scope: GeoScope = GeoScope.NEIGHBORHOOD
     max_neighborhoods: int | None = None
     max_cities: int | None = None
     is_public: bool = True
     sort_order: int = 0
-    category: str | None = None
+    category: AdPlanCategory | None = None
     badge: str | None = None
 
     _validate_formats = field_validator("formats")(_check_formats)
-    _validate_geo_scope = field_validator("geo_scope")(
-        _check_one_of("Escopo geográfico", GEO_SCOPES)
-    )
 
 
 class AdPlanUpdate(BaseModel):
@@ -188,20 +156,17 @@ class AdPlanUpdate(BaseModel):
     description: str | None = None
     price_cents: int | None = None
     duration_days: int | None = None
-    formats: list[str] | None = None
-    geo_scope: str | None = None
+    formats: list[AdFormat] | None = None
+    geo_scope: GeoScope | None = None
     max_neighborhoods: int | None = None
     max_cities: int | None = None
     is_public: bool | None = None
     sort_order: int | None = None
-    category: str | None = None
+    category: AdPlanCategory | None = None
     badge: str | None = None
 
     _validate_formats = field_validator("formats")(
         lambda v: _check_formats(v) if v is not None else v
-    )
-    _validate_geo_scope = field_validator("geo_scope")(
-        lambda v: _check_one_of("Escopo geográfico", GEO_SCOPES)(v) if v is not None else v
     )
 
 
@@ -212,26 +177,20 @@ class QuoteRequest(BaseModel):
     # `services/ad.py::_plan_quote_breakdown`), pra cotar em tempo real a
     # duração customizada de um plano contratado.
     plan_id: int | None = None
-    formats: list[str]
+    formats: list[AdFormat]
     duration_days: int
-    geo_scope: str = GEO_SCOPE_NEIGHBORHOOD
+    geo_scope: GeoScope = GeoScope.NEIGHBORHOOD
     neighborhoods: list[str] = []
     city: str | None = None
     cities: list[str] = []
     targeting: TargetingIn | None = None
     schedule: ScheduleIn | None = None
-    objective: str = "clicks"
+    objective: AdObjective = AdObjective.CLICKS
     priority: int = 3
     daily_impression_cap: int | None = None
     per_user_impression_cap: int | None = None
 
     _validate_formats = field_validator("formats")(_check_formats)
-    _validate_geo_scope = field_validator("geo_scope")(
-        _check_one_of("Escopo geográfico", GEO_SCOPES)
-    )
-    _validate_objective = field_validator("objective")(
-        _check_one_of("objective", OBJECTIVES)
-    )
 
     @field_validator("priority")
     @classmethod
@@ -279,26 +238,26 @@ class QuoteResponse(BaseModel):
 # ── Campanhas ────────────────────────────────────────────────────────────
 class CampaignCreateBase(BaseModel):
     plan_id: int | None = None
-    formats: list[str]
+    formats: list[AdFormat]
     duration_days: int
-    geo_scope: str = GEO_SCOPE_NEIGHBORHOOD
+    geo_scope: GeoScope = GeoScope.NEIGHBORHOOD
     neighborhoods: list[str] = []
     city: str | None = None
     cities: list[str] = []
     targeting: TargetingIn | None = None
     schedule: ScheduleIn | None = None
-    objective: str = "clicks"
+    objective: AdObjective = AdObjective.CLICKS
     priority: int = 3
     rotation_weight: float = 1.0
     daily_impression_cap: int | None = None
     per_user_impression_cap: int | None = None
-    pacing: str = "asap"
+    pacing: AdPacing = AdPacing.ASAP
 
     advertiser_name: str
     advertiser_email: str
     advertiser_phone: str = ""
     # Pessoa Física (CPF) ou Jurídica (CNPJ) — validado e normalizado abaixo.
-    advertiser_type: str = "individual"
+    advertiser_type: AdvertiserType = AdvertiserType.INDIVIDUAL
     advertiser_document: str = ""
 
     # Se preenchido, esta campanha é uma renovação/reativação de uma
@@ -320,26 +279,12 @@ class CampaignCreateBase(BaseModel):
     longitude: float | None = None
 
     _validate_formats = field_validator("formats")(_check_formats)
-    _validate_geo_scope = field_validator("geo_scope")(
-        _check_one_of("Escopo geográfico", GEO_SCOPES)
-    )
-    _validate_objective = field_validator("objective")(
-        _check_one_of("objective", OBJECTIVES)
-    )
-    _validate_pacing = field_validator("pacing")(_check_one_of("pacing", PACING_MODES))
 
     @field_validator("duration_days")
     @classmethod
     def check_duration(cls, v: int) -> int:
         if not 1 <= v <= 720:
             raise ValueError("Duração deve estar entre 1 e 720 dias")
-        return v
-
-    @field_validator("advertiser_type")
-    @classmethod
-    def check_advertiser_type(cls, v: str) -> str:
-        if v not in ADVERTISER_TYPES:
-            raise ValueError(f"Tipo de anunciante inválido: {v}")
         return v
 
     @model_validator(mode="after")
@@ -412,45 +357,38 @@ class ManualCampaignCreate(CampaignCreateBase):
 
 
 class CampaignUpdate(BaseModel):
-    status: str | None = None
+    status: AdCampaignStatus | None = None
     ends_at: datetime | None = None
     priority: int | None = None
     daily_impression_cap: int | None = None
     per_user_impression_cap: int | None = None
 
-    @field_validator("status")
-    @classmethod
-    def check_status(cls, v: str | None) -> str | None:
-        if v is not None and v not in STATUSES:
-            raise ValueError(f"Status inválido: {v}")
-        return v
-
 
 class CampaignAdminOut(BaseModel):
     id: int
     plan_id: int | None
-    status: str
+    status: AdCampaignStatus
     access_token: str
     advertiser_name: str
     advertiser_email: str
     advertiser_phone: str
-    advertiser_type: str
+    advertiser_type: AdvertiserType
     advertiser_document: str
-    formats: list[str]
+    formats: list[AdFormat]
     price_cents: int
     currency: str
     targeting: TargetingIn
     schedule: ScheduleIn
-    objective: str
+    objective: AdObjective
     priority: int
     rotation_weight: float
     daily_impression_cap: int | None
     per_user_impression_cap: int | None
-    pacing: str
+    pacing: AdPacing
     duration_days: int
     starts_at: datetime | None
     ends_at: datetime | None
-    payment_provider: str | None
+    payment_provider: PaymentProvider | None
     renewed_from_id: int | None
     root_campaign_id: int | None
     impressions_count: int
@@ -480,7 +418,7 @@ class AdOut(BaseModel):
 
     id: int
     creative_id: int
-    objective: str
+    objective: AdObjective
     title: str
     content: str
     image_url: str | None
@@ -495,8 +433,8 @@ class AdOut(BaseModel):
 class ClickIn(BaseModel):
     viewer_id: str | None = None
     creative_id: int | None = None
-    format: str | None = None
-    objective_action: str | None = None
+    format: AdFormat | None = None
+    objective_action: ObjectiveAction | None = None
 
 
 # ── Analytics ────────────────────────────────────────────────────────────
@@ -529,7 +467,7 @@ class CampaignHistoryPeriod(BaseModel):
 
     id: int
     access_token: str
-    status: str
+    status: AdCampaignStatus
     starts_at: datetime | None
     ends_at: datetime | None
     created_at: datetime
@@ -548,40 +486,33 @@ class MyCampaignUpdate(BaseModel):
     advertiser_name: str | None = None
     advertiser_email: str | None = None
     advertiser_phone: str | None = None
-    advertiser_type: str | None = None
+    advertiser_type: AdvertiserType | None = None
     advertiser_document: str | None = None
     creatives: list[CreativeIn] | None = None
 
-    @field_validator("advertiser_type")
-    @classmethod
-    def check_advertiser_type(cls, v: str | None) -> str | None:
-        if v is not None and v not in ADVERTISER_TYPES:
-            raise ValueError(f"Tipo de anunciante inválido: {v}")
-        return v
-
 
 class MyCampaignOut(BaseModel):
-    """O que o próprio anunciante vê em `/anunciar/painel/{token}` — mesmos
+    """O que o próprio anunciante vê em `/advertise/dashboard/{token}` — mesmos
     dados de `CampaignAdminOut` + analytics + histórico de renovações, mas
     sem `access_token` (o token já está na URL, não precisa voltar no corpo)
     nem nada de outras campanhas."""
 
     id: int
-    status: str
+    status: AdCampaignStatus
     advertiser_name: str
     advertiser_email: str
     advertiser_phone: str
-    advertiser_type: str
+    advertiser_type: AdvertiserType
     advertiser_document: str
-    formats: list[str]
+    formats: list[AdFormat]
     price_cents: int
     currency: str
     targeting: TargetingIn
     schedule: ScheduleIn
-    objective: str
+    objective: AdObjective
     priority: int
     rotation_weight: float
-    pacing: str
+    pacing: AdPacing
     daily_impression_cap: int | None
     per_user_impression_cap: int | None
     duration_days: int
@@ -602,10 +533,10 @@ class CampaignAnalyticsRow(BaseModel):
     title: str
     advertiser_name: str
     advertiser_email: str
-    status: str
-    objective: str
+    status: AdCampaignStatus
+    objective: AdObjective
     category: str
-    formats: list[str]
+    formats: list[AdFormat]
     price_cents: int
     impressions: int
     clicks: int

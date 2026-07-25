@@ -1,14 +1,14 @@
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session, aliased
 
-from app.models.audit_log import AuditLog
+from app.models.audit_log import AuditLog, AuditLogAction
 from app.models.user import User
 
 
 def create(
     db: Session,
     moderator_id: int,
-    action: str,
+    action: AuditLogAction,
     target_user_id: int | None,
     detail: str,
 ) -> AuditLog:
@@ -28,7 +28,7 @@ def list_all(
     db: Session,
     moderator: str | None,
     target_user: str | None,
-    action: str | None,
+    action: AuditLogAction | None,
     offset: int,
     limit: int,
 ) -> list[AuditLog]:

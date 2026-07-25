@@ -1,8 +1,10 @@
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel
 
+from app.models.mute import MuteKind
+from app.models.notification import NotificationType
+from app.models.post import PostCategory
 from app.schemas.user import UserPublic
 
 
@@ -10,7 +12,7 @@ class SharedPostOut(BaseModel):
     """Prévia compacta de um post encaminhado em uma mensagem."""
 
     id: int
-    category: str
+    category: PostCategory
     title: str | None
     content: str
     image_urls: list[str] = []
@@ -41,7 +43,7 @@ class MessageCreate(BaseModel):
 
 
 class TypingPing(BaseModel):
-    target_type: Literal["dm", "group"]
+    target_type: MuteKind
     target_id: int
 
 
@@ -91,7 +93,7 @@ class MessageSearchOut(BaseModel):
 
 class NotificationOut(BaseModel):
     id: int
-    type: str
+    type: NotificationType
     content: str
     read: bool
     post_id: int | None

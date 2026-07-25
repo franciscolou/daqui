@@ -1,13 +1,13 @@
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from app.models.notification import Notification
+from app.models.notification import Notification, NotificationType
 
 
 def create(
     db: Session,
     user_id: int,
-    type_: str,
+    type_: NotificationType,
     content: str,
     target_text: str | None = None,
     post_id: int | None = None,
@@ -29,7 +29,9 @@ def create(
     return notif
 
 
-def list_unread_by_types(db: Session, user_id: int, types: tuple[str, ...]) -> list[Notification]:
+def list_unread_by_types(
+    db: Session, user_id: int, types: tuple[NotificationType, ...]
+) -> list[Notification]:
     return (
         db.query(Notification)
         .filter(

@@ -17,7 +17,7 @@ import LocationPickerModal from './LocationPickerModal';
 // Busca, Mensagens, Novidades): o anunciante configura o conteúdo uma vez e,
 // se quiser, sobrepõe ícone/texto diferente em qualquer uma delas, sem
 // preencher tudo 4 vezes. Usado tanto na criação (checkout.tsx) quanto na
-// edição pelo próprio anunciante (painel/editar/[token].tsx).
+// edição pelo próprio anunciante (dashboard/edit/[token].tsx).
 
 // Superfícies que podem receber um criativo próprio, na ordem em que
 // aparecem no editor. `post` cobre feed + pin no mapa; `search_poster` é a

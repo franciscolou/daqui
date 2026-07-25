@@ -7,10 +7,12 @@ um número obviamente inválido no checkout.
 """
 
 import re
+from enum import StrEnum
 
-ADVERTISER_INDIVIDUAL = "individual"  # Pessoa Física — CPF
-ADVERTISER_COMPANY = "company"  # Pessoa Jurídica — CNPJ
-ADVERTISER_TYPES = (ADVERTISER_INDIVIDUAL, ADVERTISER_COMPANY)
+
+class AdvertiserType(StrEnum):
+    INDIVIDUAL = "individual"  # Pessoa Física — CPF
+    COMPANY = "company"  # Pessoa Jurídica — CNPJ
 
 
 def normalize(document: str) -> str:
@@ -50,14 +52,14 @@ def is_valid_cnpj(document: str) -> bool:
     return second == int(cnpj[13])
 
 
-def validate_document(advertiser_type: str, document: str) -> str:
+def validate_document(advertiser_type: AdvertiserType, document: str) -> str:
     """Valida o documento conforme o tipo e devolve a forma normalizada
     (só dígitos). Levanta `ValueError` — os schemas convertem em 422."""
     doc = normalize(document)
-    if advertiser_type == ADVERTISER_INDIVIDUAL:
+    if advertiser_type == AdvertiserType.INDIVIDUAL:
         if not is_valid_cpf(doc):
             raise ValueError("CPF inválido")
-    elif advertiser_type == ADVERTISER_COMPANY:
+    elif advertiser_type == AdvertiserType.COMPANY:
         if not is_valid_cnpj(doc):
             raise ValueError("CNPJ inválido")
     else:

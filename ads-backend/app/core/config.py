@@ -15,8 +15,11 @@ class Settings(BaseSettings):
 
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
-    STRIPE_SUCCESS_URL: str = "http://localhost:8081/anunciar/checkout/sucesso"
-    STRIPE_CANCEL_URL: str = "http://localhost:8081/anunciar/checkout"
+    # Sem default de propósito (mesmo espírito do FRONTEND_URL no backend
+    # principal): apontar silenciosamente pra localhost em produção manda o
+    # anunciante de volta pro lugar errado depois de pagar. Ver .env/.env.example.
+    STRIPE_SUCCESS_URL: str
+    STRIPE_CANCEL_URL: str
 
     ADS_ADMIN_EMAIL: str = "ads@daqui.com"
     ADS_ADMIN_PASSWORD: str = "senha123"
@@ -27,8 +30,8 @@ class Settings(BaseSettings):
     EMAIL_FROM: str = "Daqui Ads <onboarding@resend.dev>"
     # URL do próprio painel estático (ads-admin/index.html) — usada para montar
     # o link de redefinição de senha, já que (ao contrário do moderador) não
-    # existe outro app pra abrir essa tela.
-    ADS_ADMIN_URL: str = "http://localhost:8091"
+    # existe outro app pra abrir essa tela. Sem default pelo mesmo motivo acima.
+    ADS_ADMIN_URL: str
 
     class Config:
         env_file = ".env"

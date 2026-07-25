@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
@@ -6,28 +7,19 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
-# Tipos de ação registrados no log de auditoria da moderação.
-ACTION_REVIEW_DELETE = "review_delete"
-ACTION_REPORT_RESOLVE = "report_resolve"
-ACTION_REPORT_DISMISS = "report_dismiss"
-ACTION_REPORT_DELETE = "report_delete"
-ACTION_POST_DELETE = "post_delete"
-ACTION_COMMENT_DELETE = "comment_delete"
-ACTION_USER_SUSPEND = "user_suspend"
-ACTION_USER_UNSUSPEND = "user_unsuspend"
-ACTION_TICKET_REPLY = "ticket_reply"
 
-ACTIONS = {
-    ACTION_REVIEW_DELETE,
-    ACTION_REPORT_RESOLVE,
-    ACTION_REPORT_DISMISS,
-    ACTION_REPORT_DELETE,
-    ACTION_POST_DELETE,
-    ACTION_COMMENT_DELETE,
-    ACTION_USER_SUSPEND,
-    ACTION_USER_UNSUSPEND,
-    ACTION_TICKET_REPLY,
-}
+class AuditLogAction(StrEnum):
+    """Tipos de ação registrados no log de auditoria da moderação."""
+
+    REVIEW_DELETE = "review_delete"
+    REPORT_RESOLVE = "report_resolve"
+    REPORT_DISMISS = "report_dismiss"
+    REPORT_DELETE = "report_delete"
+    POST_DELETE = "post_delete"
+    COMMENT_DELETE = "comment_delete"
+    USER_SUSPEND = "user_suspend"
+    USER_UNSUSPEND = "user_unsuspend"
+    TICKET_REPLY = "ticket_reply"
 
 
 class AuditLog(Base):
@@ -37,7 +29,7 @@ class AuditLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     moderator_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    action: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    action: Mapped[AuditLogAction] = mapped_column(String(30), nullable=False, index=True)
     # Usuário afetado pela ação (autor do conteúdo removido, denunciado, suspenso...).
     target_user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id"), nullable=True, index=True

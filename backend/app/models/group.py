@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import (
@@ -13,19 +14,26 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
-# Papéis dentro de um grupo. "owner" é único (o dono); "admin" pode gerir
-# membros; "member" é participante comum.
-ROLE_OWNER = "owner"
-ROLE_ADMIN = "admin"
-ROLE_MEMBER = "member"
 
-# Privacidade do grupo. "public": qualquer um entra na hora e o grupo aparece
-# no "Descobrir". "request": aparece no "Descobrir", mas entrar exige
-# aprovação de um admin/dono (fica pendente em GroupJoinRequest). "closed":
-# não aparece no "Descobrir", só entra quem for adicionado direto por um admin.
-PRIVACY_PUBLIC = "public"
-PRIVACY_REQUEST = "request"
-PRIVACY_CLOSED = "closed"
+class GroupRole(StrEnum):
+    """Papéis dentro de um grupo. OWNER é único (o dono); ADMIN pode gerir
+    membros; MEMBER é participante comum."""
+
+    OWNER = "owner"
+    ADMIN = "admin"
+    MEMBER = "member"
+
+
+class GroupPrivacy(StrEnum):
+    """Privacidade do grupo. PUBLIC: qualquer um entra na hora e o grupo
+    aparece no "Descobrir". REQUEST: aparece no "Descobrir", mas entrar exige
+    aprovação de um admin/dono (fica pendente em GroupJoinRequest). CLOSED:
+    não aparece no "Descobrir", só entra quem for adicionado direto por um
+    admin."""
+
+    PUBLIC = "public"
+    REQUEST = "request"
+    CLOSED = "closed"
 
 
 class Group(Base):
@@ -35,7 +43,7 @@ class Group(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    privacy: Mapped[str] = mapped_column(String(20), default=PRIVACY_CLOSED, nullable=False)
+    privacy: Mapped[GroupPrivacy] = mapped_column(String(20), default=GroupPrivacy.CLOSED, nullable=False)
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     # Bairro do criador — usado como metadado exibido no Descobrir.
     neighborhood: Mapped[str] = mapped_column(String(120), default="")
@@ -57,7 +65,7 @@ class GroupMember(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"), nullable=False, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    role: Mapped[str] = mapped_column(String(20), default=ROLE_MEMBER, nullable=False)
+    role: Mapped[GroupRole] = mapped_column(String(20), default=GroupRole.MEMBER, nullable=False)
     # Id da última mensagem lida — base para o contador de não lidas do grupo.
     last_read_message_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     joined_at: Mapped[datetime] = mapped_column(

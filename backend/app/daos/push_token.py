@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 
-from app.models.push_token import PushToken
+from app.models.push_token import PushPlatform, PushToken
 
 
-def upsert(db: Session, user_id: int, token: str, platform: str) -> PushToken:
+def upsert(db: Session, user_id: int, token: str, platform: PushPlatform) -> PushToken:
     row = db.query(PushToken).filter(PushToken.token == token).first()
     if row:
         row.user_id = user_id

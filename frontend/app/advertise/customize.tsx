@@ -286,11 +286,11 @@ interface ReactivatePrefill {
   specialDates?: string[];
 }
 
-export default function PersonalizarScreen() {
+export default function CustomizeScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const params = useLocalSearchParams<{ planId?: string; prefill?: string; renewedFromToken?: string }>();
-  // Vem do botão "Reativar campanha" (painel/[token].tsx) — pré-preenche o
+  // Vem do botão "Reativar campanha" (dashboard/[token].tsx) — pré-preenche o
   // ponto de partida a partir da campanha anterior; tudo continua editável.
   const prefillData = useMemo<ReactivatePrefill | null>(
     () => (params.prefill ? JSON.parse(params.prefill) : null),
@@ -442,7 +442,7 @@ export default function PersonalizarScreen() {
 
   const goToCheckout = () => {
     router.push({
-      pathname: '/anunciar/checkout',
+      pathname: '/advertise/checkout',
       params: {
         formats: JSON.stringify(formats),
         durationDays: String(durationDays),
@@ -476,7 +476,7 @@ export default function PersonalizarScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/anunciar')}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/advertise')}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Personalize seu anúncio</Text>
@@ -585,7 +585,7 @@ export default function PersonalizarScreen() {
           )}
         </View>
 
-        <Text style={styles.label}>Onde anunciar</Text>
+        <Text style={styles.label}>Onde advertise</Text>
         <View style={styles.chipsWrap}>
           {GEO_SCOPE_OPTIONS.map((o) => (
             <TouchableOpacity

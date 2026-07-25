@@ -30,7 +30,7 @@ router.get("/active/{format}", response_model=AdOut | None)(ad.get_active_ad)
 # quando esgota) — rota estática "/list" depois do path param "format" não
 # conflita com "/active/{format}" (segmentos diferentes).
 router.get("/active/{format}/list", response_model=list[AdOut])(ad.get_active_ad_list)
-# Painel do anunciante (link com token, ver /anunciar/painel/[token].tsx) —
+# Painel do anunciante (link com token, ver /advertise/dashboard/[token].tsx) —
 # rota estática ("my-campaign") declarada antes de "/{campaign_id}/click".
 router.get("/my-campaign/{token}", response_model=MyCampaignOut)(ad.get_my_campaign)
 router.patch("/my-campaign/{token}", response_model=MyCampaignOut)(ad.update_my_campaign)

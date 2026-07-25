@@ -8,6 +8,7 @@ from app.daos import message as message_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.message import Message
+from app.models.mute import MuteKind
 from app.models.user import User
 from app.schemas.message import (
     ConversationOut,
@@ -141,7 +142,7 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
 def ping_typing(db: Session, user: User, payload: TypingPing) -> None:
     """Avisa que `user` está digitando — lido pelo polling do websocket
     (ver `routers/ws.py`) e repassado a quem está na mesma conversa."""
-    if payload.target_type == "dm":
+    if payload.target_type == MuteKind.DM:
         typing_registry.set_dm_typing(user.id, payload.target_id)
     else:
         member = group_dao.get_membership(db, payload.target_id, user.id)

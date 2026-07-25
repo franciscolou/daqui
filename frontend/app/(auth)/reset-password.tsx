@@ -84,7 +84,7 @@ export default function ResetPasswordScreen() {
                 <Text style={[styles.successDesc, { marginTop: 16 }]}>
                   Link inválido. Solicite um novo link de redefinição de senha.
                 </Text>
-                <TouchableOpacity style={styles.altRow} onPress={() => router.replace('/(auth)/esqueci-senha')}>
+                <TouchableOpacity style={styles.altRow} onPress={() => router.replace('/(auth)/forgot-password')}>
                   <Text style={styles.altLink}>Solicitar novo link</Text>
                 </TouchableOpacity>
               </View>

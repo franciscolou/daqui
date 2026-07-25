@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String
@@ -6,13 +7,27 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
-# Avisos de moderação: post/comentário do usuário removido pela moderação.
-TYPE_POST_REMOVED = "post_removed"
-TYPE_COMMENT_REMOVED = "comment_removed"
-MODERATION_NOTICE_TYPES = (TYPE_POST_REMOVED, TYPE_COMMENT_REMOVED)
 
-# Menção: alguém citou @usuario num post ou comentário.
-TYPE_MENTION = "mention"
+class NotificationType(StrEnum):
+    """Tipos de notificação ("novidade"). LIKE_POST/LIKE_COMMENT/COMMENT/FOLLOW
+    e WELCOME não são gerados por nenhum fluxo atual do backend (só aparecem
+    em dados de seed) mas seguem reconhecidos pelo frontend
+    (`constants/notifications.ts::NOTIF_ICONS`)."""
+
+    LIKE_POST = "like_post"
+    LIKE_COMMENT = "like_comment"
+    COMMENT = "comment"
+    FOLLOW = "follow"
+    WELCOME = "welcome"
+    EVENT = "event"
+    # Avisos de moderação: post/comentário do usuário removido pela moderação.
+    POST_REMOVED = "post_removed"
+    COMMENT_REMOVED = "comment_removed"
+    # Menção: alguém citou @usuario num post ou comentário.
+    MENTION = "mention"
+
+
+MODERATION_NOTICE_TYPES = (NotificationType.POST_REMOVED, NotificationType.COMMENT_REMOVED)
 
 
 class Notification(Base):
@@ -21,8 +36,7 @@ class Notification(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     actor_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    # type: like_post | like_comment | comment | follow
-    type: Mapped[str] = mapped_column(String(30), nullable=False)
+    type: Mapped[NotificationType] = mapped_column(String(30), nullable=False)
     content: Mapped[str] = mapped_column(String(500), nullable=False)
     # Trecho variável da notificação (texto do post ou do comentário)
     target_text: Mapped[str | None] = mapped_column(String(300), nullable=True)

@@ -1,7 +1,14 @@
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
-from app.models.post import PollOption, PollVote, Post, PostLike, PostRepost
+from app.models.post import (
+    PollOption,
+    PollVote,
+    Post,
+    PostCategory,
+    PostLike,
+    PostRepost,
+)
 from app.models.user import User
 
 
@@ -12,12 +19,12 @@ def get_by_id(db: Session, post_id: int) -> Post | None:
 def list_feed(
     db: Session,
     neighborhoods: list[str],
-    category: str | None,
+    category: PostCategory | None,
     offset: int,
     limit: int,
 ) -> list[Post]:
     q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods))
-    if category and category != "todos":
+    if category:
         q = q.filter(Post.category == category)
     return (
         q.order_by(desc(Post.pinned), desc(Post.created_at))
@@ -85,9 +92,9 @@ def count_by_author(db: Session, author_id: int) -> int:
     return db.query(Post).filter(Post.author_id == author_id).count()
 
 
-def count_feed(db: Session, neighborhoods: list[str], category: str | None) -> int:
+def count_feed(db: Session, neighborhoods: list[str], category: PostCategory | None) -> int:
     q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods))
-    if category and category != "todos":
+    if category:
         q = q.filter(Post.category == category)
     return q.count()
 
@@ -96,7 +103,7 @@ def create(
     db: Session,
     *,
     author_id: int,
-    category: str,
+    category: PostCategory,
     title: str | None,
     content: str,
     media: list[dict],

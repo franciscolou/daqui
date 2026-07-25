@@ -2,6 +2,7 @@ from fastapi import Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_moderator, get_current_user, get_db
+from app.models.support_ticket import SupportTicketStatus
 from app.models.user import User
 from app.schemas.attachment import AttachmentItem
 from app.schemas.support_ticket import (
@@ -40,7 +41,7 @@ def list_my_tickets(
 
 # ── Moderador (app de moderação) ──────────────────────────────────────
 def list_tickets(
-    status: str | None = Query(None),
+    status: SupportTicketStatus | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),

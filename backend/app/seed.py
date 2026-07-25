@@ -9,85 +9,85 @@ from app.core.security import hash_password
 from app.database import SessionLocal, create_tables
 from app.models.comment import Comment
 from app.models.message import Message
-from app.models.notification import Notification
-from app.models.post import Post
-from app.models.user import User
+from app.models.notification import Notification, NotificationType
+from app.models.post import Post, PostCategory
+from app.models.user import User, UserBadge
 
 # Bairro do usuário de teste (francisco) = Leme (Rio). Coordenadas reais na orla,
 # para o mapa ter pins de verdade. Carlos (Pinheiros) e Roberto (Jardins) ficam de
 # fora do Leme de propósito: demonstram isolamento por bairro e perfil bloqueado.
 USERS = [
     dict(username="francisco", name="Francisco Gardenberg", email="francisco@daqui.com", password="senha123",
-         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="lider", verified=True, latitude=-22.9631, longitude=-43.1665,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge=UserBadge.LEADER, verified=True, latitude=-22.9631, longitude=-43.1665,
          avatar_url="https://i.pravatar.cc/150?img=68"),
     dict(username="anapaula", name="Ana Paula Lima", email="ana@daqui.com", password="senha123",
-         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="lider", verified=True, latitude=-22.9622, longitude=-43.1658,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge=UserBadge.LEADER, verified=True, latitude=-22.9622, longitude=-43.1658,
          avatar_url="https://i.pravatar.cc/150?img=47"),
     dict(username="carlosmendes", name="Carlos Mendes", email="carlos@daqui.com", password="senha123",
-         neighborhood="Pinheiros", badge="morador", verified=True, latitude=-23.5665, longitude=-46.7010,
+         neighborhood="Pinheiros", badge=UserBadge.RESIDENT, verified=True, latitude=-23.5665, longitude=-46.7010,
          avatar_url="https://i.pravatar.cc/150?img=52"),
     dict(username="beatriz", name="Beatriz Santos", email="beatriz@daqui.com", password="senha123",
-         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="comerciante", verified=True, latitude=-22.9640, longitude=-43.1668,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge=UserBadge.BUSINESS, verified=True, latitude=-22.9640, longitude=-43.1668,
          avatar_url="https://i.pravatar.cc/150?img=44"),
     dict(username="roberto", name="Roberto Alves", email="roberto@daqui.com", password="senha123",
-         neighborhood="Jardins", badge="morador", verified=False, latitude=-23.5710, longitude=-46.6680,
+         neighborhood="Jardins", badge=UserBadge.RESIDENT, verified=False, latitude=-23.5710, longitude=-46.6680,
          avatar_url="https://i.pravatar.cc/150?img=57"),
     dict(username="mariana", name="Mariana Costa", email="mariana@daqui.com", password="senha123",
-         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9648, longitude=-43.1662,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge=UserBadge.RESIDENT, verified=True, latitude=-22.9648, longitude=-43.1662,
          avatar_url="https://i.pravatar.cc/150?img=25"),
     dict(username="thiago", name="Thiago Ferreira", email="thiago@daqui.com", password="senha123",
-         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9618, longitude=-43.1650,
+         neighborhood="Leme", city="Rio de Janeiro", state="RJ", badge=UserBadge.RESIDENT, verified=True, latitude=-22.9618, longitude=-43.1650,
          avatar_url="https://i.pravatar.cc/150?img=61"),
     # Usuários de outros bairros (adicionados no fim de propósito: author_idx dos POSTS/
     # seed_comments acima é posicional, então novas entradas não podem ser inseridas no meio).
     # Cobrem bairros vizinhos ao Leme (pro toggle "incluir bairros próximos") e bairros de
     # SP (pro card "bloqueado" da busca de usuários fora do bairro).
     dict(username="juliaramos", name="Julia Ramos", email="julia@daqui.com", password="senha123",
-         neighborhood="Copacabana", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9711, longitude=-43.1822,
+         neighborhood="Copacabana", city="Rio de Janeiro", state="RJ", badge=UserBadge.RESIDENT, verified=True, latitude=-22.9711, longitude=-43.1822,
          avatar_url="https://i.pravatar.cc/150?img=12"),
     dict(username="fernandosouza", name="Fernando Souza", email="fernando@daqui.com", password="senha123",
-         neighborhood="Botafogo", city="Rio de Janeiro", state="RJ", badge="comerciante", verified=False, latitude=-22.9519, longitude=-43.1823,
+         neighborhood="Botafogo", city="Rio de Janeiro", state="RJ", badge=UserBadge.BUSINESS, verified=False, latitude=-22.9519, longitude=-43.1823,
          avatar_url="https://i.pravatar.cc/150?img=33"),
     dict(username="camilarocha", name="Camila Rocha", email="camila@daqui.com", password="senha123",
-         neighborhood="Urca", city="Rio de Janeiro", state="RJ", badge="morador", verified=True, latitude=-22.9490, longitude=-43.1652,
+         neighborhood="Urca", city="Rio de Janeiro", state="RJ", badge=UserBadge.RESIDENT, verified=True, latitude=-22.9490, longitude=-43.1652,
          avatar_url="https://i.pravatar.cc/150?img=15"),
     dict(username="rafaelnunes", name="Rafael Nunes", email="rafael@daqui.com", password="senha123",
-         neighborhood="Ipanema", city="Rio de Janeiro", state="RJ", badge="lider", verified=True, latitude=-22.9838, longitude=-43.2096,
+         neighborhood="Ipanema", city="Rio de Janeiro", state="RJ", badge=UserBadge.LEADER, verified=True, latitude=-22.9838, longitude=-43.2096,
          avatar_url="https://i.pravatar.cc/150?img=8"),
     dict(username="patriciagomes", name="Patricia Gomes", email="patricia@daqui.com", password="senha123",
-         neighborhood="Vila Madalena", city="São Paulo", state="SP", badge="morador", verified=False, latitude=-23.5505, longitude=-46.6919,
+         neighborhood="Vila Madalena", city="São Paulo", state="SP", badge=UserBadge.RESIDENT, verified=False, latitude=-23.5505, longitude=-46.6919,
          avatar_url="https://i.pravatar.cc/150?img=21"),
     dict(username="brunoteixeira", name="Bruno Teixeira", email="bruno@daqui.com", password="senha123",
-         neighborhood="Itaim Bibi", city="São Paulo", state="SP", badge="comerciante", verified=True, latitude=-23.5822, longitude=-46.6764,
+         neighborhood="Itaim Bibi", city="São Paulo", state="SP", badge=UserBadge.BUSINESS, verified=True, latitude=-23.5822, longitude=-46.6764,
          avatar_url="https://i.pravatar.cc/150?img=40"),
     dict(username="larissacardoso", name="Larissa Cardoso", email="larissa@daqui.com", password="senha123",
-         neighborhood="Moema", city="São Paulo", state="SP", badge="morador", verified=True, latitude=-23.6019, longitude=-46.6636,
+         neighborhood="Moema", city="São Paulo", state="SP", badge=UserBadge.RESIDENT, verified=True, latitude=-23.6019, longitude=-46.6636,
          avatar_url="https://i.pravatar.cc/150?img=5"),
 ]
 
 POSTS = [
-    dict(author_idx=1, category="aviso", title="Atenção: Obra na Rua Gustavo Sampaio",
+    dict(author_idx=1, category=PostCategory.AVISO, title="Atenção: Obra na Rua Gustavo Sampaio",
          content="Pessoal, a prefeitura vai iniciar obras na Rua Gustavo Sampaio amanhã às 8h. Previsão de 15 dias. Trânsito será desviado pela Av. Prefeito Mendes de Morais.",
          neighborhood="Leme", location="Rua Gustavo Sampaio, Leme", latitude=-22.9625, longitude=-43.1668),
-    dict(author_idx=3, category="recomendacao", title="Padaria incrível no Leme!",
+    dict(author_idx=3, category=PostCategory.RECOMENDACAO, title="Padaria incrível no Leme!",
          content="Descobri uma padaria na Rua General Ribeiro da Costa. O croissant de manteiga é de outro nível 🥐 Recomendo demais!",
          media=[{"url": "https://images.unsplash.com/photo-1555507036-ab1f4038808a?w=600", "type": "image"}],
          neighborhood="Leme", location="Rua General Ribeiro da Costa, Leme", latitude=-22.9640, longitude=-43.1672, likes_count=89, comments_count=23),
-    dict(author_idx=1, category="seguranca", title="Cuidado com golpe do WhatsApp",
+    dict(author_idx=1, category=PostCategory.SEGURANCA, title="Cuidado com golpe do WhatsApp",
          content="ATENÇÃO: Estão circulando mensagens se passando pela síndica do Cond. Vista Mar pedindo dados bancários. Não responda!",
          neighborhood="Leme", location="Praça Almirante Júlio de Noronha, Leme", latitude=-22.9635, longitude=-43.1660, important=True, likes_count=156, shares_count=67),
-    dict(author_idx=2, category="pets", title="Cachorro desaparecido 😢",
+    dict(author_idx=2, category=PostCategory.PETS, title="Cachorro desaparecido 😢",
          content="Meu Golden Retriever, Thor, desapareceu ontem perto do Parque Villa-Lobos. Ele usa coleira azul. Recompensa de R$500 💛",
          media=[{"url": "https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=600", "type": "image"}],
          neighborhood="Pinheiros", location="Parque Villa-Lobos, Pinheiros", latitude=-23.5470, longitude=-46.7220, important=True, likes_count=203, comments_count=41),
-    dict(author_idx=0, category="evento", title="Festa Junina da orla do Leme",
+    dict(author_idx=0, category=PostCategory.EVENTO, title="Festa Junina da orla do Leme",
          content="Convite para nossa tradicional Festa Junina! 📅 Sábado, 15/06 a partir das 16h 📍 Rua Gustavo Sampaio, 305. Forró ao vivo, comidas típicas, quadrilha!",
          neighborhood="Leme", location="Rua Gustavo Sampaio, 305, Leme", latitude=-22.9628, longitude=-43.1670, likes_count=312, comments_count=87),
-    dict(author_idx=4, category="venda", title="Sofá 3 lugares — R$ 800",
+    dict(author_idx=4, category=PostCategory.VENDA, title="Sofá 3 lugares — R$ 800",
          content="Vendo sofá 3 lugares, cor cinza, em ótimo estado. Só saio por mudança. Mede 2,10m.",
          media=[{"url": "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600", "type": "image"}],
          neighborhood="Jardins", location="Rua Oscar Freire, Jardins", latitude=-23.5620, longitude=-46.6720, likes_count=28, comments_count=9),
-    dict(author_idx=1, category="ajuda", title="Alguém tem escada de 3 metros?",
+    dict(author_idx=1, category=PostCategory.AJUDA, title="Alguém tem escada de 3 metros?",
          content="Oi vizinhos! Preciso trocar uma lâmpada no teto de 3 metros de altura e não tenho escada. Alguém pode emprestar por 30 minutos?",
          neighborhood="Leme", likes_count=15),
 ]
@@ -161,18 +161,18 @@ def seed():
 
     festa = posts[4]       # Festa Junina — post do Francisco (users[0])
     seguranca = posts[2]   # Golpe do WhatsApp — Francisco comentou neste post
-    db.add(Notification(user_id=users[0].id, actor_id=users[1].id, type="like_post",
+    db.add(Notification(user_id=users[0].id, actor_id=users[1].id, type=NotificationType.LIKE_POST,
                         post_id=festa.id, target_text=festa.title,
                         content=f"{users[1].name} curtiu seu post"))
-    db.add(Notification(user_id=users[0].id, actor_id=users[2].id, type="comment",
+    db.add(Notification(user_id=users[0].id, actor_id=users[2].id, type=NotificationType.COMMENT,
                         post_id=festa.id,
                         target_text="Vai ter forró ao vivo? Não perco por nada!",
                         content=f"{users[2].name} comentou no seu post"))
-    db.add(Notification(user_id=users[0].id, actor_id=users[3].id, type="like_comment",
+    db.add(Notification(user_id=users[0].id, actor_id=users[3].id, type=NotificationType.LIKE_COMMENT,
                         post_id=seguranca.id,
                         target_text="Já caíram nesse golpe aqui perto. Fiquem espertos.",
                         content=f"{users[3].name} curtiu seu comentário"))
-    db.add(Notification(user_id=users[0].id, actor_id=users[5].id, type="follow",
+    db.add(Notification(user_id=users[0].id, actor_id=users[5].id, type=NotificationType.FOLLOW,
                         content=f"{users[5].name} começou a seguir você"))
 
     db.commit()

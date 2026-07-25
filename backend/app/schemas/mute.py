@@ -1,11 +1,17 @@
 from datetime import datetime
-from typing import Literal
+from enum import StrEnum
 
 from pydantic import BaseModel
 
-# Opções de duração do silenciamento — "forever" fica silenciado até o
-# usuário reativar manualmente (ver services/mutes.py::resolve_until).
-MuteDuration = Literal["8h", "1d", "1w", "forever"]
+
+class MuteDuration(StrEnum):
+    """Opções de duração do silenciamento — FOREVER fica silenciado até o
+    usuário reativar manualmente (ver services/mutes.py::resolve_until)."""
+
+    EIGHT_HOURS = "8h"
+    ONE_DAY = "1d"
+    ONE_WEEK = "1w"
+    FOREVER = "forever"
 
 
 class MuteIn(BaseModel):
