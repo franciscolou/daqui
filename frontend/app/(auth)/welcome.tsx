@@ -73,6 +73,35 @@ function FloatingBlob({
   return <Animated.View pointerEvents="none" style={[style, animStyle]} />;
 }
 
+// ─── Grade de bolinhas "tátil" ────────────────────────────────────
+// Cada bolinha cresce conforme o cursor se aproxima, como se a grade fosse
+// sensível ao toque. `mx`/`my` guardam a posição do mouse em px, já
+// relativa ao canto da própria grade e suavizada por spring (ver captura em
+// WelcomeScreen); cada bolinha só lê a distância até seu próprio centro —
+// puramente reativo, sem spring extra aqui dentro.
+const DOT_COLS = 12;
+const DOT_SIZE = 2.5;
+const DOT_GAP = 6;
+const DOT_STEP = DOT_SIZE + DOT_GAP;
+const DOT_INFLUENCE = 42; // raio (px) de influência do cursor
+const DOT_MAX_SCALE = 2.6;
+
+function TactileDot({ index, mx, my }: { index: number; mx: SharedValue<number>; my: SharedValue<number> }) {
+  const cx = (index % DOT_COLS) * DOT_STEP + DOT_SIZE / 2;
+  const cy = Math.floor(index / DOT_COLS) * DOT_STEP + DOT_SIZE / 2;
+
+  const animStyle = useAnimatedStyle(() => {
+    const dist = Math.sqrt((mx.value - cx) ** 2 + (my.value - cy) ** 2);
+    const t = Math.max(0, 1 - dist / DOT_INFLUENCE);
+    return {
+      transform: [{ scale: 1 + t * (DOT_MAX_SCALE - 1) }],
+      opacity: 0.2 + t * 0.8,
+    };
+  });
+
+  return <Animated.View style={[styles.dot, animStyle]} />;
+}
+
 // Indicador de status de disponibilidade (dentro do input).
 function AvailabilityIcon({ state }: { state: AvailabilityState }) {
   if (state.status === 'checking') return <ActivityIndicator size="small" color={Colors.textTertiary} />;
@@ -120,6 +149,12 @@ export default function WelcomeScreen() {
   // As bolhas leem esses valores; o withSpring dá um leve atraso natural.
   const pointerX = useSharedValue(0);
   const pointerY = useSharedValue(0);
+  // Posição do mouse em px, relativa ao canto da grade de bolinhas (efeito
+  // "sensor tátil" — ver TactileDot acima). Começa fora do raio de
+  // influência pra nenhuma bolinha nascer "crescida".
+  const dotGridRef = useRef<View>(null);
+  const dotGridMouseX = useSharedValue(-1000);
+  const dotGridMouseY = useSharedValue(-1000);
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return;
     const onMove = (e: MouseEvent) => {
@@ -127,6 +162,13 @@ export default function WelcomeScreen() {
       const ny = (e.clientY / window.innerHeight) * 2 - 1;
       pointerX.value = withSpring(nx, { damping: 22, stiffness: 80, mass: 0.6 });
       pointerY.value = withSpring(ny, { damping: 22, stiffness: 80, mass: 0.6 });
+
+      const gridEl = dotGridRef.current as unknown as HTMLElement | null;
+      if (gridEl) {
+        const rect = gridEl.getBoundingClientRect();
+        dotGridMouseX.value = withSpring(e.clientX - rect.left, { damping: 18, stiffness: 200, mass: 0.4 });
+        dotGridMouseY.value = withSpring(e.clientY - rect.top, { damping: 18, stiffness: 200, mass: 0.4 });
+      }
     };
     window.addEventListener('mousemove', onMove);
     return () => window.removeEventListener('mousemove', onMove);
@@ -642,8 +684,10 @@ export default function WelcomeScreen() {
           </View>
         </View>
       ))}
-      <View style={styles.dotGrid}>
-        {Array.from({ length: 48 }).map((_, i) => <View key={i} style={styles.dot} />)}
+      <View ref={dotGridRef} pointerEvents="none" style={styles.dotGrid}>
+        {Array.from({ length: 48 }).map((_, i) => (
+          <TactileDot key={i} index={i} mx={dotGridMouseX} my={dotGridMouseY} />
+        ))}
       </View>
     </View>
   );
@@ -836,7 +880,7 @@ const styles = StyleSheet.create({
   floatCardDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   floatCardLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 1 },
   floatCardText: { fontSize: 13, color: '#fff', fontWeight: '500' },
-  dotGrid: { position: 'absolute', top: 24, left: 24, flexDirection: 'row', flexWrap: 'wrap', width: 8 * 12, gap: 6, opacity: 0.2 },
+  dotGrid: { position: 'absolute', top: 24, left: 24, flexDirection: 'row', flexWrap: 'wrap', width: DOT_COLS * DOT_STEP - DOT_GAP, gap: DOT_GAP },
   dot: { width: 2.5, height: 2.5, borderRadius: 2, backgroundColor: '#fff' },
 
   // Mobile
