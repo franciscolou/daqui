@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     # projeto Expo tiver "enhanced push security" habilitado.
     EXPO_ACCESS_TOKEN: str = ""
 
+    # HERE Geocoding & Search API (opcional). Sem chave, core/geocoding/router.py
+    # nunca escalona pro HERE — roda 100% Nominatim (grátis), só perdendo a
+    # interpolação de número exato no autocomplete (/geo/search). Cadastro:
+    # developer.here.com. O tamanho do free tier específico pra Geocoding &
+    # Search não está confirmado por documentação — checar na conta antes de
+    # depender em produção.
+    HERE_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
 

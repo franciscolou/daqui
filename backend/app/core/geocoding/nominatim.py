@@ -8,9 +8,10 @@ deixando a decisão de negócio para a camada de service.
 from __future__ import annotations
 
 import math
-from typing import Optional, TypedDict
 
 import httpx
+
+from .types import STATE_UF, GeoResult, NearbyPlace
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
@@ -22,28 +23,6 @@ OVERPASS_TIMEOUT = 25.0
 # Chaves do `address` do Nominatim que, em ordem, representam o "bairro".
 NEIGHBORHOOD_KEYS = ("suburb", "neighbourhood", "city_district", "quarter", "borough")
 CITY_KEYS = ("city", "town", "municipality", "village")
-
-
-# Nome completo do estado → sigla (UF), usado como fallback quando falta o ISO.
-STATE_UF = {
-    "acre": "AC", "alagoas": "AL", "amapá": "AP", "amazonas": "AM", "bahia": "BA",
-    "ceará": "CE", "distrito federal": "DF", "espírito santo": "ES", "goiás": "GO",
-    "maranhão": "MA", "mato grosso": "MT", "mato grosso do sul": "MS",
-    "minas gerais": "MG", "pará": "PA", "paraíba": "PB", "paraná": "PR",
-    "pernambuco": "PE", "piauí": "PI", "rio de janeiro": "RJ",
-    "rio grande do norte": "RN", "rio grande do sul": "RS", "rondônia": "RO",
-    "roraima": "RR", "santa catarina": "SC", "são paulo": "SP", "sergipe": "SE",
-    "tocantins": "TO",
-}
-
-
-class GeoResult(TypedDict):
-    latitude: float
-    longitude: float
-    neighborhood: str
-    city: str
-    state: str  # UF (2 letras)
-    display_name: str
 
 
 def _pick(address: dict, keys: tuple[str, ...]) -> str:
@@ -72,7 +51,7 @@ def _label(address: dict, neighborhood: str, city: str) -> str:
 
     O número só aparece quando o próprio OSM tem aquele endereço mapeado como
     ponto (nem toda rua tem cada número indexado — limitação dos dados, não da
-    busca: ver core/geocoding.py:search).
+    busca: ver core/geocoding/router.py, que escala pro HERE nesse caso).
     """
     street = _pick(address, STREET_KEYS)
     house_number = address.get("house_number")
@@ -83,7 +62,7 @@ def _label(address: dict, neighborhood: str, city: str) -> str:
     return ", ".join(parts)
 
 
-def _to_result(item: dict) -> Optional[GeoResult]:
+def _to_result(item: dict) -> GeoResult | None:
     address = item.get("address") or {}
     neighborhood = _pick(address, NEIGHBORHOOD_KEYS)
     city = _pick(address, CITY_KEYS)
@@ -99,10 +78,11 @@ def _to_result(item: dict) -> Optional[GeoResult]:
         city=city,
         state=_uf(address),
         display_name=_label(address, neighborhood, city),
+        provider="nominatim",
     )
 
 
-def _get(path: str, params: dict) -> Optional[dict | list]:
+def _get(path: str, params: dict) -> dict | list | None:
     try:
         resp = httpx.get(
             f"{NOMINATIM_URL}{path}",
@@ -116,7 +96,7 @@ def _get(path: str, params: dict) -> Optional[dict | list]:
         return None
 
 
-def reverse(lat: float, lon: float) -> Optional[GeoResult]:
+def reverse(lat: float, lon: float) -> GeoResult | None:
     """Coordenadas → bairro/cidade (reverse geocoding)."""
     data = _get("/reverse", {"lat": lat, "lon": lon, "zoom": 18})
     if not isinstance(data, dict):
@@ -124,7 +104,7 @@ def reverse(lat: float, lon: float) -> Optional[GeoResult]:
     return _to_result(data)
 
 
-def forward(query: str) -> Optional[GeoResult]:
+def forward(query: str) -> GeoResult | None:
     """Endereço (texto) → coordenadas + bairro (forward geocoding)."""
     data = _get("/search", {"q": query, "countrycodes": "br", "limit": 1})
     if not isinstance(data, list) or not data:
@@ -140,13 +120,6 @@ def search(query: str, limit: int = 10) -> list[GeoResult]:
     if not isinstance(data, list):
         return []
     return [r for item in data if (r := _to_result(item)) is not None]
-
-
-class NearbyPlace(TypedDict):
-    neighborhood: str
-    latitude: float
-    longitude: float
-    distance_m: float
 
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

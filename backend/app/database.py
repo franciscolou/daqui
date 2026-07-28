@@ -17,6 +17,7 @@ def create_tables():
     from app.models import (  # noqa: F401
         audit_log,
         comment,
+        geo_cache,
         group,
         message,
         mute,
