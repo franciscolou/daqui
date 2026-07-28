@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Pressable, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,12 +52,23 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={[styles.tabBarContainer, { paddingBottom: 10 + insets.bottom }]}>
       <View style={styles.tabBar}>
+        {/* tabIndex={-1} (via cast — RNW aceita, o tipo do RN não declara) tira os
+            botões desta barra da regra de hover global (lib/globalStyles.web.ts
+            aplica hover a todo div[tabindex="0"]); o hover redondo por item abaixo
+            é local (`hovered` do Pressable), exceto no "Novo post", que não tem
+            hover nenhum. */}
         {TAB_ITEMS.map((tabItem) => {
           const isFocused = activeName === tabItem.name;
 
           if (tabItem.name === 'publish') {
             return (
-              <TouchableOpacity key={tabItem.name} onPress={() => go('publish')} style={styles.publishBtnWrapper} activeOpacity={0.85}>
+              <TouchableOpacity
+                key={tabItem.name}
+                onPress={() => go('publish')}
+                style={styles.publishBtnWrapper}
+                activeOpacity={0.85}
+                {...({ tabIndex: -1 } as any)}
+              >
                 <LinearGradient
                   colors={Colors.gradient.primary}
                   style={styles.publishBtn}
@@ -75,23 +86,25 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             (tabItem.name === 'notifications' && unreadNotifications > 0);
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={tabItem.name}
               onPress={() => go(tabItem.name)}
               style={styles.tabItem}
-              activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={tabItem.label}
+              {...({ tabIndex: -1 } as any)}
             >
-              <View style={[styles.tabIconWrapper, isFocused && styles.tabIconWrapperActive]}>
-                <Ionicons
-                  name={(isFocused ? tabItem.iconActive : tabItem.icon) as any}
-                  size={24}
-                  color={isFocused ? Colors.primary : Colors.textTertiary}
-                />
-                {showDot && <View style={styles.tabDot} />}
-              </View>
-            </TouchableOpacity>
+              {({ hovered }: { hovered?: boolean }) => (
+                <View style={[styles.tabIconWrapper, hovered && styles.tabIconWrapperHover]}>
+                  <Ionicons
+                    name={(isFocused ? tabItem.iconActive : tabItem.icon) as any}
+                    size={24}
+                    color={isFocused ? Colors.primary : Colors.textTertiary}
+                  />
+                  {showDot && <View style={styles.tabDot} />}
+                </View>
+              )}
+            </Pressable>
           );
         })}
       </View>
@@ -135,15 +148,15 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingVertical: 4,
   },
   tabIconWrapper: {
-    width: 44,
-    height: 36,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
-  tabIconWrapperActive: {
-    backgroundColor: Colors.primaryFaint,
+  tabIconWrapperHover: {
+    backgroundColor: Colors.borderLight,
   },
   tabDot: {
     position: 'absolute',
