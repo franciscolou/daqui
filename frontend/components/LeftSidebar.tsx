@@ -360,7 +360,7 @@ export default function LeftSidebar({
 
       {/* Logout */}
       <Pressable
-        style={({ hovered }) => [styles.navItem, hovered && styles.navItemHover]}
+        style={({ hovered }) => [styles.navItem, hovered && styles.logoutHover]}
         onPress={handleLogout}
       >
         <Ionicons name="log-out-outline" size={17} color={Colors.error} />
@@ -513,6 +513,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   navItemHover: {
     backgroundColor: Colors.borderLight,
+  },
+  logoutHover: {
+    backgroundColor: Colors.dangerSurface,
   },
   navLabel: {
     fontSize: 14,
