@@ -960,7 +960,6 @@ function NotificationsPanel() {
           savePref({ notify_messages: v }, () => setNotifyMessages(!v));
         }}
       />
-      <ToggleRow label="Novos vizinhos" desc="Quando alguém entra no seu bairro" defaultValue={false} />
       <ToggleRow
         label="Avisos do bairro"
         desc="Alertas de segurança e eventos"
