@@ -15,9 +15,11 @@ from app.schemas.geo import (
 from app.services import geo
 
 
-def resolve_neighborhood(payload: ResolveNeighborhoodRequest) -> NeighborhoodResolution:
+def resolve_neighborhood(
+    payload: ResolveNeighborhoodRequest, db: Session = Depends(get_db)
+) -> NeighborhoodResolution:
     # Público: usado no cadastro, antes de existir conta/token.
-    return geo.resolve_neighborhood(payload.latitude, payload.longitude)
+    return geo.resolve_neighborhood(payload.latitude, payload.longitude, db)
 
 
 def nearby_neighborhoods(payload: NearbyNeighborhoodsRequest) -> list[NearbyNeighborhood]:
@@ -30,7 +32,7 @@ def geocode(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> GeocodeResult:
-    return geo.geocode(payload.address, current_user.neighborhood)
+    return geo.geocode(payload.address, current_user.neighborhood, db)
 
 
 def search_address(
@@ -38,4 +40,4 @@ def search_address(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[GeocodeResult]:
-    return geo.search_within(payload.query, current_user.neighborhood)
+    return geo.search_within(payload.query, current_user.neighborhood, db)
