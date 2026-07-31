@@ -1871,16 +1871,17 @@
         };
       });
     }
+    // Busca via backend (Nominatim + HERE quando o texto tem número de casa,
+    // com cache persistente — ver ads-backend/app/services/geo.py) em vez de
+    // bater direto no Nominatim: o anunciante precisa poder informar o
+    // endereço exato do anúncio, e o Nominatim sozinho costuma não indexar
+    // número em ruas residenciais.
     async function searchPlaceSuggestions(query) {
       const q = query.trim();
       if (q.length < 3) return [];
       try {
-        const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=br&q=' +
-          encodeURIComponent(q + ', São Paulo, Brasil');
-        const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
-        if (!res.ok) return [];
-        const data = await res.json();
-        return data.map((item) => ({ label: item.display_name, lat: parseFloat(item.lat), lng: parseFloat(item.lon) }));
+        const results = await apiFetch('/geo/search', { method: 'POST', body: JSON.stringify({ query: q }) });
+        return (results || []).map((r) => ({ label: r.label, lat: r.latitude, lng: r.longitude }));
       } catch (e) {
         return [];
       }

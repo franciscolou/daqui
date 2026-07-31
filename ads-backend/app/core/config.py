@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     # existe outro app pra abrir essa tela. Sem default pelo mesmo motivo acima.
     ADS_ADMIN_URL: str
 
+    # HERE Geocoding & Search API (opcional, mesma conta/cota do backend
+    # principal — ver backend/app/core/config.py). Sem chave, o autocomplete
+    # de local do anúncio roda só no Nominatim (grátis), sem interpolação de
+    # número exato.
+    HERE_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
 
