@@ -1250,6 +1250,10 @@ export const api = {
     media?: PostMedia[]; // já enviados via uploadPostMedia, até 10 itens
     details?: Record<string, any>;
     important?: boolean;
+    // Coordenadas já resolvidas no cliente (autocomplete ou pin no mapa) —
+    // dispensa o backend de regeocodificar `details.location` do zero.
+    latitude?: number;
+    longitude?: number;
     poll?: { options: string[]; multiple: boolean; closes_at: string };
     // Repost com citação (estilo Twitter): no máximo um dos dois.
     quotedPostId?: string;

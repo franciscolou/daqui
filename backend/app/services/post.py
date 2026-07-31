@@ -304,9 +304,16 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
     location = (details or {}).get("location") if details else None
     latitude = longitude = None
     if location:
-        geo_result = geo.geocode_within(location, user.neighborhood)
-        latitude = geo_result["latitude"]
-        longitude = geo_result["longitude"]
+        if payload.latitude is not None and payload.longitude is not None:
+            # Cliente já geocodificou (autocomplete ou pin no mapa, ambos já
+            # filtrados pro bairro do usuário na origem) — reaproveita em vez
+            # de regeocodificar do zero, o que perderia a precisão do HERE
+            # (se foi o provedor da busca original) e pagaria a chamada à toa.
+            latitude, longitude = payload.latitude, payload.longitude
+        else:
+            geo_result = geo.geocode_within(location, user.neighborhood, db)
+            latitude = geo_result["latitude"]
+            longitude = geo_result["longitude"]
 
     post = post_dao.create(
         db,
