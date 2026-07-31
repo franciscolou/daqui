@@ -94,6 +94,10 @@ export default function PublishScreen() {
   // `valid` só é alcançado escolhendo uma sugestão do autocomplete ou um ponto
   // no mapa — nunca só digitando (ver LocationAutocompleteInput/LocationPickerModal).
   const [locationStatus, setLocationStatus] = useState<'idle' | 'valid'>('idle');
+  // Coordenadas já resolvidas na escolha (autocomplete ou mapa) — mandadas
+  // junto pro backend pra não regeocodificar `location` do zero ao publicar
+  // (o que perderia a precisão do HERE, se foi o provedor usado na busca).
+  const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [placeName, setPlaceName] = useState('');
   const [eventDates, setEventDates] = useState<string[]>([]);
   const [allDay, setAllDay] = useState(true);
@@ -109,18 +113,20 @@ export default function PublishScreen() {
   const setLocation = (v: string) => {
     setLocationRaw(v);
     setLocationStatus('idle');
+    setLocationCoords(null);
   };
 
   // Endereço confirmado (sugestão do autocomplete ou ponto escolhido no
   // mapa — os dois já saem filtrados pro bairro do usuário, então não precisa
   // geocodificar de novo aqui).
-  const confirmLocation = (address: string) => {
+  const confirmLocation = (address: string, coords?: { latitude: number; longitude: number }) => {
     setLocationRaw(address);
     setLocationStatus('valid');
+    setLocationCoords(coords ?? null);
   };
 
-  const handlePickLocation = (address: string) => {
-    confirmLocation(address);
+  const handlePickLocation = (address: string, coords?: { latitude: number; longitude: number }) => {
+    confirmLocation(address, coords);
     setLocationPickerOpen(false);
   };
 
@@ -289,6 +295,8 @@ export default function PublishScreen() {
         media: media.filter((m) => m.url).map((m) => ({ url: m.url as string, type: m.type })),
         details: buildDetails(),
         important: isImportant,
+        latitude: locationCoords?.latitude,
+        longitude: locationCoords?.longitude,
         poll:
           selectedCategory === 'enquete'
             ? {
@@ -592,6 +600,7 @@ export default function PublishScreen() {
                 value={location}
                 onChangeText={setLocation}
                 onSelect={confirmLocation}
+                onSelectResult={(r) => setLocationCoords({ latitude: r.latitude, longitude: r.longitude })}
                 onPickOnMap={() => setLocationPickerOpen(true)}
                 status={locationStatus}
               />
@@ -618,6 +627,7 @@ export default function PublishScreen() {
                     value={location}
                     onChangeText={setLocation}
                     onSelect={confirmLocation}
+                    onSelectResult={(r) => setLocationCoords({ latitude: r.latitude, longitude: r.longitude })}
                     onPickOnMap={() => setLocationPickerOpen(true)}
                     status={locationStatus}
                     placeholder="Ex.: Rua das Flores"
@@ -663,6 +673,7 @@ export default function PublishScreen() {
                   value={location}
                   onChangeText={setLocation}
                   onSelect={confirmLocation}
+                  onSelectResult={(r) => setLocationCoords({ latitude: r.latitude, longitude: r.longitude })}
                   onPickOnMap={() => setLocationPickerOpen(true)}
                   status={locationStatus}
                 />
@@ -677,6 +688,7 @@ export default function PublishScreen() {
                 value={location}
                 onChangeText={setLocation}
                 onSelect={confirmLocation}
+                onSelectResult={(r) => setLocationCoords({ latitude: r.latitude, longitude: r.longitude })}
                 onPickOnMap={() => setLocationPickerOpen(true)}
                 status={locationStatus}
               />
@@ -690,6 +702,7 @@ export default function PublishScreen() {
                 value={location}
                 onChangeText={setLocation}
                 onSelect={confirmLocation}
+                onSelectResult={(r) => setLocationCoords({ latitude: r.latitude, longitude: r.longitude })}
                 onPickOnMap={() => setLocationPickerOpen(true)}
                 status={locationStatus}
               />

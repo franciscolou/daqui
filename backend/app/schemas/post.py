@@ -62,6 +62,12 @@ class PostCreate(BaseModel):
     media: list[PostMediaItem] = []
     details: Optional[dict] = None  # campos específicos da categoria
     important: bool = False
+    # Coordenadas já resolvidas no cliente (autocomplete ou pin no mapa —
+    # ambos já filtrados pro bairro do usuário lá na origem). Quando ausentes
+    # (cliente antigo, ou local digitado sem escolher sugestão), o backend
+    # geocodifica `details.location` do zero — ver services/post.py::create_post.
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     poll: Optional[PollCreate] = None
     # Repost com citação (estilo Twitter): no máximo um dos dois preenchido —
     # ver services/post.py::create_post.
