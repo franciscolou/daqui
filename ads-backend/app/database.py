@@ -14,7 +14,7 @@ class Base(DeclarativeBase):
 
 
 def create_tables():
-    from app.models import ad, admin, audit_log, settings  # noqa: F401
+    from app.models import ad, admin, audit_log, geo_cache, settings  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     _ensure_columns()
