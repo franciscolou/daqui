@@ -1,7 +1,7 @@
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session
 
-from app.models.user import User, UserBadge
+from app.models.user import StaffRole, User, UserBadge
 
 
 def get_by_id(db: Session, user_id: int) -> User | None:
@@ -28,6 +28,9 @@ def create(
     state: str = "SP",
     latitude: float | None = None,
     longitude: float | None = None,
+    staff_role: StaffRole | None = None,
+    verified: bool = False,
+    email_verified: bool = False,
 ) -> User:
     user = User(
         username=username,
@@ -39,13 +42,25 @@ def create(
         state=state,
         latitude=latitude,
         longitude=longitude,
-        badge=UserBadge.RESIDENT,
-        verified=False,
+        badge=UserBadge.LEADER if staff_role else UserBadge.RESIDENT,
+        verified=verified,
+        staff_role=staff_role,
+        email_verified=email_verified,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
+
+
+def list_staff(db: Session) -> list[User]:
+    """Contas de staff (Moderador/Administrador/Owner), ordenadas por cargo (mais alto primeiro)."""
+    return (
+        db.query(User)
+        .filter(User.staff_role.isnot(None))
+        .order_by(desc(User.staff_role), User.username)
+        .all()
+    )
 
 
 def update(db: Session, user: User, data: dict) -> User:

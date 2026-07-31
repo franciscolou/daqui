@@ -13,6 +13,22 @@ class UserBadge(StrEnum):
     RESIDENT = "resident"
 
 
+class StaffRole(StrEnum):
+    """Cargos de staff (app de moderação). None em `User.staff_role` = residente comum."""
+
+    MODERADOR = "moderador"
+    ADMINISTRADOR = "administrador"
+    OWNER = "owner"
+
+
+# Ordem de hierarquia: quem gerencia quem em services/staff.py (Owner > Administrador > Moderador).
+STAFF_RANK = {
+    StaffRole.MODERADOR: 1,
+    StaffRole.ADMINISTRADOR: 2,
+    StaffRole.OWNER: 3,
+}
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -40,8 +56,9 @@ class User(Base):
     verification_code_expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    # Moderador: acessa o app de moderação (analisa as avaliações do Daqui).
-    is_moderator: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Cargo de staff (app de moderação): None = residente comum. Ver StaffRole/STAFF_RANK
+    # acima e core/staff_rank.py::can_manage para quem pode gerenciar quem.
+    staff_role: Mapped[StaffRole | None] = mapped_column(String(20), nullable=True, default=None)
     # Suspensão de conta pela moderação: suspended_until=None + is_suspended=True
     # é suspensão por tempo indeterminado; com data, é uma suspensão temporária.
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -72,6 +89,13 @@ class User(Base):
     def two_factor_enabled(self) -> bool:
         """Nome exposto na API para o estado da A2F (ver schema UserMe)."""
         return bool(self.totp_enabled)
+
+    @property
+    def is_moderator(self) -> bool:
+        """Qualquer cargo de staff (Moderador/Administrador/Owner) — mantido pelo nome
+        histórico porque get_current_moderator e vários controllers de moderação já
+        dependem dele para o gate "qualquer staff"."""
+        return self.staff_role is not None
 
     @property
     def is_currently_suspended(self) -> bool:

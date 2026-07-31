@@ -284,6 +284,24 @@
     .atable th, .atable td { padding: 9px 12px; border-bottom: 1px solid var(--border-light); text-align: left; }
     .atable th { color: var(--text-3); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
     .atable tbody tr:hover { background: var(--border-light); }
+
+    /* Equipe: badge de cargo, avatar de iniciais, modal de confirmação/aviso
+       (portados de moderator/index.html — novidade aqui, ads-admin usava só
+       confirm()/alert() nativos até então). */
+    .b-owner { background: var(--primary-tint); color: var(--primary-dark); }
+    .b-administrador { background: rgba(245,158,11,0.18); color: #92400E; }
+    .b-moderador { background: var(--border-light); color: var(--text-2); }
+    .avatar-initial {
+      width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0;
+      background: var(--border-light); color: var(--text-2);
+      display: flex; align-items: center; justify-content: center; font-weight: 800;
+    }
+    .head-user { display: flex; align-items: center; gap: 12px; }
+    .modal-overlay {
+      position: fixed; inset: 0; background: var(--overlay); z-index: 50;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-card { width: 100%; max-width: 380px; }
   </style>
 </head>
 <body>
@@ -582,6 +600,54 @@
             </div>
           </div>
         </div>
+
+        <div id="section-staff" class="hidden container">
+          <div class="actions" style="margin-top:0;margin-bottom:16px;">
+            <button class="act approve" id="createStaffBtn" style="margin-left:auto;">Nova conta</button>
+          </div>
+          <div id="staffList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: nova conta de staff (Equipe) -->
+  <div id="createStaffModal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <div class="head"><div class="name">Nova conta de staff</div></div>
+      <label>E-mail</label>
+      <input id="staffEmail" type="email" placeholder="pessoa@daqui.com" />
+      <label>Senha</label>
+      <input id="staffPassword" type="password" placeholder="••••••••" />
+      <label>Cargo</label>
+      <select id="staffRole"></select>
+      <div class="actions">
+        <button class="act" id="staffCreateCancelBtn">Cancelar</button>
+        <button class="act approve" id="staffCreateConfirmBtn">Criar</button>
+      </div>
+      <div id="staffCreateErr" class="err"></div>
+    </div>
+  </div>
+
+  <!-- Modal: confirmação genérica (substitui window.confirm nas telas novas) -->
+  <div id="confirmModal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <div class="head"><div class="name" id="confirmModalTitle">Confirmar ação</div></div>
+      <div class="comment" id="confirmModalMessage" style="margin-top:8px;"></div>
+      <div class="actions">
+        <button class="act" id="confirmCancelBtn">Cancelar</button>
+        <button class="act danger" id="confirmOkBtn">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: aviso/erro (substitui window.alert nas telas novas) -->
+  <div id="messageModal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <div class="head"><div class="name" id="messageModalTitle">Aviso</div></div>
+      <div class="comment" id="messageModalText" style="margin-top:8px;"></div>
+      <div class="actions">
+        <button class="act approve" id="messageOkBtn" style="margin-left:auto;">OK</button>
       </div>
     </div>
   </div>
@@ -596,6 +662,10 @@
     $('resetApi').value = DEFAULT_API_URL;
     let API = '';
     let token = '';
+    // Cargo/e-mail da conta logada (preenchidos em completeLogin) — decidem se
+    // a seção "Equipe" aparece e quais contas cada um pode gerenciar nela.
+    let myRole = '';
+    let myEmail = '';
     // App Daqui (frontend Expo web) — onde vive o painel do próprio
     // anunciante (/advertise/dashboard/{access_token}), ver renderCampaignList.
     const APP_URL = CONFIG.APP_URL || 'http://localhost:8081';
@@ -626,6 +696,7 @@
       trash: '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line>',
       lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
       copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
+      shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>',
     };
     function svgIcon(name, size = 16) {
       return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -646,6 +717,34 @@
     $('themeToggleLogin').addEventListener('click', toggleTheme);
     $('themeToggleApp').addEventListener('click', toggleTheme);
     $('themeToggleReset').addEventListener('click', toggleTheme);
+
+    // ── Diálogos do app (substituem window.confirm/window.alert nas telas
+    // novas — ver seção Equipe; o resto do arquivo ainda usa confirm()/alert()
+    // nativos, portado só onde a ação é sobre contas privilegiadas). ──
+    let confirmResolve = null;
+    function showConfirm(message, { title = 'Confirmar ação', confirmLabel = 'Confirmar', danger = true } = {}) {
+      return new Promise((resolve) => {
+        confirmResolve = resolve;
+        $('confirmModalTitle').textContent = title;
+        $('confirmModalMessage').textContent = message;
+        $('confirmOkBtn').textContent = confirmLabel;
+        $('confirmOkBtn').className = 'act ' + (danger ? 'danger' : 'approve');
+        $('confirmModal').classList.remove('hidden');
+      });
+    }
+    function resolveConfirm(value) {
+      $('confirmModal').classList.add('hidden');
+      if (confirmResolve) { confirmResolve(value); confirmResolve = null; }
+    }
+    $('confirmCancelBtn').addEventListener('click', () => resolveConfirm(false));
+    $('confirmOkBtn').addEventListener('click', () => resolveConfirm(true));
+
+    function showMessage(message, title = 'Aviso') {
+      $('messageModalTitle').textContent = title;
+      $('messageModalText').textContent = message;
+      $('messageModal').classList.remove('hidden');
+    }
+    $('messageOkBtn').addEventListener('click', () => $('messageModal').classList.add('hidden'));
 
     async function apiFetch(path, opts = {}) {
       const res = await fetch(API + path, {
@@ -815,7 +914,7 @@
           showLoginStep('2fa');
           return;
         }
-        completeLogin(data.access_token);
+        await completeLogin(data.access_token);
       } catch (e) {
         $('loginErr').textContent = e.message;
       } finally {
@@ -834,7 +933,7 @@
         });
         const data = await r.json();
         if (!r.ok) throw new Error(data.detail || 'Código inválido');
-        completeLogin(data.access_token);
+        await completeLogin(data.access_token);
       } catch (e) {
         $('twofaErr').textContent = e.message;
       } finally {
@@ -842,8 +941,20 @@
       }
     }
 
-    function completeLogin(accessToken) {
+    async function completeLogin(accessToken) {
       token = accessToken;
+      let me;
+      try {
+        me = await apiFetch('/auth/me');
+      } catch (e) {
+        token = '';
+        showLoginStep('creds');
+        $('loginErr').textContent = e.message;
+        return;
+      }
+      myRole = me.role;
+      myEmail = me.email;
+      applyRoleToSections();
       const emailVal = $('email').value.trim();
       $('who').textContent = emailVal;
       $('whoAvatar').textContent = (emailVal[0] || '?').toUpperCase();
@@ -941,6 +1052,19 @@
       { key: 'security', label: 'Segurança', icon: 'lock', sectionId: 'section-security', title: 'Segurança', onShow: refreshSecurity },
       { key: 'settings', label: 'Configurações', icon: 'settings', sectionId: 'section-settings', title: 'Configurações', onShow: refreshSettings },
     ];
+    // Só Administrador/Owner gerenciam contas de staff — inserida antes de
+    // "Segurança" quando aplicável (ver applyRoleToSections em completeLogin).
+    // Moderador/Administrador/Owner têm paridade operacional total no resto
+    // (campanhas/analytics/planos/configurações) — só a Equipe difere por cargo.
+    const STAFF_SECTION = { key: 'staff', label: 'Equipe', icon: 'shield', sectionId: 'section-staff', title: 'Equipe de anúncios', onShow: refreshStaff };
+    function applyRoleToSections() {
+      const staffIdx = SECTIONS.findIndex((s) => s.key === 'staff');
+      if (staffIdx !== -1) SECTIONS.splice(staffIdx, 1);
+      if (myRole === 'administrador' || myRole === 'owner') {
+        const secIdx = SECTIONS.findIndex((s) => s.key === 'security');
+        SECTIONS.splice(secIdx, 0, STAFF_SECTION);
+      }
+    }
     let currentSection = SECTIONS[0].key;
 
     function renderNav() {
@@ -2123,6 +2247,112 @@
         $('secErr').textContent = e.message;
       }
     }
+
+    // ── Equipe (gestão de contas de staff, Administrador/Owner) ───────────
+    // Administrador gerencia contas Moderador; Owner gerencia Moderador e
+    // Administrador. O servidor é a autoridade (403 em qualquer ação fora
+    // de rank) — aqui só decidimos o que mostrar/habilitar na UI.
+    const STAFF_RANK = { moderador: 1, administrador: 2, owner: 3 };
+    const STAFF_ROLE_LABEL = { moderador: 'Moderador', administrador: 'Administrador', owner: 'Owner' };
+
+    async function refreshStaff() {
+      $('staffList').innerHTML = `<div class="empty-state">Carregando…</div>`;
+      try {
+        const list = await apiFetch('/admin/staff');
+        renderStaffList(list);
+      } catch (e) {
+        $('staffList').innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderStaffList(list) {
+      if (!list.length) { $('staffList').innerHTML = `<div class="empty-state">Nenhuma conta de staff.</div>`; return; }
+      $('staffList').innerHTML = '';
+      for (const s of list) {
+        const canManage = s.email !== myEmail && STAFF_RANK[myRole] > STAFF_RANK[s.role];
+        const statusBadge = s.is_suspended ? `<span class="badge b-rejected">Suspensa</span>` : '';
+        const actions = canManage
+          ? `${s.is_suspended
+              ? `<button class="act reject" data-act="unsuspend">Reativar</button>`
+              : `<button class="act reject" data-act="suspend">Suspender</button>`}
+             <button class="act danger" data-act="delete">Excluir</button>`
+          : '';
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="head">
+            <div class="head-user">
+              <div class="avatar-initial">${escapeHtml((s.email[0] || '?').toUpperCase())}</div>
+              <div>
+                <div class="name">${escapeHtml(s.email)} <span class="badge b-${s.role}">${STAFF_ROLE_LABEL[s.role]}</span> ${statusBadge}</div>
+              </div>
+            </div>
+            <div class="when">desde ${fmtDate(s.created_at)}</div>
+          </div>
+          ${actions ? `<div class="actions">${actions}</div>` : ''}
+        `;
+        if (canManage) {
+          const suspendBtn = card.querySelector('[data-act="suspend"]');
+          const unsuspendBtn = card.querySelector('[data-act="unsuspend"]');
+          const deleteBtn = card.querySelector('[data-act="delete"]');
+          if (suspendBtn) suspendBtn.onclick = () => suspendStaff(s.id, s.email);
+          if (unsuspendBtn) unsuspendBtn.onclick = () => unsuspendStaff(s.id, s.email);
+          if (deleteBtn) deleteBtn.onclick = () => deleteStaff(s.id, s.email);
+        }
+        $('staffList').appendChild(card);
+      }
+    }
+
+    async function suspendStaff(id, email) {
+      const ok = await showConfirm(`Suspender a conta de ${email}?`, { title: 'Suspender conta', confirmLabel: 'Suspender' });
+      if (!ok) return;
+      try { await apiFetch(`/admin/staff/${id}/suspend`, { method: 'POST' }); await refreshStaff(); }
+      catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
+    async function unsuspendStaff(id, email) {
+      const ok = await showConfirm(`Reativar a conta de ${email}?`, { title: 'Reativar conta', confirmLabel: 'Reativar', danger: false });
+      if (!ok) return;
+      try { await apiFetch(`/admin/staff/${id}/suspend`, { method: 'DELETE' }); await refreshStaff(); }
+      catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
+    async function deleteStaff(id, email) {
+      const ok = await showConfirm(`Excluir a conta de ${email}? Esta ação não pode ser desfeita.`, {
+        title: 'Excluir conta', confirmLabel: 'Excluir',
+      });
+      if (!ok) return;
+      try { await apiFetch(`/admin/staff/${id}`, { method: 'DELETE' }); await refreshStaff(); }
+      catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
+    function openCreateStaffModal() {
+      $('staffEmail').value = '';
+      $('staffPassword').value = '';
+      $('staffCreateErr').textContent = '';
+      const roleOptions = myRole === 'owner'
+        ? [['moderador', 'Moderador'], ['administrador', 'Administrador']]
+        : [['moderador', 'Moderador']];
+      $('staffRole').innerHTML = roleOptions.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+      $('createStaffModal').classList.remove('hidden');
+    }
+    $('createStaffBtn').addEventListener('click', openCreateStaffModal);
+    $('staffCreateCancelBtn').addEventListener('click', () => $('createStaffModal').classList.add('hidden'));
+    $('staffCreateConfirmBtn').addEventListener('click', async () => {
+      $('staffCreateErr').textContent = '';
+      const payload = {
+        email: $('staffEmail').value.trim(),
+        password: $('staffPassword').value,
+        role: $('staffRole').value,
+      };
+      try {
+        await apiFetch('/admin/staff', { method: 'POST', body: JSON.stringify(payload) });
+        $('createStaffModal').classList.add('hidden');
+        await refreshStaff();
+      } catch (e) {
+        $('staffCreateErr').textContent = e.message;
+      }
+    });
   </script>
 </body>
 </html>

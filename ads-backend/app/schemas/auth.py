@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr
 
+from app.models.admin import AdAdminRole
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -46,3 +48,4 @@ class ResetPasswordRequest(BaseModel):
 class AdAdminMe(BaseModel):
     email: EmailStr
     two_factor_enabled: bool
+    role: AdAdminRole

@@ -53,8 +53,26 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE users ADD COLUMN totp_secret VARCHAR(64)"))
             if "totp_enabled" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0 NOT NULL"))
-            if "is_moderator" not in columns:
-                conn.execute(text("ALTER TABLE users ADD COLUMN is_moderator BOOLEAN DEFAULT 0 NOT NULL"))
+            if "staff_role" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN staff_role VARCHAR(20)"))
+                # Backfill: quem já era moderador (coluna legada is_moderator) vira 'moderador'.
+                if "is_moderator" in columns:
+                    conn.execute(text("UPDATE users SET staff_role = 'moderador' WHERE is_moderator = 1"))
+                # Bootstrap: a conta seed conhecida vira owner (única promoção automática).
+                conn.execute(
+                    text("UPDATE users SET staff_role = 'owner' WHERE email = 'moderador@daqui.com'")
+                )
+            # is_moderator foi substituído por staff_role acima (User.is_moderator
+            # agora é uma @property computada, não mapeada). A coluna física antiga
+            # foi criada por Base.metadata.create_all() quando ainda era mapeada —
+            # isso gera NOT NULL sem DEFAULT no schema real do SQLite (diferente de
+            # colunas adicionadas via ALTER TABLE ... DEFAULT), o que quebra
+            # qualquer INSERT novo que não a inclua. Checagem via PRAGMA ao vivo
+            # (não o `columns` capturado no topo) pra cobrir o caso de já ter sido
+            # adicionada e removida nesta mesma passada.
+            live_columns = {row[1] for row in conn.execute(text("PRAGMA table_info(users)"))}
+            if "is_moderator" in live_columns:
+                conn.execute(text("ALTER TABLE users DROP COLUMN is_moderator"))
             if "comments_count" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN comments_count INTEGER DEFAULT 0 NOT NULL"))
             if "help_count" in columns:

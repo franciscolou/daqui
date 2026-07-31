@@ -1,12 +1,15 @@
 """
-Cria (ou garante) uma conta de moderador para o app de moderação.
+Cria (ou garante) a conta Owner (superusuário) do app de moderação — o bootstrap
+da hierarquia de staff (Moderador < Administrador < Owner, ver models/user.py::
+StaffRole). Novas contas Moderador/Administrador são criadas pela própria UI
+(seção "Equipe" em moderator/index.html), não por seed.
 Execute: python -m app.seed_moderator  (idempotente)
 
 Login: moderador@daqui.com / senha123
 """
 from app.core.security import hash_password
 from app.database import SessionLocal, create_tables
-from app.models.user import User, UserBadge
+from app.models.user import StaffRole, User, UserBadge
 
 EMAIL = "moderador@daqui.com"
 USERNAME = "moderador"
@@ -19,17 +22,19 @@ def seed_moderator():
     try:
         user = db.query(User).filter(User.email == EMAIL).first()
         if user:
-            if not user.is_moderator:
-                user.is_moderator = True
+            if user.staff_role != StaffRole.OWNER:
+                user.staff_role = StaffRole.OWNER
                 db.commit()
-                print(f"✓ '{EMAIL}' promovido a moderador.")
+                print(f"✓ '{EMAIL}' promovido a owner.")
             else:
-                print(f"• '{EMAIL}' já é moderador, nada a fazer.")
+                print(f"• '{EMAIL}' já é owner, nada a fazer.")
             return
 
         user = User(
             username=USERNAME,
-            name="Moderação Daqui",
+            # User.name é NOT NULL, mas o ambiente de moderação não usa nome de
+            # exibição — o username já é a única identidade exibida.
+            name=USERNAME,
             email=EMAIL,
             hashed_password=hash_password(PASSWORD),
             neighborhood="Leme",
@@ -37,12 +42,12 @@ def seed_moderator():
             state="RJ",
             badge=UserBadge.LEADER,
             verified=True,
-            is_moderator=True,
+            staff_role=StaffRole.OWNER,
             email_verified=True,
         )
         db.add(user)
         db.commit()
-        print(f"✅ Moderador criado: {EMAIL} / {PASSWORD}")
+        print(f"✅ Owner criado: {EMAIL} / {PASSWORD}")
     finally:
         db.close()
 

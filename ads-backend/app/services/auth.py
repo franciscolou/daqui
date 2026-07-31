@@ -30,13 +30,15 @@ _MIN_PASSWORD_LEN = 6
 
 
 def me(admin: AdAdmin) -> AdAdminMe:
-    return AdAdminMe(email=admin.email, two_factor_enabled=admin.totp_enabled)
+    return AdAdminMe(email=admin.email, two_factor_enabled=admin.totp_enabled, role=admin.role)
 
 
 def login(db, payload: LoginRequest) -> LoginResponse:
     admin = admin_dao.get_by_email(db, payload.email)
     if not admin or not verify_password(payload.password, admin.hashed_password):
         raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
+    if admin.is_suspended:
+        raise HTTPException(status_code=403, detail="Conta suspensa. Fale com um administrador.")
     if admin.totp_enabled:
         # Senha ok, mas a A2F exige um segundo passo: devolve um ticket curto.
         return LoginResponse(requires_2fa=True, ticket=create_2fa_ticket(admin.id))
@@ -55,6 +57,8 @@ def login_2fa(db, payload: TwoFactorLoginRequest) -> TokenResponse:
         raise HTTPException(status_code=401, detail="Verificação inválida")
     if not totp.verify(admin.totp_secret, payload.code):
         raise HTTPException(status_code=401, detail="Código inválido")
+    if admin.is_suspended:
+        raise HTTPException(status_code=403, detail="Conta suspensa. Fale com um administrador.")
     return TokenResponse(access_token=create_access_token(admin.id))
 
 

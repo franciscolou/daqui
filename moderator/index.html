@@ -165,6 +165,15 @@
     .b-pending { background: var(--pending-bg); color: var(--pending-text); }
     .b-approved, .b-reviewed, .b-answered { background: var(--primary-tint); color: var(--primary-dark); }
     .b-rejected, .b-dismissed { background: var(--danger-bg); color: var(--danger); }
+    /* Equipe: badge de cargo (distinto dos badges de status acima) */
+    .b-owner { background: var(--primary-tint); color: var(--primary-dark); }
+    .b-administrador { background: var(--pending-bg); color: var(--pending-text); }
+    .b-moderador { background: var(--border-light); color: var(--text-2); }
+    .avatar-initial {
+      width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0;
+      background: var(--border-light); color: var(--text-2);
+      display: flex; align-items: center; justify-content: center; font-weight: 800;
+    }
     .reason-tag { display: inline-block; font-size: 12px; font-weight: 700; color: var(--text-2); background: var(--border-light); padding: 3px 10px; border-radius: 999px; margin: 10px 0 6px; }
     .target-box { background: var(--bg); border: 1px solid var(--border-light); border-radius: 12px; padding: 12px; margin-top: 8px; }
     .attach-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
@@ -342,6 +351,13 @@
             <div id="auditList"></div>
           </div>
 
+          <div id="section-staff" class="hidden">
+            <div class="actions" style="margin-top:0;margin-bottom:16px;">
+              <button class="act approve" id="createStaffBtn" style="margin-left:auto;">Nova conta</button>
+            </div>
+            <div id="staffList"></div>
+          </div>
+
           <div id="section-security" class="hidden">
             <div id="securityContent"></div>
           </div>
@@ -370,6 +386,26 @@
         <button class="act" id="suspendCancelBtn">Cancelar</button>
         <button class="act approve" id="suspendConfirmBtn">Confirmar</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal: nova conta de staff (Equipe) -->
+  <div id="createStaffModal" class="modal-overlay hidden">
+    <div class="card modal-card">
+      <div class="head"><div class="name">Nova conta de staff</div></div>
+      <label>Usuário</label>
+      <input id="staffUsername" placeholder="nome.usuario" />
+      <label>E-mail</label>
+      <input id="staffEmail" type="email" placeholder="pessoa@daqui.com" />
+      <label>Senha</label>
+      <input id="staffPassword" type="password" placeholder="••••••••" />
+      <label>Cargo</label>
+      <select id="staffRole"></select>
+      <div class="actions">
+        <button class="act" id="staffCreateCancelBtn">Cancelar</button>
+        <button class="act approve" id="staffCreateConfirmBtn">Criar</button>
+      </div>
+      <div id="staffCreateErr" class="err"></div>
     </div>
   </div>
 
@@ -421,6 +457,7 @@
       users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>',
       clock: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
       lock: '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>',
+      shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>',
       copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
       sun: '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>',
       moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>',
@@ -513,6 +550,10 @@
     // 3 passos possíveis no card de login: credenciais → (se A2F ativa) código
     // → confirma; ou credenciais → "esqueci minha senha" → confirmação.
     let twofaTicket = '';
+    // Cargo/e-mail da conta logada (preenchidos em completeLogin) — decidem se
+    // a seção "Equipe" aparece e quais contas cada um pode gerenciar nela.
+    let myRole = '';
+    let myEmail = '';
 
     function showLoginStep(step) {
       $('loginStepCreds').classList.toggle('hidden', step !== 'creds');
@@ -583,15 +624,24 @@
 
     async function completeLogin(accessToken) {
       token = accessToken;
+      let me;
       try {
-        // Confirma que é moderador buscando as estatísticas (403 se não for).
-        await apiFetch('/admin/reviews/stats');
+        me = await apiFetch('/auth/me');
       } catch (e) {
         token = '';
         showLoginStep('creds');
-        $('loginErr').textContent = e.message.includes('restrito') ? 'Esta conta não é moderadora.' : e.message;
+        $('loginErr').textContent = e.message;
         return;
       }
+      if (!me.staff_role) {
+        token = '';
+        showLoginStep('creds');
+        $('loginErr').textContent = 'Esta conta não é moderadora.';
+        return;
+      }
+      myRole = me.staff_role;
+      myEmail = me.email;
+      applyRoleToSections();
       const emailVal = $('email').value.trim();
       $('who').textContent = emailVal;
       $('whoAvatar').textContent = (emailVal[0] || '?').toUpperCase();
@@ -643,6 +693,17 @@
       { key: 'audit', label: 'Auditoria', icon: 'clock', sectionId: 'section-audit', title: 'Registro de Auditoria', onShow: refreshAuditLogs },
       { key: 'security', label: 'Segurança', icon: 'lock', sectionId: 'section-security', title: 'Segurança', onShow: refreshSecurity },
     ];
+    // Só Administrador/Owner gerenciam contas de staff — inserida antes de
+    // "Segurança" quando aplicável (ver applyRoleToSections em completeLogin).
+    const STAFF_SECTION = { key: 'staff', label: 'Equipe', icon: 'shield', sectionId: 'section-staff', title: 'Equipe de moderação', onShow: refreshStaff };
+    function applyRoleToSections() {
+      const staffIdx = SECTIONS.findIndex((s) => s.key === 'staff');
+      if (staffIdx !== -1) SECTIONS.splice(staffIdx, 1);
+      if (myRole === 'administrador' || myRole === 'owner') {
+        const secIdx = SECTIONS.findIndex((s) => s.key === 'security');
+        SECTIONS.splice(secIdx, 0, STAFF_SECTION);
+      }
+    }
     let currentSection = SECTIONS[0].key;
 
     function renderNav() {
@@ -711,8 +772,8 @@
             <div class="head-user" onclick="openUserById(${a.id})">
               <img class="avatar" src="${avatar}" alt="" />
               <div>
-                <div class="name">${escapeHtml(a.name)}</div>
-                <div class="sub">@${escapeHtml(a.username)} · ${escapeHtml(a.neighborhood || '')}</div>
+                <div class="name">@${escapeHtml(a.username)}</div>
+                <div class="sub">${escapeHtml(a.neighborhood || '')}</div>
               </div>
             </div>
             <div class="when">${fmtDate(r.updated_at)}</div>
@@ -722,7 +783,7 @@
           <div class="actions">
             <button class="act del">Excluir</button>
           </div>`;
-        card.querySelector('.del').onclick = () => delReview(r.id, a.name);
+        card.querySelector('.del').onclick = () => delReview(r.id, a.username);
         $('list').appendChild(card);
       }
     }
@@ -823,7 +884,7 @@
     }
 
     function userNameLink(u) {
-      return `<span class="user-name-link" onclick="openUserById(${u.id})">${escapeHtml(u.name)}</span>`;
+      return `<span class="user-name-link" onclick="openUserById(${u.id})">@${escapeHtml(u.username)}</span>`;
     }
 
     function reportTargetBox(r) {
@@ -848,7 +909,7 @@
         if (!r.reported_user) return `<div class="target-box empty">Perfil não encontrado.</div>`;
         return `<div class="target-box">
           <div class="label">Perfil denunciado</div>
-          <div class="content">${userNameLink(r.reported_user)} · @${escapeHtml(r.reported_user.username)} · ${escapeHtml(r.reported_user.neighborhood || '')}</div>
+          <div class="content">${userNameLink(r.reported_user)} · ${escapeHtml(r.reported_user.neighborhood || '')}</div>
           <div style="margin-top:8px;">${appLinkTag(userLink(r.reported_user.id), 'Ver perfil no app')}</div>
         </div>`;
       }
@@ -871,8 +932,8 @@
             <div class="head-user no-hover">
               <img class="avatar" src="${avatar}" alt="" onclick="openUserById(${rep.id})" style="cursor:pointer" />
               <div>
-                <div class="name"><span class="user-name-link" onclick="openUserById(${rep.id})">${escapeHtml(rep.name)}</span> <span class="sub">denunciou</span></div>
-                <div class="sub">@${escapeHtml(rep.username)} · ${REPORT_TARGET_LABEL[r.target_type] || r.target_type}</div>
+                <div class="name"><span class="user-name-link" onclick="openUserById(${rep.id})">@${escapeHtml(rep.username)}</span> <span class="sub">denunciou</span></div>
+                <div class="sub">${REPORT_TARGET_LABEL[r.target_type] || r.target_type}</div>
               </div>
             </div>
             <div class="when">${fmtDate(r.created_at)}</div>
@@ -972,8 +1033,8 @@
             <div class="head-user" onclick="openUserById(${u.id})">
               <img class="avatar" src="${avatar}" alt="" />
               <div>
-                <div class="name">${escapeHtml(u.name)}</div>
-                <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')}</div>
+                <div class="name">@${escapeHtml(u.username)}</div>
+                <div class="sub">${escapeHtml(u.neighborhood || '')}</div>
               </div>
             </div>
             <div class="when">${fmtDate(t.created_at)}</div>
@@ -1022,6 +1083,10 @@
       { key: 'user_suspend', label: 'Suspensão de conta' },
       { key: 'user_unsuspend', label: 'Reativação de conta' },
       { key: 'ticket_reply', label: 'Resposta de chamado' },
+      { key: 'staff_create', label: 'Criação de conta de staff' },
+      { key: 'staff_suspend', label: 'Suspensão de conta de staff' },
+      { key: 'staff_unsuspend', label: 'Reativação de conta de staff' },
+      { key: 'staff_delete', label: 'Exclusão de conta de staff' },
     ];
     const AUDIT_ACTION_LABEL = Object.fromEntries(
       AUDIT_ACTION_FILTERS.filter((f) => f.key).map((f) => [f.key, f.label]),
@@ -1039,6 +1104,10 @@
       user_suspend: 'suspendeu a conta de',
       user_unsuspend: 'reativou a conta de',
       ticket_reply: 'respondeu um chamado de',
+      staff_create: 'criou uma conta de staff para',
+      staff_suspend: 'suspendeu a conta de staff de',
+      staff_unsuspend: 'reativou a conta de staff de',
+      staff_delete: 'excluiu a conta de staff de',
     };
     const AUDIT_ACTION_VERB_NO_TARGET = {
       review_delete: 'excluiu uma avaliação',
@@ -1050,6 +1119,10 @@
       user_suspend: 'suspendeu uma conta',
       user_unsuspend: 'reativou uma conta',
       ticket_reply: 'respondeu um chamado',
+      staff_create: 'criou uma conta de staff',
+      staff_suspend: 'suspendeu uma conta de staff',
+      staff_unsuspend: 'reativou uma conta de staff',
+      staff_delete: 'excluiu uma conta de staff',
     };
 
     // Retorna HTML (não texto puro): moderador e usuário afetado em negrito,
@@ -1195,8 +1268,8 @@
         el.innerHTML = `
           <img class="avatar" src="${avatar}" alt="" />
           <div>
-            <div class="name">${escapeHtml(u.name)} ${suspBadge}</div>
-            <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')} · ${u.posts_count} posts</div>
+            <div class="name">@${escapeHtml(u.username)} ${suspBadge}</div>
+            <div class="sub">${escapeHtml(u.neighborhood || '')} · ${u.posts_count} posts</div>
             ${suspLine}
           </div>`;
         el.onclick = () => openUserDetail(u);
@@ -1230,8 +1303,8 @@
           <div class="head">
             <img class="avatar" src="${avatar}" alt="" />
             <div>
-              <div class="name">${escapeHtml(u.name)} ${suspBadge}</div>
-              <div class="sub">@${escapeHtml(u.username)} · ${escapeHtml(u.neighborhood || '')}</div>
+              <div class="name">@${escapeHtml(u.username)} ${suspBadge}</div>
+              <div class="sub">${escapeHtml(u.neighborhood || '')}</div>
               <div class="sub">Membro desde ${fmtDate(u.created_at)}</div>
             </div>
             <div class="when">${u.posts_count} posts · ${u.interactions_count} interações</div>
@@ -1251,7 +1324,7 @@
 
     function openSuspendModal(user) {
       suspendTargetId = user.id;
-      $('suspendModalTitle').textContent = `Suspender conta de ${user.name}`;
+      $('suspendModalTitle').textContent = `Suspender conta de @${user.username}`;
       $('suspendReason').value = '';
       $('suspendDuration').value = '7';
       $('suspendModal').classList.remove('hidden');
@@ -1378,9 +1451,122 @@
       } catch (e) { showMessage(e.message, 'Erro'); }
     }
 
-    // ── Segurança (A2F da própria conta de moderador) ─────────────────────
-    // Moderador é só um User com is_moderator=True — usa os mesmos endpoints
-    // genéricos de A2F que qualquer usuário do Daqui já tem.
+    // ── Equipe (gestão de contas de staff, Administrador/Owner) ───────────
+    // Administrador gerencia contas Moderador; Owner gerencia Moderador e
+    // Administrador. O servidor é a autoridade (403 em qualquer ação fora
+    // de rank) — aqui só decidimos o que mostrar/habilitar na UI.
+    const STAFF_RANK = { moderador: 1, administrador: 2, owner: 3 };
+    const STAFF_ROLE_LABEL = { moderador: 'Moderador', administrador: 'Administrador', owner: 'Owner' };
+
+    async function refreshStaff() {
+      $('staffList').innerHTML = `<div class="empty-state">Carregando…</div>`;
+      try {
+        const list = await apiFetch('/admin/staff');
+        renderStaffList(list);
+      } catch (e) {
+        $('staffList').innerHTML = `<div class="empty-state">${escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    function renderStaffList(list) {
+      if (!list.length) { $('staffList').innerHTML = `<div class="empty-state">Nenhuma conta de staff.</div>`; return; }
+      $('staffList').innerHTML = '';
+      for (const s of list) {
+        const canManage = s.email !== myEmail && STAFF_RANK[myRole] > STAFF_RANK[s.staff_role];
+        const isDeleted = s.suspension_reason === 'Conta de equipe excluída';
+        const statusBadge = s.is_suspended
+          ? `<span class="badge b-rejected">${isDeleted ? 'Excluída' : 'Suspensa'}</span>`
+          : '';
+        const actions = canManage
+          ? `${s.is_suspended
+              ? `<button class="act reject" data-act="unsuspend">Reativar</button>`
+              : `<button class="act reject" data-act="suspend">Suspender</button>`}
+             <button class="act del" data-act="delete">Excluir</button>`
+          : '';
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="head">
+            <div class="head-user no-hover">
+              <div class="avatar-initial">${escapeHtml((s.username[0] || '?').toUpperCase())}</div>
+              <div>
+                <div class="name">${escapeHtml(s.username)} <span class="badge b-${s.staff_role}">${STAFF_ROLE_LABEL[s.staff_role]}</span> ${statusBadge}</div>
+                <div class="sub">${escapeHtml(s.email)}</div>
+              </div>
+            </div>
+            <div class="when">desde ${fmtDate(s.created_at)}</div>
+          </div>
+          ${actions ? `<div class="actions">${actions}</div>` : ''}
+        `;
+        if (canManage) {
+          const suspendBtn = card.querySelector('[data-act="suspend"]');
+          const unsuspendBtn = card.querySelector('[data-act="unsuspend"]');
+          const deleteBtn = card.querySelector('[data-act="delete"]');
+          if (suspendBtn) suspendBtn.onclick = () => suspendStaff(s.id, s.username);
+          if (unsuspendBtn) unsuspendBtn.onclick = () => unsuspendStaff(s.id, s.username);
+          if (deleteBtn) deleteBtn.onclick = () => deleteStaff(s.id, s.username);
+        }
+        $('staffList').appendChild(card);
+      }
+    }
+
+    async function suspendStaff(id, username) {
+      const ok = await showConfirm(`Suspender a conta de @${username}?`, { title: 'Suspender conta', confirmLabel: 'Suspender' });
+      if (!ok) return;
+      try { await apiFetch(`/admin/staff/${id}/suspend`, { method: 'POST' }); await refreshStaff(); }
+      catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
+    async function unsuspendStaff(id, username) {
+      const ok = await showConfirm(`Reativar a conta de @${username}?`, { title: 'Reativar conta', confirmLabel: 'Reativar', danger: false });
+      if (!ok) return;
+      try { await apiFetch(`/admin/staff/${id}/suspend`, { method: 'DELETE' }); await refreshStaff(); }
+      catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
+    async function deleteStaff(id, username) {
+      const ok = await showConfirm(`Excluir a conta de @${username}? Esta ação não pode ser desfeita.`, {
+        title: 'Excluir conta', confirmLabel: 'Excluir',
+      });
+      if (!ok) return;
+      try { await apiFetch(`/admin/staff/${id}`, { method: 'DELETE' }); await refreshStaff(); }
+      catch (e) { showMessage(e.message, 'Erro'); }
+    }
+
+    function openCreateStaffModal() {
+      $('staffUsername').value = '';
+      $('staffEmail').value = '';
+      $('staffPassword').value = '';
+      $('staffCreateErr').textContent = '';
+      const roleOptions = myRole === 'owner'
+        ? [['moderador', 'Moderador'], ['administrador', 'Administrador']]
+        : [['moderador', 'Moderador']];
+      $('staffRole').innerHTML = roleOptions.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+      $('createStaffModal').classList.remove('hidden');
+    }
+    $('createStaffBtn').addEventListener('click', openCreateStaffModal);
+    $('staffCreateCancelBtn').addEventListener('click', () => $('createStaffModal').classList.add('hidden'));
+    $('staffCreateConfirmBtn').addEventListener('click', async () => {
+      $('staffCreateErr').textContent = '';
+      const payload = {
+        username: $('staffUsername').value.trim(),
+        email: $('staffEmail').value.trim(),
+        password: $('staffPassword').value,
+        role: $('staffRole').value,
+      };
+      try {
+        await apiFetch('/admin/staff', { method: 'POST', body: JSON.stringify(payload) });
+        $('createStaffModal').classList.add('hidden');
+        await refreshStaff();
+      } catch (e) {
+        $('staffCreateErr').textContent = e.message;
+      }
+    });
+
+    // ── Segurança (A2F da própria conta de staff) ─────────────────────────
+    // Staff (Moderador/Administrador/Owner) é só um User com staff_role
+    // definido — usa os mesmos endpoints genéricos de A2F que qualquer
+    // usuário do Daqui já tem.
     async function refreshSecurity() {
       $('securityContent').innerHTML = `<div class="empty-state">Carregando…</div>`;
       try {

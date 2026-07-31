@@ -14,7 +14,7 @@ class Base(DeclarativeBase):
 
 
 def create_tables():
-    from app.models import ad, admin, settings  # noqa: F401
+    from app.models import ad, admin, audit_log, settings  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     _ensure_columns()
@@ -109,3 +109,14 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE ad_admins ADD COLUMN totp_secret VARCHAR(64)"))
             if "totp_enabled" not in columns:
                 conn.execute(text("ALTER TABLE ad_admins ADD COLUMN totp_enabled BOOLEAN DEFAULT 0 NOT NULL"))
+            if "role" not in columns:
+                conn.execute(
+                    text("ALTER TABLE ad_admins ADD COLUMN role VARCHAR(20) DEFAULT 'moderador' NOT NULL")
+                )
+                # Bootstrap: a conta seed conhecida vira owner (única promoção automática).
+                conn.execute(
+                    text("UPDATE ad_admins SET role = 'owner' WHERE email = :email"),
+                    {"email": settings.ADS_ADMIN_EMAIL},
+                )
+            if "is_suspended" not in columns:
+                conn.execute(text("ALTER TABLE ad_admins ADD COLUMN is_suspended BOOLEAN DEFAULT 0 NOT NULL"))

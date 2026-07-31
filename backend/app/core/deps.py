@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.security import decode_token_claims
 from app.daos import session as session_dao
 from app.database import SessionLocal
-from app.models.user import User
+from app.models.user import StaffRole, User
 
 bearer = HTTPBearer()
 
@@ -69,7 +69,23 @@ def get_current_user(
 
 
 def get_current_moderator(user: User = Depends(get_current_user)) -> User:
-    """Restringe o acesso a quem tem papel de moderador (app de moderação)."""
+    """Restringe o acesso a quem tem qualquer cargo de staff (Moderador,
+    Administrador ou Owner) — nome histórico, mantido pelos ~7 controllers de
+    moderação que já dependem dele para o trabalho operacional de sempre."""
     if not getattr(user, "is_moderator", False):
         raise HTTPException(status_code=403, detail="Acesso restrito a moderadores")
+    return user
+
+
+def get_current_admin(user: User = Depends(get_current_user)) -> User:
+    """Restringe a Administrador ou Owner (gestão de contas de Moderador)."""
+    if user.staff_role not in (StaffRole.ADMINISTRADOR, StaffRole.OWNER):
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
+    return user
+
+
+def get_current_owner(user: User = Depends(get_current_user)) -> User:
+    """Restringe a Owner (gestão de contas de Administrador; superusuário)."""
+    if user.staff_role != StaffRole.OWNER:
+        raise HTTPException(status_code=403, detail="Acesso restrito ao owner")
     return user

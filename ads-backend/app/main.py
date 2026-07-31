@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import UPLOAD_DIR
 from app.database import create_tables
-from app.routers import ads, auth
+from app.routers import ads, audit_log, auth, staff
 
 
 @asynccontextmanager
@@ -33,6 +33,8 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(ads.router, prefix="/api/v1")
 app.include_router(ads.admin_router, prefix="/api/v1")
+app.include_router(staff.admin_router, prefix="/api/v1")
+app.include_router(audit_log.admin_router, prefix="/api/v1")
 
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 

@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 # Regra única de username (compartilhada com o cadastro).
 from app.core.username import USERNAME_RE
 from app.core.username import validate as _validate_username
-from app.models.user import UserBadge
+from app.models.user import StaffRole, UserBadge
 
 __all__ = ["USERNAME_RE"]  # re-exportado para quem importa daqui
 
@@ -48,6 +48,8 @@ class UserMe(UserPublic):
     notify_comments: bool = True
     notify_messages: bool = True
     notify_neighborhood_alerts: bool = True
+    # Cargo de staff (app de moderação). None = residente comum.
+    staff_role: StaffRole | None = None
 
 
 class UserAdminOut(UserPublic):

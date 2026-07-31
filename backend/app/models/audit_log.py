@@ -20,6 +20,10 @@ class AuditLogAction(StrEnum):
     USER_SUSPEND = "user_suspend"
     USER_UNSUSPEND = "user_unsuspend"
     TICKET_REPLY = "ticket_reply"
+    STAFF_CREATE = "staff_create"
+    STAFF_SUSPEND = "staff_suspend"
+    STAFF_UNSUSPEND = "staff_unsuspend"
+    STAFF_DELETE = "staff_delete"
 
 
 class AuditLog(Base):
