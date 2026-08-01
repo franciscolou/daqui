@@ -71,7 +71,11 @@ export const AUDIT_ACTION_FILTERS = [
   { key: 'user_suspend', label: 'Suspensão de conta' },
   { key: 'user_unsuspend', label: 'Reativação de conta' },
   { key: 'ticket_reply', label: 'Resposta de chamado' },
-  { key: 'staff_create', label: 'Criação de conta de staff' },
+  // Substituído por staff_invite/staff_invite_accepted — mantido no filtro só
+  // pra registros antigos continuarem pesquisáveis.
+  { key: 'staff_create', label: 'Criação de conta de staff (antigo)' },
+  { key: 'staff_invite', label: 'Convite de conta de staff' },
+  { key: 'staff_invite_accepted', label: 'Ativação de conta de staff' },
   { key: 'staff_username_change', label: 'Troca de usuário de staff' },
   { key: 'staff_suspend', label: 'Suspensão de conta de staff' },
   { key: 'staff_unsuspend', label: 'Reativação de conta de staff' },
@@ -95,6 +99,9 @@ export const AUDIT_ACTION_VERB: Record<string, string> = {
   user_unsuspend: 'reativou a conta de',
   ticket_reply: 'respondeu um chamado de',
   staff_create: 'criou uma conta de staff para',
+  // Alvo é a própria conta recém-criada (quem ativa o convite é quem o
+  // aceita) — o texto evita "ativou o convite de @fulano" repetindo @fulano.
+  staff_invite_accepted: 'ativou o convite e criou a própria conta de staff:',
   staff_username_change: 'alterou o nome de usuário de',
   staff_suspend: 'suspendeu a conta de staff de',
   staff_unsuspend: 'reativou a conta de staff de',
@@ -112,6 +119,7 @@ export const AUDIT_ACTION_VERB_NO_TARGET: Record<string, string> = {
   user_unsuspend: 'reativou uma conta',
   ticket_reply: 'respondeu um chamado',
   staff_create: 'criou uma conta de staff',
+  staff_invite: 'convidou uma nova conta de staff',
   staff_username_change: 'alterou o nome de usuário de uma conta de staff',
   staff_suspend: 'suspendeu uma conta de staff',
   staff_unsuspend: 'reativou uma conta de staff',

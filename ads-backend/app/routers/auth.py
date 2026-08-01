@@ -1,7 +1,12 @@
 from fastapi import APIRouter
 
 from app.controllers import auth
-from app.schemas.auth import AdAdminMe, LoginResponse, TokenResponse, TwoFactorSetupResponse
+from app.schemas.auth import (
+    AdAdminMe,
+    LoginResponse,
+    TokenResponse,
+    TwoFactorSetupResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

@@ -12,7 +12,12 @@ class AdAuditLogAction(StrEnum):
     """Tipos de ação registrados no log de auditoria do painel de anúncios —
     hoje só cobre gestão de contas de staff (ver services/staff.py)."""
 
+    # Substituído por STAFF_INVITE/STAFF_INVITE_ACCEPTED (conta de staff virou
+    # convite por e-mail) — mantido só pra não quebrar a leitura de registros
+    # antigos (AdAuditLogOut.action é tipado contra este enum).
     STAFF_CREATE = "staff_create"
+    STAFF_INVITE = "staff_invite"
+    STAFF_INVITE_ACCEPTED = "staff_invite_accepted"
     STAFF_USERNAME_CHANGE = "staff_username_change"
     STAFF_SUSPEND = "staff_suspend"
     STAFF_UNSUSPEND = "staff_unsuspend"

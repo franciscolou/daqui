@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     # o link do e-mail pro ambiente errado, então preferimos falhar ao subir
     # (ver .env/.env.example) a mandar e-mail com link quebrado em produção.
     FRONTEND_URL: str
+    # URL do painel de moderação estático (moderator/index.html) — usada só
+    # pro link de convite de conta de staff (services/staff.py). Diferente da
+    # redefinição de senha comum (que abre o app, FRONTEND_URL acima): quem
+    # aceita um convite ainda não tem conta no app pra fazer login nela, então
+    # o fluxo inteiro (escolher usuário/senha) roda no próprio painel — mesmo
+    # motivo do ADS_ADMIN_URL no ads-backend. Sem default pelo mesmo espírito.
+    MODERATOR_URL: str
 
     # Push notification (Expo Push Service). Opcional: só necessário se o
     # projeto Expo tiver "enhanced push security" habilitado.

@@ -31,7 +31,7 @@ export function Staff() {
   const { data, loading, error, reload } = useAsync<StaffAccount[]>(() =>
     api.get<StaffAccount[]>('/admin/staff'),
   );
-  const [createOpen, setCreateOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [renaming, setRenaming] = useState<StaffAccount | null>(null);
 
   const act = async (run: () => Promise<unknown>) => {
@@ -71,8 +71,8 @@ export function Staff() {
   return (
     <div>
       <div className="actions end" style={{ marginBottom: 16 }}>
-        <button type="button" className="btn primary" onClick={() => setCreateOpen(true)}>
-          Nova conta
+        <button type="button" className="btn primary" onClick={() => setInviteOpen(true)}>
+          Convidar
         </button>
       </div>
 
@@ -141,13 +141,13 @@ export function Staff() {
         />
       )}
 
-      {createOpen && (
-        <CreateStaffModal
+      {inviteOpen && (
+        <InviteStaffModal
           ownerMode={me?.staff_role === 'owner'}
-          onClose={() => setCreateOpen(false)}
-          onCreated={async () => {
-            setCreateOpen(false);
-            await reload();
+          onClose={() => setInviteOpen(false)}
+          onInvited={async (email) => {
+            setInviteOpen(false);
+            await dialogs.alert(`Convite enviado para ${email}.`, 'Convite enviado');
           }}
         />
       )}
@@ -155,18 +155,16 @@ export function Staff() {
   );
 }
 
-function CreateStaffModal({
+function InviteStaffModal({
   ownerMode,
   onClose,
-  onCreated,
+  onInvited,
 }: {
   ownerMode: boolean;
   onClose: () => void;
-  onCreated: () => Promise<void>;
+  onInvited: (email: string) => Promise<void>;
 }) {
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [role, setRole] = useState('moderador');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -175,13 +173,8 @@ function CreateStaffModal({
     setError('');
     setBusy(true);
     try {
-      await api.post('/admin/staff', {
-        username: username.trim(),
-        email: email.trim(),
-        password,
-        role,
-      });
-      await onCreated();
+      await api.post('/admin/staff/invite', { email: email.trim(), role });
+      await onInvited(email.trim());
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -191,7 +184,7 @@ function CreateStaffModal({
 
   return (
     <Modal
-      title="Nova conta de staff"
+      title="Convidar para a equipe"
       onClose={onClose}
       footer={
         <>
@@ -199,18 +192,15 @@ function CreateStaffModal({
             Cancelar
           </button>
           <button type="button" className="btn primary" disabled={busy} onClick={submit}>
-            Criar
+            Enviar convite
           </button>
         </>
       }
     >
-      <Field label="Usuário">
-        <input
-          placeholder="nome.usuario"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-      </Field>
+      <p className="muted">
+        Um e-mail com o link do convite é enviado pro endereço abaixo — a pessoa escolhe o
+        próprio nome de usuário e senha ao aceitar.
+      </p>
       <Field label="E-mail">
         <input
           type="email"
@@ -219,20 +209,14 @@ function CreateStaffModal({
           onChange={(e) => setEmail(e.target.value)}
         />
       </Field>
-      <Field label="Senha">
-        <input
-          type="password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </Field>
-      <Field label="Cargo">
-        <select value={role} onChange={(e) => setRole(e.target.value)}>
-          <option value="moderador">Moderador</option>
-          {ownerMode && <option value="administrador">Administrador</option>}
-        </select>
-      </Field>
+      {ownerMode && (
+        <Field label="Cargo">
+          <select value={role} onChange={(e) => setRole(e.target.value)}>
+            <option value="moderador">Moderador</option>
+            <option value="administrador">Administrador</option>
+          </select>
+        </Field>
+      )}
       {error && <div className="err">{error}</div>}
     </Modal>
   );
