@@ -62,14 +62,6 @@ const BASE_SECTIONS: Section[] = [
     render: () => <Plans />,
   },
   {
-    key: 'settings',
-    label: 'Configurações',
-    icon: 'settings',
-    title: 'Configurações',
-    subtitle: 'Parâmetros globais de precificação',
-    render: () => <Settings />,
-  },
-  {
     key: 'account',
     label: 'Minha conta',
     icon: 'user',
@@ -79,8 +71,8 @@ const BASE_SECTIONS: Section[] = [
   },
 ];
 
-// Gestão de contas do time — inserida antes de "Configurações" para
-// Administrador/Owner. Moderador/Administrador/Owner têm paridade
+// Gestão de contas do time — inserida antes de "Configurações"/"Minha conta"
+// para Administrador/Owner. Moderador/Administrador/Owner têm paridade
 // operacional no resto do painel; só a Equipe difere por cargo.
 const STAFF_SECTION: Section = {
   key: 'staff',
@@ -91,14 +83,28 @@ const STAFF_SECTION: Section = {
   render: () => <Staff />,
 };
 
+// O multiplicador geral afeta o preço de toda campanha/plano — só o Owner
+// vê ou mexe nele (Moderador/Administrador têm paridade em todo o resto).
+const SETTINGS_SECTION: Section = {
+  key: 'settings',
+  label: 'Configurações',
+  icon: 'settings',
+  title: 'Configurações',
+  subtitle: 'Parâmetros globais de precificação',
+  render: () => <Settings />,
+};
+
 export function Shell() {
   const { me, signOut } = useAuth();
   const [active, setActive] = useState('campaigns');
 
   const sections = useMemo(() => {
-    if (!canManageStaff(me?.role)) return BASE_SECTIONS;
-    const idx = BASE_SECTIONS.findIndex((s) => s.key === 'settings');
-    return [...BASE_SECTIONS.slice(0, idx), STAFF_SECTION, ...BASE_SECTIONS.slice(idx)];
+    const extra: Section[] = [];
+    if (canManageStaff(me?.role)) extra.push(STAFF_SECTION);
+    if (me?.role === 'owner') extra.push(SETTINGS_SECTION);
+    if (extra.length === 0) return BASE_SECTIONS;
+    const idx = BASE_SECTIONS.findIndex((s) => s.key === 'account');
+    return [...BASE_SECTIONS.slice(0, idx), ...extra, ...BASE_SECTIONS.slice(idx)];
   }, [me?.role]);
 
   const section = sections.find((s) => s.key === active) ?? sections[0];

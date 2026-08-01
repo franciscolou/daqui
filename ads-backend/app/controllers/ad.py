@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import Body, Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_admin, get_db
+from app.core.deps import get_current_admin, get_current_owner, get_db
 from app.models.ad import AdCampaignStatus, AdFormat
 from app.models.admin import AdAdmin
 from app.schemas.ad import (
@@ -197,7 +197,7 @@ def get_my_campaigns_analytics(
 # ── Admin de anúncios ───────────────────────────────────────────────────
 def admin_get_settings(
     db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
+    _admin: AdAdmin = Depends(get_current_owner),
 ) -> AdSettingsOut:
     return ad_service.admin_get_settings(db)
 
@@ -205,7 +205,7 @@ def admin_get_settings(
 def admin_update_settings(
     payload: AdSettingsUpdate,
     db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
+    _admin: AdAdmin = Depends(get_current_owner),
 ) -> AdSettingsOut:
     return ad_service.admin_update_settings(db, payload)
 
