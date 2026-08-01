@@ -8,8 +8,15 @@ const LABEL_WIDTH = 128;
 // Botão pequeno (só o ícone) que, no hover (web — em toque não existe hover,
 // então fica sempre só o ícone), se estica suavemente e revela o rótulo
 // "Escolher no mapa". Usado nos campos de local do publish (ver
-// LocationField/o bloco de "recomendação" em publish.tsx).
-export default function MapPickButton({ onPress }: { onPress: () => void }) {
+// LocationField/o bloco de "recomendação" em publish.tsx) e no seletor de
+// bairros (NeighborhoodPicker), que abre a seleção por etapas no mapa.
+export default function MapPickButton({
+  onPress,
+  label = 'Escolher no mapa',
+}: {
+  onPress: () => void;
+  label?: string;
+}) {
   const Colors = useTheme();
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -33,7 +40,7 @@ export default function MapPickButton({ onPress }: { onPress: () => void }) {
         }}
       >
         <Text style={[styles.label, { color: Colors.primary }]} numberOfLines={1}>
-          Escolher no mapa
+          {label}
         </Text>
       </Animated.View>
     </Pressable>

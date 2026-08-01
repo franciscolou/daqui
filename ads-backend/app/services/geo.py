@@ -16,6 +16,13 @@ def _norm(value: str) -> str:
 # correta um pouco antiga", nunca "resposta errada por falha transitória".
 _GEO_CACHE_TTL = 60 * 24 * 60 * 60
 
+# TTL curto para resultado DEGRADADO — mesma regra do backend principal: a
+# query pedia número de casa (portanto o HERE deveria ter respondido) mas
+# nenhuma sugestão dele entrou (chave recém configurada, cota estourada,
+# timeout). Guardar isso com o TTL longo esconderia o número de casa por 60
+# dias mesmo depois de o HERE voltar.
+_GEO_CACHE_TTL_DEGRADED = 10 * 60
+
 
 def search(query: str, db: Session, limit: int = 6) -> list[GeocodeResult]:
     """Sugestões de endereço pro pin do anúncio (autocomplete) — ao contrário
@@ -50,8 +57,14 @@ def search(query: str, db: Session, limit: int = 6) -> list[GeocodeResult]:
         for r in final
     ]
     if payload:  # resultado vazio nunca é cacheado — mesma razão do backend principal
-        providers = "+".join(sorted({r["provider"] for r in final}))
+        providers = sorted({r["provider"] for r in final})
+        degraded = geocoding.expects_here(query) and "here" not in providers
         geo_cache_dao.upsert(
-            db, GeoCacheKind.SEARCH, cache_key, payload, provider=providers, ttl_seconds=_GEO_CACHE_TTL
+            db,
+            GeoCacheKind.SEARCH,
+            cache_key,
+            payload,
+            provider="+".join(providers),
+            ttl_seconds=_GEO_CACHE_TTL_DEGRADED if degraded else _GEO_CACHE_TTL,
         )
     return [GeocodeResult(**item) for item in payload]

@@ -18,6 +18,19 @@ from .types import GeoResult
 _HOUSE_NUMBER_RE = re.compile(r"\d")
 
 
+def expects_here(query: str) -> bool:
+    """A query tem número de casa e há chave configurada — ou seja, o HERE
+    DEVERIA ter respondido.
+
+    Quem cacheia usa isto pra reconhecer um resultado degradado: se o HERE era
+    esperado mas nenhuma sugestão dele entrou (chave recém-configurada, cota
+    estourada, timeout — `here.search` é tolerante e devolve [] em silêncio),
+    o resultado só-Nominatim não pode ser gravado com o TTL longo, senão fica
+    servido por 60 dias sem número de casa. Ver `services/geo.py`.
+    """
+    return bool(settings.HERE_API_KEY) and bool(_HOUSE_NUMBER_RE.search(query))
+
+
 def search(query: str, limit: int = 10) -> list[GeoResult]:
     nominatim_results = nominatim.search(query, limit=limit)
     should_escalate = bool(settings.HERE_API_KEY) and (

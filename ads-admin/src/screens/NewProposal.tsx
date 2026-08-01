@@ -1,0 +1,498 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { View } from 'react-native';
+import NeighborhoodPicker from '@daqui/components/NeighborhoodPicker';
+import CityPicker from '@daqui/components/CityPicker';
+import { api, errorMessage } from '../lib/api';
+import { fmtMoney, maskDocument, parseCsvNumbers, parseCsvStrings } from '../lib/format';
+import { ALL_FORMATS, FORMAT_LABEL, GEO_SCOPES, GeoScope, OBJECTIVE_LABEL } from '../lib/labels';
+import { LocationField, PickedLocation } from '../daqui/LocationField';
+import { MediaPicker, UploadedMedia } from '../ui/MediaPicker';
+import { CheckPill, CollapseSection, CopyButton, Field } from '../ui/primitives';
+
+// Proposta manual: campanha negociada por fora (Instagram/WhatsApp/Gmail) que
+// nasce "aguardando pagamento", com link de pagamento gerado na hora.
+
+interface AdvancedState {
+  objective: string;
+  priority: string;
+  rotationWeight: string;
+  pacing: string;
+  dailyCap: string;
+  perUserCap: string;
+  audience: string;
+  recency: string;
+  includeNearby: boolean;
+  engagementActive: boolean;
+  categories: string;
+  groupIds: string;
+  hours: string;
+  daysOfWeek: string;
+  specialDates: string;
+}
+
+const INITIAL_ADVANCED: AdvancedState = {
+  objective: 'clicks',
+  priority: '3',
+  rotationWeight: '1.0',
+  pacing: 'asap',
+  dailyCap: '',
+  perUserCap: '',
+  audience: 'all',
+  recency: 'all',
+  includeNearby: false,
+  engagementActive: false,
+  categories: '',
+  groupIds: '',
+  hours: '',
+  daysOfWeek: '',
+  specialDates: '',
+};
+
+export function NewProposal() {
+  const [advertiserType, setAdvertiserType] = useState<'individual' | 'company'>('individual');
+  const [document, setDocument] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+
+  const [formats, setFormats] = useState<string[]>([]);
+  const [duration, setDuration] = useState('15');
+  const [price, setPrice] = useState('');
+
+  const [geoScope, setGeoScope] = useState<GeoScope>('neighborhood');
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [city, setCity] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
+
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [media, setMedia] = useState<UploadedMedia | null>(null);
+  const [ctaLabel, setCtaLabel] = useState('');
+  const [targetUrl, setTargetUrl] = useState('');
+  const [location, setLocation] = useState<PickedLocation | null>(null);
+
+  const [advanced, setAdvanced] = useState<AdvancedState>(INITIAL_ADVANCED);
+
+  const [suggested, setSuggested] = useState<number | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const setAdv = <K extends keyof AdvancedState>(key: K, value: AdvancedState[K]) =>
+    setAdvanced((prev) => ({ ...prev, [key]: value }));
+
+  const toggleFormat = (f: string, on: boolean) =>
+    setFormats((prev) => (on ? [...prev, f] : prev.filter((x) => x !== f)));
+
+  const payload = useMemo(() => {
+    const scopedNeighborhoods = geoScope === 'neighborhood' ? neighborhoods : [];
+    const scopedCity = geoScope === 'citywide' ? city[0] ?? null : null;
+    const scopedCities = geoScope === 'cities' ? cities : [];
+    const priceRaw = price.trim();
+
+    return {
+      formats,
+      duration_days: parseInt(duration, 10),
+      geo_scope: geoScope,
+      neighborhoods: scopedNeighborhoods,
+      city: scopedCity,
+      cities: scopedCities,
+      advertiser_name: name.trim(),
+      advertiser_email: email.trim(),
+      advertiser_phone: phone.trim(),
+      advertiser_type: advertiserType,
+      advertiser_document: document.trim(),
+      title: title.trim(),
+      content: content.trim(),
+      image_url: media?.type === 'image' ? media.url : null,
+      video_url: media?.type === 'video' ? media.url : null,
+      cta_label: ctaLabel.trim() || null,
+      target_url: targetUrl.trim(),
+      latitude: location?.latitude ?? null,
+      longitude: location?.longitude ?? null,
+      // Vazio = a engine calcula (ver "Sugerido"); preenchido = admin sobrescreve.
+      price_cents: priceRaw ? Math.round(parseFloat(priceRaw) * 100) : null,
+      objective: advanced.objective,
+      priority: parseInt(advanced.priority || '3', 10),
+      rotation_weight: parseFloat(advanced.rotationWeight || '1'),
+      pacing: advanced.pacing,
+      daily_impression_cap: advanced.dailyCap ? parseInt(advanced.dailyCap, 10) : null,
+      per_user_impression_cap: advanced.perUserCap ? parseInt(advanced.perUserCap, 10) : null,
+      targeting: {
+        geo_scope: geoScope,
+        neighborhoods: scopedNeighborhoods,
+        city: scopedCity,
+        cities: scopedCities,
+        include_nearby: advanced.includeNearby,
+        audience: advanced.audience,
+        categories: parseCsvStrings(advanced.categories),
+        group_ids: parseCsvNumbers(advanced.groupIds),
+        user_recency: advanced.recency,
+        engagement: advanced.engagementActive ? 'active' : 'any',
+      },
+      schedule: {
+        hours: advanced.hours.trim() ? parseCsvNumbers(advanced.hours) : null,
+        days_of_week: advanced.daysOfWeek.trim() ? parseCsvNumbers(advanced.daysOfWeek) : null,
+        special_dates: parseCsvStrings(advanced.specialDates),
+      },
+    };
+  }, [
+    formats, duration, geoScope, neighborhoods, city, cities, name, email, phone,
+    advertiserType, document, title, content, media, ctaLabel, targetUrl, location, price, advanced,
+  ]);
+
+  // Preço sugerido pela engine, recalculado (debounced) sempre que algo que
+  // entra no cálculo muda — mesmo padrão de cotação em tempo real da tela de
+  // personalização do app.
+  const quoteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (quoteTimer.current) clearTimeout(quoteTimer.current);
+    if (!payload.formats.length || !payload.duration_days) {
+      setSuggested(null);
+      return;
+    }
+    quoteTimer.current = setTimeout(() => {
+      api
+        .post<{ price_cents: number }>('/ads/quote', payload)
+        .then((q) => setSuggested(q.price_cents))
+        .catch(() => setSuggested(null));
+    }, 400);
+    return () => {
+      if (quoteTimer.current) clearTimeout(quoteTimer.current);
+    };
+  }, [payload]);
+
+  const submit = async () => {
+    setError('');
+    setCheckoutUrl('');
+    setBusy(true);
+    try {
+      const res = await api.post<{ checkout_url: string }>('/admin/ads/campaigns', payload);
+      setCheckoutUrl(res.checkout_url);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const isPj = advertiserType === 'company';
+  const suggestedText = suggested != null ? `Sugerido: ${fmtMoney(suggested)}` : '';
+
+  return (
+    <div className="form-card">
+      <header>
+        <h2>Inserir proposta manual</h2>
+        <span className="muted">
+          Para propostas negociadas por Instagram/WhatsApp/Gmail — nasce &quot;aguardando
+          pagamento&quot;, com link de pagamento gerado na hora. Use &quot;Marcar como paga&quot; na
+          lista de campanhas pra confirmar um pagamento combinado por fora (ou testar sem Stripe
+          real).
+        </span>
+      </header>
+
+      <div className="stack">
+        <div className="eyebrow">Anunciante</div>
+        <div className="row-2">
+          <Field label="Tipo">
+            <select
+              value={advertiserType}
+              onChange={(e) => {
+                const next = e.target.value as 'individual' | 'company';
+                setAdvertiserType(next);
+                setDocument((d) => maskDocument(next, d));
+              }}
+            >
+              <option value="individual">Pessoa Física (CPF)</option>
+              <option value="company">Pessoa Jurídica (CNPJ)</option>
+            </select>
+          </Field>
+          <Field label={isPj ? 'CNPJ' : 'CPF'}>
+            <input
+              placeholder={isPj ? '00.000.000/0000-00' : '000.000.000-00'}
+              value={document}
+              onChange={(e) => setDocument(maskDocument(advertiserType, e.target.value))}
+            />
+          </Field>
+        </div>
+        <Field label="Nome / razão social">
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <div className="row-2">
+          <Field label="E-mail">
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+          <Field label="Telefone">
+            <input value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="divider" />
+
+        <div className="eyebrow">Campanha</div>
+        <Field label="Formatos">
+          <div className="checks">
+            {ALL_FORMATS.map((f) => (
+              <CheckPill
+                key={f}
+                checked={formats.includes(f)}
+                onChange={(on) => toggleFormat(f, on)}
+              >
+                {FORMAT_LABEL[f]}
+              </CheckPill>
+            ))}
+          </div>
+        </Field>
+        <div className="row-2">
+          <Field label="Duração (dias)">
+            <input
+              type="number"
+              min={1}
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Preço acordado (R$)"
+            hint={suggestedText || 'Deixe em branco pra usar o sugerido pela engine.'}
+          >
+            <input
+              type="number"
+              step="0.01"
+              min={0}
+              placeholder={suggestedText || 'Sugerido: —'}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
+          </Field>
+        </div>
+
+        <Field label="Onde anunciar">
+          <select value={geoScope} onChange={(e) => setGeoScope(e.target.value as GeoScope)}>
+            {GEO_SCOPES.map((s) => (
+              <option key={s.key} value={s.key}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        {/* Seletores de bairro/cidade: os MESMOS componentes do app Daqui
+            (react-native-web). Bairros aceitam também seleção por etapas no
+            mapa — ver NeighborhoodMapPickerModal. */}
+        {geoScope === 'neighborhood' && (
+          <Field label="Bairros">
+            <div className="daqui-field">
+              <View>
+                <NeighborhoodPicker value={neighborhoods} onChange={setNeighborhoods} />
+              </View>
+            </div>
+          </Field>
+        )}
+        {geoScope === 'citywide' && (
+          <Field label="Cidade">
+            <div className="daqui-field">
+              <View>
+                <CityPicker value={city} onChange={setCity} max={1} />
+              </View>
+            </div>
+          </Field>
+        )}
+        {geoScope === 'cities' && (
+          <Field label="Cidades">
+            <div className="daqui-field">
+              <View>
+                <CityPicker value={cities} onChange={setCities} />
+              </View>
+            </div>
+          </Field>
+        )}
+
+        <div className="divider" />
+
+        <div className="eyebrow">Criativo</div>
+        <Field label="Título do anúncio">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </Field>
+        <Field label="Texto">
+          <textarea value={content} onChange={(e) => setContent(e.target.value)} />
+        </Field>
+        <div className="row-2">
+          <Field label="Foto ou vídeo (opcional)">
+            <MediaPicker value={media} onChange={setMedia} />
+          </Field>
+          <Field label="Texto do botão (opcional)">
+            <input
+              placeholder="Saiba mais"
+              value={ctaLabel}
+              onChange={(e) => setCtaLabel(e.target.value)}
+            />
+          </Field>
+        </div>
+        <Field label="Link de destino (ao tocar no anúncio)">
+          <input
+            placeholder="https://..."
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+          />
+        </Field>
+
+        <Field
+          label="Localização no mapa (se formato &quot;post&quot;)"
+          hint="Mesmo seletor de local do app Daqui: busque um endereço ou marque o ponto no mapa."
+        >
+          <LocationField value={location} onChange={setLocation} />
+        </Field>
+
+        <CollapseSection title="Configurações avançadas">
+          <div className="row-2">
+            <Field label="Objetivo">
+              <select
+                value={advanced.objective}
+                onChange={(e) => setAdv('objective', e.target.value)}
+              >
+                {Object.entries(OBJECTIVE_LABEL).map(([v, label]) => (
+                  <option key={v} value={v}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Prioridade (1-5)">
+              <input
+                type="number"
+                min={1}
+                max={5}
+                value={advanced.priority}
+                onChange={(e) => setAdv('priority', e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className="row-2">
+            <Field label="Peso na rotação">
+              <input
+                type="number"
+                step="0.1"
+                value={advanced.rotationWeight}
+                onChange={(e) => setAdv('rotationWeight', e.target.value)}
+              />
+            </Field>
+            <Field label="Pacing">
+              <select value={advanced.pacing} onChange={(e) => setAdv('pacing', e.target.value)}>
+                <option value="asap">Entregar assim que possível</option>
+                <option value="even">Distribuir uniformemente (even)</option>
+              </select>
+            </Field>
+          </div>
+          <div className="row-2">
+            <Field label="Limite diário de impressões (opcional)">
+              <input
+                type="number"
+                min={1}
+                value={advanced.dailyCap}
+                onChange={(e) => setAdv('dailyCap', e.target.value)}
+              />
+            </Field>
+            <Field label="Limite por usuário (opcional)">
+              <input
+                type="number"
+                min={1}
+                value={advanced.perUserCap}
+                onChange={(e) => setAdv('perUserCap', e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="eyebrow">Segmentação extra</div>
+          <div className="row-2">
+            <Field label="Audiência">
+              <select value={advanced.audience} onChange={(e) => setAdv('audience', e.target.value)}>
+                <option value="all">Todos</option>
+                <option value="residents">Só moradores</option>
+                <option value="visitors">Só visitantes atuais</option>
+              </select>
+            </Field>
+            <Field label="Usuários">
+              <select value={advanced.recency} onChange={(e) => setAdv('recency', e.target.value)}>
+                <option value="all">Todos</option>
+                <option value="new">Só novos</option>
+                <option value="returning">Só antigos</option>
+              </select>
+            </Field>
+          </div>
+          <div className="checks">
+            <CheckPill
+              checked={advanced.includeNearby}
+              onChange={(v) => setAdv('includeNearby', v)}
+            >
+              Incluir bairros próximos
+            </CheckPill>
+            <CheckPill
+              checked={advanced.engagementActive}
+              onChange={(v) => setAdv('engagementActive', v)}
+            >
+              Só usuários ativos (engajamento)
+            </CheckPill>
+          </div>
+          <Field label="Categorias de post (opcional, separadas por vírgula)">
+            <input
+              placeholder="evento, venda"
+              value={advanced.categories}
+              onChange={(e) => setAdv('categories', e.target.value)}
+            />
+          </Field>
+          <Field label="Grupos alvo (IDs separados por vírgula, opcional)">
+            <input
+              placeholder="1, 4"
+              value={advanced.groupIds}
+              onChange={(e) => setAdv('groupIds', e.target.value)}
+            />
+          </Field>
+          <Field label="Agenda: horários (0-23, separados por vírgula; vazio = qualquer hora)">
+            <input
+              placeholder="18, 19, 20, 21"
+              value={advanced.hours}
+              onChange={(e) => setAdv('hours', e.target.value)}
+            />
+          </Field>
+          <Field label="Agenda: dias da semana (0=seg...6=dom; vazio = qualquer dia)">
+            <input
+              placeholder="5, 6"
+              value={advanced.daysOfWeek}
+              onChange={(e) => setAdv('daysOfWeek', e.target.value)}
+            />
+          </Field>
+          <Field label="Datas especiais (opcional, YYYY-MM-DD separadas por vírgula)">
+            <input
+              placeholder="2026-12-25"
+              value={advanced.specialDates}
+              onChange={(e) => setAdv('specialDates', e.target.value)}
+            />
+          </Field>
+        </CollapseSection>
+
+        <button
+          type="button"
+          className="btn primary lg block"
+          disabled={busy}
+          onClick={submit}
+        >
+          Criar proposta
+        </button>
+
+        {error && <div className="err">{error}</div>}
+
+        {checkoutUrl && (
+          <div className="insights">
+            <strong>Proposta criada — aguardando pagamento</strong>
+            <div className="muted" style={{ margin: '6px 0 10px' }}>
+              Envie o link de pagamento pro anunciante, ou confirme manualmente em
+              &quot;Campanhas&quot; quando o pagamento cair.
+            </div>
+            <CopyButton text={checkoutUrl} label="Copiar link de pagamento" icon />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

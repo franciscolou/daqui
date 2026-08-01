@@ -7,7 +7,7 @@ roteada (ver `router.py`), pois é o único fluxo (autocomplete) onde vale
 escalar para o HERE.
 """
 from .nominatim import forward, nearby, reverse
-from .router import search
+from .router import expects_here, search
 from .types import GeoResult, NearbyPlace
 
-__all__ = ["forward", "nearby", "reverse", "search", "GeoResult", "NearbyPlace"]
+__all__ = ["expects_here", "forward", "nearby", "reverse", "search", "GeoResult", "NearbyPlace"]
