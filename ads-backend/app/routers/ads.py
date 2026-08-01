@@ -75,14 +75,6 @@ admin_router.get("/analytics", response_model=GlobalAnalyticsOut)(
 admin_router.get(
     "/campaigns/{campaign_id}/creatives", response_model=list[CreativeOut]
 )(ad.admin_list_creatives)
-admin_router.post(
-    "/campaigns/{campaign_id}/creatives",
-    response_model=CreativeOut,
-    status_code=201,
-)(ad.admin_create_creative)
-admin_router.patch(
-    "/campaigns/{campaign_id}/creatives/{creative_id}", response_model=CreativeOut
-)(ad.admin_update_creative)
 admin_router.get("/plans", response_model=list[AdPlanOut])(ad.admin_list_plans)
 admin_router.post("/plans", response_model=AdPlanOut, status_code=201)(
     ad.admin_create_plan

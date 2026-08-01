@@ -174,22 +174,6 @@ def get_creative(db: Session, creative_id: int) -> AdCreative | None:
     return db.get(AdCreative, creative_id)
 
 
-def create_creative(db: Session, campaign_id: int, **fields) -> AdCreative:
-    creative = AdCreative(campaign_id=campaign_id, **fields)
-    db.add(creative)
-    db.commit()
-    db.refresh(creative)
-    return creative
-
-
-def update_creative(db: Session, creative: AdCreative, **fields) -> AdCreative:
-    for key, value in fields.items():
-        setattr(creative, key, value)
-    db.commit()
-    db.refresh(creative)
-    return creative
-
-
 def upsert_creatives_by_format(
     db: Session, campaign: AdCampaign, creatives: list[dict]
 ) -> None:
@@ -216,21 +200,20 @@ def upsert_creatives_by_format(
 
 
 def pick_creative(campaign: AdCampaign, format: AdFormat) -> AdCreative | None:
-    """Escolhe um criativo elegível pro formato pedido. Único ponto de
-    aleatoriedade intencional do sistema (teste A/B por peso) — a
-    precificação continua 100% determinística."""
-    active = [c for c in campaign.creatives if c.is_active]
+    """Resolve o criativo do formato pedido: no máximo um por formato (sem
+    teste A/B) — um específico daquele formato sobrepõe o padrão
+    (`format=None`), que serve de fallback."""
+    creatives = campaign.creatives
     if format == AdFormat.MAP:
         # No mapa o criativo precisa ter pin; o do formato "mapa" pode ter sido
         # cadastrado sem coordenadas (criação manual), caso em que o base —
         # que é onde o lat/lng mora por convenção do editor — assume.
-        active = [c for c in active if c.latitude is not None and c.longitude is not None]
-    specific = [c for c in active if c.format == format]
-    pool = specific if specific else [c for c in active if c.format is None]
-    if not pool:
-        return None
-    weights = [max(c.weight, 1) for c in pool]
-    return random.choices(pool, weights=weights, k=1)[0]
+        creatives = [c for c in creatives if c.latitude is not None and c.longitude is not None]
+    specific = [c for c in creatives if c.format == format]
+    if specific:
+        return specific[0]
+    default = [c for c in creatives if c.format is None]
+    return default[0] if default else None
 
 
 # ── Elegibilidade / rotação ──────────────────────────────────────────────
@@ -360,7 +343,7 @@ def _candidates_for_format(db: Session, format: AdFormat) -> list[AdCampaign]:
 
 def _has_pin(campaign: AdCampaign) -> bool:
     return any(
-        c.is_active and c.latitude is not None and c.longitude is not None
+        c.latitude is not None and c.longitude is not None
         for c in campaign.creatives
     )
 

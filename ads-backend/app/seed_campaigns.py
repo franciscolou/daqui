@@ -320,8 +320,6 @@ def seed_campaigns():
                         target_url=creative["target_url"],
                         latitude=creative["latitude"],
                         longitude=creative["longitude"],
-                        weight=1,
-                        is_active=True,
                     )
                 ],
                 plan_id=plan.id if plan else None,

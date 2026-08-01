@@ -327,8 +327,8 @@ class AdCreative(Base):
     """Um criativo (título/texto/imagem/CTA/link) associado a uma campanha.
     `format=None` serve qualquer formato da campanha; um valor específico
     sobrepõe o criativo padrão só para aquele formato (ex.: imagem diferente
-    no poster de busca). Múltiplos criativos do mesmo escopo com `weight`
-    distintos formam um teste A/B.
+    no poster de busca). Sempre no máximo um criativo por formato — sem
+    teste A/B.
     """
 
     __tablename__ = "ad_creatives"
@@ -353,9 +353,6 @@ class AdCreative(Base):
     # é opaco aqui e nunca validado; só é ecoado no AdOut/CreativeOut pro
     # frontend resolver via api.getUser(id) e renderizar como post real.
     linked_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-    weight: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     impressions_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     clicks_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

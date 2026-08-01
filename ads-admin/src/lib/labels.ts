@@ -78,6 +78,8 @@ export const AUDIT_ACTION_FILTERS_PLATFORM = [
   { key: '', label: 'Todas' },
   { key: 'campaign_pause', label: 'Campanha pausada' },
   { key: 'campaign_reactivate', label: 'Campanha reativada' },
+  { key: 'campaign_mark_paid', label: 'Campanha marcada como paga' },
+  { key: 'campaign_update', label: 'Edição de campanha' },
   { key: 'plan_create', label: 'Criação de plano' },
   { key: 'plan_update', label: 'Edição de plano' },
   { key: 'plan_delete', label: 'Exclusão de plano' },
@@ -121,6 +123,8 @@ export const AUDIT_ACTION_VERB: Record<string, string> = {
 export const AUDIT_ACTION_VERB_NO_TARGET: Record<string, string> = {
   campaign_pause: 'pausou uma campanha',
   campaign_reactivate: 'reativou uma campanha',
+  campaign_mark_paid: 'marcou uma campanha como paga',
+  campaign_update: 'editou uma campanha',
   plan_create: 'criou um plano',
   plan_update: 'editou um plano',
   plan_delete: 'excluiu um plano',

@@ -37,9 +37,7 @@ from app.schemas.ad import (
     CheckoutRequest,
     CheckoutResponse,
     ClickIn,
-    CreativeIn,
     CreativeOut,
-    CreativeUpdate,
     GlobalAnalyticsOut,
     GlobalAnalyticsSummary,
     HasCampaignsOut,
@@ -282,7 +280,15 @@ def _activate(
     campaign: AdCampaign,
     payment_reference: str | None,
     payment_provider: str | None = None,
+    actor: AdAdmin | None = None,
 ) -> None:
+    """Ativa a campanha. `actor` só vem preenchido quando quem chamou é uma
+    ação de admin com sessão própria (`admin_mark_campaign_paid` — esse já
+    loga `CAMPAIGN_MARK_PAID` ali mesmo, então aqui não duplica). Sem `actor`
+    (webhook do Stripe, sem admin nenhum na jogada), registra
+    `PROPOSAL_ACTIVATED` atribuído ao admin que criou a proposta, só quando a
+    campanha vier de uma proposta manual — o checkout self-service não tem
+    admin nenhum a quem atribuir."""
     now = datetime.now(timezone.utc)
     fields = dict(
         status=AdCampaignStatus.ACTIVE,
@@ -294,9 +300,7 @@ def _activate(
     if payment_provider is not None:
         fields["payment_provider"] = payment_provider
     campaign = ad_dao.update_campaign(db, campaign, **fields)
-    # Só campanhas nascidas de proposta manual têm um admin dono do trâmite
-    # pra registrar — o checkout self-service não passa por auditoria.
-    if campaign.created_by_admin_id is not None:
+    if actor is None and campaign.created_by_admin_id is not None:
         admin = admin_dao.get_by_id(db, campaign.created_by_admin_id)
         if admin:
             audit_log_service.log(
@@ -556,7 +560,9 @@ def submit_my_campaign_content(
     return CheckoutResponse(campaign_id=campaign.id, checkout_url=checkout_url)
 
 
-def admin_mark_campaign_paid(db: Session, campaign_id: int) -> CampaignAdminOut:
+def admin_mark_campaign_paid(
+    db: Session, actor: AdAdmin, campaign_id: int
+) -> CampaignAdminOut:
     """Confirma manualmente o pagamento de uma campanha `pending_payment` —
     pra pagamentos combinados por fora (PIX/transferência) ou pra testar o
     fluxo sem depender de uma chave Stripe real (gap documentado no
@@ -569,9 +575,32 @@ def admin_mark_campaign_paid(db: Session, campaign_id: int) -> CampaignAdminOut:
         raise HTTPException(
             status_code=400, detail="Campanha não está aguardando pagamento"
         )
-    _activate(db, campaign, payment_reference=None, payment_provider=PaymentProvider.MANUAL_CONFIRMATION)
+    _activate(
+        db,
+        campaign,
+        payment_reference=None,
+        payment_provider=PaymentProvider.MANUAL_CONFIRMATION,
+        actor=actor,
+    )
     db.refresh(campaign)
+    audit_log_service.log(
+        db,
+        actor,
+        AdAuditLogAction.CAMPAIGN_MARK_PAID,
+        detail=(
+            f"Marcou como paga a campanha de {campaign.advertiser_name} "
+            f"({campaign.advertiser_email})"
+        ),
+    )
     return CampaignAdminOut.model_validate(campaign)
+
+
+_CAMPAIGN_FIELD_LABELS = {
+    "ends_at": "data de término",
+    "priority": "prioridade",
+    "daily_impression_cap": "limite diário de impressões",
+    "per_user_impression_cap": "limite por usuário",
+}
 
 
 def admin_update_campaign(
@@ -582,11 +611,12 @@ def admin_update_campaign(
         raise HTTPException(status_code=404, detail="Campanha não encontrada")
     fields = {k: v for k, v in payload.model_dump().items() if v is not None}
     new_status = fields.get("status")
+    other_fields = {k: v for k, v in fields.items() if k != "status"}
     campaign = ad_dao.update_campaign(db, campaign, **fields)
-    # Só pause/reativação (os dois únicos valores que a UI manda pra este
-    # campo) viram entrada de auditoria — outros campos deste mesmo PATCH
-    # (prioridade, tetos de impressão...) são ajuste fino, não uma decisão
-    # de "tirar do ar"/"recolocar no ar".
+    # Toda mutação de campanha vira uma entrada de auditoria — pause/reativação
+    # ganham uma ação própria (mais legível na lista); qualquer outro campo
+    # tocado no mesmo PATCH (prioridade, tetos de impressão, data de término)
+    # vira um `CAMPAIGN_UPDATE` genérico descrevendo o que mudou.
     who = f"{campaign.advertiser_name} ({campaign.advertiser_email})"
     if new_status == AdCampaignStatus.PAUSED:
         audit_log_service.log(
@@ -596,33 +626,33 @@ def admin_update_campaign(
         audit_log_service.log(
             db, actor, AdAuditLogAction.CAMPAIGN_REACTIVATE, detail=f"Reativou a campanha de {who}"
         )
+    elif new_status is not None:
+        audit_log_service.log(
+            db,
+            actor,
+            AdAuditLogAction.CAMPAIGN_UPDATE,
+            detail=f"Alterou o status da campanha de {who} para {new_status}",
+        )
+    if other_fields:
+        changes = ", ".join(
+            f"{_CAMPAIGN_FIELD_LABELS.get(k, k)} → {v}" for k, v in other_fields.items()
+        )
+        audit_log_service.log(
+            db,
+            actor,
+            AdAuditLogAction.CAMPAIGN_UPDATE,
+            detail=f"Editou a campanha de {who} ({changes})",
+        )
     return CampaignAdminOut.model_validate(campaign)
 
 
 def admin_list_creatives(db: Session, campaign_id: int) -> list[CreativeOut]:
+    # Só leitura — o conteúdo criativo é responsabilidade do próprio
+    # anunciante (ver update_my_campaign/submit_my_campaign_content); o admin
+    # não cria/edita criativo por aqui.
     return [
         CreativeOut.model_validate(c) for c in ad_dao.list_creatives(db, campaign_id)
     ]
-
-
-def admin_create_creative(
-    db: Session, campaign_id: int, payload: CreativeIn
-) -> CreativeOut:
-    if not ad_dao.get_campaign(db, campaign_id):
-        raise HTTPException(status_code=404, detail="Campanha não encontrada")
-    creative = ad_dao.create_creative(db, campaign_id, **payload.model_dump())
-    return CreativeOut.model_validate(creative)
-
-
-def admin_update_creative(
-    db: Session, creative_id: int, payload: CreativeUpdate
-) -> CreativeOut:
-    creative = ad_dao.get_creative(db, creative_id)
-    if not creative:
-        raise HTTPException(status_code=404, detail="Criativo não encontrado")
-    fields = {k: v for k, v in payload.model_dump().items() if v is not None}
-    creative = ad_dao.update_creative(db, creative, **fields)
-    return CreativeOut.model_validate(creative)
 
 
 def _campaign_analytics(db: Session, campaign: AdCampaign, group_by: str) -> AnalyticsOut:

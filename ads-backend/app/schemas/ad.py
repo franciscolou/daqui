@@ -68,21 +68,6 @@ class CreativeIn(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     linked_user_id: int | None = None
-    weight: int = 1
-
-
-class CreativeUpdate(BaseModel):
-    title: str | None = None
-    content: str | None = None
-    image_url: str | None = None
-    video_url: str | None = None
-    cta_label: str | None = None
-    target_url: str | None = None
-    latitude: float | None = None
-    longitude: float | None = None
-    linked_user_id: int | None = None
-    weight: int | None = None
-    is_active: bool | None = None
 
 
 class CreativeOut(BaseModel):
@@ -98,8 +83,6 @@ class CreativeOut(BaseModel):
     latitude: float | None
     longitude: float | None
     linked_user_id: int | None
-    weight: int
-    is_active: bool
     impressions_count: int
     clicks_count: int
     created_at: datetime
@@ -149,7 +132,7 @@ class AdPlanCreate(BaseModel):
 
 class AdPlanUpdate(BaseModel):
     """Atualização parcial — só os campos enviados (não `None`) são
-    alterados, mesma convenção de `CampaignUpdate`/`CreativeUpdate`."""
+    alterados, mesma convenção de `CampaignUpdate`."""
 
     name: str | None = None
     slug: str | None = None

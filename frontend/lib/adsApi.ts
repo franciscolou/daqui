@@ -288,7 +288,6 @@ export interface CreativeInput {
   latitude?: number;
   longitude?: number;
   linkedUserId?: number;
-  weight?: number;
 }
 
 export interface CheckoutParams extends QuoteParams {
@@ -317,7 +316,6 @@ function creativeBody(c: CreativeInput) {
     latitude: c.latitude ?? null,
     longitude: c.longitude ?? null,
     linked_user_id: c.linkedUserId ?? null,
-    weight: c.weight ?? 1,
   };
 }
 
@@ -342,7 +340,6 @@ export interface MyCampaignCreative {
   latitude?: number;
   longitude?: number;
   linkedUserId?: number;
-  isActive: boolean;
   impressionsCount: number;
   clicksCount: number;
 }
@@ -437,7 +434,6 @@ interface BackendMyCampaign {
     latitude: number | null;
     longitude: number | null;
     linked_user_id: number | null;
-    is_active: boolean;
     impressions_count: number;
     clicks_count: number;
   }[];
@@ -502,7 +498,6 @@ function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
       latitude: c.latitude ?? undefined,
       longitude: c.longitude ?? undefined,
       linkedUserId: c.linked_user_id ?? undefined,
-      isActive: c.is_active,
       impressionsCount: c.impressions_count,
       clicksCount: c.clicks_count,
     })),

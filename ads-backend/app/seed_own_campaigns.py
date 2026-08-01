@@ -105,8 +105,6 @@ def seed_own_campaigns():
                         target_url=creative["target_url"],
                         latitude=creative["latitude"],
                         longitude=creative["longitude"],
-                        weight=1,
-                        is_active=True,
                     )
                 ],
                 plan_id=None,

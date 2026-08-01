@@ -7,8 +7,6 @@ export interface Creative {
   format?: string | null;
   image_url?: string | null;
   video_url?: string | null;
-  weight: number;
-  is_active: boolean;
   impressions_count: number;
   clicks_count: number;
 }

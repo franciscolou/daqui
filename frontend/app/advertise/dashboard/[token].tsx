@@ -157,7 +157,6 @@ export default function AdvertiserPanelScreen() {
               <View style={styles.creativeInfo}>
                 <Text style={styles.creativeTitle}>{c.title}</Text>
                 {!!c.content && <Text style={styles.creativeContent}>{c.content}</Text>}
-                {!c.isActive && <Text style={styles.creativePaused}>Variante pausada</Text>}
               </View>
             </View>
           ))}
@@ -362,7 +361,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   creativeInfo: { padding: 12, gap: 4 },
   creativeTitle: { fontSize: 15, fontWeight: '800', color: Colors.text },
   creativeContent: { fontSize: 13, color: Colors.textSecondary },
-  creativePaused: { fontSize: 12, fontWeight: '700', color: Colors.textTertiary, marginTop: 2 },
 
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   infoItem: { flexBasis: '47%', flexGrow: 1, gap: 2 },

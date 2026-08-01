@@ -18,9 +18,7 @@ from app.schemas.ad import (
     CheckoutRequest,
     CheckoutResponse,
     ClickIn,
-    CreativeIn,
     CreativeOut,
-    CreativeUpdate,
     GlobalAnalyticsOut,
     HasCampaignsOut,
     ManualCampaignCreate,
@@ -240,9 +238,9 @@ def admin_create_manual_campaign(
 def admin_mark_campaign_paid(
     campaign_id: int,
     db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
+    admin: AdAdmin = Depends(get_current_admin),
 ) -> CampaignAdminOut:
-    return ad_service.admin_mark_campaign_paid(db, campaign_id)
+    return ad_service.admin_mark_campaign_paid(db, admin, campaign_id)
 
 
 def admin_update_campaign(
@@ -292,25 +290,6 @@ def admin_list_creatives(
     _admin: AdAdmin = Depends(get_current_admin),
 ) -> list[CreativeOut]:
     return ad_service.admin_list_creatives(db, campaign_id)
-
-
-def admin_create_creative(
-    campaign_id: int,
-    payload: CreativeIn,
-    db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
-) -> CreativeOut:
-    return ad_service.admin_create_creative(db, campaign_id, payload)
-
-
-def admin_update_creative(
-    campaign_id: int,
-    creative_id: int,
-    payload: CreativeUpdate,
-    db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
-) -> CreativeOut:
-    return ad_service.admin_update_creative(db, creative_id, payload)
 
 
 def admin_get_analytics(

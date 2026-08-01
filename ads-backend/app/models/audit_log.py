@@ -22,6 +22,8 @@ class AdAuditLogAction(StrEnum):
 
     CAMPAIGN_PAUSE = "campaign_pause"
     CAMPAIGN_REACTIVATE = "campaign_reactivate"
+    CAMPAIGN_MARK_PAID = "campaign_mark_paid"
+    CAMPAIGN_UPDATE = "campaign_update"
     PLAN_CREATE = "plan_create"
     PLAN_UPDATE = "plan_update"
     PLAN_DELETE = "plan_delete"
