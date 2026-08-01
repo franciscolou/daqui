@@ -57,7 +57,8 @@ from app.services import ad_pricing
 WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 
 FORMAT_LABELS = {
-    AdFormat.POST: "Post + mapa",
+    AdFormat.POST: "Post no feed",
+    AdFormat.MAP: "Pin no mapa",
     AdFormat.CONVERSATION: "Conversa (Mensagens)",
     AdFormat.NOTIFICATION: "Novidades",
     AdFormat.SEARCH_POSTER: "Poster de busca",
@@ -121,7 +122,9 @@ def list_public_plans(db: Session) -> list[AdPlanOut]:
 
 def quote(db: Session, payload: QuoteRequest) -> QuoteResponse:
     if payload.plan_id is not None:
-        result = _plan_quote_breakdown(db, payload.plan_id, payload.duration_days)
+        result = _plan_quote_breakdown(
+            db, payload.plan_id, payload.duration_days, payload.formats
+        )
         if result is None:
             raise HTTPException(status_code=404, detail="Plano não encontrado")
         return QuoteResponse(
@@ -160,20 +163,27 @@ def upload_media(base_url: str, file: UploadFile) -> MediaUploadOut:
 
 
 def _plan_quote_breakdown(
-    db: Session, plan_id: int, duration_days: int
+    db: Session, plan_id: int, duration_days: int, formats: list[AdFormat] | None = None
 ) -> dict | None:
     """Preço de um plano predefinido (já com o multiplicador de mercado,
     igual ao mostrado no card em `list_public_plans`) — NÃO a cotação
-    dinâmica de `formats`/segmentação. É o que garante que "até 3 bairros
-    por R$ X" cobre exatamente R$ X mesmo com os 3 bairros preenchidos.
-    Quando `duration_days` difere da duração original do plano, o preço
-    escala via `ad_pricing.plan_quote` (sempre menos por dia quanto mais
-    tempo o anunciante escolher, ver docstring de lá)."""
+    dinâmica completa: a segmentação (bairros, alcance, concorrência…) não
+    entra aqui. É o que garante que "até 3 bairros por R$ X" cobre
+    exatamente R$ X mesmo com os 3 bairros preenchidos.
+    Quando `duration_days`/`formats` diferem dos do plano, o preço escala via
+    `ad_pricing.plan_quote` (sempre menos por dia quanto mais tempo, e
+    proporcional às superfícies escolhidas — ver docstring de lá)."""
     plan = ad_dao.get_plan(db, plan_id)
     if not plan:
         return None
     multiplier = settings_dao.get(db).price_multiplier
-    result = ad_pricing.plan_quote(plan.price_cents, plan.duration_days, duration_days)
+    result = ad_pricing.plan_quote(
+        plan.price_cents,
+        plan.duration_days,
+        duration_days,
+        plan_formats=plan.formats,
+        formats=formats,
+    )
     return {
         "price_cents": round(result["price_cents"] * multiplier),
         "base_cents": round(result["base_cents"] * multiplier),
@@ -182,14 +192,16 @@ def _plan_quote_breakdown(
 
 
 def _plan_locked_price(
-    db: Session, plan_id: int | None, duration_days: int
+    db: Session, plan_id: int | None, duration_days: int, formats: list[AdFormat]
 ) -> int | None:
-    """Preço final de uma campanha contratada via plano, pra `duration_days`
-    escolhido. Sem plano (montagem 100% avulsa), devolve `None` e o preço
-    volta a sair da engine dinâmica."""
+    """Preço final de uma campanha contratada via plano, pra a duração e os
+    formatos escolhidos — os MESMOS argumentos da cotação (`quote`), pra que
+    o valor cobrado no checkout seja exatamente o que foi mostrado na tela.
+    Sem plano (montagem 100% avulsa), devolve `None` e o preço volta a sair
+    da engine dinâmica."""
     if plan_id is None:
         return None
-    result = _plan_quote_breakdown(db, plan_id, duration_days)
+    result = _plan_quote_breakdown(db, plan_id, duration_days, formats)
     return result["price_cents"] if result else None
 
 
@@ -197,7 +209,9 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
     targeting = payload.effective_targeting()
     _check_targeting(targeting)
     schedule = payload.schedule or ScheduleIn()
-    price_cents = _plan_locked_price(db, payload.plan_id, payload.duration_days)
+    price_cents = _plan_locked_price(
+        db, payload.plan_id, payload.duration_days, payload.formats
+    )
     if price_cents is None:
         result = _quote_breakdown(
             db,
@@ -414,7 +428,9 @@ def admin_create_manual_campaign(
     schedule = payload.schedule or ScheduleIn()
     price_cents = payload.price_cents
     if price_cents is None:
-        price_cents = _plan_locked_price(db, payload.plan_id, payload.duration_days)
+        price_cents = _plan_locked_price(
+            db, payload.plan_id, payload.duration_days, payload.formats
+        )
     if price_cents is None:
         result = _quote_breakdown(
             db,

@@ -18,7 +18,8 @@ import AdPreview from '../../../../components/AdPreview';
 import AdvertiserIdentityFields from '../../../../components/AdvertiserIdentityFields';
 
 const FORMAT_LABEL: Record<string, string> = {
-  post: 'Post + mapa',
+  post: 'Post no feed',
+  map: 'Pin no mapa',
   conversation: 'Conversa (Mensagens)',
   notification: 'Novidades',
   search_poster: 'Poster de busca',

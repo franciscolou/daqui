@@ -18,6 +18,46 @@ def create_tables():
 
     Base.metadata.create_all(bind=engine)
     _ensure_columns()
+    _run_data_migrations()
+
+
+def _run_data_migrations():
+    """Migrações de DADOS (conteúdo de linhas, não schema). Diferente de
+    `_ensure_columns`, aqui a existência de uma coluna não serve de guarda —
+    rodar de novo estragaria escolhas legítimas do usuário —, então cada
+    migração é registrada por chave em `ads_data_migrations` e roda uma vez só.
+    """
+    from sqlalchemy import text
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE IF NOT EXISTS ads_data_migrations ("
+                "key VARCHAR(80) PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+            )
+        )
+        applied = {
+            row[0] for row in conn.execute(text("SELECT key FROM ads_data_migrations"))
+        }
+
+        # "post" deixou de significar "feed + pin no mapa" e virou só o card no
+        # feed, com o pin no formato "map" (ver models/ad.py::AdFormat). Quem
+        # contratou antes da separação comprou os dois lugares, então ganha o
+        # "map" — a partir daqui a escolha passa a ser sempre explícita, e por
+        # isso esta migração NÃO pode rodar de novo (post sozinho hoje é uma
+        # opção válida, não um dado a corrigir).
+        if "split_post_map_formats" not in applied:
+            for table in ("ad_campaigns", "ad_plans"):
+                conn.execute(
+                    text(
+                        f"UPDATE {table} SET formats = json_insert(formats, '$[#]', 'map') "  # noqa: S608
+                        "WHERE EXISTS (SELECT 1 FROM json_each(formats) WHERE value = 'post') "
+                        "AND NOT EXISTS (SELECT 1 FROM json_each(formats) WHERE value = 'map')"
+                    )
+                )
+            conn.execute(
+                text("INSERT INTO ads_data_migrations (key) VALUES ('split_post_map_formats')")
+            )
 
 
 def _ensure_columns():

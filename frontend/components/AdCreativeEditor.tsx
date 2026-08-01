@@ -20,11 +20,13 @@ import LocationPickerModal from './LocationPickerModal';
 // edição pelo próprio anunciante (dashboard/edit/[token].tsx).
 
 // Superfícies que podem receber um criativo próprio, na ordem em que
-// aparecem no editor. `post` cobre feed + pin no mapa; `search_poster` é a
-// Busca. Cada uma vira um `format` específico no backend (o base é
-// `format=null` e serve de fallback pra qualquer uma sem bloco próprio).
+// aparecem no editor. `post` é o card no feed e `map` o pin no mapa (formatos
+// independentes, contratados juntos ou separados); `search_poster` é a Busca.
+// Cada uma vira um `format` específico no backend (o base é `format=null` e
+// serve de fallback pra qualquer uma sem bloco próprio).
 export const OVERRIDE_FORMATS: { key: AdFormat; label: string; allowVideo: boolean }[] = [
-  { key: 'post', label: 'Feed e mapa', allowVideo: true },
+  { key: 'post', label: 'Feed', allowVideo: true },
+  { key: 'map', label: 'Mapa', allowVideo: false },
   { key: 'search_poster', label: 'Busca', allowVideo: true },
   { key: 'conversation', label: 'Mensagens', allowVideo: false },
   { key: 'notification', label: 'Novidades', allowVideo: false },
@@ -52,6 +54,7 @@ export interface CreativeBlocks {
   default: CreativeBlockDraft;
   // Sobreposições opcionais por superfície.
   post?: CreativeBlockDraft;
+  map?: CreativeBlockDraft;
   search_poster?: CreativeBlockDraft;
   conversation?: CreativeBlockDraft;
   notification?: CreativeBlockDraft;
@@ -132,6 +135,7 @@ export function creativesToBlocks(creatives: CreativeLike[]): CreativeBlocks {
   return {
     default: def ? draftFrom(def) : emptyCreativeBlock(),
     post: find('post'),
+    map: find('map'),
     search_poster: find('search_poster'),
     conversation: find('conversation'),
     notification: find('notification'),
@@ -171,7 +175,9 @@ export default function AdCreativeEditor({ formats, value, onChange }: AdCreativ
         draft={value.default}
         onChange={(next) => onChange({ ...value, default: next })}
         allowVideo
-        showLocation={formats.includes('post')}
+        // O pin (lat/lng) só é pedido quando a campanha inclui o mapa — quem
+        // leva só post/conversa/novidades/busca não tem endereço a informar.
+        showLocation={formats.includes('map')}
         showAccountLink
         user={user}
         Colors={Colors}
@@ -363,7 +369,7 @@ function CreativeBlockFields({
 
       {showLocation && (
         <View style={styles.locationField}>
-          <Text style={styles.fieldHint}>Local do pin no mapa</Text>
+          <Text style={styles.fieldHint}>Local do pin no mapa (obrigatório)</Text>
           <LocationAutocompleteInput
             value={draft.locationLabel || resolvedLabel}
             onChangeText={onChangeLocationText}

@@ -20,11 +20,14 @@ from app.database import Base
 
 
 class AdFormat(StrEnum):
-    """Os 4 formatos em que um anúncio pode aparecer no app Daqui. POST cobre
-    tanto o card no feed quanto o pin no mapa (mesmo anúncio, mesma lat/lng) —
-    não existe um formato "map" separado."""
+    """Os 5 formatos em que um anúncio pode aparecer no app Daqui. POST (card
+    no feed) e MAP (pin no mapa) são independentes: quem anuncia algo sem
+    endereço (um app, uma loja online) contrata só POST; quem só quer marcar
+    presença num ponto contrata só MAP. Escolher os dois juntos sai mais barato
+    que a soma (ver `POST_MAP_BUNDLE_DISCOUNT` em services/ad_pricing.py)."""
 
     POST = "post"
+    MAP = "map"
     CONVERSATION = "conversation"
     NOTIFICATION = "notification"
     SEARCH_POSTER = "search_poster"

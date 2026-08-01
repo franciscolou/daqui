@@ -67,11 +67,12 @@ export default function AdPreview({ formats, blocks }: { formats: AdFormat[]; bl
   const Colors = useTheme();
 
   const hasPost = formats.includes('post');
+  const hasMap = formats.includes('map');
   const hasSearch = formats.includes('search_poster');
   const hasConversation = formats.includes('conversation');
   const hasNotification = formats.includes('notification');
 
-  if (!hasPost && !hasSearch && !hasConversation && !hasNotification) return null;
+  if (!hasPost && !hasMap && !hasSearch && !hasConversation && !hasNotification) return null;
 
   return (
     <View style={styles.wrap}>
@@ -87,9 +88,9 @@ export default function AdPreview({ formats, blocks }: { formats: AdFormat[]; bl
           <FakePost post={FAKE_POSTS[1]} styles={styles} />
         </Frame>
       )}
-      {hasPost && (
+      {hasMap && (
         <Frame label="No mapa" icon="location-outline" styles={styles}>
-          <MapPreview draft={effectiveDraft(blocks, 'post')} styles={styles} />
+          <MapPreview draft={effectiveDraft(blocks, 'map')} styles={styles} />
         </Frame>
       )}
       {hasSearch && (

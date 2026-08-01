@@ -74,7 +74,10 @@ async function requestMultipart<T>(path: string, formData: FormData): Promise<T>
 // ─────────────────────────────────────────────────────────────
 // Tipos
 // ─────────────────────────────────────────────────────────────
-export type AdFormat = 'post' | 'conversation' | 'notification' | 'search_poster';
+// Superfícies onde um anúncio pode aparecer. "post" (card no feed) e "map"
+// (pin no mapa) são independentes — contratar os dois juntos sai mais barato
+// que a soma (ver `ads-backend/app/services/ad_pricing.py`).
+export type AdFormat = 'post' | 'map' | 'conversation' | 'notification' | 'search_poster';
 // Escopo geográfico de uma campanha/plano: do mais estreito ao mais amplo.
 // "neighborhood" usa `neighborhoods`, "citywide" usa `city`, "cities" usa
 // `cities` (várias cidades específicas) e "country" não usa nenhum dos três
