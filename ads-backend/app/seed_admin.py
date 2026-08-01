@@ -7,6 +7,7 @@ Execute: python -m app.seed_admin  (idempotente)
 
 from app.core.config import settings
 from app.core.security import hash_password
+from app.core.username import suggest_from_email
 from app.daos import admin as admin_dao
 from app.database import SessionLocal, create_tables
 from app.models.admin import AdAdminRole
@@ -25,7 +26,11 @@ def seed_admin():
                 print(f"• '{settings.ADS_ADMIN_EMAIL}' já é owner, nada a fazer.")
             return
         admin_dao.create(
-            db, settings.ADS_ADMIN_EMAIL, hash_password(settings.ADS_ADMIN_PASSWORD), role=AdAdminRole.OWNER
+            db,
+            settings.ADS_ADMIN_EMAIL,
+            suggest_from_email(settings.ADS_ADMIN_EMAIL),
+            hash_password(settings.ADS_ADMIN_PASSWORD),
+            role=AdAdminRole.OWNER,
         )
         print(
             f"✅ Owner de anúncios criado: {settings.ADS_ADMIN_EMAIL} / {settings.ADS_ADMIN_PASSWORD}"

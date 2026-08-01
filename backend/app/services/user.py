@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core import realtime_registry
 from app.core.uploads import save_data_url_image
+from app.daos import mention as mention_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.audit_log import AuditLogAction
@@ -78,17 +79,30 @@ def update_me(db: Session, user: User, payload: UserUpdate) -> User:
     data = payload.model_dump(exclude_none=True)
 
     new_username = data.get("username")
+    renamed_from = None
     if new_username and new_username != user.username:
         existing = user_dao.get_by_username(db, new_username)
         if existing and existing.id != user.id:
             raise HTTPException(status_code=409, detail="Este nome de usuário já está em uso")
+        renamed_from = user.username
 
-    return user_dao.update(db, user, data)
+    updated = user_dao.update(db, user, data)
+    if renamed_from:
+        # Menção é texto literal no conteúdo: sem isso, todo `@antigo` já
+        # publicado deixaria de resolver (mesmo caminho de services/staff.py).
+        mention_dao.rewrite_handle(db, renamed_from, new_username)
+    return updated
 
 
 def update_avatar(db: Session, user: User, base_url: str, data_url: str) -> User:
     avatar_url = save_data_url_image(base_url, data_url, prefix=str(user.id))
     return user_dao.update(db, user, {"avatar_url": avatar_url})
+
+
+def remove_avatar(db: Session, user: User) -> User:
+    """Volta pro avatar padrão (inicial do nome). O arquivo antigo fica no
+    disco de propósito: pode estar referenciado por conteúdo já publicado."""
+    return user_dao.update(db, user, {"avatar_url": None})
 
 
 def update_cover(db: Session, user: User, base_url: str, data_url: str) -> User:

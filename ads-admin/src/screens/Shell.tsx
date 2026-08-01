@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import { canManageStaff, useAuth } from '../lib/auth';
 import { STAFF_ROLE_LABEL } from '../lib/labels';
 import { Icon, IconName } from '../ui/Icon';
+import { Avatar } from '../ui/primitives';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { Account } from './Account';
 import { Campaigns } from './Campaigns';
 import { Analytics } from './Analytics';
 import { NewProposal } from './NewProposal';
 import { Plans } from './Plans';
-import { Security } from './Security';
 import { Settings } from './Settings';
 import { Staff } from './Staff';
 
@@ -61,14 +62,6 @@ const BASE_SECTIONS: Section[] = [
     render: () => <Plans />,
   },
   {
-    key: 'security',
-    label: 'Segurança',
-    icon: 'lock',
-    title: 'Segurança',
-    subtitle: 'Autenticação de dois fatores da sua conta',
-    render: () => <Security />,
-  },
-  {
     key: 'settings',
     label: 'Configurações',
     icon: 'settings',
@@ -76,9 +69,17 @@ const BASE_SECTIONS: Section[] = [
     subtitle: 'Parâmetros globais de precificação',
     render: () => <Settings />,
   },
+  {
+    key: 'account',
+    label: 'Minha conta',
+    icon: 'user',
+    title: 'Minha conta',
+    subtitle: 'Foto, senha e autenticação de dois fatores da sua conta',
+    render: () => <Account />,
+  },
 ];
 
-// Gestão de contas do time — inserida antes de "Segurança" para
+// Gestão de contas do time — inserida antes de "Configurações" para
 // Administrador/Owner. Moderador/Administrador/Owner têm paridade
 // operacional no resto do painel; só a Equipe difere por cargo.
 const STAFF_SECTION: Section = {
@@ -96,7 +97,7 @@ export function Shell() {
 
   const sections = useMemo(() => {
     if (!canManageStaff(me?.role)) return BASE_SECTIONS;
-    const idx = BASE_SECTIONS.findIndex((s) => s.key === 'security');
+    const idx = BASE_SECTIONS.findIndex((s) => s.key === 'settings');
     return [...BASE_SECTIONS.slice(0, idx), STAFF_SECTION, ...BASE_SECTIONS.slice(idx)];
   }, [me?.role]);
 
@@ -129,7 +130,7 @@ export function Shell() {
 
         <div className="sidebar-footer">
           <div className="who">
-            <div className="who-avatar">{(email[0] || '?').toUpperCase()}</div>
+            <Avatar url={me?.avatar_url} fallback={me?.username || email} />
             <div className="who-text">
               <div className="who-name" title={email}>
                 {email}

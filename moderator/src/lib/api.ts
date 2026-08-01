@@ -1,4 +1,4 @@
-// Cliente HTTP do ads-backend. A base (`API`) e o token são definidos no
+// Cliente HTTP do backend do Daqui. A base (`API`) e o token são definidos no
 // login e ficam neste módulo — as telas só chamam `api.get/post/...`.
 
 export class ApiError extends Error {
@@ -58,17 +58,6 @@ export const api = {
   /** Chamadas sem sessão (login, esqueci a senha) contra uma base específica. */
   public: <T>(path: string, body: unknown, base: string) =>
     request<T>(path, { method: 'POST', body, auth: false, base }),
-
-  /**
-   * Upload do criativo (imagem/vídeo). Sem `Content-Type` manual: o boundary
-   * do FormData precisa vir do próprio fetch.
-   */
-  async uploadMedia(file: File): Promise<{ url: string; type: 'image' | 'video' }> {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch(`${baseUrl}/ads/media`, { method: 'POST', body: formData });
-    return (await parse(res)) as { url: string; type: 'image' | 'video' };
-  },
 };
 
 export function errorMessage(e: unknown, fallback = 'Algo deu errado.'): string {

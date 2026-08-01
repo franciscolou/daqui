@@ -13,6 +13,7 @@ class AdAuditLogAction(StrEnum):
     hoje só cobre gestão de contas de staff (ver services/staff.py)."""
 
     STAFF_CREATE = "staff_create"
+    STAFF_USERNAME_CHANGE = "staff_username_change"
     STAFF_SUSPEND = "staff_suspend"
     STAFF_UNSUSPEND = "staff_unsuspend"
     STAFF_DELETE = "staff_delete"

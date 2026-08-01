@@ -29,6 +29,11 @@ _MAX_IMAGE_BYTES = 6 * 1024 * 1024  # 6 MB
 _MAX_VIDEO_BYTES = 30 * 1024 * 1024  # 30 MB
 
 
+def is_image_upload(file: UploadFile) -> bool:
+    """Só o mime — barato o bastante pra recusar antes de gravar em disco."""
+    return (file.content_type or "").lower() in _IMAGE_EXTS
+
+
 def save_upload_media(base_url: str, file: UploadFile, prefix: str) -> tuple[str, MediaType]:
     """Salva o criativo (imagem ou vídeo) de um anúncio, via multipart
     (streaming, sem carregar tudo em memória), e devolve `(url_publica, tipo)`.

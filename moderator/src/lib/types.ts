@@ -109,6 +109,7 @@ export interface StaffAccount {
   id: number;
   username: string;
   email: string;
+  avatar_url?: string | null;
   staff_role: string;
   is_suspended: boolean;
   suspension_reason?: string | null;
@@ -116,7 +117,10 @@ export interface StaffAccount {
 }
 
 export interface Me {
+  id: number;
+  username: string;
   email: string;
+  avatar_url?: string | null;
   staff_role?: string | null;
   two_factor_enabled: boolean;
 }

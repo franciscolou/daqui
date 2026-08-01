@@ -8,6 +8,7 @@ from app.schemas.staff import StaffOut
 admin_router = APIRouter(prefix="/admin/staff", tags=["ads-admin"])
 admin_router.get("", response_model=list[StaffOut])(staff.admin_list_staff)
 admin_router.post("", response_model=StaffOut, status_code=201)(staff.admin_create_staff)
+admin_router.patch("/{admin_id}/username", response_model=StaffOut)(staff.admin_rename_staff)
 admin_router.post("/{admin_id}/suspend", response_model=StaffOut)(staff.admin_suspend_staff)
 admin_router.delete("/{admin_id}/suspend", response_model=StaffOut)(staff.admin_unsuspend_staff)
 admin_router.delete("/{admin_id}", response_model=StaffOut)(staff.admin_delete_staff)

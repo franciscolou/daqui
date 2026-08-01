@@ -12,10 +12,20 @@ def get_by_id(db: Session, admin_id: int) -> AdAdmin | None:
     return db.get(AdAdmin, admin_id)
 
 
+def get_by_username(db: Session, username: str) -> AdAdmin | None:
+    return db.query(AdAdmin).filter(AdAdmin.username == username).first()
+
+
 def create(
-    db: Session, email: str, hashed_password: str, role: AdAdminRole = AdAdminRole.MODERADOR
+    db: Session,
+    email: str,
+    username: str,
+    hashed_password: str,
+    role: AdAdminRole = AdAdminRole.MODERADOR,
 ) -> AdAdmin:
-    admin = AdAdmin(email=email, hashed_password=hashed_password, role=role)
+    admin = AdAdmin(
+        email=email, username=username, hashed_password=hashed_password, role=role
+    )
     db.add(admin)
     db.commit()
     db.refresh(admin)

@@ -42,6 +42,10 @@ class AdAdmin(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
     )
+    # Identidade exibida no painel (o e-mail continua sendo o login). Editável
+    # por quem está acima no rank — ver services/staff.py::admin_rename_staff.
+    username: Mapped[str] = mapped_column(String(30), unique=True, index=True, nullable=False)
+    avatar_url: Mapped[str | None] = mapped_column(String(500))
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     # A2F (TOTP): segredo base32; totp_enabled só vira True após confirmar um código.
     totp_secret: Mapped[str | None] = mapped_column(String(64))

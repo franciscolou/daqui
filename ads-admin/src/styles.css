@@ -858,6 +858,14 @@ input[type='file'] {
   margin-top: 8px;
 }
 
+/* Foto de perfil na seção "Minha conta": preview + ações ao lado. */
+.avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .form-card {
   background: var(--surface);
   border: 1px solid var(--border-light);

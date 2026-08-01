@@ -112,6 +112,8 @@ export interface Plan {
 export interface StaffAccount {
   id: number;
   email: string;
+  username: string;
+  avatar_url?: string | null;
   role: string;
   is_suspended: boolean;
   created_at: string;

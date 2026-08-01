@@ -17,7 +17,8 @@ router.get(  "/popular",            response_model=list[UserPublic])(user.list_p
 router.get(  "/check-username",     response_model=UsernameAvailability)(user.check_username)
 router.get(  "/neighborhood-stats", response_model=NeighborhoodStats)(user.neighborhood_stats)
 router.patch("/me",                 response_model=UserPublic)(user.update_me)
-router.post( "/me/avatar",          response_model=UserPublic)(user.update_avatar)
+router.post(  "/me/avatar",         response_model=UserPublic)(user.update_avatar)
+router.delete("/me/avatar",         response_model=UserPublic)(user.remove_avatar)
 router.post( "/me/cover",           response_model=UserPublic)(user.update_cover)
 # Estática antes da dinâmica `/{user_id}` (resolve @handle → perfil na menção).
 router.get(  "/by-username/{username}", response_model=UserPublic)(user.get_user_by_username)

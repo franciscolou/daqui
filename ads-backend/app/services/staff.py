@@ -6,7 +6,7 @@ from app.core.staff_rank import can_manage
 from app.daos import admin as admin_dao
 from app.models.admin import AdAdmin, AdAdminRole
 from app.models.audit_log import AdAuditLogAction
-from app.schemas.staff import StaffCreateIn, StaffOut
+from app.schemas.staff import StaffCreateIn, StaffOut, StaffUsernameIn
 from app.services import audit_log as audit_log_service
 
 
@@ -26,8 +26,16 @@ def admin_create_staff(db: Session, payload: StaffCreateIn, actor: AdAdmin) -> S
 
     if admin_dao.get_by_email(db, payload.email):
         raise HTTPException(status_code=400, detail="Este e-mail já está em uso")
+    if admin_dao.get_by_username(db, payload.username):
+        raise HTTPException(status_code=400, detail="Este nome de usuário já está em uso")
 
-    staff = admin_dao.create(db, payload.email, hash_password(payload.password), role=payload.role)
+    staff = admin_dao.create(
+        db,
+        payload.email,
+        payload.username,
+        hash_password(payload.password),
+        role=payload.role,
+    )
     audit_log_service.log(
         db, actor, AdAuditLogAction.STAFF_CREATE, staff.id, f"Criou conta {payload.role} para {payload.email}"
     )
@@ -41,6 +49,32 @@ def _get_target(db: Session, actor: AdAdmin, admin_id: int) -> AdAdmin:
     if not can_manage(actor, target):
         raise HTTPException(status_code=403, detail="Não é possível gerenciar esta conta")
     return target
+
+
+def admin_rename_staff(
+    db: Session, admin_id: int, payload: StaffUsernameIn, actor: AdAdmin
+) -> StaffOut:
+    """Troca o username de uma conta de staff de rank inferior. Todo lugar que
+    mostra o username (listagem de equipe, auditoria) sai de FK pra `ad_admins`,
+    então acompanha sozinho — aqui não há conteúdo com o handle escrito no meio
+    do texto, diferente do backend principal (menções)."""
+    target = _get_target(db, actor, admin_id)
+    new_username = payload.username
+    if new_username == target.username:
+        return _out(target)
+    if admin_dao.get_by_username(db, new_username):
+        raise HTTPException(status_code=400, detail="Este nome de usuário já está em uso")
+
+    old_username = target.username
+    admin_dao.update(db, target, {"username": new_username})
+    audit_log_service.log(
+        db,
+        actor,
+        AdAuditLogAction.STAFF_USERNAME_CHANGE,
+        target.id,
+        f"Renomeou @{old_username} para @{new_username}",
+    )
+    return _out(target)
 
 
 def admin_suspend_staff(db: Session, admin_id: int, actor: AdAdmin) -> StaffOut:

@@ -3,11 +3,12 @@ import { canManageStaff, useAuth } from '../lib/auth';
 import { STAFF_ROLE_LABEL } from '../lib/labels';
 import { Icon, IconName } from '../ui/Icon';
 import { NavigationProvider } from '../ui/moderation';
+import { Avatar } from '../ui/primitives';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { Account } from './Account';
 import { Audit } from './Audit';
 import { Reports } from './Reports';
 import { Reviews } from './Reviews';
-import { Security } from './Security';
 import { Staff } from './Staff';
 import { Tickets } from './Tickets';
 import { Users } from './Users';
@@ -60,15 +61,15 @@ const BASE_SECTIONS: Section[] = [
     subtitle: 'Toda ação da moderação, pesquisável',
   },
   {
-    key: 'security',
-    label: 'Segurança',
-    icon: 'lock',
-    title: 'Segurança',
-    subtitle: 'Autenticação de dois fatores da sua conta',
+    key: 'account',
+    label: 'Minha conta',
+    icon: 'user',
+    title: 'Minha conta',
+    subtitle: 'Foto, senha e autenticação de dois fatores da sua conta',
   },
 ];
 
-// Gestão de contas do time — inserida antes de "Segurança" para
+// Gestão de contas do time — inserida antes de "Minha conta" para
 // Administrador/Owner.
 const STAFF_SECTION: Section = {
   key: 'staff',
@@ -94,7 +95,7 @@ export function Shell() {
 
   const sections = useMemo(() => {
     if (!canManageStaff(me?.staff_role)) return BASE_SECTIONS;
-    const idx = BASE_SECTIONS.findIndex((s) => s.key === 'security');
+    const idx = BASE_SECTIONS.findIndex((s) => s.key === 'account');
     return [...BASE_SECTIONS.slice(0, idx), STAFF_SECTION, ...BASE_SECTIONS.slice(idx)];
   }, [me?.staff_role]);
 
@@ -115,8 +116,8 @@ export function Shell() {
         return <Audit />;
       case 'staff':
         return <Staff />;
-      case 'security':
-        return <Security />;
+      case 'account':
+        return <Account />;
       default:
         return null;
     }
@@ -152,7 +153,7 @@ export function Shell() {
 
           <div className="sidebar-footer">
             <div className="who">
-              <div className="who-avatar">{(email[0] || '?').toUpperCase()}</div>
+              <Avatar url={me?.avatar_url} fallback={me?.username || email} />
               <div className="who-text">
                 <div className="who-name" title={email}>
                   {email}

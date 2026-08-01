@@ -1,4 +1,4 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from jose import JWTError
 
 from app.core import totp
@@ -13,10 +13,12 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
+from app.core.uploads import is_image_upload, save_upload_media
 from app.daos import admin as admin_dao
 from app.models.admin import AdAdmin
 from app.schemas.auth import (
     AdAdminMe,
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
@@ -30,7 +32,28 @@ _MIN_PASSWORD_LEN = 6
 
 
 def me(admin: AdAdmin) -> AdAdminMe:
-    return AdAdminMe(email=admin.email, two_factor_enabled=admin.totp_enabled, role=admin.role)
+    return AdAdminMe(
+        email=admin.email,
+        username=admin.username,
+        avatar_url=admin.avatar_url,
+        two_factor_enabled=admin.totp_enabled,
+        role=admin.role,
+    )
+
+
+def update_avatar(db, admin: AdAdmin, base_url: str, file: UploadFile) -> AdAdminMe:
+    if not is_image_upload(file):
+        raise HTTPException(status_code=400, detail="A foto de perfil precisa ser uma imagem")
+    url, _ = save_upload_media(base_url, file, prefix=f"admin{admin.id}")
+    admin_dao.update(db, admin, {"avatar_url": url})
+    return me(admin)
+
+
+def remove_avatar(db, admin: AdAdmin) -> AdAdminMe:
+    """Volta pra inicial do e-mail. O arquivo antigo fica no disco de
+    propósito — o mesmo caminho pode estar em cache no navegador de outros."""
+    admin_dao.update(db, admin, {"avatar_url": None})
+    return me(admin)
 
 
 def login(db, payload: LoginRequest) -> LoginResponse:
@@ -118,9 +141,21 @@ def reset_password(db, payload: ResetPasswordRequest) -> None:
     admin = admin_dao.get_by_id(db, admin_id)
     if not admin:
         raise HTTPException(status_code=400, detail="Link inválido ou expirado.")
-    if len(payload.new_password) < _MIN_PASSWORD_LEN:
+    _check_password_len(payload.new_password)
+    admin_dao.update(db, admin, {"hashed_password": hash_password(payload.new_password)})
+
+
+def change_password(db, admin: AdAdmin, payload: ChangePasswordRequest) -> None:
+    """Troca de senha com a sessão aberta — pede a senha atual, sem passar por e-mail."""
+    if not verify_password(payload.current_password, admin.hashed_password):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+    _check_password_len(payload.new_password)
+    admin_dao.update(db, admin, {"hashed_password": hash_password(payload.new_password)})
+
+
+def _check_password_len(password: str) -> None:
+    if len(password) < _MIN_PASSWORD_LEN:
         raise HTTPException(
             status_code=400,
             detail=f"A nova senha deve ter ao menos {_MIN_PASSWORD_LEN} caracteres",
         )
-    admin_dao.update(db, admin, {"hashed_password": hash_password(payload.new_password)})
