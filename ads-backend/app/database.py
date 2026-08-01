@@ -160,3 +160,29 @@ def _ensure_columns():
                 )
             if "is_suspended" not in columns:
                 conn.execute(text("ALTER TABLE ad_admins ADD COLUMN is_suspended BOOLEAN DEFAULT 0 NOT NULL"))
+            if "avatar_url" not in columns:
+                conn.execute(text("ALTER TABLE ad_admins ADD COLUMN avatar_url VARCHAR(500)"))
+            if "username" not in columns:
+                # Contas anteriores à coluna: handle derivado do e-mail, com
+                # sufixo numérico se colidir (a coluna é única).
+                from app.core.username import suggest_from_email
+
+                conn.execute(text("ALTER TABLE ad_admins ADD COLUMN username VARCHAR(30)"))
+                taken: set[str] = set()
+                rows = list(conn.execute(text("SELECT id, email FROM ad_admins")))
+                for admin_id, email in rows:
+                    handle = suggest_from_email(email)
+                    candidate, n = handle, 2
+                    while candidate in taken:
+                        candidate, n = f"{handle[:16]}{n}", n + 1
+                    taken.add(candidate)
+                    conn.execute(
+                        text("UPDATE ad_admins SET username = :u WHERE id = :id"),
+                        {"u": candidate, "id": admin_id},
+                    )
+                conn.execute(
+                    text(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS ix_ad_admins_username "
+                        "ON ad_admins (username)"
+                    )
+                )

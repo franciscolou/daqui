@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_administrator, get_db
 from app.models.admin import AdAdmin
-from app.schemas.staff import StaffCreateIn, StaffOut
+from app.schemas.staff import StaffCreateIn, StaffOut, StaffUsernameIn
 from app.services import staff
 
 
@@ -21,6 +21,15 @@ def admin_create_staff(
     actor: AdAdmin = Depends(get_current_administrator),
 ) -> StaffOut:
     return staff.admin_create_staff(db, payload, actor)
+
+
+def admin_rename_staff(
+    admin_id: int,
+    payload: StaffUsernameIn,
+    db: Session = Depends(get_db),
+    actor: AdAdmin = Depends(get_current_administrator),
+) -> StaffOut:
+    return staff.admin_rename_staff(db, admin_id, payload, actor)
 
 
 def admin_suspend_staff(

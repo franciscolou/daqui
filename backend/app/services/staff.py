@@ -3,10 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
 from app.core.staff_rank import can_manage
+from app.daos import mention as mention_dao
 from app.daos import user as user_dao
 from app.models.audit_log import AuditLogAction
 from app.models.user import StaffRole, User
-from app.schemas.staff import StaffCreateIn, StaffOut
+from app.schemas.staff import StaffCreateIn, StaffOut, StaffUsernameIn
 from app.services import audit_log as audit_log_service
 
 
@@ -58,6 +59,35 @@ def _get_target(db: Session, actor: User, user_id: int) -> User:
     if not can_manage(actor, target):
         raise HTTPException(status_code=403, detail="Não é possível gerenciar esta conta")
     return target
+
+
+def admin_rename_staff(db: Session, user_id: int, payload: StaffUsernameIn, actor: User) -> StaffOut:
+    """Troca o username de uma conta de staff de rank inferior.
+
+    O username é a identidade exibida em todo lugar — como as menções ficam
+    guardadas como texto literal no conteúdo, a troca reescreve as antigas
+    (ver daos/mention.py). O resto (logs de auditoria, autoria de post…) sai
+    de FK pro usuário, então acompanha sozinho.
+    """
+    target = _get_target(db, actor, user_id)
+    new_username = payload.username
+    if new_username == target.username:
+        return _out(target)
+    existing = user_dao.get_by_username(db, new_username)
+    if existing:
+        raise HTTPException(status_code=400, detail="Este nome de usuário já está em uso")
+
+    old_username = target.username
+    user_dao.update(db, target, {"username": new_username})
+    mention_dao.rewrite_handle(db, old_username, new_username)
+    audit_log_service.log(
+        db,
+        actor,
+        AuditLogAction.STAFF_USERNAME_CHANGE,
+        target.id,
+        f"Renomeou @{old_username} para @{new_username}",
+    )
+    return _out(target)
 
 
 def admin_suspend_staff(db: Session, user_id: int, actor: User) -> StaffOut:

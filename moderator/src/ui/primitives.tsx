@@ -14,6 +14,39 @@ export function Badge({
   return <span className={`badge ${tone === 'neutral' ? '' : tone}`}>{children}</span>;
 }
 
+/** Foto de perfil (ou a inicial, quando não há foto). Mesmo desenho do
+ *  `who-avatar` da sidebar, com tamanho/raio ajustáveis. */
+export function Avatar({
+  url,
+  fallback,
+  size = 32,
+  radius,
+}: {
+  url?: string | null;
+  fallback?: string | null;
+  size?: number;
+  radius?: number;
+}) {
+  return (
+    <div
+      className="who-avatar"
+      style={{
+        width: size,
+        height: size,
+        fontSize: Math.round(size * 0.4),
+        overflow: 'hidden',
+        ...(radius === undefined ? {} : { borderRadius: radius }),
+      }}
+    >
+      {url ? (
+        <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        ((fallback ?? '')[0] || '?').toUpperCase()
+      )}
+    </div>
+  );
+}
+
 export function Tabs<T extends string>({
   value,
   options,

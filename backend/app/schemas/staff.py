@@ -20,10 +20,22 @@ class StaffCreateIn(BaseModel):
         return _validate_username(value)
 
 
+class StaffUsernameIn(BaseModel):
+    """Renomear conta de staff (só quem está acima no rank — ver services/staff.py)."""
+
+    username: str
+
+    @field_validator("username")
+    @classmethod
+    def check_username(cls, value: str) -> str:
+        return _validate_username(value)
+
+
 class StaffOut(BaseModel):
     id: int
     email: EmailStr
     username: str
+    avatar_url: str | None = None
     staff_role: StaffRole
     is_suspended: bool
     suspension_reason: str | None = None

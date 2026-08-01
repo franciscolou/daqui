@@ -1,10 +1,11 @@
-from fastapi import Depends
+from fastapi import Depends, File, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin, get_db
 from app.models.admin import AdAdmin
 from app.schemas.auth import (
     AdAdminMe,
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     LoginResponse,
@@ -58,3 +59,27 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> None:
     auth_service.reset_password(db, payload)
+
+
+def update_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_admin: AdAdmin = Depends(get_current_admin),
+) -> AdAdminMe:
+    return auth_service.update_avatar(db, current_admin, str(request.base_url), file)
+
+
+def remove_avatar(
+    db: Session = Depends(get_db),
+    current_admin: AdAdmin = Depends(get_current_admin),
+) -> AdAdminMe:
+    return auth_service.remove_avatar(db, current_admin)
+
+
+def change_password(
+    payload: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_admin: AdAdmin = Depends(get_current_admin),
+) -> None:
+    auth_service.change_password(db, current_admin, payload)

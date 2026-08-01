@@ -7,6 +7,8 @@ import { api, setApiBase, setToken } from './api';
 
 export interface Me {
   email: string;
+  username: string;
+  avatar_url?: string | null;
   role: string;
   two_factor_enabled: boolean;
 }

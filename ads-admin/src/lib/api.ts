@@ -69,6 +69,16 @@ export const api = {
     const res = await fetch(`${baseUrl}/ads/media`, { method: 'POST', body: formData });
     return (await parse(res)) as { url: string; type: 'image' | 'video' };
   },
+
+  /** Upload autenticado de um arquivo só (foto de perfil). */
+  async uploadFile<T>(path: string, file: File): Promise<T> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(baseUrl + path, { method: 'POST', headers, body: formData });
+    return (await parse(res)) as T;
+  },
 };
 
 export function errorMessage(e: unknown, fallback = 'Algo deu errado.'): string {

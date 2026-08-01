@@ -78,6 +78,13 @@ def update_avatar(
     return user.update_avatar(db, current_user, str(request.base_url), payload.image)
 
 
+def remove_avatar(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserPublic:
+    return user.remove_avatar(db, current_user)
+
+
 def update_cover(
     payload: CoverUpdate,
     request: Request,

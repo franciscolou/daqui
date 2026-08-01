@@ -45,7 +45,14 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class AdAdminMe(BaseModel):
     email: EmailStr
+    username: str
+    avatar_url: str | None = None
     two_factor_enabled: bool
     role: AdAdminRole

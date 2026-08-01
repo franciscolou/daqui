@@ -6,11 +6,14 @@ import { STAFF_RANK, STAFF_ROLE_LABEL } from '../lib/labels';
 import { StaffAccount } from '../lib/types';
 import { useAsync } from '../lib/useAsync';
 import { useDialogs } from '../ui/dialogs';
-import { Badge, EmptyState, Field, LoadingState, Modal } from '../ui/primitives';
+import { Avatar, Badge, EmptyState, Field, LoadingState, Modal } from '../ui/primitives';
 
 // Gestão de contas de staff. Administrador gerencia Moderador; Owner gerencia
 // Moderador e Administrador. O servidor é a autoridade (403 fora de rank) —
 // aqui só decidimos o que mostrar/habilitar.
+
+const RENAME_HINT =
+  'De 3 a 18 caracteres: letras minúsculas, números, ponto ou sublinhado.';
 
 function roleTone(role: string): 'green' | 'amber' | 'neutral' {
   if (role === 'owner') return 'green';
@@ -25,6 +28,7 @@ export function Staff() {
     api.get<StaffAccount[]>('/admin/staff'),
   );
   const [createOpen, setCreateOpen] = useState(false);
+  const [renaming, setRenaming] = useState<StaffAccount | null>(null);
 
   const act = async (run: () => Promise<unknown>) => {
     try {
@@ -81,11 +85,10 @@ export function Staff() {
           return (
             <div key={s.id} className="card">
               <div className="card-head">
-                <div className="who-avatar" style={{ width: 42, height: 42, borderRadius: 14 }}>
-                  {(s.email[0] || '?').toUpperCase()}
-                </div>
+                <Avatar url={s.avatar_url} fallback={s.username} size={42} radius={14} />
                 <div className="grow">
-                  <div className="card-title">{s.email}</div>
+                  <div className="card-title">{s.username}</div>
+                  <div className="card-sub">{s.email}</div>
                   <div className="tag-row" style={{ marginTop: 6 }}>
                     <Badge tone={roleTone(s.role)}>{STAFF_ROLE_LABEL[s.role] || s.role}</Badge>
                     {s.is_suspended && <Badge tone="red">Suspensa</Badge>}
@@ -96,6 +99,9 @@ export function Staff() {
 
               {canManage && (
                 <div className="actions" style={{ marginTop: 14 }}>
+                  <button type="button" className="btn" onClick={() => setRenaming(s)}>
+                    Alterar usuário
+                  </button>
                   {s.is_suspended ? (
                     <button type="button" className="btn warn" onClick={() => unsuspend(s)}>
                       Reativar
@@ -113,6 +119,17 @@ export function Staff() {
             </div>
           );
         })}
+
+      {renaming && (
+        <RenameStaffModal
+          account={renaming}
+          onClose={() => setRenaming(null)}
+          onRenamed={async () => {
+            setRenaming(null);
+            await reload();
+          }}
+        />
+      )}
 
       {createOpen && (
         <CreateStaffModal
@@ -138,6 +155,7 @@ function CreateStaffModal({
   onCreated: () => Promise<void>;
 }) {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('moderador');
   const [error, setError] = useState('');
@@ -147,7 +165,12 @@ function CreateStaffModal({
     setError('');
     setBusy(true);
     try {
-      await api.post('/admin/staff', { email: email.trim(), password, role });
+      await api.post('/admin/staff', {
+        email: email.trim(),
+        username: username.trim(),
+        password,
+        role,
+      });
       await onCreated();
     } catch (e) {
       setError(errorMessage(e));
@@ -179,6 +202,13 @@ function CreateStaffModal({
           onChange={(e) => setEmail(e.target.value)}
         />
       </Field>
+      <Field label="Usuário" hint={RENAME_HINT}>
+        <input
+          placeholder="nome.usuario"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+      </Field>
       <Field label="Senha">
         <input
           type="password"
@@ -192,6 +222,62 @@ function CreateStaffModal({
           <option value="moderador">Moderador</option>
           {ownerMode && <option value="administrador">Administrador</option>}
         </select>
+      </Field>
+      {error && <div className="err">{error}</div>}
+    </Modal>
+  );
+}
+
+function RenameStaffModal({
+  account,
+  onClose,
+  onRenamed,
+}: {
+  account: StaffAccount;
+  onClose: () => void;
+  onRenamed: () => Promise<void>;
+}) {
+  const [username, setUsername] = useState(account.username);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      await api.patch(`/admin/staff/${account.id}/username`, { username: username.trim() });
+      await onRenamed();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Alterar nome de usuário"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn" onClick={onClose}>
+            Cancelar
+          </button>
+          <button type="button" className="btn primary" disabled={busy} onClick={submit}>
+            Salvar
+          </button>
+        </>
+      }
+    >
+      <p className="muted">
+        Conta de <b>{account.email}</b>, hoje <b>@{account.username}</b>.
+      </p>
+      <Field label="Novo nome de usuário" hint={RENAME_HINT}>
+        <input
+          placeholder="nome.usuario"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
       </Field>
       {error && <div className="err">{error}</div>}
     </Modal>

@@ -29,3 +29,14 @@ def validate(value: str) -> str:
     if not USERNAME_RE.match(normalized):
         raise ValueError(MESSAGE)
     return normalized
+
+
+def mention_pattern(handle: str) -> re.Pattern[str]:
+    """Casa exatamente `@handle` dentro de um texto já publicado.
+
+    Mesmas bordas de `services/mentions.py::MENTION_RE` (nada de `\\w` ou `@`
+    antes, pra não pegar e-mail; nada do alfabeto de username depois, pra
+    `@ana` não casar dentro de `@ana.silva`). Usado ao renomear uma conta —
+    ver `daos/mention.py`.
+    """
+    return re.compile(rf"(?<![\w@])@{re.escape(handle)}(?![a-zA-Z0-9._])", re.IGNORECASE)
