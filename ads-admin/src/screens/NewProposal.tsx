@@ -165,6 +165,13 @@ export function NewProposal() {
   const submit = async () => {
     setError('');
     setCheckoutUrl('');
+    // O formato "map" só entrega alguma coisa com um ponto marcado — o
+    // ads-backend recusa sem ele (schemas/ad.py::check_map_has_pin), então
+    // aviso aqui em vez de deixar virar um 422 genérico.
+    if (formats.includes('map') && !location) {
+      setError('Marque a localização no mapa para usar o formato "Pin no mapa".');
+      return;
+    }
     setBusy(true);
     try {
       const res = await api.post<{ checkout_url: string }>('/admin/ads/campaigns', payload);
@@ -338,7 +345,7 @@ export function NewProposal() {
         </Field>
 
         <Field
-          label="Localização no mapa (se formato &quot;post&quot;)"
+          label="Localização no mapa (obrigatória no formato &quot;Pin no mapa&quot;)"
           hint="Mesmo seletor de local do app Daqui: busque um endereço ou marque o ponto no mapa."
         >
           <LocationField value={location} onChange={setLocation} />

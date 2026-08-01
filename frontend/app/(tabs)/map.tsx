@@ -72,7 +72,7 @@ export default function MapScreen() {
 
   useEffect(() => {
     adsApi
-      .getAd('post', {
+      .getAd('map', {
         neighborhood: user?.neighborhood,
         city: user?.city,
         engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
@@ -172,7 +172,7 @@ export default function MapScreen() {
               focusId={params.focus}
               onSelectMarker={(id) => {
                 if (ad && id === `ad-${ad.id}`) {
-                  adsApi.trackAdClick(ad.id, { viewerId: adViewerId, creativeId: ad.creativeId, format: 'post' });
+                  adsApi.trackAdClick(ad.id, { viewerId: adViewerId, creativeId: ad.creativeId, format: 'map' });
                   Linking.openURL(ad.targetUrl);
                   return;
                 }

@@ -15,12 +15,22 @@ import { adsApi, AdFormat, AdObjective, GeoScope, PriceFactor } from '../../lib/
 import NeighborhoodPicker from '../../components/NeighborhoodPicker';
 import CityPicker from '../../components/CityPicker';
 
-const FORMATS: { key: AdFormat; label: string; desc: string }[] = [
-  { key: 'post', label: 'Post + mapa', desc: 'Aparece como post no feed e ganha um pin no mapa.' },
-  { key: 'conversation', label: 'Conversa', desc: 'Linha na aba Mensagens, abre um link ao tocar.' },
-  { key: 'notification', label: 'Novidades', desc: 'Item na aba de notificações.' },
-  { key: 'search_poster', label: 'Poster de busca', desc: 'Aparece na Busca antes do usuário pesquisar algo.' },
+const FORMATS: { key: AdFormat; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'post', label: 'Post no feed', desc: 'Card no meio do feed do bairro, como um post comum.', icon: 'newspaper-outline' },
+  { key: 'map', label: 'Pin no mapa', desc: 'Marca seu ponto no mapa do bairro. Precisa de um endereço.', icon: 'location-outline' },
+  { key: 'conversation', label: 'Conversa', desc: 'Linha na aba Mensagens, abre um link ao tocar.', icon: 'chatbubbles-outline' },
+  { key: 'notification', label: 'Novidades', desc: 'Item na aba de notificações.', icon: 'notifications-outline' },
+  { key: 'search_poster', label: 'Poster de busca', desc: 'Aparece na Busca antes do usuário pesquisar algo.', icon: 'search-outline' },
 ];
+
+// "post" e "map" são vendidos separados (quem anuncia um app não tem endereço
+// pra fixar; quem tem uma loja pode querer só o pin), mas juntos custam menos
+// que a soma — o par abaixo é o que a UI destaca como combo. O percentual
+// espelha `POST_MAP_BUNDLE_DISCOUNT` em `ads-backend/app/services/ad_pricing.py`;
+// o valor economizado de verdade sai sempre da cotação (fator abaixo).
+const COMBO_FORMATS: AdFormat[] = ['post', 'map'];
+const COMBO_DISCOUNT_PCT = 15;
+const COMBO_FACTOR_LABEL = 'Combo post + mapa';
 
 const GEO_SCOPE_OPTIONS: { key: GeoScope; label: string }[] = [
   { key: 'neighborhood', label: 'Bairros' },
@@ -428,17 +438,49 @@ export default function CustomizeScreen() {
     setFormats((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
   };
 
+  const comboActive = COMBO_FORMATS.every((f) => formats.includes(f));
+  const needsPin = formats.includes('map');
+
+  // Função de render (não um componente declarado aqui dentro): um componente
+  // novo a cada render remontaria o card inteiro a cada tecla digitada.
+  const renderFormatCard = (f: (typeof FORMATS)[number]) => {
+    const active = formats.includes(f.key);
+    return (
+      <TouchableOpacity
+        key={f.key}
+        style={[styles.formatCard, active && styles.formatCardActive]}
+        activeOpacity={0.85}
+        onPress={() => toggleFormat(f.key)}
+      >
+        <Ionicons
+          name={active ? 'checkbox' : 'square-outline'}
+          size={20}
+          color={active ? Colors.primary : Colors.textTertiary}
+        />
+        <Ionicons name={f.icon} size={18} color={active ? Colors.primary : Colors.textTertiary} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.formatCardTitle}>{f.label}</Text>
+          <Text style={styles.formatCardDesc}>{f.desc}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   const canContinue = formats.length > 0 && hasGeoTarget && priceCents != null;
 
   // Quanto do preço atual já é economia da duração escolhida: isola o fator
   // "Desconto por duração" (sempre presente, ver ad_pricing.py) dos demais —
   // se P = base * outrosFatores * fDuração, então P/fDuração é o preço sem
   // esse desconto específico, e a diferença é o valor economizado em reais.
-  const durationFactor = factors.find((f) => f.label === 'Desconto por duração')?.multiplier;
-  const durationDiscountCents =
-    priceCents != null && durationFactor != null && durationFactor > 0 && durationFactor < 1
-      ? Math.round((priceCents * (1 - durationFactor)) / durationFactor)
-      : 0;
+  const savingsFromFactor = (label: string) => {
+    const factor = factors.find((f) => f.label === label)?.multiplier;
+    if (priceCents == null || factor == null || factor <= 0 || factor >= 1) return 0;
+    return Math.round((priceCents * (1 - factor)) / factor);
+  };
+  const durationDiscountCents = savingsFromFactor('Desconto por duração');
+  // Mesma conta pro combo post+mapa: quanto o anunciante já está economizando
+  // por ter escolhido os dois juntos em vez de contratá-los separadamente.
+  const comboDiscountCents = savingsFromFactor(COMBO_FACTOR_LABEL);
 
   const goToCheckout = () => {
     router.push({
@@ -485,27 +527,35 @@ export default function CustomizeScreen() {
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         <Text style={styles.label}>Onde seu anúncio aparece</Text>
-        {FORMATS.map((f) => {
-          const active = formats.includes(f.key);
-          return (
-            <TouchableOpacity
-              key={f.key}
-              style={[styles.formatCard, active && styles.formatCardActive]}
-              activeOpacity={0.85}
-              onPress={() => toggleFormat(f.key)}
-            >
+        {/* Post e mapa vêm agrupados numa moldura com a faixa do combo entre
+            os dois: separados na escolha (dá pra levar só um), mas com o
+            desconto visível no exato momento de decidir. */}
+        <View style={[styles.comboBox, comboActive && styles.comboBoxActive]}>
+          {renderFormatCard(FORMATS[0])}
+          <View style={styles.comboBanner}>
+            <View style={styles.comboBannerLine} />
+            <View style={[styles.comboPill, comboActive && styles.comboPillActive]}>
               <Ionicons
-                name={active ? 'checkbox' : 'square-outline'}
-                size={20}
-                color={active ? Colors.primary : Colors.textTertiary}
+                name={comboActive ? 'checkmark-circle' : 'pricetag'}
+                size={13}
+                color={comboActive ? Colors.success : Colors.primary}
               />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.formatCardTitle}>{f.label}</Text>
-                <Text style={styles.formatCardDesc}>{f.desc}</Text>
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+              <Text style={[styles.comboPillText, comboActive && styles.comboPillTextActive]}>
+                {comboActive
+                  ? `Combo aplicado${comboDiscountCents > 0 ? ` · ${formatDiscountValue(comboDiscountCents)}` : ''}`
+                  : `Leve os dois e economize ${COMBO_DISCOUNT_PCT}%`}
+              </Text>
+            </View>
+            <View style={styles.comboBannerLine} />
+          </View>
+          {renderFormatCard(FORMATS[1])}
+        </View>
+        {FORMATS.slice(2).map(renderFormatCard)}
+        {needsPin && (
+          <Text style={styles.helperText}>
+            No próximo passo você marca o endereço que vira o pin no mapa.
+          </Text>
+        )}
 
         <Text style={styles.label}>Duração (dias)</Text>
         <View style={styles.durationRow}>
@@ -585,7 +635,7 @@ export default function CustomizeScreen() {
           )}
         </View>
 
-        <Text style={styles.label}>Onde advertise</Text>
+        <Text style={styles.label}>Onde anunciar</Text>
         <View style={styles.chipsWrap}>
           {GEO_SCOPE_OPTIONS.map((o) => (
             <TouchableOpacity
@@ -727,9 +777,17 @@ export default function CustomizeScreen() {
           </View>
           {priceCents != null && (
             <Text style={styles.priceHint}>
-              {plan ? 'Preço não muda com os bairros — escala com a duração escolhida. ' : ''}
+              {plan ? 'Preço não muda com os bairros — escala com a duração e os formatos escolhidos. ' : ''}
               {showBreakdown ? '▾ ver menos' : '▸ ver como calculamos'}
             </Text>
+          )}
+          {comboDiscountCents > 0 && (
+            <View style={styles.priceSavingRow}>
+              <Ionicons name="pricetag" size={12} color={Colors.success} />
+              <Text style={styles.priceSavingText}>
+                Combo post + mapa: {formatDiscountValue(comboDiscountCents)} em relação a contratar os dois separados
+              </Text>
+            </View>
           )}
           {showBreakdown && factors.map((f) => (
             <View key={f.label} style={styles.factorRow}>
@@ -784,6 +842,35 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   formatCardActive: { borderColor: Colors.primary, backgroundColor: Colors.primaryFaint },
   formatCardTitle: { fontSize: 14, fontWeight: '700', color: Colors.text },
   formatCardDesc: { fontSize: 12, color: Colors.textTertiary, marginTop: 2 },
+
+  // Moldura tracejada em volta de post+mapa: sinaliza que os dois andam
+  // juntos (com desconto) sem impedir escolher só um. Vira sólida/verde
+  // quando o combo está de fato aplicado.
+  comboBox: {
+    gap: 6,
+    padding: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.border,
+  },
+  comboBoxActive: { borderStyle: 'solid', borderColor: Colors.success, backgroundColor: Colors.primaryFaint },
+  comboBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  comboBannerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  comboPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryFaint,
+  },
+  comboPillActive: { borderColor: Colors.success, backgroundColor: Colors.surface },
+  comboPillText: { fontSize: 11.5, fontWeight: '800', color: Colors.primary },
+  comboPillTextActive: { color: Colors.success },
 
   durationRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   durationSliderWrap: { flex: 1, position: 'relative', paddingBottom: 18 },
@@ -892,6 +979,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   priceLabel: { fontSize: 13, fontWeight: '700', color: Colors.primary },
   priceValue: { fontSize: 18, fontWeight: '800', color: Colors.primary },
   priceHint: { fontSize: 11, fontWeight: '600', color: Colors.primary, marginTop: 4 },
+  priceSavingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  priceSavingText: { flex: 1, fontSize: 11.5, fontWeight: '700', color: Colors.success },
   factorRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   factorLabel: { fontSize: 12, color: Colors.primary },
   factorValue: { fontSize: 12, fontWeight: '700', color: Colors.primary },

@@ -14,7 +14,8 @@ import { adsApi, AdPlan, AdPlanCategory } from '../../lib/adsApi';
 import { AD_CONTACT_CHANNELS } from '../../constants/ads';
 
 const FORMAT_LABEL: Record<string, string> = {
-  post: 'Post + mapa',
+  post: 'Post no feed',
+  map: 'Pin no mapa',
   conversation: 'Conversa',
   notification: 'Novidades',
   search_poster: 'Busca',
@@ -142,7 +143,7 @@ export default function AdvertiseScreen() {
               <Ionicons name="megaphone" size={30} color="#fff" style={{ marginBottom: 10 }} />
               <Text style={styles.heroTitle}>Sua marca na vida do bairro</Text>
               <Text style={styles.heroSubtitle}>
-                Post no feed com pin no mapa, conversa nas Mensagens, novidade e poster na Busca — tudo segmentado por bairro.
+                Post no feed, pin no mapa, conversa nas Mensagens, novidade e poster na Busca — escolha só o que faz sentido pro seu negócio, tudo segmentado por bairro.
               </Text>
             </LinearGradient>
           </FadeSlideIn>

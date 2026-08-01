@@ -19,11 +19,20 @@ from app.models.ad import (
 )
 
 FORMAT_DAILY_RATE_CENTS = {
-    AdFormat.POST: 500,  # aparece em 2 lugares (feed + pin no mapa) — o mais caro
+    AdFormat.POST: 350,  # card no feed — a superfície de maior atenção
+    AdFormat.MAP: 250,  # pin no mapa do bairro
     AdFormat.CONVERSATION: 300,
     AdFormat.NOTIFICATION: 250,
     AdFormat.SEARCH_POSTER: 200,
 }
+
+# Combo "post + mapa": os dois juntos saem 15% mais baratos que a soma dos
+# preços individuais (350 + 250 = 600 → 510/dia, praticamente o mesmo valor
+# do antigo formato único "post", que já embutia os dois lugares). O desconto
+# incide SÓ sobre a parcela desses dois formatos — os demais escolhidos na
+# mesma campanha continuam custando o preço cheio (ver `format_base`).
+POST_MAP_BUNDLE_DISCOUNT = 0.15
+BUNDLE_FACTOR_LABEL = "Combo post + mapa"
 
 OBJECTIVE_MULTIPLIERS = {
     AdObjective.REACH: 0.9,
@@ -36,6 +45,24 @@ OBJECTIVE_MULTIPLIERS = {
 }
 
 PEAK_HOURS = set(range(18, 23))  # 18h-22h
+
+
+def format_base(formats: list[AdFormat]) -> tuple[int, float]:
+    """Diária cheia dos formatos escolhidos (soma das tarifas, sem desconto) e
+    o multiplicador do combo post+mapa.
+
+    O desconto sai como MULTIPLICADOR (e não já descontado da base) porque
+    `quote` expõe cada fator separadamente pro anunciante — e como ele é
+    calculado sobre a diária cheia, incidir sobre o preço final equivale
+    exatamente a descontar só a parcela de post+mapa, independentemente dos
+    outros formatos presentes na mesma campanha."""
+    full_daily = sum(FORMAT_DAILY_RATE_CENTS[f] for f in formats)
+    if not (AdFormat.POST in formats and AdFormat.MAP in formats) or full_daily <= 0:
+        return full_daily, 1.0
+    bundle_daily = (
+        FORMAT_DAILY_RATE_CENTS[AdFormat.POST] + FORMAT_DAILY_RATE_CENTS[AdFormat.MAP]
+    )
+    return full_daily, (full_daily - bundle_daily * POST_MAP_BUNDLE_DISCOUNT) / full_daily
 
 
 def reach_multiplier(targeting: dict) -> float:
@@ -164,10 +191,13 @@ def quote(
     por último para deixar todos os preços proporcionais ao desempenho do
     Daqui sem precisar reajustar cada fator individualmente.
     """
-    base_daily = sum(FORMAT_DAILY_RATE_CENTS[f] for f in formats)
+    base_daily, bundle_factor = format_base(formats)
     base_cents = round(base_daily * duration_days)
 
+    # O fator do combo só entra no detalhamento quando existe de fato — um
+    # "×1.00" no meio da lista só confundiria quem não escolheu os dois.
     factors = [
+        *([(BUNDLE_FACTOR_LABEL, bundle_factor)] if bundle_factor < 1 else []),
         ("Alcance", reach_multiplier(targeting)),
         ("Concorrência no período/bairros", competition_multiplier(competing_count)),
         ("Sazonalidade", seasonality_multiplier(schedule)),
@@ -193,20 +223,53 @@ def quote(
     }
 
 
-def plan_quote(plan_price_cents: int, plan_duration_days: int, duration_days: int) -> dict:
-    """Preço de um plano (valor fixo definido pelo admin) pra uma duração
-    customizada pelo anunciante. Mantém `plan_price_cents` exato quando
-    `duration_days == plan_duration_days` (preço padrão do plano, do jeito
-    que sempre foi), e escala pra qualquer outra duração reaproveitando a
-    mesma curva de `duration_discount` — assim o anunciante sempre paga
-    menos por dia quanto mais tempo escolher, sem perder o desconto que o
-    próprio plano já embutia no preço original."""
+def plan_quote(
+    plan_price_cents: int,
+    plan_duration_days: int,
+    duration_days: int,
+    *,
+    plan_formats: list[AdFormat] | None = None,
+    formats: list[AdFormat] | None = None,
+) -> dict:
+    """Preço de um plano (valor fixo definido pelo admin) pra a duração E os
+    formatos que o anunciante escolheu. Mantém `plan_price_cents` exato
+    quando nada é alterado (duração e formatos iguais aos do plano — o preço
+    padrão anunciado no card), e escala nos dois eixos:
+
+    - duração: reaproveita a curva de `duration_discount`, então sempre sai
+      menos por dia quanto mais tempo, sem perder o desconto que o próprio
+      plano já embutia no preço original;
+    - formatos: proporcional à diária dos formatos escolhidos contra a dos
+      formatos do plano (ver `format_base`). Sem isso, tirar ou acrescentar
+      uma superfície não mexia em nada no preço — dava pra remover o mapa de
+      um plano "post + mapa" e continuar pagando pelos dois.
+    """
     plan_discount = duration_discount(plan_duration_days)
     baseline_daily = plan_price_cents / (plan_duration_days * plan_discount)
     base_cents = round(baseline_daily * duration_days)
     discount = duration_discount(duration_days)
+
+    # Ajuste por formato: a diária cheia do que foi escolhido contra a diária
+    # JÁ com combo dos formatos do plano (o preço do plano embute o desconto
+    # do combo quando ele inclui post+mapa). O fator do combo sai separado,
+    # como na engine dinâmica, pra prévia poder mostrar quanto ele economiza.
+    format_factors: list[tuple[str, float]] = []
+    if plan_formats and formats:
+        plan_daily, plan_bundle = format_base(plan_formats)
+        chosen_daily, chosen_bundle = format_base(formats)
+        plan_effective_daily = plan_daily * plan_bundle
+        if plan_effective_daily > 0:
+            format_factors.append(
+                ("Formatos escolhidos", chosen_daily / plan_effective_daily)
+            )
+            if chosen_bundle < 1:
+                format_factors.append((BUNDLE_FACTOR_LABEL, chosen_bundle))
+
+    price = base_cents * discount
+    for _, multiplier in format_factors:
+        price *= multiplier
     return {
-        "price_cents": round(base_cents * discount),
+        "price_cents": round(price),
         "base_cents": base_cents,
-        "factors": [("Desconto por duração", discount)],
+        "factors": [("Desconto por duração", discount), *format_factors],
     }

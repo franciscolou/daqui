@@ -40,7 +40,7 @@ def _targeting(*, neighborhoods=None, citywide=False, city=None) -> dict:
 CAMPAIGNS = [
     dict(
         advertiser_name="Francisco — Aulas de Violão",
-        formats=[AdFormat.POST],
+        formats=[AdFormat.POST, AdFormat.MAP],
         price_cents=2_990,
         duration_days=14,
         targeting=_targeting(neighborhoods=["Leme"]),

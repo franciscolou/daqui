@@ -13,7 +13,8 @@ import TimeseriesChart from '../../../components/charts/TimeseriesChart';
 import RankedBarChart from '../../../components/charts/RankedBarChart';
 
 const FORMAT_LABEL: Record<string, string> = {
-  post: 'Post + mapa',
+  post: 'Post no feed',
+  map: 'Mapa',
   conversation: 'Conversa',
   notification: 'Novidades',
   search_poster: 'Busca',

@@ -1,7 +1,8 @@
 // Rótulos em português dos enums do ads-backend, num só lugar.
 
 export const FORMAT_LABEL: Record<string, string> = {
-  post: 'Post + mapa',
+  post: 'Post no feed',
+  map: 'Pin no mapa',
   conversation: 'Conversa (Mensagens)',
   notification: 'Novidades',
   search_poster: 'Poster de busca',

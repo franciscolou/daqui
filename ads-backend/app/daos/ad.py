@@ -220,6 +220,11 @@ def pick_creative(campaign: AdCampaign, format: AdFormat) -> AdCreative | None:
     aleatoriedade intencional do sistema (teste A/B por peso) — a
     precificação continua 100% determinística."""
     active = [c for c in campaign.creatives if c.is_active]
+    if format == AdFormat.MAP:
+        # No mapa o criativo precisa ter pin; o do formato "mapa" pode ter sido
+        # cadastrado sem coordenadas (criação manual), caso em que o base —
+        # que é onde o lat/lng mora por convenção do editor — assume.
+        active = [c for c in active if c.latitude is not None and c.longitude is not None]
     specific = [c for c in active if c.format == format]
     pool = specific if specific else [c for c in active if c.format is None]
     if not pool:
@@ -343,7 +348,21 @@ def _candidates_for_format(db: Session, format: AdFormat) -> list[AdCampaign]:
         or_(AdCampaign.starts_at.is_(None), AdCampaign.starts_at <= now),
         or_(AdCampaign.ends_at.is_(None), AdCampaign.ends_at >= now),
     )
-    return [c for c in q.all() if format in c.formats]
+    candidates = [c for c in q.all() if format in c.formats]
+    if format == AdFormat.MAP:
+        # No mapa, um anúncio sem coordenadas não vira pin nenhum — servi-lo
+        # só queimaria a impressão. A criação já exige o pin (ver
+        # `schemas/ad.py::check_map_has_pin`); isto protege campanhas antigas
+        # e criativos editados depois.
+        candidates = [c for c in candidates if _has_pin(c)]
+    return candidates
+
+
+def _has_pin(campaign: AdCampaign) -> bool:
+    return any(
+        c.is_active and c.latitude is not None and c.longitude is not None
+        for c in campaign.creatives
+    )
 
 
 def _within_caps(db: Session, campaign: AdCampaign, viewer_id: str | None) -> bool:

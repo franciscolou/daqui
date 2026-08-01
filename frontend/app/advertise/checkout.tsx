@@ -65,10 +65,15 @@ export default function CheckoutScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Campanha com o formato "mapa" precisa de um ponto marcado — sem ele o
+  // anúncio não teria pin nenhum pra mostrar (o ads-backend recusa, ver
+  // `schemas/ad.py::check_map_has_pin`).
+  const missingPin = formats.includes('map') && blocks.default.locationStatus !== 'valid';
+
   const canSubmit = !!(
     advertiserName.trim() && advertiserEmail.trim() &&
     isValidDocument(advertiserType, advertiserDocument) &&
-    blocks.default.title.trim() && blocks.default.targetUrl.trim() && !submitting
+    blocks.default.title.trim() && blocks.default.targetUrl.trim() && !missingPin && !submitting
   );
 
   const submit = async () => {
@@ -142,6 +147,11 @@ export default function CheckoutScreen() {
 
             <AdCreativeEditor formats={formats} value={blocks} onChange={setBlocks} />
 
+            {missingPin && (
+              <Text style={styles.hintText}>
+                Marque o local do pin acima para anunciar no mapa.
+              </Text>
+            )}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
@@ -205,6 +215,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   } as any,
 
   errorText: { fontSize: 12, fontWeight: '600', color: Colors.error },
+  hintText: { fontSize: 12, fontWeight: '600', color: Colors.textTertiary },
 
   submitBtn: { marginTop: 8, backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.5 },

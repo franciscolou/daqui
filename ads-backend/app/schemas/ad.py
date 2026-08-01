@@ -296,6 +296,19 @@ class CampaignCreateBase(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def check_map_has_pin(self) -> "CampaignCreateBase":
+        # O formato "mapa" existe justamente pra virar um pin — sem
+        # coordenadas em nenhum criativo ele nunca apareceria pra ninguém
+        # (ver `daos/ad.py::_candidates_for_format`). Barra na entrada em vez
+        # de aceitar uma campanha paga que não entrega nada.
+        if AdFormat.MAP in self.formats and not any(
+            c.latitude is not None and c.longitude is not None
+            for c in self.effective_creatives()
+        ):
+            raise ValueError("Marque o local do pin para anunciar no mapa")
+        return self
+
+    @model_validator(mode="after")
     def check_document(self) -> "CampaignCreateBase":
         # Valida/normaliza (só dígitos) conforme PF/PJ. Documento vazio é aceito
         # aqui (o admin pode inserir uma proposta antes de ter o CPF/CNPJ) — a
