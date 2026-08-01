@@ -81,6 +81,15 @@ export const STAFF_ROLE_LABEL: Record<string, string> = {
   owner: 'Owner',
 };
 
+// Opções do filtro de cargo na tela de Equipe — mesma ordem de STAFF_RANK,
+// do mais alto pro mais baixo (Owner primeiro).
+export const STAFF_ROLE_FILTERS = [
+  { key: '', label: 'Todos' },
+  { key: 'owner', label: 'Owner' },
+  { key: 'administrador', label: 'Administrador' },
+  { key: 'moderador', label: 'Moderador' },
+];
+
 /** Resumo textual da segmentação geográfica de uma campanha/plano. */
 export function describeGeo(t: {
   geo_scope?: string;

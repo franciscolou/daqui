@@ -138,6 +138,15 @@ export const STAFF_ROLE_LABEL: Record<string, string> = {
   owner: 'Owner',
 };
 
+// Opções do filtro de cargo na tela de Equipe — mesma ordem de STAFF_RANK,
+// do mais alto pro mais baixo (Owner primeiro).
+export const STAFF_ROLE_FILTERS = [
+  { key: '', label: 'Todos' },
+  { key: 'owner', label: 'Owner' },
+  { key: 'administrador', label: 'Administrador' },
+  { key: 'moderador', label: 'Moderador' },
+];
+
 export function statusTone(status: string): 'green' | 'amber' | 'red' | 'neutral' {
   if (status === 'pending') return 'amber';
   if (status === 'reviewed' || status === 'answered' || status === 'approved') return 'green';

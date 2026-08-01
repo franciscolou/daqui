@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { fmtDate } from '../lib/format';
-import { STAFF_RANK, STAFF_ROLE_LABEL } from '../lib/labels';
+import { STAFF_RANK, STAFF_ROLE_FILTERS, STAFF_ROLE_LABEL } from '../lib/labels';
 import { StaffAccount } from '../lib/types';
 import { useAsync } from '../lib/useAsync';
 import { useDialogs } from '../ui/dialogs';
-import { Avatar, Badge, EmptyState, Field, LoadingState, Modal } from '../ui/primitives';
+import { Avatar, Badge, EmptyState, Field, LoadingState, Modal, Tabs } from '../ui/primitives';
 
 // Gestão de contas de staff. Administrador gerencia Moderador; Owner gerencia
 // Moderador e Administrador. O servidor é a autoridade (403 fora de rank) —
@@ -33,6 +33,19 @@ export function Staff() {
   );
   const [inviteOpen, setInviteOpen] = useState(false);
   const [renaming, setRenaming] = useState<StaffAccount | null>(null);
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+
+  // Owner primeiro, Administrador depois, Moderador por último; busca por
+  // usuário ou e-mail e filtro de cargo são só locais (a lista inteira já
+  // veio numa chamada só, sem paginação).
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (data ?? [])
+      .filter((s) => !roleFilter || s.staff_role === roleFilter)
+      .filter((s) => !q || s.username.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
+      .sort((a, b) => (STAFF_RANK[b.staff_role] ?? 0) - (STAFF_RANK[a.staff_role] ?? 0));
+  }, [data, query, roleFilter]);
 
   const act = async (run: () => Promise<unknown>) => {
     try {
@@ -76,14 +89,26 @@ export function Staff() {
         </button>
       </div>
 
+      <div className="search-row">
+        <input
+          placeholder="Buscar por usuário ou e-mail..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      <Tabs value={roleFilter} options={STAFF_ROLE_FILTERS} onChange={setRoleFilter} />
+
       {loading && <LoadingState />}
       {!loading && error && <EmptyState>{error}</EmptyState>}
       {!loading && !error && (data ?? []).length === 0 && (
         <EmptyState>Nenhuma conta de staff.</EmptyState>
       )}
+      {!loading && !error && (data ?? []).length > 0 && visible.length === 0 && (
+        <EmptyState>Nenhuma conta encontrada.</EmptyState>
+      )}
 
       {!loading &&
-        (data ?? []).map((s) => {
+        visible.map((s) => {
           const canManage =
             s.email !== me?.email &&
             (STAFF_RANK[me?.staff_role ?? ''] ?? 0) > (STAFF_RANK[s.staff_role] ?? 0);
