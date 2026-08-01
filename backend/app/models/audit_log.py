@@ -20,10 +20,6 @@ class AuditLogAction(StrEnum):
     USER_SUSPEND = "user_suspend"
     USER_UNSUSPEND = "user_unsuspend"
     TICKET_REPLY = "ticket_reply"
-    # Substituído por STAFF_INVITE/STAFF_INVITE_ACCEPTED (conta de staff virou
-    # convite por e-mail) — mantido só pra não quebrar a leitura de registros
-    # antigos (AuditLogOut.action é tipado contra este enum).
-    STAFF_CREATE = "staff_create"
     STAFF_INVITE = "staff_invite"
     STAFF_INVITE_ACCEPTED = "staff_invite_accepted"
     STAFF_USERNAME_CHANGE = "staff_username_change"

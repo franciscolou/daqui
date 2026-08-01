@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { api } from '../lib/api';
 import { fmtDate } from '../lib/format';
 import {
-  AUDIT_ACTION_FILTERS,
+  AUDIT_ACTION_FILTERS_PLATFORM,
+  AUDIT_ACTION_FILTERS_STAFF,
   AUDIT_ACTION_LABEL,
   AUDIT_ACTION_VERB,
   AUDIT_ACTION_VERB_NO_TARGET,
@@ -57,7 +58,18 @@ export function Audit() {
         </button>
       </div>
 
-      <Tabs value={action} options={AUDIT_ACTION_FILTERS} onChange={setAction} />
+      {/* Filtros predefinidos separados por propósito: o que é gestão do
+          negócio de anúncios em si, e o que é movimentação da própria
+          equipe do painel. */}
+      <div className="eyebrow" style={{ marginBottom: 6 }}>
+        Gerenciamento de anúncios
+      </div>
+      <Tabs value={action} options={AUDIT_ACTION_FILTERS_PLATFORM} onChange={setAction} />
+
+      <div className="eyebrow" style={{ marginBottom: 6 }}>
+        Contas da equipe
+      </div>
+      <Tabs value={action} options={AUDIT_ACTION_FILTERS_STAFF} onChange={setAction} />
 
       {loading && <LoadingState />}
       {!loading && error && <EmptyState>{error}</EmptyState>}

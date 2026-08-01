@@ -69,7 +69,11 @@ export const GEO_SCOPES = [
 
 export type GeoScope = (typeof GEO_SCOPES)[number]['key'];
 
-export const AUDIT_ACTION_FILTERS = [
+// Filtros predefinidos da Auditoria, separados em dois grupos (ver Audit.tsx):
+// i) gerenciamento do propósito da plataforma — campanhas/planos de anúncio —
+// e ii) contas do próprio painel (staff). "Todas" mora no primeiro grupo por
+// convenção (era a primeira opção da lista única, antes da separação).
+export const AUDIT_ACTION_FILTERS_PLATFORM = [
   { key: '', label: 'Todas' },
   { key: 'campaign_pause', label: 'Campanha pausada' },
   { key: 'campaign_reactivate', label: 'Campanha reativada' },
@@ -77,15 +81,20 @@ export const AUDIT_ACTION_FILTERS = [
   { key: 'plan_update', label: 'Edição de plano' },
   { key: 'plan_delete', label: 'Exclusão de plano' },
   { key: 'proposal_create', label: 'Proposta manual' },
-  // Substituído por staff_invite/staff_invite_accepted — mantido no filtro
-  // só pra registros antigos continuarem pesquisáveis.
-  { key: 'staff_create', label: 'Criação de conta de staff (antigo)' },
+];
+
+export const AUDIT_ACTION_FILTERS_STAFF = [
   { key: 'staff_invite', label: 'Convite de conta de staff' },
   { key: 'staff_invite_accepted', label: 'Ativação de conta de staff' },
   { key: 'staff_username_change', label: 'Troca de usuário de staff' },
   { key: 'staff_suspend', label: 'Suspensão de conta de staff' },
   { key: 'staff_unsuspend', label: 'Reativação de conta de staff' },
   { key: 'staff_delete', label: 'Exclusão de conta de staff' },
+];
+
+export const AUDIT_ACTION_FILTERS = [
+  ...AUDIT_ACTION_FILTERS_PLATFORM,
+  ...AUDIT_ACTION_FILTERS_STAFF,
 ];
 
 export const AUDIT_ACTION_LABEL: Record<string, string> = Object.fromEntries(
@@ -97,7 +106,6 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = Object.fromEntries(
 // entram no mapa "sem alvo"; convite/troca/suspensão de conta de staff têm
 // as duas variantes, como no registro de auditoria da moderação.
 export const AUDIT_ACTION_VERB: Record<string, string> = {
-  staff_create: 'criou uma conta de staff para',
   // Alvo é a própria conta recém-criada (quem ativa o convite é quem o
   // aceita) — o texto evita "ativou o convite de @fulano" repetindo @fulano.
   staff_invite_accepted: 'ativou o convite e criou a própria conta de staff:',
@@ -114,7 +122,6 @@ export const AUDIT_ACTION_VERB_NO_TARGET: Record<string, string> = {
   plan_update: 'editou um plano',
   plan_delete: 'excluiu um plano',
   proposal_create: 'inseriu uma proposta manual',
-  staff_create: 'criou uma conta de staff',
   staff_invite: 'convidou uma nova conta de staff',
   staff_username_change: 'alterou o nome de usuário de uma conta de staff',
   staff_suspend: 'suspendeu uma conta de staff',
