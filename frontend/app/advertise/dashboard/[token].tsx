@@ -18,6 +18,7 @@ const FORMAT_LABEL: Record<string, string> = {
 };
 
 const STATUS_META: Record<CampaignStatus, { label: string; color: keyof Palette }> = {
+  awaiting_content: { label: 'Aguardando conteúdo', color: 'warning' },
   pending_payment: { label: 'Aguardando pagamento', color: 'warning' },
   active: { label: 'Ativo', color: 'success' },
   paused: { label: 'Pausado', color: 'textTertiary' },
@@ -107,7 +108,7 @@ export default function AdvertiserPanelScreen() {
             <Ionicons name="arrow-back" size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Meu anúncio</Text>
-          {campaign && (
+          {campaign && campaign.status !== 'awaiting_content' && (
             <View style={styles.headerActions}>
               <TouchableOpacity
                 style={styles.actionPill}
@@ -146,7 +147,7 @@ export default function AdvertiserPanelScreen() {
             </Text>
           </View>
 
-          {campaign.creatives.map((c) => (
+          {campaign.status !== 'awaiting_content' && campaign.creatives.map((c) => (
             <View key={c.id} style={styles.creativeCard}>
               {c.videoUrl ? (
                 <VideoPlayer uri={c.videoUrl} style={styles.creativeMedia} contentFit="cover" />
@@ -163,8 +164,12 @@ export default function AdvertiserPanelScreen() {
 
           <View style={styles.infoGrid}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Período</Text>
-              <Text style={styles.infoValue}>{formatDate(campaign.startsAt)} – {formatDate(campaign.endsAt)}</Text>
+              <Text style={styles.infoLabel}>Duração</Text>
+              <Text style={styles.infoValue}>
+                {campaign.status === 'awaiting_content'
+                  ? `${campaign.durationDays} dias`
+                  : `${formatDate(campaign.startsAt)} – ${formatDate(campaign.endsAt)}`}
+              </Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Formatos</Text>
@@ -185,89 +190,109 @@ export default function AdvertiserPanelScreen() {
             </View>
           </View>
 
-          {campaign.history.length > 1 && (
-            <>
-              <Text style={styles.sectionTitle}>Histórico</Text>
-              <View style={{ gap: 8 }}>
-                {campaign.history.map((p) => {
-                  const isCurrent = p.accessToken === token;
-                  return (
-                    <TouchableOpacity
-                      key={p.id}
-                      style={[styles.historyRow, isCurrent && styles.historyRowCurrent]}
-                      activeOpacity={isCurrent ? 1 : 0.8}
-                      disabled={isCurrent}
-                      onPress={() => router.replace(`/advertise/dashboard/${p.accessToken}` as any)}
-                    >
-                      <View style={[styles.statusDot, { backgroundColor: Colors[STATUS_META[p.status].color] as string }]} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.historyDates}>
-                          {formatDate(p.startsAt)} – {formatDate(p.endsAt)}{isCurrent ? ' · atual' : ''}
-                        </Text>
-                        <Text style={styles.historyStats}>
-                          {p.impressionsCount} imp · {p.clicksCount} cliques · {formatMoney(p.priceCents)}
-                        </Text>
-                      </View>
-                      {!isCurrent && <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          )}
-
-          <Text style={styles.sectionTitle}>Resultados</Text>
-          <View style={styles.metricsRow}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>{campaign.analytics.impressions}</Text>
-              <Text style={styles.metricLabel}>Impressões</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>{campaign.analytics.clicks}</Text>
-              <Text style={styles.metricLabel}>Cliques</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>{(campaign.analytics.ctr * 100).toFixed(1)}%</Text>
-              <Text style={styles.metricLabel}>CTR</Text>
-            </View>
-          </View>
-          <View style={styles.metricsRow}>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>{campaign.analytics.cpcCents != null ? formatMoney(campaign.analytics.cpcCents) : '—'}</Text>
-              <Text style={styles.metricLabel}>Custo por clique</Text>
-            </View>
-            <View style={styles.metricCard}>
-              <Text style={styles.metricValue}>{campaign.analytics.cpmCents != null ? formatMoney(campaign.analytics.cpmCents) : '—'}</Text>
-              <Text style={styles.metricLabel}>Custo por mil impressões</Text>
-            </View>
-          </View>
-
-          <View style={styles.tabsRow}>
-            {GROUP_TABS.map((t) => (
+          {campaign.status === 'awaiting_content' ? (
+            <View style={styles.awaitingCard}>
+              <Ionicons name="create-outline" size={22} color={Colors.primary} />
+              <Text style={styles.awaitingTitle}>Falta preencher o conteúdo do seu anúncio</Text>
+              <Text style={styles.awaitingText}>
+                As condições acima já foram combinadas. Preencha o conteúdo criativo do seu
+                anúncio pra seguir pro pagamento.
+              </Text>
               <TouchableOpacity
-                key={t.key}
-                style={[styles.tab, groupBy === t.key && styles.tabActive]}
-                onPress={() => setGroupBy(t.key)}
+                style={styles.awaitingBtn}
+                activeOpacity={0.85}
+                onPress={() => router.push(`/advertise/dashboard/edit/${token}` as any)}
               >
-                <Text style={[styles.tabText, groupBy === t.key && styles.tabTextActive]}>{t.label}</Text>
+                <Text style={styles.awaitingBtnText}>Preencher conteúdo do anúncio</Text>
               </TouchableOpacity>
-            ))}
-          </View>
-
-          {loading ? (
-            <ActivityIndicator color={Colors.primary} style={{ marginTop: 12 }} />
-          ) : (
-            <View style={styles.chartCard}>
-              <RankedBarChart
-                emptyLabel="Sem dados suficientes ainda."
-                data={campaign.analytics.buckets.map((b) => ({
-                  key: b.key,
-                  label: b.key,
-                  value: b.impressions,
-                  sublabel: `${b.clicks} cliques`,
-                }))}
-              />
             </View>
+          ) : (
+            <>
+              {campaign.history.length > 1 && (
+                <>
+                  <Text style={styles.sectionTitle}>Histórico</Text>
+                  <View style={{ gap: 8 }}>
+                    {campaign.history.map((p) => {
+                      const isCurrent = p.accessToken === token;
+                      return (
+                        <TouchableOpacity
+                          key={p.id}
+                          style={[styles.historyRow, isCurrent && styles.historyRowCurrent]}
+                          activeOpacity={isCurrent ? 1 : 0.8}
+                          disabled={isCurrent}
+                          onPress={() => router.replace(`/advertise/dashboard/${p.accessToken}` as any)}
+                        >
+                          <View style={[styles.statusDot, { backgroundColor: Colors[STATUS_META[p.status].color] as string }]} />
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.historyDates}>
+                              {formatDate(p.startsAt)} – {formatDate(p.endsAt)}{isCurrent ? ' · atual' : ''}
+                            </Text>
+                            <Text style={styles.historyStats}>
+                              {p.impressionsCount} imp · {p.clicksCount} cliques · {formatMoney(p.priceCents)}
+                            </Text>
+                          </View>
+                          {!isCurrent && <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
+              <Text style={styles.sectionTitle}>Resultados</Text>
+              <View style={styles.metricsRow}>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{campaign.analytics.impressions}</Text>
+                  <Text style={styles.metricLabel}>Impressões</Text>
+                </View>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{campaign.analytics.clicks}</Text>
+                  <Text style={styles.metricLabel}>Cliques</Text>
+                </View>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{(campaign.analytics.ctr * 100).toFixed(1)}%</Text>
+                  <Text style={styles.metricLabel}>CTR</Text>
+                </View>
+              </View>
+              <View style={styles.metricsRow}>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{campaign.analytics.cpcCents != null ? formatMoney(campaign.analytics.cpcCents) : '—'}</Text>
+                  <Text style={styles.metricLabel}>Custo por clique</Text>
+                </View>
+                <View style={styles.metricCard}>
+                  <Text style={styles.metricValue}>{campaign.analytics.cpmCents != null ? formatMoney(campaign.analytics.cpmCents) : '—'}</Text>
+                  <Text style={styles.metricLabel}>Custo por mil impressões</Text>
+                </View>
+              </View>
+
+              <View style={styles.tabsRow}>
+                {GROUP_TABS.map((t) => (
+                  <TouchableOpacity
+                    key={t.key}
+                    style={[styles.tab, groupBy === t.key && styles.tabActive]}
+                    onPress={() => setGroupBy(t.key)}
+                  >
+                    <Text style={[styles.tabText, groupBy === t.key && styles.tabTextActive]}>{t.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {loading ? (
+                <ActivityIndicator color={Colors.primary} style={{ marginTop: 12 }} />
+              ) : (
+                <View style={styles.chartCard}>
+                  <RankedBarChart
+                    emptyLabel="Sem dados suficientes ainda."
+                    data={campaign.analytics.buckets.map((b) => ({
+                      key: b.key,
+                      label: b.key,
+                      value: b.impressions,
+                      sublabel: `${b.clicks} cliques`,
+                    }))}
+                  />
+                </View>
+              )}
+            </>
           )}
         </ScrollView>
       )}
@@ -358,4 +383,25 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   tabTextActive: { color: Colors.primary },
 
   chartCard: { borderWidth: 1, borderColor: Colors.borderLight, borderRadius: 14, padding: 14, backgroundColor: Colors.surface },
+
+  awaitingCard: {
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    borderRadius: 14,
+    padding: 18,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    gap: 8,
+  },
+  awaitingTitle: { fontSize: 15, fontWeight: '800', color: Colors.text, textAlign: 'center' },
+  awaitingText: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', lineHeight: 19 },
+  awaitingBtn: {
+    marginTop: 6,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+  },
+  awaitingBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });

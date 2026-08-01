@@ -42,6 +42,7 @@ export interface StatusFilter {
 export const CAMPAIGN_STATUS_FILTERS: StatusFilter[] = [
   { key: '', label: 'Todas' },
   { key: 'active', label: 'Ativas' },
+  { key: 'awaiting_content', label: 'Aguardando conteúdo' },
   { key: 'pending_payment', label: 'Aguardando pagamento' },
   { key: 'paused', label: 'Pausadas' },
   { key: 'expired', label: 'Expiradas' },
@@ -55,7 +56,7 @@ export const CAMPAIGN_STATUS_LABEL: Record<string, string> = Object.fromEntries(
 /** Cor do badge por status de campanha. */
 export function statusTone(status: string): 'green' | 'amber' | 'red' | 'neutral' {
   if (status === 'active') return 'green';
-  if (status === 'pending_payment') return 'amber';
+  if (status === 'awaiting_content' || status === 'pending_payment') return 'amber';
   if (status === 'expired' || status === 'rejected') return 'red';
   return 'neutral';
 }
@@ -81,6 +82,8 @@ export const AUDIT_ACTION_FILTERS_PLATFORM = [
   { key: 'plan_update', label: 'Edição de plano' },
   { key: 'plan_delete', label: 'Exclusão de plano' },
   { key: 'proposal_create', label: 'Proposta manual' },
+  { key: 'proposal_content_submitted', label: 'Conteúdo da proposta preenchido' },
+  { key: 'proposal_activated', label: 'Proposta ativada' },
 ];
 
 export const AUDIT_ACTION_FILTERS_STAFF = [
@@ -122,6 +125,8 @@ export const AUDIT_ACTION_VERB_NO_TARGET: Record<string, string> = {
   plan_update: 'editou um plano',
   plan_delete: 'excluiu um plano',
   proposal_create: 'inseriu uma proposta manual',
+  proposal_content_submitted: 'o anunciante preencheu o conteúdo de uma proposta',
+  proposal_activated: 'uma campanha de proposta manual foi ativada',
   staff_invite: 'convidou uma nova conta de staff',
   staff_username_change: 'alterou o nome de usuário de uma conta de staff',
   staff_suspend: 'suspendeu uma conta de staff',

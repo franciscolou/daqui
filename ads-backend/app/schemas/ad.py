@@ -237,6 +237,12 @@ class QuoteResponse(BaseModel):
 
 # ── Campanhas ────────────────────────────────────────────────────────────
 class CampaignCreateBase(BaseModel):
+    """Configuração comercial + identidade do anunciante — sem nada de
+    criativo (ver `CreativeFieldsMixin`). É tudo que uma proposta manual
+    precisa na criação (ver `ManualCampaignCreate`); o checkout self-service
+    (`CheckoutRequest`) soma o mixin de criativo por cima, já que ali o
+    anunciante preenche tudo de uma vez."""
+
     plan_id: int | None = None
     formats: list[AdFormat]
     duration_days: int
@@ -266,18 +272,6 @@ class CampaignCreateBase(BaseModel):
     # renewed_from_id/root_campaign_id são resolvidos a partir daqui.
     renewed_from_token: str | None = None
 
-    # Criativo: aceita uma lista `creatives`, ou (retrocompatibilidade com o
-    # app já publicado) os campos soltos de um único criativo.
-    creatives: list[CreativeIn] | None = None
-    title: str | None = None
-    content: str = ""
-    image_url: str | None = None
-    video_url: str | None = None
-    cta_label: str | None = None
-    target_url: str | None = None
-    latitude: float | None = None
-    longitude: float | None = None
-
     _validate_formats = field_validator("formats")(_check_formats)
 
     @field_validator("duration_days")
@@ -286,27 +280,6 @@ class CampaignCreateBase(BaseModel):
         if not 1 <= v <= 720:
             raise ValueError("Duração deve estar entre 1 e 720 dias")
         return v
-
-    @model_validator(mode="after")
-    def check_has_creative(self) -> "CampaignCreateBase":
-        if not self.creatives and not (self.title and self.target_url):
-            raise ValueError(
-                "Informe ao menos um criativo (título + link) ou a lista `creatives`"
-            )
-        return self
-
-    @model_validator(mode="after")
-    def check_map_has_pin(self) -> "CampaignCreateBase":
-        # O formato "mapa" existe justamente pra virar um pin — sem
-        # coordenadas em nenhum criativo ele nunca apareceria pra ninguém
-        # (ver `daos/ad.py::_candidates_for_format`). Barra na entrada em vez
-        # de aceitar uma campanha paga que não entrega nada.
-        if AdFormat.MAP in self.formats and not any(
-            c.latitude is not None and c.longitude is not None
-            for c in self.effective_creatives()
-        ):
-            raise ValueError("Marque o local do pin para anunciar no mapa")
-        return self
 
     @model_validator(mode="after")
     def check_document(self) -> "CampaignCreateBase":
@@ -333,6 +306,34 @@ class CampaignCreateBase(BaseModel):
             return TargetingIn(**{**self.targeting.model_dump(), **overrides})
         return TargetingIn(**overrides)
 
+
+class CreativeFieldsMixin(BaseModel):
+    """Conteúdo criativo de uma campanha: aceita uma lista `creatives`, ou
+    (retrocompatibilidade com o app já publicado) os campos soltos de um
+    único criativo. Usado tanto pelo checkout self-service (`CheckoutRequest`,
+    que soma isso à config em `CampaignCreateBase` porque ali o anunciante
+    preenche tudo de uma vez) quanto pelo preenchimento de conteúdo de uma
+    proposta manual (`CampaignContentSubmit`, ver
+    services/ad.py::submit_my_campaign_content)."""
+
+    creatives: list[CreativeIn] | None = None
+    title: str | None = None
+    content: str = ""
+    image_url: str | None = None
+    video_url: str | None = None
+    cta_label: str | None = None
+    target_url: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+
+    @model_validator(mode="after")
+    def check_has_creative(self) -> "CreativeFieldsMixin":
+        if not self.creatives and not (self.title and self.target_url):
+            raise ValueError(
+                "Informe ao menos um criativo (título + link) ou a lista `creatives`"
+            )
+        return self
+
     def effective_creatives(self) -> list[CreativeIn]:
         if self.creatives:
             return self.creatives
@@ -350,8 +351,25 @@ class CampaignCreateBase(BaseModel):
         ]
 
 
-class CheckoutRequest(CampaignCreateBase):
-    """Contratação self-service: preço sempre calculado pela engine de precificação."""
+def _check_map_has_pin(formats: list[AdFormat], creatives: list[CreativeIn]) -> None:
+    # O formato "mapa" existe justamente pra virar um pin — sem coordenadas
+    # em nenhum criativo ele nunca apareceria pra ninguém (ver
+    # `daos/ad.py::_candidates_for_format`). Barra na entrada em vez de
+    # aceitar uma campanha paga que não entrega nada.
+    if AdFormat.MAP in formats and not any(
+        c.latitude is not None and c.longitude is not None for c in creatives
+    ):
+        raise ValueError("Marque o local do pin para anunciar no mapa")
+
+
+class CheckoutRequest(CampaignCreateBase, CreativeFieldsMixin):
+    """Contratação self-service: preço sempre calculado pela engine de
+    precificação, criativo preenchido junto com a config (uma tela só)."""
+
+    @model_validator(mode="after")
+    def check_map_has_pin(self) -> "CheckoutRequest":
+        _check_map_has_pin(self.formats, self.effective_creatives())
+        return self
 
 
 class CheckoutResponse(BaseModel):
@@ -361,12 +379,23 @@ class CheckoutResponse(BaseModel):
 
 class ManualCampaignCreate(CampaignCreateBase):
     """Proposta negociada por fora (Instagram/WhatsApp/Gmail), inserida manualmente
-    pelo time de anúncios. Nasce `pending_payment` como o checkout self-service —
-    o admin pode sobrescrever o preço sugerido pela engine, mas a ativação só
-    acontece via link de pagamento ou confirmação manual (ver
-    services/ad.py::admin_mark_campaign_paid)."""
+    pelo time de anúncios. Nasce `awaiting_content` (sem nenhum criativo) — o
+    admin define só a parte comercial (config + preço, que pode sobrescrever o
+    sugerido pela engine); o conteúdo criativo é preenchido depois pelo próprio
+    anunciante (ver `CampaignContentSubmit` e
+    services/ad.py::submit_my_campaign_content), e só então a campanha vira
+    `pending_payment` com um link de pagamento real."""
 
     price_cents: int | None = None
+
+
+class CampaignContentSubmit(CreativeFieldsMixin):
+    """Conteúdo criativo preenchido pelo próprio anunciante pra uma proposta
+    manual ainda `awaiting_content` (ver
+    services/ad.py::submit_my_campaign_content) — a config comercial (incluindo
+    `formats`) já foi fixada pelo admin na criação da proposta e não é
+    reeditável por aqui; a checagem de pin do formato "mapa" usa os formatos
+    já salvos na campanha, não um valor reenviado pelo cliente."""
 
 
 class CampaignUpdate(BaseModel):
@@ -413,14 +442,6 @@ class CampaignAdminOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class ManualCampaignCreateOut(BaseModel):
-    """Resposta da criação manual: a campanha nasce `pending_payment` e um
-    link de pagamento real já é gerado (ver services/ad.py::admin_create_manual_campaign)
-    — o admin copia/envia esse link, ou usa "Marcar como paga" (mark-paid)
-    pra confirmar um pagamento combinado por fora / testar sem Stripe real."""
-
-    campaign: CampaignAdminOut
-    checkout_url: str
 
 
 class AdOut(BaseModel):

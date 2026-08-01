@@ -26,6 +26,8 @@ class AdAuditLogAction(StrEnum):
     PLAN_UPDATE = "plan_update"
     PLAN_DELETE = "plan_delete"
     PROPOSAL_CREATE = "proposal_create"
+    PROPOSAL_CONTENT_SUBMITTED = "proposal_content_submitted"
+    PROPOSAL_ACTIVATED = "proposal_activated"
 
 
 class AdAuditLog(Base):

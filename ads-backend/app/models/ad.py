@@ -34,6 +34,7 @@ class AdFormat(StrEnum):
 
 
 class AdCampaignStatus(StrEnum):
+    AWAITING_CONTENT = "awaiting_content"
     PENDING_PAYMENT = "pending_payment"
     ACTIVE = "active"
     PAUSED = "paused"

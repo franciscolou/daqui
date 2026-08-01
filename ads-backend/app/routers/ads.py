@@ -10,7 +10,6 @@ from app.schemas.ad import (
     CreativeOut,
     GlobalAnalyticsOut,
     HasCampaignsOut,
-    ManualCampaignCreateOut,
     MediaUploadOut,
     MyCampaignOut,
     QuoteResponse,
@@ -34,6 +33,11 @@ router.get("/active/{format}/list", response_model=list[AdOut])(ad.get_active_ad
 # rota estática ("my-campaign") declarada antes de "/{campaign_id}/click".
 router.get("/my-campaign/{token}", response_model=MyCampaignOut)(ad.get_my_campaign)
 router.patch("/my-campaign/{token}", response_model=MyCampaignOut)(ad.update_my_campaign)
+# Anunciante preenche o conteúdo criativo de uma proposta manual ainda
+# "awaiting_content" — ver services/ad.py::submit_my_campaign_content.
+router.post(
+    "/my-campaign/{token}/submit-content", response_model=CheckoutResponse
+)(ad.submit_my_campaign_content)
 # "Meus anúncios" na sidebar do app Daqui (usuário logado, escopado por
 # e-mail) — dashboard comparativo entre as campanhas do próprio anunciante.
 router.get("/my-campaigns/exists", response_model=HasCampaignsOut)(
@@ -54,7 +58,7 @@ admin_router.get("/campaigns", response_model=list[CampaignAdminOut])(
     ad.admin_list_campaigns
 )
 admin_router.post(
-    "/campaigns", response_model=ManualCampaignCreateOut, status_code=201
+    "/campaigns", response_model=CampaignAdminOut, status_code=201
 )(ad.admin_create_manual_campaign)
 admin_router.patch("/campaigns/{campaign_id}", response_model=CampaignAdminOut)(
     ad.admin_update_campaign

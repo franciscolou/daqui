@@ -8,6 +8,7 @@ from app.core import payments
 from app.core.br_documents import validate_document
 from app.core.uploads import save_upload_media
 from app.daos import ad as ad_dao
+from app.daos import admin as admin_dao
 from app.daos import settings as settings_dao
 from app.models.ad import (
     AdCampaign,
@@ -30,6 +31,7 @@ from app.schemas.ad import (
     AnalyticsSummary,
     CampaignAdminOut,
     CampaignAnalyticsRow,
+    CampaignContentSubmit,
     CampaignHistoryPeriod,
     CampaignUpdate,
     CheckoutRequest,
@@ -42,7 +44,6 @@ from app.schemas.ad import (
     GlobalAnalyticsSummary,
     HasCampaignsOut,
     ManualCampaignCreate,
-    ManualCampaignCreateOut,
     MediaUploadOut,
     MyCampaignOut,
     MyCampaignUpdate,
@@ -51,6 +52,7 @@ from app.schemas.ad import (
     QuoteResponse,
     ScheduleIn,
     TargetingIn,
+    _check_map_has_pin,
 )
 from app.schemas.settings import AdSettingsOut, AdSettingsUpdate
 from app.services import ad_pricing
@@ -291,7 +293,21 @@ def _activate(
     )
     if payment_provider is not None:
         fields["payment_provider"] = payment_provider
-    ad_dao.update_campaign(db, campaign, **fields)
+    campaign = ad_dao.update_campaign(db, campaign, **fields)
+    # Só campanhas nascidas de proposta manual têm um admin dono do trâmite
+    # pra registrar — o checkout self-service não passa por auditoria.
+    if campaign.created_by_admin_id is not None:
+        admin = admin_dao.get_by_id(db, campaign.created_by_admin_id)
+        if admin:
+            audit_log_service.log(
+                db,
+                admin,
+                AdAuditLogAction.PROPOSAL_ACTIVATED,
+                detail=(
+                    f"Campanha de {campaign.advertiser_name} "
+                    f"({campaign.advertiser_email}) foi ativada"
+                ),
+            )
 
 
 def handle_stripe_webhook(db: Session, payload: bytes, signature: str) -> None:
@@ -431,12 +447,13 @@ def admin_list_campaigns(db: Session, status: str | None) -> list[CampaignAdminO
 
 def admin_create_manual_campaign(
     db: Session, admin: AdAdmin, payload: ManualCampaignCreate
-) -> ManualCampaignCreateOut:
-    """Proposta negociada por fora: preço sugerido pela engine (ou o valor
-    que o admin sobrescrever), nasce `pending_payment` com um link de
-    pagamento real gerado na hora — mesmo fluxo do checkout self-service, só
-    que iniciado pelo admin. Ativa via webhook do Stripe ou via
-    `admin_mark_campaign_paid` (confirmação manual/teste sem Stripe real)."""
+) -> CampaignAdminOut:
+    """Proposta negociada por fora: o admin define só a parte comercial
+    (config + preço, sugerido pela engine ou sobrescrito). Nasce
+    `awaiting_content`, sem nenhum criativo — o link do painel do anunciante
+    (`access_token`) é o que o admin envia pro anunciante preencher o
+    conteúdo (ver `submit_my_campaign_content`), que só então gera o link de
+    pagamento real e vira `pending_payment`."""
     targeting = payload.effective_targeting()
     _check_targeting(targeting)
     schedule = payload.schedule or ScheduleIn()
@@ -458,13 +475,12 @@ def admin_create_manual_campaign(
             per_user_impression_cap=payload.per_user_impression_cap,
         )
         price_cents = result["price_cents"]
-    creatives = [c.model_dump() for c in payload.effective_creatives()]
     renewed_from_id, root_campaign_id = _resolve_renewal(db, payload.renewed_from_token)
     campaign = ad_dao.create_campaign(
         db,
-        creatives=creatives,
+        creatives=[],
         plan_id=payload.plan_id,
-        status=AdCampaignStatus.PENDING_PAYMENT,
+        status=AdCampaignStatus.AWAITING_CONTENT,
         advertiser_name=payload.advertiser_name,
         advertiser_email=payload.advertiser_email,
         advertiser_phone=payload.advertiser_phone,
@@ -486,22 +502,58 @@ def admin_create_manual_campaign(
         renewed_from_id=renewed_from_id,
         root_campaign_id=root_campaign_id,
     )
-    # Registrado já aqui, não depois do checkout: a proposta em si é o que
-    # importa pra auditoria — um Stripe fora do ar não pode apagar o rastro
-    # de que o admin a criou (ver "Gap conhecido" no CLAUDE.md).
     audit_log_service.log(
         db,
         admin,
         AdAuditLogAction.PROPOSAL_CREATE,
         detail=f"Inseriu proposta manual para {payload.advertiser_name} ({payload.advertiser_email})",
     )
+    return CampaignAdminOut.model_validate(campaign)
+
+
+def submit_my_campaign_content(
+    db: Session, token: str, payload: CampaignContentSubmit
+) -> CheckoutResponse:
+    """Anunciante preenche o conteúdo criativo de uma proposta manual ainda
+    `awaiting_content` — a config comercial já foi fixada pelo admin na
+    criação (ver `admin_create_manual_campaign`). Salva os criativos, gera o
+    link de pagamento real só agora (é o primeiro momento em que existe um
+    título pra dar nome ao produto no Stripe) e vira `pending_payment`."""
+    campaign = ad_dao.get_campaign_by_token(db, token)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
+    if campaign.status != AdCampaignStatus.AWAITING_CONTENT:
+        raise HTTPException(
+            status_code=400, detail="Este anúncio não está aguardando conteúdo"
+        )
+    creatives = payload.effective_creatives()
+    try:
+        _check_map_has_pin(campaign.formats, creatives)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    ad_dao.upsert_creatives_by_format(
+        db, campaign, [c.model_dump() for c in creatives]
+    )
     title = campaign.creatives[0].title if campaign.creatives else "Anúncio"
     checkout_url = payments.create_checkout_session(
-        campaign.id, campaign.access_token, title, price_cents, campaign.currency
+        campaign.id, campaign.access_token, title, campaign.price_cents, campaign.currency
     )
-    return ManualCampaignCreateOut(
-        campaign=CampaignAdminOut.model_validate(campaign), checkout_url=checkout_url
+    campaign = ad_dao.update_campaign(
+        db, campaign, status=AdCampaignStatus.PENDING_PAYMENT
     )
+    if campaign.created_by_admin_id is not None:
+        admin = admin_dao.get_by_id(db, campaign.created_by_admin_id)
+        if admin:
+            audit_log_service.log(
+                db,
+                admin,
+                AdAuditLogAction.PROPOSAL_CONTENT_SUBMITTED,
+                detail=(
+                    f"Anunciante {campaign.advertiser_name} "
+                    f"({campaign.advertiser_email}) preencheu o conteúdo da proposta"
+                ),
+            )
+    return CheckoutResponse(campaign_id=campaign.id, checkout_url=checkout_url)
 
 
 def admin_mark_campaign_paid(db: Session, campaign_id: int) -> CampaignAdminOut:

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Linking, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -70,24 +70,38 @@ export default function EditCampaignScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const canSubmit = !!(advertiserName.trim() && advertiserEmail.trim() &&
-    isValidDocument(advertiserType, advertiserDocument) &&
-    blocks.default.title.trim() && blocks.default.targetUrl.trim() && !saving);
+  // Proposta manual ainda sem conteúdo: o anunciante só preenche o criativo
+  // (identidade e config comercial já foram fixadas pelo moderador) e o botão
+  // segue direto pro pagamento em vez de voltar pro dashboard.
+  const awaitingContent = campaign?.status === 'awaiting_content';
+
+  const missingPin = !!campaign?.formats.includes('map') && blocks.default.locationStatus !== 'valid';
+
+  const canSubmit = !!(
+    (awaitingContent || (advertiserName.trim() && advertiserEmail.trim() &&
+      isValidDocument(advertiserType, advertiserDocument))) &&
+    blocks.default.title.trim() && blocks.default.targetUrl.trim() && !missingPin && !saving
+  );
 
   const submit = async () => {
     if (!token) return;
     setError('');
     setSaving(true);
     try {
-      await adsApi.updateMyCampaign(token, {
-        advertiserName: advertiserName.trim(),
-        advertiserEmail: advertiserEmail.trim(),
-        advertiserPhone: advertiserPhone.trim(),
-        advertiserType,
-        advertiserDocument: advertiserDocument.trim(),
-        creatives: blocksToCreatives(blocks),
-      });
-      router.replace(`/advertise/dashboard/${token}` as any);
+      if (awaitingContent) {
+        const { checkoutUrl } = await adsApi.submitMyCampaignContent(token, blocksToCreatives(blocks));
+        await Linking.openURL(checkoutUrl);
+      } else {
+        await adsApi.updateMyCampaign(token, {
+          advertiserName: advertiserName.trim(),
+          advertiserEmail: advertiserEmail.trim(),
+          advertiserPhone: advertiserPhone.trim(),
+          advertiserType,
+          advertiserDocument: advertiserDocument.trim(),
+          creatives: blocksToCreatives(blocks),
+        });
+        router.replace(`/advertise/dashboard/${token}` as any);
+      }
     } catch (e) {
       setError(e instanceof AdsApiError ? e.message : 'Não foi possível salvar as alterações.');
     } finally {
@@ -101,7 +115,7 @@ export default function EditCampaignScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack(`/advertise/dashboard/${token}` as any)}>
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Editar anúncio</Text>
+        <Text style={styles.headerTitle}>{awaitingContent ? 'Preencher anúncio' : 'Editar anúncio'}</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -127,23 +141,32 @@ export default function EditCampaignScreen() {
                   : campaign.neighborhoods.join(', ') || '—'}
               </Text>
               <Text style={styles.summaryHint}>
-                Período, segmentação e formatos não são editáveis por aqui — fale com o time de anúncios pra mudar isso.
+                {awaitingContent
+                  ? 'Preço, duração, segmentação e formatos já foram combinados com o time de anúncios — preencha só o conteúdo do seu anúncio abaixo.'
+                  : 'Período, segmentação e formatos não são editáveis por aqui — fale com o time de anúncios pra mudar isso.'}
               </Text>
 
-              <Text style={styles.sectionTitle}>Seus dados</Text>
-              <AdvertiserIdentityFields
-                type={advertiserType}
-                name={advertiserName}
-                document={advertiserDocument}
-                onChangeType={setAdvertiserType}
-                onChangeName={setAdvertiserName}
-                onChangeDocument={setAdvertiserDocument}
-              />
-              <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
-              <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
+              {!awaitingContent && (
+                <>
+                  <Text style={styles.sectionTitle}>Seus dados</Text>
+                  <AdvertiserIdentityFields
+                    type={advertiserType}
+                    name={advertiserName}
+                    document={advertiserDocument}
+                    onChangeType={setAdvertiserType}
+                    onChangeName={setAdvertiserName}
+                    onChangeDocument={setAdvertiserDocument}
+                  />
+                  <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
+                  <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
+                </>
+              )}
 
               <AdCreativeEditor formats={campaign.formats} value={blocks} onChange={setBlocks} />
 
+              {missingPin && (
+                <Text style={styles.hintText}>Marque o local do pin acima para anunciar no mapa.</Text>
+              )}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
               <TouchableOpacity
@@ -152,7 +175,13 @@ export default function EditCampaignScreen() {
                 disabled={!canSubmit}
                 onPress={submit}
               >
-                {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Salvar alterações</Text>}
+                {saving ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.submitBtnText}>
+                    {awaitingContent ? 'Ir para o pagamento' : 'Salvar alterações'}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
 
@@ -211,6 +240,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   } as any,
 
   errorText: { fontSize: 12, fontWeight: '600', color: Colors.error },
+  hintText: { fontSize: 12, fontWeight: '600', color: Colors.textTertiary },
 
   submitBtn: { marginTop: 8, backgroundColor: Colors.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   submitBtnDisabled: { opacity: 0.5 },

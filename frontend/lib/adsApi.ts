@@ -322,7 +322,13 @@ function creativeBody(c: CreativeInput) {
 }
 
 // ── Painel do anunciante (`/advertise/dashboard/[token]`) ──────────────────
-export type CampaignStatus = 'pending_payment' | 'active' | 'paused' | 'expired' | 'rejected';
+export type CampaignStatus =
+  | 'awaiting_content'
+  | 'pending_payment'
+  | 'active'
+  | 'paused'
+  | 'expired'
+  | 'rejected';
 
 export interface MyCampaignCreative {
   id: number;
@@ -811,6 +817,17 @@ export const adsApi = {
       },
     });
     return mapMyCampaign(r);
+  },
+
+  async submitMyCampaignContent(
+    token: string,
+    creatives: CreativeInput[],
+  ): Promise<{ campaignId: number; checkoutUrl: string }> {
+    const r = await request<{ campaign_id: number; checkout_url: string }>(
+      `/ads/my-campaign/${encodeURIComponent(token)}/submit-content`,
+      { method: 'POST', body: { creatives: creatives.map(creativeBody) } },
+    );
+    return { campaignId: r.campaign_id, checkoutUrl: r.checkout_url };
   },
 
   async hasMyCampaigns(email: string): Promise<boolean> {

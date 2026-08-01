@@ -13,6 +13,7 @@ from app.schemas.ad import (
     AdPlanUpdate,
     AnalyticsOut,
     CampaignAdminOut,
+    CampaignContentSubmit,
     CampaignUpdate,
     CheckoutRequest,
     CheckoutResponse,
@@ -23,7 +24,6 @@ from app.schemas.ad import (
     GlobalAnalyticsOut,
     HasCampaignsOut,
     ManualCampaignCreate,
-    ManualCampaignCreateOut,
     MediaUploadOut,
     MyCampaignOut,
     MyCampaignUpdate,
@@ -166,6 +166,17 @@ def update_my_campaign(
     return ad_service.update_my_campaign(db, token, payload)
 
 
+def submit_my_campaign_content(
+    token: str,
+    payload: CampaignContentSubmit,
+    db: Session = Depends(get_db),
+) -> CheckoutResponse:
+    # Público, mesma autorização por token — preenchimento inicial do
+    # conteúdo criativo de uma proposta manual (ver
+    # services::submit_my_campaign_content).
+    return ad_service.submit_my_campaign_content(db, token, payload)
+
+
 def get_my_campaigns_exists(
     email: str = Query(...),
     db: Session = Depends(get_db),
@@ -222,7 +233,7 @@ def admin_create_manual_campaign(
     payload: ManualCampaignCreate,
     db: Session = Depends(get_db),
     admin: AdAdmin = Depends(get_current_admin),
-) -> ManualCampaignCreateOut:
+) -> CampaignAdminOut:
     return ad_service.admin_create_manual_campaign(db, admin, payload)
 
 

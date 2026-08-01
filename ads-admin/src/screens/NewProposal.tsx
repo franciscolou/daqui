@@ -3,14 +3,16 @@ import { View } from 'react-native';
 import NeighborhoodPicker from '@daqui/components/NeighborhoodPicker';
 import CityPicker from '@daqui/components/CityPicker';
 import { api, errorMessage } from '../lib/api';
+import { APP_URL } from '../lib/config';
 import { fmtMoney, maskDocument, parseCsvNumbers, parseCsvStrings } from '../lib/format';
 import { ALL_FORMATS, FORMAT_LABEL, GEO_SCOPES, GeoScope, OBJECTIVE_LABEL } from '../lib/labels';
-import { LocationField, PickedLocation } from '../daqui/LocationField';
-import { MediaPicker, UploadedMedia } from '../ui/MediaPicker';
 import { CheckPill, CollapseSection, CopyButton, Field } from '../ui/primitives';
 
 // Proposta manual: campanha negociada por fora (Instagram/WhatsApp/Gmail) que
-// nasce "aguardando pagamento", com link de pagamento gerado na hora.
+// nasce "aguardando conteúdo" — o moderador define só a parte comercial; o
+// conteúdo criativo é preenchido depois pelo próprio anunciante, através do
+// link do painel dele (mesmo link de "Copiar link do anunciante" em
+// Campaigns.tsx).
 
 interface AdvancedState {
   objective: string;
@@ -64,17 +66,10 @@ export function NewProposal() {
   const [city, setCity] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
 
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [media, setMedia] = useState<UploadedMedia | null>(null);
-  const [ctaLabel, setCtaLabel] = useState('');
-  const [targetUrl, setTargetUrl] = useState('');
-  const [location, setLocation] = useState<PickedLocation | null>(null);
-
   const [advanced, setAdvanced] = useState<AdvancedState>(INITIAL_ADVANCED);
 
   const [suggested, setSuggested] = useState<number | null>(null);
-  const [checkoutUrl, setCheckoutUrl] = useState('');
+  const [advertiserLink, setAdvertiserLink] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -102,14 +97,6 @@ export function NewProposal() {
       advertiser_phone: phone.trim(),
       advertiser_type: advertiserType,
       advertiser_document: document.trim(),
-      title: title.trim(),
-      content: content.trim(),
-      image_url: media?.type === 'image' ? media.url : null,
-      video_url: media?.type === 'video' ? media.url : null,
-      cta_label: ctaLabel.trim() || null,
-      target_url: targetUrl.trim(),
-      latitude: location?.latitude ?? null,
-      longitude: location?.longitude ?? null,
       // Vazio = a engine calcula (ver "Sugerido"); preenchido = admin sobrescreve.
       price_cents: priceRaw ? Math.round(parseFloat(priceRaw) * 100) : null,
       objective: advanced.objective,
@@ -138,7 +125,7 @@ export function NewProposal() {
     };
   }, [
     formats, duration, geoScope, neighborhoods, city, cities, name, email, phone,
-    advertiserType, document, title, content, media, ctaLabel, targetUrl, location, price, advanced,
+    advertiserType, document, price, advanced,
   ]);
 
   // Preço sugerido pela engine, recalculado (debounced) sempre que algo que
@@ -164,18 +151,11 @@ export function NewProposal() {
 
   const submit = async () => {
     setError('');
-    setCheckoutUrl('');
-    // O formato "map" só entrega alguma coisa com um ponto marcado — o
-    // ads-backend recusa sem ele (schemas/ad.py::check_map_has_pin), então
-    // aviso aqui em vez de deixar virar um 422 genérico.
-    if (formats.includes('map') && !location) {
-      setError('Marque a localização no mapa para usar o formato "Pin no mapa".');
-      return;
-    }
+    setAdvertiserLink('');
     setBusy(true);
     try {
-      const res = await api.post<{ checkout_url: string }>('/admin/ads/campaigns', payload);
-      setCheckoutUrl(res.checkout_url);
+      const res = await api.post<{ access_token: string }>('/admin/ads/campaigns', payload);
+      setAdvertiserLink(`${APP_URL}/advertise/dashboard/${res.access_token}`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -191,10 +171,10 @@ export function NewProposal() {
       <header>
         <h2>Inserir proposta manual</h2>
         <span className="muted">
-          Para propostas negociadas por Instagram/WhatsApp/Gmail — nasce &quot;aguardando
-          pagamento&quot;, com link de pagamento gerado na hora. Use &quot;Marcar como paga&quot; na
-          lista de campanhas pra confirmar um pagamento combinado por fora (ou testar sem Stripe
-          real).
+          Para propostas negociadas por Instagram/WhatsApp/Gmail — defina aqui só a parte
+          comercial (preço, duração, formatos, segmentação). A campanha nasce &quot;aguardando
+          conteúdo&quot;: envie o link do anunciante pra ele preencher o criativo do próprio
+          anúncio e seguir pro pagamento.
         </span>
       </header>
 
@@ -316,40 +296,6 @@ export function NewProposal() {
         )}
 
         <div className="divider" />
-
-        <div className="eyebrow">Criativo</div>
-        <Field label="Título do anúncio">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} />
-        </Field>
-        <Field label="Texto">
-          <textarea value={content} onChange={(e) => setContent(e.target.value)} />
-        </Field>
-        <div className="row-2">
-          <Field label="Foto ou vídeo (opcional)">
-            <MediaPicker value={media} onChange={setMedia} />
-          </Field>
-          <Field label="Texto do botão (opcional)">
-            <input
-              placeholder="Saiba mais"
-              value={ctaLabel}
-              onChange={(e) => setCtaLabel(e.target.value)}
-            />
-          </Field>
-        </div>
-        <Field label="Link de destino (ao tocar no anúncio)">
-          <input
-            placeholder="https://..."
-            value={targetUrl}
-            onChange={(e) => setTargetUrl(e.target.value)}
-          />
-        </Field>
-
-        <Field
-          label="Localização no mapa (obrigatória no formato &quot;Pin no mapa&quot;)"
-          hint="Mesmo seletor de local do app Daqui: busque um endereço ou marque o ponto no mapa."
-        >
-          <LocationField value={location} onChange={setLocation} />
-        </Field>
 
         <CollapseSection title="Configurações avançadas">
           <div className="row-2">
@@ -489,14 +435,15 @@ export function NewProposal() {
 
         {error && <div className="err">{error}</div>}
 
-        {checkoutUrl && (
+        {advertiserLink && (
           <div className="insights">
-            <strong>Proposta criada — aguardando pagamento</strong>
+            <strong>Proposta criada — aguardando conteúdo</strong>
             <div className="muted" style={{ margin: '6px 0 10px' }}>
-              Envie o link de pagamento pro anunciante, ou confirme manualmente em
-              &quot;Campanhas&quot; quando o pagamento cair.
+              Envie o link do anunciante pra ele ver as condições e preencher o criativo do
+              próprio anúncio. Depois disso ele segue pro pagamento — confirme manualmente em
+              &quot;Campanhas&quot; se o pagamento cair combinado por fora.
             </div>
-            <CopyButton text={checkoutUrl} label="Copiar link de pagamento" icon />
+            <CopyButton text={advertiserLink} label="Copiar link do anunciante" icon />
           </div>
         )}
       </div>
