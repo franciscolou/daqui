@@ -76,6 +76,7 @@ const PATHS: Record<string, React.ReactNode> = {
       <line x1="14" y1="11" x2="14" y2="17" />
     </>
   ),
+  edit: <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />,
   lock: (
     <>
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />

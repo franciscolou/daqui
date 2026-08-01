@@ -24,7 +24,13 @@ def _out(entry: AdAuditLog) -> AdAuditLogOut:
     return out
 
 
-def admin_list(db: Session, page: int, page_size: int) -> list[AdAuditLogOut]:
+def admin_list(
+    db: Session,
+    actor: str | None,
+    action: AdAuditLogAction | None,
+    page: int,
+    page_size: int,
+) -> list[AdAuditLogOut]:
     offset = (page - 1) * page_size
-    entries = audit_log_dao.list_all(db, offset, page_size)
+    entries = audit_log_dao.list_all(db, actor, action, offset, page_size)
     return [_out(e) for e in entries]

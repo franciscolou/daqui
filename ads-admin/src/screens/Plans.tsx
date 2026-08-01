@@ -24,6 +24,7 @@ export function Plans() {
   const dialogs = useDialogs();
   const { data, loading, error, reload } = useAsync<Plan[]>(() => api.get<Plan[]>('/admin/ads/plans'));
   const plans = useMemo(() => data ?? [], [data]);
+  const [editing, setEditing] = useState<Plan | null>(null);
 
   const tabs = useMemo(() => {
     const hasOther = plans.some((p) => !PLAN_CATEGORIES.some((c) => c.key === p.category));
@@ -111,6 +112,15 @@ export function Plans() {
                 <button
                   type="button"
                   className="icon-btn bare"
+                  title="Editar"
+                  aria-label="Editar"
+                  onClick={() => setEditing(p)}
+                >
+                  <Icon name="edit" size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn bare"
                   title={p.is_public ? 'Ocultar' : 'Tornar visível'}
                   aria-label={p.is_public ? 'Ocultar' : 'Tornar visível'}
                   onClick={() => toggleVisibility(p)}
@@ -131,7 +141,15 @@ export function Plans() {
           ))}
       </div>
 
-      <NewPlanForm onCreated={reload} />
+      <PlanForm
+        key={editing?.id ?? 'new'}
+        plan={editing}
+        onSaved={async () => {
+          setEditing(null);
+          await reload();
+        }}
+        onCancelEdit={() => setEditing(null)}
+      />
     </div>
   );
 }
@@ -150,9 +168,37 @@ const EMPTY_PLAN = {
   badge: '',
 };
 
-function NewPlanForm({ onCreated }: { onCreated: () => Promise<void> }) {
-  const [draft, setDraft] = useState(EMPTY_PLAN);
-  const [formats, setFormats] = useState<string[]>([]);
+/** Formulário de plano: cria quando `plan` é null, edita (PATCH) quando não
+ * é. A tela monta um `<PlanForm key={editing?.id ?? 'new'}>` novo a cada
+ * troca de alvo, então o estado inicial já nasce certo — sem useEffect pra
+ * ressincronizar o draft quando `plan` muda. */
+function PlanForm({
+  plan,
+  onSaved,
+  onCancelEdit,
+}: {
+  plan: Plan | null;
+  onSaved: () => Promise<void>;
+  onCancelEdit: () => void;
+}) {
+  const [draft, setDraft] = useState(() =>
+    plan
+      ? {
+          name: plan.name,
+          slug: plan.slug,
+          description: plan.description,
+          price: (plan.price_cents / 100).toString(),
+          duration: String(plan.duration_days),
+          geoScope: plan.geo_scope,
+          maxNeighborhoods: plan.max_neighborhoods ? String(plan.max_neighborhoods) : '',
+          maxCities: plan.max_cities ? String(plan.max_cities) : '',
+          sortOrder: String(plan.sort_order),
+          category: plan.category || '',
+          badge: plan.badge || '',
+        }
+      : EMPTY_PLAN,
+  );
+  const [formats, setFormats] = useState<string[]>(() => plan?.formats ?? []);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -163,7 +209,7 @@ function NewPlanForm({ onCreated }: { onCreated: () => Promise<void> }) {
     setError('');
     setBusy(true);
     try {
-      await api.post('/admin/ads/plans', {
+      const body = {
         name: draft.name.trim(),
         slug: draft.slug.trim(),
         description: draft.description.trim(),
@@ -180,10 +226,13 @@ function NewPlanForm({ onCreated }: { onCreated: () => Promise<void> }) {
         sort_order: parseInt(draft.sortOrder || '0', 10),
         category: draft.category || null,
         badge: draft.badge.trim() || null,
-      });
-      setDraft(EMPTY_PLAN);
-      setFormats([]);
-      await onCreated();
+      };
+      if (plan) {
+        await api.patch(`/admin/ads/plans/${plan.id}`, body);
+      } else {
+        await api.post('/admin/ads/plans', body);
+      }
+      await onSaved();
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -194,7 +243,7 @@ function NewPlanForm({ onCreated }: { onCreated: () => Promise<void> }) {
   return (
     <div className="form-card">
       <header>
-        <h2>Novo plano</h2>
+        <h2>{plan ? `Editar "${plan.name}"` : 'Novo plano'}</h2>
       </header>
 
       <div className="stack">
@@ -312,9 +361,22 @@ function NewPlanForm({ onCreated }: { onCreated: () => Promise<void> }) {
           </Field>
         </div>
 
-        <button type="button" className="btn primary lg block" disabled={busy} onClick={submit}>
-          Criar plano
-        </button>
+        <div className="actions">
+          {plan && (
+            <button type="button" className="btn" onClick={onCancelEdit}>
+              Cancelar
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn primary lg block"
+            style={{ flex: 1 }}
+            disabled={busy}
+            onClick={submit}
+          >
+            {plan ? 'Salvar alterações' : 'Criar plano'}
+          </button>
+        </div>
 
         {error && <div className="err">{error}</div>}
       </div>

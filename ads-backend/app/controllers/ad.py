@@ -238,17 +238,17 @@ def admin_update_campaign(
     campaign_id: int,
     payload: CampaignUpdate,
     db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
+    admin: AdAdmin = Depends(get_current_admin),
 ) -> CampaignAdminOut:
-    return ad_service.admin_update_campaign(db, campaign_id, payload)
+    return ad_service.admin_update_campaign(db, campaign_id, admin, payload)
 
 
 def admin_create_plan(
     payload: AdPlanCreate,
     db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
+    admin: AdAdmin = Depends(get_current_admin),
 ) -> AdPlanOut:
-    return ad_service.admin_create_plan(db, payload)
+    return ad_service.admin_create_plan(db, admin, payload)
 
 
 def admin_list_plans(
@@ -262,17 +262,17 @@ def admin_update_plan(
     plan_id: int,
     payload: AdPlanUpdate,
     db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
+    admin: AdAdmin = Depends(get_current_admin),
 ) -> AdPlanOut:
-    return ad_service.admin_update_plan(db, plan_id, payload)
+    return ad_service.admin_update_plan(db, admin, plan_id, payload)
 
 
 def admin_delete_plan(
     plan_id: int,
     db: Session = Depends(get_db),
-    _admin: AdAdmin = Depends(get_current_admin),
+    admin: AdAdmin = Depends(get_current_admin),
 ) -> None:
-    ad_service.admin_delete_plan(db, plan_id)
+    ad_service.admin_delete_plan(db, admin, plan_id)
 
 
 def admin_list_creatives(

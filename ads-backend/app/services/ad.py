@@ -19,6 +19,7 @@ from app.models.ad import (
     PaymentProvider,
 )
 from app.models.admin import AdAdmin
+from app.models.audit_log import AdAuditLogAction
 from app.schemas.ad import (
     AdOut,
     AdPlanCreate,
@@ -53,6 +54,7 @@ from app.schemas.ad import (
 )
 from app.schemas.settings import AdSettingsOut, AdSettingsUpdate
 from app.services import ad_pricing
+from app.services import audit_log as audit_log_service
 
 WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
 
@@ -384,8 +386,11 @@ def admin_update_settings(db: Session, payload: AdSettingsUpdate) -> AdSettingsO
     return AdSettingsOut.model_validate(updated)
 
 
-def admin_create_plan(db: Session, payload: AdPlanCreate) -> AdPlanOut:
+def admin_create_plan(db: Session, actor: AdAdmin, payload: AdPlanCreate) -> AdPlanOut:
     plan = ad_dao.create_plan(db, **payload.model_dump())
+    audit_log_service.log(
+        db, actor, AdAuditLogAction.PLAN_CREATE, detail=f'Criou o plano "{plan.name}"'
+    )
     return AdPlanOut.model_validate(plan)
 
 
@@ -393,20 +398,29 @@ def admin_list_plans(db: Session) -> list[AdPlanOut]:
     return [AdPlanOut.model_validate(p) for p in ad_dao.list_all_plans(db)]
 
 
-def admin_update_plan(db: Session, plan_id: int, payload: AdPlanUpdate) -> AdPlanOut:
+def admin_update_plan(
+    db: Session, actor: AdAdmin, plan_id: int, payload: AdPlanUpdate
+) -> AdPlanOut:
     plan = ad_dao.get_plan(db, plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plano não encontrado")
     fields = {k: v for k, v in payload.model_dump().items() if v is not None}
     plan = ad_dao.update_plan(db, plan, **fields)
+    audit_log_service.log(
+        db, actor, AdAuditLogAction.PLAN_UPDATE, detail=f'Editou o plano "{plan.name}"'
+    )
     return AdPlanOut.model_validate(plan)
 
 
-def admin_delete_plan(db: Session, plan_id: int) -> None:
+def admin_delete_plan(db: Session, actor: AdAdmin, plan_id: int) -> None:
     plan = ad_dao.get_plan(db, plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plano não encontrado")
+    name = plan.name
     ad_dao.delete_plan(db, plan)
+    audit_log_service.log(
+        db, actor, AdAuditLogAction.PLAN_DELETE, detail=f'Excluiu o plano "{name}"'
+    )
 
 
 def admin_list_campaigns(db: Session, status: str | None) -> list[CampaignAdminOut]:
@@ -472,6 +486,15 @@ def admin_create_manual_campaign(
         renewed_from_id=renewed_from_id,
         root_campaign_id=root_campaign_id,
     )
+    # Registrado já aqui, não depois do checkout: a proposta em si é o que
+    # importa pra auditoria — um Stripe fora do ar não pode apagar o rastro
+    # de que o admin a criou (ver "Gap conhecido" no CLAUDE.md).
+    audit_log_service.log(
+        db,
+        admin,
+        AdAuditLogAction.PROPOSAL_CREATE,
+        detail=f"Inseriu proposta manual para {payload.advertiser_name} ({payload.advertiser_email})",
+    )
     title = campaign.creatives[0].title if campaign.creatives else "Anúncio"
     checkout_url = payments.create_checkout_session(
         campaign.id, campaign.access_token, title, price_cents, campaign.currency
@@ -500,13 +523,27 @@ def admin_mark_campaign_paid(db: Session, campaign_id: int) -> CampaignAdminOut:
 
 
 def admin_update_campaign(
-    db: Session, campaign_id: int, payload: CampaignUpdate
+    db: Session, campaign_id: int, actor: AdAdmin, payload: CampaignUpdate
 ) -> CampaignAdminOut:
     campaign = ad_dao.get_campaign(db, campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Campanha não encontrada")
     fields = {k: v for k, v in payload.model_dump().items() if v is not None}
+    new_status = fields.get("status")
     campaign = ad_dao.update_campaign(db, campaign, **fields)
+    # Só pause/reativação (os dois únicos valores que a UI manda pra este
+    # campo) viram entrada de auditoria — outros campos deste mesmo PATCH
+    # (prioridade, tetos de impressão...) são ajuste fino, não uma decisão
+    # de "tirar do ar"/"recolocar no ar".
+    who = f"{campaign.advertiser_name} ({campaign.advertiser_email})"
+    if new_status == AdCampaignStatus.PAUSED:
+        audit_log_service.log(
+            db, actor, AdAuditLogAction.CAMPAIGN_PAUSE, detail=f"Pausou a campanha de {who}"
+        )
+    elif new_status == AdCampaignStatus.ACTIVE:
+        audit_log_service.log(
+            db, actor, AdAuditLogAction.CAMPAIGN_REACTIVATE, detail=f"Reativou a campanha de {who}"
+        )
     return CampaignAdminOut.model_validate(campaign)
 
 

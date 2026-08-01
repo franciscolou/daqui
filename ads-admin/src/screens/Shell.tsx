@@ -5,6 +5,7 @@ import { Icon, IconName } from '../ui/Icon';
 import { Avatar } from '../ui/primitives';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Account } from './Account';
+import { Audit } from './Audit';
 import { Campaigns } from './Campaigns';
 import { Analytics } from './Analytics';
 import { NewProposal } from './NewProposal';
@@ -71,9 +72,19 @@ const BASE_SECTIONS: Section[] = [
   },
 ];
 
-// Gestão de contas do time — inserida antes de "Configurações"/"Minha conta"
-// para Administrador/Owner. Moderador/Administrador/Owner têm paridade
-// operacional no resto do painel; só a Equipe difere por cargo.
+// Auditoria e gestão de contas do time — inseridas antes de "Configurações"/
+// "Minha conta" para Administrador/Owner. Moderador/Administrador/Owner têm
+// paridade operacional no resto do painel; só essas duas diferem por cargo
+// (mesmo escopo do backend, ver core/deps.py::get_current_administrator).
+const AUDIT_SECTION: Section = {
+  key: 'audit',
+  label: 'Auditoria',
+  icon: 'clock',
+  title: 'Registro de auditoria',
+  subtitle: 'Campanhas, planos e contas de staff — tudo pesquisável',
+  render: () => <Audit />,
+};
+
 const STAFF_SECTION: Section = {
   key: 'staff',
   label: 'Equipe',
@@ -100,7 +111,7 @@ export function Shell() {
 
   const sections = useMemo(() => {
     const extra: Section[] = [];
-    if (canManageStaff(me?.role)) extra.push(STAFF_SECTION);
+    if (canManageStaff(me?.role)) extra.push(AUDIT_SECTION, STAFF_SECTION);
     if (me?.role === 'owner') extra.push(SETTINGS_SECTION);
     if (extra.length === 0) return BASE_SECTIONS;
     const idx = BASE_SECTIONS.findIndex((s) => s.key === 'account');

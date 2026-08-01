@@ -119,6 +119,15 @@ export interface StaffAccount {
   created_at: string;
 }
 
+export interface AdAuditLog {
+  id: number;
+  action: string;
+  detail?: string | null;
+  created_at: string;
+  actor: StaffAccount;
+  target?: StaffAccount | null;
+}
+
 export interface AdsSettings {
   price_multiplier: number;
 }

@@ -9,8 +9,9 @@ from app.database import Base
 
 
 class AdAuditLogAction(StrEnum):
-    """Tipos de ação registrados no log de auditoria do painel de anúncios —
-    hoje só cobre gestão de contas de staff (ver services/staff.py)."""
+    """Tipos de ação registrados no log de auditoria do painel de anúncios:
+    gestão de contas de staff (ver services/staff.py) e movimentações do
+    próprio negócio de anúncios (campanhas/planos, ver services/ad.py)."""
 
     # Substituído por STAFF_INVITE/STAFF_INVITE_ACCEPTED (conta de staff virou
     # convite por e-mail) — mantido só pra não quebrar a leitura de registros
@@ -22,6 +23,13 @@ class AdAuditLogAction(StrEnum):
     STAFF_SUSPEND = "staff_suspend"
     STAFF_UNSUSPEND = "staff_unsuspend"
     STAFF_DELETE = "staff_delete"
+
+    CAMPAIGN_PAUSE = "campaign_pause"
+    CAMPAIGN_REACTIVATE = "campaign_reactivate"
+    PLAN_CREATE = "plan_create"
+    PLAN_UPDATE = "plan_update"
+    PLAN_DELETE = "plan_delete"
+    PROPOSAL_CREATE = "proposal_create"
 
 
 class AdAuditLog(Base):

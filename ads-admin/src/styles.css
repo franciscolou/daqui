@@ -950,6 +950,29 @@ input[type='file'] {
   margin-top: 10px;
 }
 
+.search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.search-row input {
+  flex: 1;
+}
+
+.audit-sentence {
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.audit-actor {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  vertical-align: middle;
+}
+
 /* ── Abas ── */
 .tabs {
   display: flex;
