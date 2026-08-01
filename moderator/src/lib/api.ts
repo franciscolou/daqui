@@ -58,6 +58,8 @@ export const api = {
   /** Chamadas sem sessão (login, esqueci a senha) contra uma base específica. */
   public: <T>(path: string, body: unknown, base: string) =>
     request<T>(path, { method: 'POST', body, auth: false, base }),
+  /** Idem, mas GET (ex.: conferir um convite antes de mostrar o formulário). */
+  publicGet: <T>(path: string, base: string) => request<T>(path, { auth: false, base }),
 };
 
 export function errorMessage(e: unknown, fallback = 'Algo deu errado.'): string {

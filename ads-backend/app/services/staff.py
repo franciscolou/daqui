@@ -1,13 +1,30 @@
 from fastapi import HTTPException
+from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password
+from app.core.config import settings
+from app.core.email import send_email
+from app.core.security import (
+    create_access_token,
+    create_staff_invite_token,
+    decode_staff_invite_token,
+    hash_password,
+)
 from app.core.staff_rank import can_manage
 from app.daos import admin as admin_dao
 from app.models.admin import AdAdmin, AdAdminRole
 from app.models.audit_log import AdAuditLogAction
-from app.schemas.staff import StaffCreateIn, StaffOut, StaffUsernameIn
+from app.schemas.auth import TokenResponse
+from app.schemas.staff import (
+    StaffAcceptInviteIn,
+    StaffInviteIn,
+    StaffInviteInfo,
+    StaffOut,
+    StaffUsernameIn,
+)
 from app.services import audit_log as audit_log_service
+
+_MIN_PASSWORD_LEN = 6
 
 
 def _out(a: AdAdmin) -> StaffOut:
@@ -18,28 +35,79 @@ def admin_list_staff(db: Session) -> list[StaffOut]:
     return [_out(a) for a in admin_dao.list_all(db)]
 
 
-def admin_create_staff(db: Session, payload: StaffCreateIn, actor: AdAdmin) -> StaffOut:
-    if payload.role == AdAdminRole.OWNER:
-        raise HTTPException(status_code=400, detail="Não é possível criar uma conta Owner")
-    if payload.role == AdAdminRole.ADMINISTRADOR and actor.role != AdAdminRole.OWNER:
-        raise HTTPException(status_code=403, detail="Apenas o Owner pode criar contas Administrador")
+def admin_invite_staff(db: Session, payload: StaffInviteIn, actor: AdAdmin) -> None:
+    """Convida uma conta de staff por e-mail — quem convida só escolhe o
+    e-mail (e, se for Owner, o cargo); a conta em si só existe quando o
+    convidado escolhe usuário/senha em `admin_accept_invite`."""
+    role = payload.role
+    if role == AdAdminRole.OWNER:
+        raise HTTPException(status_code=400, detail="Não é possível convidar uma conta Owner")
+    if role == AdAdminRole.ADMINISTRADOR and actor.role != AdAdminRole.OWNER:
+        raise HTTPException(status_code=403, detail="Apenas o Owner pode convidar contas Administrador")
 
-    if admin_dao.get_by_email(db, payload.email):
+    email = payload.email.strip().lower()
+    if admin_dao.get_by_email(db, email):
         raise HTTPException(status_code=400, detail="Este e-mail já está em uso")
-    if admin_dao.get_by_username(db, payload.username):
-        raise HTTPException(status_code=400, detail="Este nome de usuário já está em uso")
 
-    staff = admin_dao.create(
-        db,
-        payload.email,
-        payload.username,
-        hash_password(payload.password),
-        role=payload.role,
+    token = create_staff_invite_token(email, role.value, actor.id)
+    link = f"{settings.ADS_ADMIN_URL}/?invite_token={token}"
+    send_email(
+        email,
+        "Convite para a equipe de anúncios — Daqui",
+        f"<p>Você foi convidado por {actor.email} para fazer parte da equipe de anúncios "
+        f"do Daqui, como <b>{role.value}</b>. Clique no link abaixo para escolher seu nome "
+        f"de usuário e senha (o convite vale por 7 dias):</p>"
+        f'<p><a href="{link}">{link}</a></p>'
+        f"<p>Se você não esperava este convite, ignore este e-mail.</p>",
     )
     audit_log_service.log(
-        db, actor, AdAuditLogAction.STAFF_CREATE, staff.id, f"Criou conta {payload.role} para {payload.email}"
+        db, actor, AdAuditLogAction.STAFF_INVITE, None, f"Convidou {email} para conta {role.value}"
     )
-    return _out(staff)
+
+
+def _decode_invite(token: str) -> dict:
+    try:
+        return decode_staff_invite_token(token)
+    except JWTError:
+        raise HTTPException(
+            status_code=400, detail="Convite inválido ou expirado. Peça um novo."
+        ) from None
+
+
+def admin_check_invite(db: Session, token: str) -> StaffInviteInfo:
+    claims = _decode_invite(token)
+    return StaffInviteInfo(email=claims["sub"], role=AdAdminRole(claims["role"]))
+
+
+def admin_accept_invite(db: Session, payload: StaffAcceptInviteIn) -> TokenResponse:
+    claims = _decode_invite(payload.token)
+    email = claims["sub"]
+    role = AdAdminRole(claims["role"])
+    invited_by_id = int(claims["invited_by"])
+
+    if admin_dao.get_by_email(db, email):
+        raise HTTPException(status_code=400, detail="Este convite já foi utilizado.")
+    if admin_dao.get_by_username(db, payload.username):
+        raise HTTPException(status_code=400, detail="Este nome de usuário já está em uso")
+    if len(payload.password) < _MIN_PASSWORD_LEN:
+        raise HTTPException(
+            status_code=400, detail=f"A senha deve ter ao menos {_MIN_PASSWORD_LEN} caracteres"
+        )
+
+    staff = admin_dao.create(
+        db, email, payload.username, hash_password(payload.password), role=role
+    )
+
+    inviter = admin_dao.get_by_id(db, invited_by_id)
+    inviter_desc = f"@{inviter.username}" if inviter else "um administrador"
+    audit_log_service.log(
+        db,
+        staff,
+        AdAuditLogAction.STAFF_INVITE_ACCEPTED,
+        staff.id,
+        f"Ativou o convite de {inviter_desc} e criou a conta @{payload.username}",
+    )
+    return TokenResponse(access_token=create_access_token(staff.id))
 
 
 def _get_target(db: Session, actor: AdAdmin, admin_id: int) -> AdAdmin:

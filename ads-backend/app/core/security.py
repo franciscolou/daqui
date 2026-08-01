@@ -67,3 +67,28 @@ def decode_password_reset_token(token: str) -> str:
     if payload.get("scope") != "password_reset":
         raise JWTError("Link de redefinição inválido")
     return payload["sub"]
+
+
+# Convite de conta de staff por e-mail (ver services/staff.py). Vale por 7
+# dias — bem mais que os outros tickets: ninguém confirma um convite de
+# equipe na hora como confirma um login.
+_STAFF_INVITE_TOKEN_MINUTES = 60 * 24 * 7
+
+
+def create_staff_invite_token(email: str, role: str, invited_by: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=_STAFF_INVITE_TOKEN_MINUTES)
+    payload = {
+        "sub": email,
+        "role": role,
+        "invited_by": str(invited_by),
+        "scope": "staff_invite",
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_staff_invite_token(token: str) -> dict:
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    if payload.get("scope") != "staff_invite":
+        raise JWTError("Convite inválido")
+    return payload

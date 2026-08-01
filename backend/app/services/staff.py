@@ -1,14 +1,31 @@
 from fastapi import HTTPException
+from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.core.security import hash_password
+from app.core.config import settings
+from app.core.email import send_email
+from app.core.security import (
+    create_access_token,
+    create_staff_invite_token,
+    decode_staff_invite_token,
+    hash_password,
+)
 from app.core.staff_rank import can_manage
 from app.daos import mention as mention_dao
 from app.daos import user as user_dao
 from app.models.audit_log import AuditLogAction
 from app.models.user import StaffRole, User
-from app.schemas.staff import StaffCreateIn, StaffOut, StaffUsernameIn
+from app.schemas.auth import TokenResponse
+from app.schemas.staff import (
+    StaffAcceptInviteIn,
+    StaffInviteIn,
+    StaffInviteInfo,
+    StaffOut,
+    StaffUsernameIn,
+)
 from app.services import audit_log as audit_log_service
+
+_MIN_PASSWORD_LEN = 6
 
 
 def _out(u: User) -> StaffOut:
@@ -19,37 +36,91 @@ def admin_list_staff(db: Session) -> list[StaffOut]:
     return [_out(u) for u in user_dao.list_staff(db)]
 
 
-def admin_create_staff(db: Session, payload: StaffCreateIn, actor: User) -> StaffOut:
-    if payload.role == StaffRole.OWNER:
-        raise HTTPException(status_code=400, detail="Não é possível criar uma conta Owner")
-    if payload.role == StaffRole.ADMINISTRADOR and actor.staff_role != StaffRole.OWNER:
-        raise HTTPException(status_code=403, detail="Apenas o Owner pode criar contas Administrador")
+def admin_invite_staff(db: Session, payload: StaffInviteIn, actor: User) -> None:
+    """Convida uma conta de staff por e-mail — quem convida só escolhe o
+    e-mail (e, se for Owner, o cargo); a conta em si só existe quando o
+    convidado escolhe usuário/senha em `admin_accept_invite`."""
+    role = payload.role
+    if role == StaffRole.OWNER:
+        raise HTTPException(status_code=400, detail="Não é possível convidar uma conta Owner")
+    if role == StaffRole.ADMINISTRADOR and actor.staff_role != StaffRole.OWNER:
+        raise HTTPException(status_code=403, detail="Apenas o Owner pode convidar contas Administrador")
 
-    if user_dao.get_by_email(db, payload.email):
+    email = payload.email.strip().lower()
+    if user_dao.get_by_email(db, email):
         raise HTTPException(status_code=400, detail="Este e-mail já está em uso")
-    username = payload.username.strip().lower()
-    if user_dao.get_by_username(db, username):
+
+    token = create_staff_invite_token(email, role.value, actor.id)
+    link = f"{settings.MODERATOR_URL}/?invite_token={token}"
+    send_email(
+        email,
+        "Convite para a equipe de moderação — Daqui",
+        f"<p>Você foi convidado por {actor.email} para fazer parte da equipe de moderação "
+        f"do Daqui, como <b>{role.value}</b>. Clique no link abaixo para escolher seu nome "
+        f"de usuário e senha (o convite vale por 7 dias):</p>"
+        f'<p><a href="{link}">{link}</a></p>'
+        f"<p>Se você não esperava este convite, ignore este e-mail.</p>",
+    )
+    audit_log_service.log(
+        db, actor, AuditLogAction.STAFF_INVITE, None, f"Convidou {email} para conta {role.value}"
+    )
+
+
+def _decode_invite(token: str) -> dict:
+    try:
+        return decode_staff_invite_token(token)
+    except JWTError:
+        raise HTTPException(
+            status_code=400, detail="Convite inválido ou expirado. Peça um novo."
+        ) from None
+
+
+def admin_check_invite(db: Session, token: str) -> StaffInviteInfo:
+    claims = _decode_invite(token)
+    return StaffInviteInfo(email=claims["sub"], role=StaffRole(claims["role"]))
+
+
+def admin_accept_invite(db: Session, payload: StaffAcceptInviteIn) -> TokenResponse:
+    claims = _decode_invite(payload.token)
+    email = claims["sub"]
+    role = StaffRole(claims["role"])
+    invited_by_id = int(claims["invited_by"])
+
+    if user_dao.get_by_email(db, email):
+        raise HTTPException(status_code=400, detail="Este convite já foi utilizado.")
+    if user_dao.get_by_username(db, payload.username):
         raise HTTPException(status_code=400, detail="Este nome de usuário já está em uso")
+    if len(payload.password) < _MIN_PASSWORD_LEN:
+        raise HTTPException(
+            status_code=400, detail=f"A senha deve ter ao menos {_MIN_PASSWORD_LEN} caracteres"
+        )
 
     staff = user_dao.create(
         db,
-        username=username,
+        username=payload.username,
         # User.name é NOT NULL, mas o ambiente de moderação não usa nome de
         # exibição — o username já é a única identidade exibida (ver StaffOut).
-        name=username,
-        email=payload.email,
+        name=payload.username,
+        email=email,
         hashed_password=hash_password(payload.password),
         neighborhood="",
         city="São Paulo",
         state="SP",
-        staff_role=payload.role,
+        staff_role=role,
         verified=True,
         email_verified=True,
     )
+
+    inviter = user_dao.get_by_id(db, invited_by_id)
+    inviter_desc = f"@{inviter.username}" if inviter else "um administrador"
     audit_log_service.log(
-        db, actor, AuditLogAction.STAFF_CREATE, staff.id, f"Criou conta {payload.role} para {payload.email}"
+        db,
+        staff,
+        AuditLogAction.STAFF_INVITE_ACCEPTED,
+        staff.id,
+        f"Ativou o convite de {inviter_desc} e criou a conta @{payload.username}",
     )
-    return _out(staff)
+    return TokenResponse(access_token=create_access_token(staff.id))
 
 
 def _get_target(db: Session, actor: User, user_id: int) -> User:

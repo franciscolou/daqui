@@ -6,11 +6,25 @@ from app.core.username import validate as _validate_username
 from app.models.admin import AdAdminRole
 
 
-class StaffCreateIn(BaseModel):
+class StaffInviteIn(BaseModel):
+    """Convite de conta de staff — só o e-mail (e o cargo, quando quem convida
+    é Owner; Administrador só convida Moderador, ver services/staff.py)."""
+
     email: EmailStr
+    role: AdAdminRole = AdAdminRole.MODERADOR
+
+
+class StaffInviteInfo(BaseModel):
+    """O que a tela de aceitar convite mostra antes de pedir usuário/senha."""
+
+    email: EmailStr
+    role: AdAdminRole
+
+
+class StaffAcceptInviteIn(BaseModel):
+    token: str
     username: str
     password: str
-    role: AdAdminRole
 
     @field_validator("username")
     @classmethod

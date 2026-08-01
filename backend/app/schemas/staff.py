@@ -6,13 +6,27 @@ from app.core.username import validate as _validate_username
 from app.models.user import StaffRole
 
 
-class StaffCreateIn(BaseModel):
+class StaffInviteIn(BaseModel):
+    """Convite de conta de staff — só o e-mail (e o cargo, quando quem convida
+    é Owner; Administrador só convida Moderador, ver services/staff.py)."""
+
+    email: EmailStr
+    role: StaffRole = StaffRole.MODERADOR
+
+
+class StaffInviteInfo(BaseModel):
+    """O que a tela de aceitar convite mostra antes de pedir usuário/senha."""
+
+    email: EmailStr
+    role: StaffRole
+
+
+class StaffAcceptInviteIn(BaseModel):
     # Sem campo de nome de exibição: no ambiente de moderação, a única
     # identidade de uma conta de staff é o username (ver StaffOut).
-    email: EmailStr
+    token: str
     username: str
     password: str
-    role: StaffRole
 
     @field_validator("username")
     @classmethod
