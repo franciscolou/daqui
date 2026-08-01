@@ -100,6 +100,40 @@ export async function searchNeighborhoods(
   }
 }
 
+/**
+ * Bairro de um ponto do mapa, também via Nominatim puro (`/reverse`) — é o
+ * lado "clicar no mapa" da seleção de bairros, par de `searchNeighborhoods`.
+ * Aqui não precisamos da precisão do geocoder pago: o que sai daqui é o NOME
+ * do bairro (um chip de segmentação), não um endereço com número.
+ * Devolve `null` quando o ponto não tem bairro identificável (mar, rodovia...).
+ */
+export async function reverseNeighborhood(
+  latitude: number,
+  longitude: number,
+): Promise<NeighborhoodSuggestion | null> {
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=16&lat=${latitude}&lon=${longitude}`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    if (!res.ok) return null;
+    const item: NominatimItem = await res.json();
+    const name = extractName(item);
+    if (!name) return null;
+    const city = extractCity(item);
+    const country = (item.address?.country || '').trim();
+    return {
+      name,
+      city,
+      country,
+      label: [name, city, country].filter(Boolean).join(' · '),
+      latitude,
+      longitude,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export interface CitySuggestion {
   // `name` é o que vira chip / é salvo na campanha — precisa bater com o
   // `city` do usuário no backend (match por igualdade de nome, case-insensitive).

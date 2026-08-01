@@ -5,13 +5,20 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { searchNeighborhoods, NeighborhoodSuggestion } from '../lib/geocode';
 import { Coords, getDeviceCoords } from '../lib/location';
+import MapPickButton from './MapPickButton';
+import NeighborhoodMapPickerModal from './NeighborhoodMapPickerModal';
 
 // Seletor de bairros com autocomplete (typeahead) — substitui o antigo campo
 // "bairros separados por vírgula". Enquanto o anunciante digita, sugestões vão
 // aparecendo (nome · cidade · país), ordenadas por proximidade de onde ele
 // está. "Enter" confirma a primeira sugestão; um texto que não bate com
 // nenhuma sugestão ainda pode ser adicionado (chip "não verificado").
-// Mesmo espírito do chip-picker do ads-admin, agora no app.
+//
+// Quem não sabe o nome do bairro pode escolher no mapa: o botão abre o
+// NeighborhoodMapPickerModal, que adiciona bairros por etapas (toca no ponto →
+// confirma → toca no próximo). As duas vias usam Nominatim puro — o resultado
+// aqui é o NOME do bairro (chip de segmentação), não um endereço com número,
+// então não precisa da precisão do geocoder pago que o app usa nos pins.
 
 interface NeighborhoodPickerProps {
   value: string[];
@@ -26,6 +33,7 @@ export default function NeighborhoodPicker({ value, onChange, placeholder, max }
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
+  const [mapOpen, setMapOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<NeighborhoodSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -115,6 +123,7 @@ export default function NeighborhoodPicker({ value, onChange, placeholder, max }
             returnKeyType="done"
           />
           {loading && <ActivityIndicator size="small" color={Colors.primary} />}
+          <MapPickButton onPress={() => setMapOpen(true)} label="Escolher no mapa" />
         </View>
       )}
 
@@ -140,6 +149,17 @@ export default function NeighborhoodPicker({ value, onChange, placeholder, max }
           ))}
         </View>
       )}
+
+      <NeighborhoodMapPickerModal
+        visible={mapOpen}
+        onClose={() => setMapOpen(false)}
+        value={value}
+        onChange={onChange}
+        max={max}
+        // Centra onde o usuário está, quando ele permitiu a localização —
+        // senão o modal cai no seu centro padrão.
+        initialCenter={coords ?? undefined}
+      />
     </View>
   );
 }

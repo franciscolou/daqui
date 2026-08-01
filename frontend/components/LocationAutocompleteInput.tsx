@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet 
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
-import { api, GeocodeResult } from '../lib/api';
+import { GeoSearchResult, useGeo } from '../lib/geoProvider';
 import MapPickButton from './MapPickButton';
 
 interface LocationAutocompleteInputProps {
@@ -12,10 +12,15 @@ interface LocationAutocompleteInputProps {
   onSelect: (address: string) => void;
   // Opcional: recebe a sugestão inteira (com lat/lng), pra quem precisa das
   // coordenadas além do rótulo (ex.: pin do anúncio no mapa).
-  onSelectResult?: (result: GeocodeResult) => void;
+  onSelectResult?: (result: GeoSearchResult) => void;
   onPickOnMap: () => void;
   status: 'idle' | 'valid';
   placeholder?: string;
+  // Textos de status. O padrão fala em "seu bairro" porque no app Daqui a
+  // busca é mesmo restrita ao bairro do usuário; no ads-admin, onde o admin
+  // busca em todo o Brasil, quem monta passa mensagens sem essa restrição.
+  emptyHint?: string;
+  validHint?: string;
 }
 
 const MIN_QUERY_LENGTH = 3;
@@ -35,10 +40,13 @@ export default function LocationAutocompleteInput({
   onPickOnMap,
   status,
   placeholder = 'Ex.: Rua das Flores 123, Praça...',
+  emptyHint = 'Nenhum endereço encontrado no seu bairro.',
+  validHint = 'Endereço confirmado no seu bairro',
 }: LocationAutocompleteInputProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
-  const [suggestions, setSuggestions] = useState<GeocodeResult[]>([]);
+  const { searchAddress } = useGeo();
+  const [suggestions, setSuggestions] = useState<GeoSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,8 +71,7 @@ export default function LocationAutocompleteInput({
     const id = ++seq.current;
     timer.current = setTimeout(() => {
       setLoading(true);
-      api
-        .searchAddress(term)
+      searchAddress(term)
         .then((results) => { if (id === seq.current) setSuggestions(results); })
         .catch(() => { if (id === seq.current) setSuggestions([]); })
         .finally(() => {
@@ -72,7 +79,7 @@ export default function LocationAutocompleteInput({
         });
     }, DEBOUNCE_MS);
     return () => { if (timer.current) clearTimeout(timer.current); };
-  }, [value, status]);
+  }, [value, status, searchAddress]);
 
   const showEmpty = status !== 'valid' && searched && !loading && suggestions.length === 0;
   const showSuggestions = status !== 'valid' && !loading && suggestions.length > 0;
@@ -118,18 +125,14 @@ export default function LocationAutocompleteInput({
       {showEmpty && (
         <View style={styles.statusRow}>
           <Ionicons name="alert-circle" size={14} color={Colors.error} />
-          <Text style={[styles.statusHint, { color: Colors.error }]}>
-            Nenhum endereço encontrado no seu bairro.
-          </Text>
+          <Text style={[styles.statusHint, { color: Colors.error }]}>{emptyHint}</Text>
         </View>
       )}
 
       {status === 'valid' && (
         <View style={styles.statusRow}>
           <Ionicons name="checkmark-circle" size={14} color={Colors.primary} />
-          <Text style={[styles.statusHint, { color: Colors.primary }]}>
-            Endereço confirmado no seu bairro
-          </Text>
+          <Text style={[styles.statusHint, { color: Colors.primary }]}>{validHint}</Text>
         </View>
       )}
     </View>

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "types": ["vite/client"],
+    "paths": {
+      "@daqui/*": ["../frontend/*"],
+      // Os componentes compartilhados são React Native: checamos contra os
+      // tipos reais do RN (o Vite troca por react-native-web em runtime).
+      "react-native": ["../frontend/node_modules/react-native"],
+      "@expo/vector-icons": ["./src/daqui/vectorIcons.tsx"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

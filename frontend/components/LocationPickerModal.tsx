@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
-import { api, ApiError } from '../lib/api';
+import { useGeo } from '../lib/geoProvider';
 import LeafletMap from './LeafletMap';
 
 interface LocationPickerModalProps {
@@ -22,8 +22,14 @@ interface LocationPickerModalProps {
   onConfirm: (address: string, coords?: { latitude: number; longitude: number }) => void;
   /** Centro inicial do mapa (ex.: coordenadas do bairro do usuário). */
   initialCenter: { latitude: number; longitude: number };
-  /** Bairro do usuário — só é possível confirmar um ponto dentro dele. */
-  neighborhood: string;
+  /**
+   * Bairro do usuário — só é possível confirmar um ponto dentro dele.
+   * Vazio/ausente libera qualquer ponto do mapa: é o caso do ads-admin, onde
+   * o time de anúncios marca o pin de um anúncio em qualquer lugar do país.
+   */
+  neighborhood?: string | null;
+  /** Zoom inicial. Sem restrição de bairro, faz sentido começar mais aberto. */
+  initialZoom?: number;
 }
 
 type PickStatus = 'idle' | 'resolving' | 'resolved' | 'error';
@@ -41,9 +47,11 @@ export default function LocationPickerModal({
   onConfirm,
   initialCenter,
   neighborhood,
+  initialZoom = 16,
 }: LocationPickerModalProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { resolveLocation } = useGeo();
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
   const [status, setStatus] = useState<PickStatus>('idle');
@@ -64,8 +72,8 @@ export default function LocationPickerModal({
     setStatus('resolving');
     setError(null);
     try {
-      const res = await api.resolveNeighborhood(coords.latitude, coords.longitude);
-      if (norm(res.neighborhood) !== norm(neighborhood)) {
+      const res = await resolveLocation(coords.latitude, coords.longitude);
+      if (neighborhood && norm(res.neighborhood) !== norm(neighborhood)) {
         setLabel(null);
         setPickedCoords(null);
         setStatus('error');
@@ -79,7 +87,7 @@ export default function LocationPickerModal({
       setLabel(null);
       setPickedCoords(null);
       setStatus('error');
-      setError(e instanceof ApiError ? e.message : 'Não foi possível identificar o endereço.');
+      setError(e instanceof Error ? e.message : 'Não foi possível identificar o endereço.');
     }
   };
 
@@ -104,7 +112,7 @@ export default function LocationPickerModal({
           {visible && (
             <LeafletMap
               center={initialCenter}
-              zoom={16}
+              zoom={initialZoom}
               markers={[]}
               pickable
               onPick={handlePick}

@@ -48,14 +48,23 @@ def neighborhoods_around(latitude: float, longitude: float) -> list[str]:
 # provedor não bloquear em silêncio um endereço real por 60 dias.
 _GEO_CACHE_TTL = 60 * 24 * 60 * 60
 
+# TTL curto para resultado DEGRADADO: a query pedia número de casa (portanto o
+# HERE deveria ter respondido) mas nenhuma sugestão dele entrou — chave recém
+# configurada, cota estourada, timeout. Guardar isso por 60 dias esconderia o
+# número de casa até 2026 mesmo depois de o HERE voltar; guardar por 10min
+# ainda protege contra uma rajada de teclas e se recupera sozinho.
+_GEO_CACHE_TTL_DEGRADED = 10 * 60
+
 
 def _cache_get(db: Session, kind: GeoCacheKind, cache_key: str):
     row = geo_cache_dao.get(db, kind, cache_key)
     return row.payload if row else None
 
 
-def _cache_put(db: Session, kind: GeoCacheKind, cache_key: str, payload, provider: str) -> None:
-    geo_cache_dao.upsert(db, kind, cache_key, payload, provider, _GEO_CACHE_TTL)
+def _cache_put(
+    db: Session, kind: GeoCacheKind, cache_key: str, payload, provider: str, ttl: int | None = None
+) -> None:
+    geo_cache_dao.upsert(db, kind, cache_key, payload, provider, ttl or _GEO_CACHE_TTL)
 
 
 def resolve_neighborhood(latitude: float, longitude: float, db: Session) -> NeighborhoodResolution:
@@ -181,6 +190,16 @@ def search_within(query: str, neighborhood: str, db: Session, limit: int = 5) ->
         for r in final
     ]
     if payload:  # lista vazia nunca é cacheada — ver comentário no topo do arquivo
-        providers = "+".join(sorted({r["provider"] for r in final}))
-        _cache_put(db, GeoCacheKind.SEARCH, cache_key, payload, provider=providers)
+        providers = sorted({r["provider"] for r in final})
+        # Sem HERE numa busca que pedia número de casa, o resultado é degradado
+        # (ver `_GEO_CACHE_TTL_DEGRADED`) — vale pouco tempo, não 60 dias.
+        degraded = geocoding.expects_here(query) and "here" not in providers
+        _cache_put(
+            db,
+            GeoCacheKind.SEARCH,
+            cache_key,
+            payload,
+            provider="+".join(providers),
+            ttl=_GEO_CACHE_TTL_DEGRADED if degraded else None,
+        )
     return [GeocodeResult(**item) for item in payload]
