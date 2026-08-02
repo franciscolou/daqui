@@ -14,6 +14,7 @@ import { goBack } from '../../lib/navigation';
 import { adsApi, AdFormat, AdObjective, GeoScope, PriceFactor } from '../../lib/adsApi';
 import NeighborhoodPicker from '../../components/NeighborhoodPicker';
 import CityPicker from '../../components/CityPicker';
+import InfoTooltip from '../../components/InfoTooltip';
 
 const FORMATS: { key: AdFormat; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'post', label: 'Post no feed', desc: 'Card no meio do feed do bairro, como um post comum.', icon: 'newspaper-outline' },
@@ -250,6 +251,35 @@ function DiscountInfo() {
         </Pressable>
       </Modal>
     </>
+  );
+}
+
+// Textos das explicações "i" das configurações avançadas — linguagem leiga,
+// sem jargão de ads, pra quem nunca configurou um anúncio na vida.
+const ADVANCED_FIELD_INFO = {
+  objective: 'O que você quer que aconteça quando alguém vê seu anúncio. Essa escolha não muda pra quem o anúncio aparece — ela só organiza o relatório de resultados (impressões e cliques) separado por objetivo, pra você ver com mais facilidade se a campanha está indo bem no que importa pra você.',
+  priority: 'Quando vários anúncios disputam o mesmo espaço, quem tem prioridade mais alta é escolhido com mais frequência — como furar uma fila. Prioridade mais alta custa mais caro. Se dois anúncios têm a mesma prioridade, o peso na rotação (ao lado) decide a proporção entre eles.',
+  rotationWeight: 'Entre anúncios de mesma prioridade, o peso decide a proporção de vezes que cada um aparece — um peso 2 aparece o dobro de vezes que um peso 1, sem custar mais caro. É só uma forma gratuita de dividir a exibição entre campanhas parecidas.',
+  dailyCap: 'Uma "impressão" é toda vez que seu anúncio aparece pra alguém, mesmo sem a pessoa interagir com ele. Aqui você define quantas vezes, no máximo, ele pode ser exibido por dia no total — útil pra controlar o ritmo do orçamento. Deixe em branco pra não ter limite.',
+  perUserCap: 'Define quantas vezes, no máximo, a mesma pessoa pode ver o seu anúncio durante toda a campanha, pra não cansar sempre os mesmos usuários com o mesmo anúncio repetidas vezes. Deixe em branco pra não ter limite.',
+  pacing: 'Quando ativado, seu anúncio é espalhado em doses pequenas ao longo do dia inteiro, em vez de ser exibido o quanto antes. Assim ele aparece em horários variados, em vez de esgotar todas as exibições logo cedo, por exemplo.',
+  audience: 'Escolhe quem pode ver o anúncio: todo mundo, só quem mora na região escolhida, ou só quem está passando pela região no momento (mesmo sem morar lá).',
+  includeNearby: 'Além dos bairros que você escolheu acima, o anúncio também aparece pra moradores dos bairros vizinhos a eles, ampliando o alcance sem precisar selecionar bairro por bairro.',
+  categories: 'Só vale pro formato "Post no feed": marque uma ou mais categorias (como "evento" ou "venda") pra seu anúncio aparecer junto de posts do mesmo assunto, chegando em quem já se interessa por esse tipo de conteúdo.',
+  hours: 'Em quais horas do dia (de 0 a 23, sendo 0 a meia-noite) seu anúncio pode ser exibido. Por exemplo, "18, 19, 20" faz ele aparecer só entre 18h e a 20h59. Deixe em branco pra exibir em qualquer horário do dia.',
+  daysOfWeek: 'Em quais dias da semana o anúncio pode aparecer, numerando de 0 (segunda-feira) a 6 (domingo). Por exemplo, "5, 6" mostra o anúncio só no sábado e no domingo. Deixe em branco pra exibir todos os dias.',
+  specialDates: 'Datas específicas (no formato AAAA-MM-DD) em que você quer garantir que o anúncio apareça, como um feriado ou uma data comemorativa importante pro seu negócio — por exemplo, "2026-12-25" pro Natal.',
+} as const;
+
+// Linha "Rótulo + i" reaproveitada em todo campo das configurações
+// avançadas — evita repetir a mesma View+Text+InfoTooltip 12 vezes.
+function LabelWithInfo({ text, info }: { text: string; info: string }) {
+  const styles = useThemedStyles(makeStyles);
+  return (
+    <View style={styles.labelRow}>
+      <Text style={styles.labelRowText}>{text}</Text>
+      <InfoTooltip text={info} />
+    </View>
   );
 }
 
@@ -695,7 +725,7 @@ export default function CustomizeScreen() {
 
         {showAdvanced && (
           <View style={styles.advancedBox}>
-            <Text style={styles.label}>Objetivo da campanha</Text>
+            <LabelWithInfo text="Objetivo da campanha" info={ADVANCED_FIELD_INFO.objective} />
             <View style={styles.chipsWrap}>
               {OBJECTIVES.map((o) => (
                 <TouchableOpacity
@@ -708,35 +738,34 @@ export default function CustomizeScreen() {
               ))}
             </View>
 
-            <Text style={styles.helperText}>Prioridade mais alta fura fila na entrega (custa mais); peso só redistribui entre campanhas do mesmo nível (grátis).</Text>
             <View style={styles.row2}>
               <View style={styles.flex1}>
-                <Text style={styles.label}>Prioridade (1-5)</Text>
+                <LabelWithInfo text="Prioridade (1-5)" info={ADVANCED_FIELD_INFO.priority} />
                 <TextInput style={styles.input} value={priority} onChangeText={setPriority} keyboardType="numeric" />
               </View>
               <View style={styles.flex1}>
-                <Text style={styles.label}>Peso na rotação</Text>
+                <LabelWithInfo text="Peso na rotação" info={ADVANCED_FIELD_INFO.rotationWeight} />
                 <TextInput style={styles.input} value={rotationWeight} onChangeText={setRotationWeight} keyboardType="numeric" />
               </View>
             </View>
 
             <View style={styles.row2}>
               <View style={styles.flex1}>
-                <Text style={styles.label}>Limite diário de impressões</Text>
+                <LabelWithInfo text="Limite diário de impressões" info={ADVANCED_FIELD_INFO.dailyCap} />
                 <TextInput style={styles.input} value={dailyCap} onChangeText={setDailyCap} keyboardType="numeric" placeholder="sem limite" placeholderTextColor={Colors.textTertiary} />
               </View>
               <View style={styles.flex1}>
-                <Text style={styles.label}>Limite por pessoa</Text>
+                <LabelWithInfo text="Limite por pessoa" info={ADVANCED_FIELD_INFO.perUserCap} />
                 <TextInput style={styles.input} value={perUserCap} onChangeText={setPerUserCap} keyboardType="numeric" placeholder="sem limite" placeholderTextColor={Colors.textTertiary} />
               </View>
             </View>
 
             <View style={styles.citywideRow}>
-              <Text style={styles.label}>Distribuir uniformemente ao longo do dia</Text>
+              <LabelWithInfo text="Distribuir uniformemente ao longo do dia" info={ADVANCED_FIELD_INFO.pacing} />
               <Switch value={pacing === 'even'} onValueChange={(v) => setPacing(v ? 'even' : 'asap')} />
             </View>
 
-            <Text style={styles.label}>Audiência</Text>
+            <LabelWithInfo text="Audiência" info={ADVANCED_FIELD_INFO.audience} />
             <View style={styles.chipsWrap}>
               {([['all', 'Todos'], ['residents', 'Só moradores'], ['visitors', 'Só visitantes atuais']] as const).map(([key, label]) => (
                 <TouchableOpacity key={key} style={[styles.chip, audience === key && styles.chipActive]} onPress={() => setAudience(key)}>
@@ -746,20 +775,20 @@ export default function CustomizeScreen() {
             </View>
 
             <View style={styles.citywideRow}>
-              <Text style={styles.label}>Incluir bairros próximos</Text>
+              <LabelWithInfo text="Incluir bairros próximos" info={ADVANCED_FIELD_INFO.includeNearby} />
               <Switch value={includeNearby} onValueChange={setIncludeNearby} />
             </View>
 
-            <Text style={styles.label}>Categorias de post (opcional)</Text>
+            <LabelWithInfo text="Categorias de post (opcional)" info={ADVANCED_FIELD_INFO.categories} />
             <TextInput style={styles.input} value={categoriesText} onChangeText={setCategoriesText} placeholder="evento, venda" placeholderTextColor={Colors.textTertiary} />
 
-            <Text style={styles.label}>Horários (0-23, opcional)</Text>
+            <LabelWithInfo text="Horários (0-23, opcional)" info={ADVANCED_FIELD_INFO.hours} />
             <TextInput style={styles.input} value={hoursText} onChangeText={setHoursText} placeholder="18, 19, 20, 21" placeholderTextColor={Colors.textTertiary} />
 
-            <Text style={styles.label}>Dias da semana (0=seg...6=dom, opcional)</Text>
+            <LabelWithInfo text="Dias da semana (0=seg...6=dom, opcional)" info={ADVANCED_FIELD_INFO.daysOfWeek} />
             <TextInput style={styles.input} value={daysOfWeekText} onChangeText={setDaysOfWeekText} placeholder="5, 6" placeholderTextColor={Colors.textTertiary} />
 
-            <Text style={styles.label}>Datas especiais (opcional)</Text>
+            <LabelWithInfo text="Datas especiais (opcional)" info={ADVANCED_FIELD_INFO.specialDates} />
             <TextInput style={styles.input} value={specialDatesText} onChangeText={setSpecialDatesText} placeholder="2026-12-25" placeholderTextColor={Colors.textTertiary} />
           </View>
         )}
@@ -828,6 +857,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
 
   label: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary, marginTop: 10 },
   helperText: { fontSize: 12, color: Colors.textTertiary, marginTop: 8 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
+  labelRowText: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary },
 
   formatCard: {
     flexDirection: 'row',
