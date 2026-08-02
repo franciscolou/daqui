@@ -12,6 +12,7 @@ from app.models.audit_log import AuditLogAction
 from app.models.user import User
 from app.schemas.user import (
     USERNAME_RE,
+    CommunityStats,
     NeighborhoodStats,
     UserAdminOut,
     UsernameAvailability,
@@ -72,6 +73,15 @@ def get_neighborhood_stats(db: Session, user: User) -> NeighborhoodStats:
         neighborhood=user.neighborhood,
         neighbors=user_dao.count_by_neighborhood(db, user.neighborhood),
         posts=post_dao.count_feed(db, [user.neighborhood], None),
+    )
+
+
+def community_stats(db: Session) -> CommunityStats:
+    """Total de contas + fotos reais mais recentes — vitrine pública da tela de
+    boas-vindas (sem login, ver `routers/auth.py::/auth/community-stats`)."""
+    return CommunityStats(
+        total_users=user_dao.count_all(db),
+        avatar_urls=user_dao.get_avatar_samples(db),
     )
 
 

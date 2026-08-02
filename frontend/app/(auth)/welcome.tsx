@@ -18,6 +18,7 @@ import { BRAND_FONT } from '../../constants/BrandFont';
 import { AvailabilityState } from '../../lib/useAvailability';
 import { useSignupFlow } from '../../lib/useSignupFlow';
 import { useLoginFlow } from '../../lib/useLoginFlow';
+import { api, CommunityStats } from '../../lib/api';
 
 // ─── Dados estáticos ────────────────────────────────────────────
 const FEATURES = [
@@ -25,7 +26,11 @@ const FEATURES = [
   { icon: 'megaphone-outline' as const,        label: 'Fique por dentro do bairro' },
   { icon: 'shield-checkmark-outline' as const, label: 'Segurança em primeiro lugar' },
 ];
-const AVATARS = ['47', '52', '44', '57', '25'];
+// Abaixo desse total de contas, expor o número exato faria a rede parecer
+// vazia — troca por uma mensagem de "comunidade em formação" (ver
+// CommunityStats/useEffect abaixo). Sem fallback estático: enquanto os dados
+// reais não chegam, a vitrine simplesmente não aparece.
+const ESTABLISHED_THRESHOLD = 500;
 const POSTS = [
   { color: '#EF4444', label: 'Aviso', text: 'Obra na esquina com a...' },
   { color: '#F59E0B', label: 'Recomendação',  text: 'Padaria nova na Harmonia 🥐' },
@@ -124,6 +129,14 @@ export default function WelcomeScreen() {
   // duplica a regra de negócio (é assim que as duas telas ficam em sync).
   const signupFlow = useSignupFlow();
   const loginFlow = useLoginFlow();
+
+  // Vitrine "vizinhos" da arte (ver renderArt/mobile abaixo) — total de
+  // contas + fotos reais, sem login (endpoint público). `null` enquanto não
+  // chega: a seção só aparece com dado de verdade, nunca com placeholder.
+  const [communityStats, setCommunityStats] = useState<CommunityStats | null>(null);
+  useEffect(() => {
+    api.getCommunityStats().then(setCommunityStats).catch(() => {});
+  }, []);
 
   // estado do painel esquerdo (só usado no desktop)
   const [panel, setPanel] = useState<Panel>('welcome');
@@ -662,15 +675,21 @@ export default function WelcomeScreen() {
         <Text style={styles.artWord}>Vizinhança</Text>
         <Text style={styles.artWord2}>de verdade.</Text>
       </View>
-      <View style={styles.avatarCluster}>
-        {AVATARS.map((img, i) => (
-          <Image key={i} source={{ uri: `https://i.pravatar.cc/80?img=${img}` }}
-            style={[styles.clusterAvatar, { marginLeft: i > 0 ? -14 : 0, zIndex: 10 - i }]} />
-        ))}
-        <View style={styles.clusterBadge}>
-          <Text style={styles.clusterBadgeText}>+238 vizinhos</Text>
+      {communityStats && (
+        <View style={styles.avatarCluster}>
+          {communityStats.avatarUrls.slice(0, 5).map((url, i) => (
+            <Image key={`${url}-${i}`} source={{ uri: url }}
+              style={[styles.clusterAvatar, { marginLeft: i > 0 ? -14 : 0, zIndex: 10 - i }]} />
+          ))}
+          <View style={[styles.clusterBadge, communityStats.avatarUrls.length === 0 && { marginLeft: 0 }]}>
+            <Text style={styles.clusterBadgeText}>
+              {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
+                ? `${communityStats.totalUsers.toLocaleString('pt-BR')} vizinhos`
+                : 'Comunidade em crescimento'}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
       {POSTS.map((p, i) => (
         <View key={i} style={[styles.floatCard,
           i === 0 && { bottom: 200, left: 32 },
@@ -708,16 +727,26 @@ export default function WelcomeScreen() {
             <Text style={styles.mobileAppName}>daqui</Text>
             <Text style={styles.mobileTagline}>Seu bairro, do seu jeito</Text>
           </View>
-          <View style={styles.mobileAvatarCard}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-              {AVATARS.map((img, i) => (
-                <Image key={i} source={{ uri: `https://i.pravatar.cc/80?img=${img}` }}
-                  style={[styles.mobileAvatar, { marginLeft: i > 0 ? -14 : 0, zIndex: 5 - i }]} />
-              ))}
-              <View style={styles.mobileBadge}><Text style={styles.mobileBadgeText}>+238</Text></View>
+          {communityStats && (
+            <View style={styles.mobileAvatarCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                {communityStats.avatarUrls.slice(0, 5).map((url, i) => (
+                  <Image key={`${url}-${i}`} source={{ uri: url }}
+                    style={[styles.mobileAvatar, { marginLeft: i > 0 ? -14 : 0, zIndex: 5 - i }]} />
+                ))}
+                {communityStats.totalUsers >= ESTABLISHED_THRESHOLD && (
+                  <View style={styles.mobileBadge}>
+                    <Text style={styles.mobileBadgeText}>{communityStats.totalUsers.toLocaleString('pt-BR')}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.mobileAvatarLabel}>
+                {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
+                  ? 'vizinhos perto de você'
+                  : 'Comunidade em crescimento — seja um dos primeiros'}
+              </Text>
             </View>
-            <Text style={styles.mobileAvatarLabel}>vizinhos perto de você</Text>
-          </View>
+          )}
           <View style={styles.mobileFeaturesArea}>
             {FEATURES.map((f) => (
               <View key={f.icon} style={styles.mobileFeatureRow}>

@@ -529,6 +529,20 @@ export interface Availability {
   error: string | null;
 }
 
+interface BackendCommunityStats {
+  total_users: number;
+  avatar_urls: string[];
+}
+
+export interface CommunityStats {
+  totalUsers: number;
+  avatarUrls: string[];
+}
+
+function mapCommunityStats(b: BackendCommunityStats): CommunityStats {
+  return { totalUsers: b.total_users, avatarUrls: b.avatar_urls };
+}
+
 export interface NearbyNeighborhood {
   neighborhood: string;
   latitude: number;
@@ -986,6 +1000,14 @@ export const api = {
     return request<Availability>(
       `/auth/check-email?email=${encodeURIComponent(email)}`,
       { auth: false },
+    );
+  },
+
+  // Vitrine da tela de boas-vindas (pré-login) — total de contas + fotos
+  // reais mais recentes (ver welcome.tsx).
+  async getCommunityStats(): Promise<CommunityStats> {
+    return mapCommunityStats(
+      await request<BackendCommunityStats>('/auth/community-stats', { auth: false }),
     );
   },
 

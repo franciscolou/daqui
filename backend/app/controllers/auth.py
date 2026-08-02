@@ -20,8 +20,9 @@ from app.schemas.auth import (
     VerifyEmailRequest,
 )
 from app.schemas.session import SessionOut
-from app.schemas.user import UserMe
+from app.schemas.user import CommunityStats, UserMe
 from app.services import auth
+from app.services import user as user_service
 
 
 def _client_ip(request: Request) -> str | None:
@@ -62,6 +63,11 @@ def check_username(username: str, db: Session = Depends(get_db)) -> Availability
 def check_email(email: str, db: Session = Depends(get_db)) -> AvailabilityResponse:
     # Público: checagem em tempo real no cadastro.
     return auth.check_email(db, email)
+
+
+def community_stats(db: Session = Depends(get_db)) -> CommunityStats:
+    # Público: vitrine da tela de boas-vindas (pré-login).
+    return user_service.community_stats(db)
 
 
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:

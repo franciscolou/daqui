@@ -78,6 +78,13 @@ class NeighborhoodStats(BaseModel):
     posts: int
 
 
+class CommunityStats(BaseModel):
+    """Vitrine pública (sem login) da tela de boas-vindas — ver welcome.tsx."""
+
+    total_users: int
+    avatar_urls: list[str]
+
+
 class AvatarUpdate(BaseModel):
     image: str  # data URL base64: "data:image/png;base64,...."
 

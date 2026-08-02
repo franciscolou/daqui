@@ -9,13 +9,14 @@ from app.schemas.auth import (
     VerificationTicketResponse,
 )
 from app.schemas.session import SessionOut
-from app.schemas.user import UserMe
+from app.schemas.user import CommunityStats, UserMe
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 router.post("/signup",         response_model=VerificationTicketResponse, status_code=201)(auth.signup)
 router.get( "/check-username", response_model=AvailabilityResponse)(auth.check_username)
 router.get( "/check-email",    response_model=AvailabilityResponse)(auth.check_email)
+router.get( "/community-stats", response_model=CommunityStats)(auth.community_stats)
 router.post("/verify-email",         response_model=TokenResponse)(auth.verify_email)
 router.post("/resend-verification",  response_model=VerificationTicketResponse)(auth.resend_verification)
 router.post("/forgot-password", status_code=204)(auth.forgot_password)

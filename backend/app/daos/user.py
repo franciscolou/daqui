@@ -100,6 +100,24 @@ def search(db: Session, query: str, limit: int = 30) -> list[User]:
     )
 
 
+def count_all(db: Session) -> int:
+    return db.query(User).count()
+
+
+def get_avatar_samples(db: Session, limit: int = 6) -> list[str]:
+    """Fotos de perfil reais mais recentes, pra vitrine pré-login (ver
+    welcome.tsx/community_stats) — só usuários com avatar_url definido e conta
+    ativa, mais recentes primeiro."""
+    rows = (
+        db.query(User.avatar_url)
+        .filter(User.avatar_url.isnot(None), User.is_suspended.is_(False))
+        .order_by(desc(User.created_at))
+        .limit(limit)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
 def get_popular(
     db: Session, neighborhood: str, exclude_id: int, limit: int = 10
 ) -> list[User]:
