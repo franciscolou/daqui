@@ -1,5 +1,6 @@
 import math
 import random
+from collections import defaultdict
 from datetime import datetime, timezone
 
 from sqlalchemy import or_
@@ -410,6 +411,30 @@ def _eligible_for_format(db: Session, format: AdFormat, ctx: dict, now: datetime
     ]
 
 
+def _group_by_advertiser(campaigns: list[AdCampaign]) -> dict[str, list[AdCampaign]]:
+    groups: dict[str, list[AdCampaign]] = defaultdict(list)
+    for c in campaigns:
+        groups[c.advertiser_email].append(c)
+    return groups
+
+
+def _pick_from_tier(db: Session, top_tier: list[AdCampaign], now: datetime) -> AdCampaign:
+    """Sorteio em duas etapas: primeiro um anunciante (`advertiser_email`)
+    entre os concorrentes do mesmo nível de prioridade, todos com a mesma
+    chance — não importa quantas campanhas ele tenha ali nem o `rotation_weight`
+    delas, senão bastaria criar várias campanhas parecidas pra multiplicar a
+    própria chance. Só *depois* de decidido o anunciante, o `rotation_weight`
+    entra em jogo pra escolher qual campanha dele exibir — é aí que ele faz
+    sentido de verdade: dividir a própria cota entre variações de anúncio
+    (ex: 70/30 entre duas artes), nunca pra disputar contra outro anunciante."""
+    groups = _group_by_advertiser(top_tier)
+    advertiser_campaigns = random.choice(list(groups.values()))
+    weights = [c.rotation_weight * _pacing_factor(db, c, now) for c in advertiser_campaigns]
+    if sum(weights) <= 0:
+        weights = [1.0 for _ in advertiser_campaigns]
+    return random.choices(advertiser_campaigns, weights=weights, k=1)[0]
+
+
 def get_active_for_format(db: Session, format: AdFormat, ctx: dict) -> AdCampaign | None:
     now = datetime.now(timezone.utc)
     eligible = _eligible_for_format(db, format, ctx, now)
@@ -418,10 +443,7 @@ def get_active_for_format(db: Session, format: AdFormat, ctx: dict) -> AdCampaig
 
     top_priority = max(c.priority for c in eligible)
     top_tier = [c for c in eligible if c.priority == top_priority]
-    weights = [c.rotation_weight * _pacing_factor(db, c, now) for c in top_tier]
-    if sum(weights) <= 0:
-        weights = [1.0 for _ in top_tier]
-    return random.choices(top_tier, weights=weights, k=1)[0]
+    return _pick_from_tier(db, top_tier, now)
 
 
 def get_active_list_for_format(
@@ -442,18 +464,30 @@ def get_active_list_for_format(
     if not pool:
         return []
 
-    remaining = [(c, max(c.rotation_weight * _pacing_factor(db, c, now), 0.0)) for c in pool]
+    # Mesmo sorteio em duas etapas de `_pick_from_tier`, repetido sem
+    # reposição: a cada rodada, sorteia um anunciante (chance igual entre os
+    # que ainda têm campanha não escolhida) e só então uma campanha dele por
+    # `rotation_weight`, removendo-a do próprio grupo pra próxima rodada.
+    groups = _group_by_advertiser(pool)
     chosen: list[AdCampaign] = []
     for _ in range(min(limit, len(pool))):
-        total = sum(w for _, w in remaining) or len(remaining)
+        if not groups:
+            break
+        advertiser_email = random.choice(list(groups.keys()))
+        candidates = groups[advertiser_email]
+        weights = [max(c.rotation_weight * _pacing_factor(db, c, now), 0.0) for c in candidates]
+        total = sum(weights) or len(candidates)
         r = random.uniform(0, total)
         upto = 0.0
-        for i, (c, w) in enumerate(remaining):
+        picked_idx = len(candidates) - 1
+        for i, w in enumerate(weights):
             upto += w or 1.0
             if upto >= r:
-                chosen.append(c)
-                remaining.pop(i)
+                picked_idx = i
                 break
+        chosen.append(candidates.pop(picked_idx))
+        if not candidates:
+            del groups[advertiser_email]
     return chosen
 
 
