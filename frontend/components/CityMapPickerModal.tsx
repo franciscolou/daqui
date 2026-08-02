@@ -11,18 +11,18 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
-import { NeighborhoodSuggestion, reverseNeighborhood } from '../lib/geocode';
+import { CitySuggestion, reverseCity } from '../lib/geocode';
 import LeafletMap from './LeafletMap';
 
-interface NeighborhoodMapPickerModalProps {
+interface CityMapPickerModalProps {
   visible: boolean;
   onClose: () => void;
-  /** Bairros já escolhidos (mesma lista do chip-picker que abriu este modal). */
+  /** Cidades já escolhidas (mesma lista do chip-picker que abriu este modal). */
   value: string[];
   onChange: (next: string[]) => void;
   /** Centro inicial do mapa. Padrão: São Paulo, um meio-termo nacional. */
   initialCenter?: { latitude: number; longitude: number };
-  /** Limite de bairros (ex.: `max_neighborhoods` do plano). */
+  /** Limite de cidades (1 pra "cidade toda", `max_cities` do plano pra "várias cidades"). */
   max?: number | null;
 }
 
@@ -31,31 +31,25 @@ type PickStatus = 'idle' | 'resolving' | 'resolved' | 'notfound' | 'outsidebr' |
 const DEFAULT_CENTER = { latitude: -23.5505, longitude: -46.6333 };
 const norm = (v: string) => v.trim().toLowerCase();
 
-// Seleção de bairros no mapa, POR ETAPAS: toca num ponto → a gente identifica
-// o bairro (Nominatim reverso) → o rodapé mostra qual é e pede confirmação →
-// confirmar adiciona o chip e volta pro estado inicial, pronto pro próximo
-// ponto. Assim dá pra montar uma segmentação de vários bairros sem digitar
-// nada, e sem risco de adicionar um bairro errado por engano de clique.
-//
-// Companheiro do autocomplete de texto do NeighborhoodPicker: os dois usam
-// Nominatim puro, porque aqui o resultado é o NOME de um bairro (chip de
-// segmentação), não um endereço exato — precisão de número de casa não faz
-// diferença nenhuma.
-export default function NeighborhoodMapPickerModal({
+// Seleção de cidades no mapa — mesmo padrão POR ETAPAS do
+// NeighborhoodMapPickerModal (toca → identifica → confirma), só que num zoom
+// mais aberto e resolvendo a cidade (não o bairro) do ponto tocado via
+// `reverseCity`. Companheiro do autocomplete de texto do CityPicker.
+export default function CityMapPickerModal({
   visible,
   onClose,
   value,
   onChange,
   initialCenter = DEFAULT_CENTER,
   max,
-}: NeighborhoodMapPickerModalProps) {
+}: CityMapPickerModalProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
 
   const [status, setStatus] = useState<PickStatus>('idle');
-  const [pending, setPending] = useState<NeighborhoodSuggestion | null>(null);
+  const [pending, setPending] = useState<CitySuggestion | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -71,7 +65,7 @@ export default function NeighborhoodMapPickerModal({
     setStatus('resolving');
     setPending(null);
     try {
-      const found = await reverseNeighborhood(coords.latitude, coords.longitude);
+      const found = await reverseCity(coords.latitude, coords.longitude);
       if (!found) {
         setStatus('notfound');
         return;
@@ -92,7 +86,7 @@ export default function NeighborhoodMapPickerModal({
 
   const confirmPending = () => {
     if (!pending || alreadyAdded || atMax) return;
-    onChange([...value, pending.name]);
+    onChange(max === 1 ? [pending.name] : [...value, pending.name]);
     // Volta pro início: o próximo toque no mapa começa a etapa seguinte.
     setPending(null);
     setStatus('idle');
@@ -104,14 +98,15 @@ export default function NeighborhoodMapPickerModal({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Escolher bairros no mapa</Text>
+          <Text style={styles.headerTitle}>Escolher cidade no mapa</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={22} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
         <Text style={styles.hint}>
-          Toque num ponto do mapa, confira o bairro e confirme. Repita pra adicionar outros.
+          Toque num ponto do mapa, confira a cidade e confirme.
+          {max !== 1 ? ' Repita pra adicionar outras.' : ''}
         </Text>
 
         {value.length > 0 && (
@@ -131,7 +126,7 @@ export default function NeighborhoodMapPickerModal({
           {visible && (
             <LeafletMap
               center={initialCenter}
-              zoom={12}
+              zoom={10}
               markers={[]}
               pickable
               onPick={handlePick}
@@ -146,14 +141,14 @@ export default function NeighborhoodMapPickerModal({
               {status === 'idle' && (
                 <Text style={styles.footerHint}>
                   {atMax
-                    ? `Limite de ${max} bairro${max === 1 ? '' : 's'} atingido.`
+                    ? `Limite de ${max} cidade${max === 1 ? '' : 's'} atingido.`
                     : 'Nenhum ponto selecionado ainda.'}
                 </Text>
               )}
               {status === 'resolving' && (
                 <View style={styles.footerRow}>
                   <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={styles.footerHint}>Identificando o bairro…</Text>
+                  <Text style={styles.footerHint}>Identificando a cidade…</Text>
                 </View>
               )}
               {status === 'resolved' && pending && (
@@ -161,13 +156,13 @@ export default function NeighborhoodMapPickerModal({
                   <Ionicons name="location" size={16} color={Colors.primary} />
                   <View style={styles.footerTextCol}>
                     <Text style={styles.footerName} numberOfLines={1}>{pending.name}</Text>
-                    {!!pending.city && (
+                    {!!pending.state && (
                       <Text style={styles.footerMeta} numberOfLines={1}>
-                        {[pending.city, pending.country].filter(Boolean).join(' · ')}
+                        {[pending.state, pending.country].filter(Boolean).join(' · ')}
                       </Text>
                     )}
                     {alreadyAdded && (
-                      <Text style={styles.footerWarn}>Esse bairro já está na lista.</Text>
+                      <Text style={styles.footerWarn}>Essa cidade já está na lista.</Text>
                     )}
                   </View>
                 </View>
@@ -176,7 +171,7 @@ export default function NeighborhoodMapPickerModal({
                 <View style={styles.footerRow}>
                   <Ionicons name="alert-circle" size={16} color={Colors.error} />
                   <Text style={styles.footerError} numberOfLines={2}>
-                    Não identificamos nenhum bairro nesse ponto — tente mais perto de uma rua.
+                    Não identificamos nenhuma cidade nesse ponto — tente mais perto de um centro urbano.
                   </Text>
                 </View>
               )}
@@ -184,7 +179,7 @@ export default function NeighborhoodMapPickerModal({
                 <View style={styles.footerRow}>
                   <Ionicons name="alert-circle" size={16} color={Colors.error} />
                   <Text style={styles.footerError} numberOfLines={2}>
-                    Esse ponto fica em {pending.country || 'outro país'}, fora do Brasil — o Daqui atua só no Brasil.
+                    Essa cidade fica em {pending.country || 'outro país'}, fora do Brasil — o Daqui atua só no Brasil.
                   </Text>
                 </View>
               )}
@@ -217,7 +212,7 @@ export default function NeighborhoodMapPickerModal({
                     (status !== 'resolved' || alreadyAdded || atMax) && styles.confirmBtnTextDisabled,
                   ]}
                 >
-                  Confirmar bairro
+                  Confirmar cidade
                 </Text>
               </TouchableOpacity>
             </View>

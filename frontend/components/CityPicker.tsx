@@ -5,10 +5,17 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { searchCities, CitySuggestion } from '../lib/geocode';
 import { Coords, getDeviceCoords } from '../lib/location';
+import MapPickButton from './MapPickButton';
+import CityMapPickerModal from './CityMapPickerModal';
 
 // Seletor de cidades com autocomplete (typeahead) — mesmo padrão de
 // NeighborhoodPicker, usado pelos escopos geográficos "cidade toda" (max=1)
 // e "várias cidades" (max = limite do plano, ou sem limite na montagem avulsa).
+//
+// Quem não sabe o nome da cidade pode escolher no mapa (mesmo padrão do botão
+// "Escolher no mapa" do NeighborhoodPicker): o CityMapPickerModal abre
+// centrado em `coords` (localização do dispositivo), então tocar no mapa já
+// cai na cidade onde o usuário está de verdade.
 
 interface CityPickerProps {
   value: string[];
@@ -27,6 +34,7 @@ export default function CityPicker({ value, onChange, placeholder, max }: CityPi
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [coords, setCoords] = useState<Coords | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seq = useRef(0);
 
@@ -110,6 +118,7 @@ export default function CityPicker({ value, onChange, placeholder, max }: CityPi
             returnKeyType="done"
           />
           {loading && <ActivityIndicator size="small" color={Colors.primary} />}
+          <MapPickButton onPress={() => setMapOpen(true)} label="Escolher no mapa" />
         </View>
       )}
 
@@ -135,6 +144,17 @@ export default function CityPicker({ value, onChange, placeholder, max }: CityPi
           ))}
         </View>
       )}
+
+      <CityMapPickerModal
+        visible={mapOpen}
+        onClose={() => setMapOpen(false)}
+        value={value}
+        onChange={onChange}
+        max={max}
+        // Centra onde o usuário está, quando ele permitiu a localização —
+        // senão o modal cai no seu centro padrão.
+        initialCenter={coords ?? undefined}
+      />
     </View>
   );
 }

@@ -18,6 +18,10 @@ export interface NeighborhoodSuggestion {
   name: string;
   city: string;
   country: string;
+  // ISO 3166-1 alpha-2 em minúsculas (ex.: "br") — usado pra barrar bairros
+  // fora do Brasil na seleção por mapa (`reverseNeighborhood`/`reverseCity`
+  // não aceitam `countrycodes` como a busca por texto aceita).
+  countryCode: string;
   // Rótulo exibido no dropdown: "Bairro · Cidade · País".
   label: string;
   latitude: number;
@@ -47,6 +51,10 @@ function extractName(item: NominatimItem): string {
 function extractCity(item: NominatimItem): string {
   const a = item.address || {};
   return (a.city || a.town || a.municipality || a.city_district || a.state || '').trim();
+}
+
+function extractCountryCode(item: NominatimItem): string {
+  return (item.address?.country_code || '').trim().toLowerCase();
 }
 
 /**
@@ -81,6 +89,7 @@ export async function searchNeighborhoods(
         name,
         city,
         country,
+        countryCode: extractCountryCode(item),
         label: [name, city, country].filter(Boolean).join(' · '),
         latitude: parseFloat(item.lat),
         longitude: parseFloat(item.lon),
@@ -125,6 +134,7 @@ export async function reverseNeighborhood(
       name,
       city,
       country,
+      countryCode: extractCountryCode(item),
       label: [name, city, country].filter(Boolean).join(' · '),
       latitude,
       longitude,
@@ -140,6 +150,8 @@ export interface CitySuggestion {
   name: string;
   state: string;
   country: string;
+  // Ver `NeighborhoodSuggestion.countryCode` — mesmo propósito.
+  countryCode: string;
   // Rótulo exibido no dropdown: "Cidade · Estado · País".
   label: string;
   latitude: number;
@@ -184,6 +196,7 @@ export async function searchCities(
         name,
         state,
         country,
+        countryCode: extractCountryCode(item),
         label: [name, state, country].filter(Boolean).join(' · '),
         latitude: parseFloat(item.lat),
         longitude: parseFloat(item.lon),
@@ -200,5 +213,40 @@ export async function searchCities(
     return out.slice(0, 6);
   } catch {
     return [];
+  }
+}
+
+/**
+ * Cidade de um ponto do mapa, via Nominatim `/reverse` — lado "clicar no
+ * mapa" da seleção de cidades, par de `searchCities`. `zoom=10` pede o nível
+ * de detalhe de cidade (par de `zoom=16`/bairro em `reverseNeighborhood`).
+ * Devolve `null` quando o ponto não tem cidade identificável (mar, zona rural
+ * sem município próximo...).
+ */
+export async function reverseCity(
+  latitude: number,
+  longitude: number,
+): Promise<CitySuggestion | null> {
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=10&lat=${latitude}&lon=${longitude}`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    if (!res.ok) return null;
+    const item: NominatimItem = await res.json();
+    const name = extractCity(item);
+    if (!name) return null;
+    const state = extractState(item);
+    const country = (item.address?.country || '').trim();
+    return {
+      name,
+      state,
+      country,
+      countryCode: extractCountryCode(item),
+      label: [name, state, country].filter(Boolean).join(' · '),
+      latitude,
+      longitude,
+    };
+  } catch {
+    return null;
   }
 }
