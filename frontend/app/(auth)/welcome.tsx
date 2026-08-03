@@ -1,118 +1,138 @@
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
+  View, Text, StyleSheet, TouchableOpacity, TextInput, Pressable,
   Image, ScrollView, useWindowDimensions, KeyboardAvoidingView, Platform,
-  StyleProp, ViewStyle,
 } from 'react-native';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, withRepeat, withDelay, withSpring,
-  runOnJS, Easing, SharedValue,
+  useSharedValue, useAnimatedStyle, withTiming, withSpring,
+  runOnJS, Easing, FadeIn, FadeInDown, interpolate, interpolateColor, Extrapolation,
 } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import type { ComponentProps } from 'react';
+import DaquiMark from '../../components/DaquiMark';
+import NeighborhoodScape, { SCAPE_ANCHORS, AmbientBackdrop } from '../../components/NeighborhoodScape';
 import { useState, useRef, useEffect } from 'react';
 import { submitOnEnter } from '../../lib/keyboard';
 import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { AvailabilityState } from '../../lib/useAvailability';
 import { useSignupFlow } from '../../lib/useSignupFlow';
 import { useLoginFlow } from '../../lib/useLoginFlow';
 import { api, CommunityStats } from '../../lib/api';
 
+type IconName = ComponentProps<typeof Ionicons>['name'];
+
 // ─── Dados estáticos ────────────────────────────────────────────
-const FEATURES = [
-  { icon: 'people-outline' as const,          label: 'Conecte-se com vizinhos' },
-  { icon: 'megaphone-outline' as const,        label: 'Fique por dentro do bairro' },
-  { icon: 'shield-checkmark-outline' as const, label: 'Segurança em primeiro lugar' },
+const FEATURES: { icon: IconName; label: string }[] = [
+  { icon: 'people-outline',      label: 'Conecte-se com vizinhos' },
+  { icon: 'megaphone-outline',   label: 'Fique por dentro do bairro' },
+  { icon: 'trending-up-outline', label: 'Amplie seu negócio' },
 ];
 // Abaixo desse total de contas, expor o número exato faria a rede parecer
 // vazia — troca por uma mensagem de "comunidade em formação" (ver
 // CommunityStats/useEffect abaixo). Sem fallback estático: enquanto os dados
 // reais não chegam, a vitrine simplesmente não aparece.
 const ESTABLISHED_THRESHOLD = 500;
-const POSTS = [
-  { color: '#EF4444', label: 'Aviso', text: 'Obra na esquina com a...' },
-  { color: '#F59E0B', label: 'Recomendação',  text: 'Padaria nova na Harmonia 🥐' },
-  { color: '#EC4899', label: 'Pets',  text: 'Gatinha encontrada aqui no…' },
+// Cada card "acontece" perto de um nó ativo do mapa (ver NeighborhoodScape) —
+// por isso a cor casa com os nós luminosos e o conector tracejado da arte.
+const ACTIVITY_CARDS: { color: string; label: string; text: string; icon: IconName; anchor: 'cardA' | 'cardB' | 'cardC' }[] = [
+  { color: '#F59E0B', label: 'Recomendação', text: 'Padaria nova na Harmonia', icon: 'cafe-outline', anchor: 'cardA' },
+  { color: '#EF4444', label: 'Aviso', text: 'Obra na Rua das Flores', icon: 'construct-outline', anchor: 'cardB' },
+  { color: '#EC4899', label: 'Pets', text: 'Gatinha encontrada aqui', icon: 'paw-outline', anchor: 'cardC' },
 ];
 // Espelha STEPS de app/(auth)/signup.tsx — ambos consomem useSignupFlow, que
 // é a única fonte de verdade pro número/ordem dos passos.
 const SIGNUP_STEPS = ['Conta', 'Verificar', 'Pronto'];
 
-// ─── Bolha decorativa animada ────────────────────────────────────
-// Flutua sozinha (drift suave em X/Y, com fases próprias) e reage ao mouse
-// via parallax: `depth` controla o quanto acompanha o cursor (px normalizado
-// -1..1), dando sensação de camadas. Só-decorativa, não captura toques.
-function FloatingBlob({
-  style, px, py, depth, driftX = 16, driftY = 20, durX = 7000, durY = 8000, delay = 0,
-}: {
-  style: StyleProp<ViewStyle>;
-  px: SharedValue<number>;
-  py: SharedValue<number>;
-  depth: number;
-  driftX?: number;
-  driftY?: number;
-  durX?: number;
-  durY?: number;
-  delay?: number;
-}) {
-  const fx = useSharedValue(0);
-  const fy = useSharedValue(0);
-
-  useEffect(() => {
-    fx.value = withDelay(delay, withRepeat(withTiming(1, { duration: durX, easing: Easing.inOut(Easing.quad) }), -1, true));
-    fy.value = withDelay(delay + 400, withRepeat(withTiming(1, { duration: durY, easing: Easing.inOut(Easing.quad) }), -1, true));
-    // Anima só na montagem; os parâmetros são estáveis por bolha.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [
-      // Parallax invertido: as bolhas se afastam do cursor (sinal negativo).
-      { translateX: (fx.value * 2 - 1) * driftX - px.value * depth },
-      { translateY: (fy.value * 2 - 1) * driftY - py.value * depth },
-    ],
-  }));
-
-  return <Animated.View pointerEvents="none" style={[style, animStyle]} />;
-}
-
-// ─── Grade de bolinhas "tátil" ────────────────────────────────────
-// Cada bolinha cresce conforme o cursor se aproxima, como se a grade fosse
-// sensível ao toque. `mx`/`my` guardam a posição do mouse em px, já
-// relativa ao canto da própria grade e suavizada por spring (ver captura em
-// WelcomeScreen); cada bolinha só lê a distância até seu próprio centro —
-// puramente reativo, sem spring extra aqui dentro.
-const DOT_COLS = 12;
-const DOT_SIZE = 2.5;
-const DOT_GAP = 6;
-const DOT_STEP = DOT_SIZE + DOT_GAP;
-const DOT_INFLUENCE = 42; // raio (px) de influência do cursor
-const DOT_MAX_SCALE = 2.6;
-
-function TactileDot({ index, mx, my }: { index: number; mx: SharedValue<number>; my: SharedValue<number> }) {
-  const cx = (index % DOT_COLS) * DOT_STEP + DOT_SIZE / 2;
-  const cy = Math.floor(index / DOT_COLS) * DOT_STEP + DOT_SIZE / 2;
-
-  const animStyle = useAnimatedStyle(() => {
-    const dist = Math.sqrt((mx.value - cx) ** 2 + (my.value - cy) ** 2);
-    const t = Math.max(0, 1 - dist / DOT_INFLUENCE);
-    return {
-      transform: [{ scale: 1 + t * (DOT_MAX_SCALE - 1) }],
-      opacity: 0.2 + t * 0.8,
-    };
-  });
-
-  return <Animated.View style={[styles.dot, animStyle]} />;
-}
-
 // Indicador de status de disponibilidade (dentro do input).
 function AvailabilityIcon({ state }: { state: AvailabilityState }) {
-  if (state.status === 'checking') return <ActivityIndicator size="small" color={Colors.textTertiary} />;
-  if (state.status === 'ok') return <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />;
+  if (state.status === 'checking') return <ActivityIndicator size="small" color={FORM_ICON} />;
+  if (state.status === 'ok') return <Ionicons name="checkmark-circle" size={18} color={FORM_ACCENT} />;
   if (state.status === 'error') return <Ionicons name="close-circle" size={18} color={Colors.error} />;
   return null;
+}
+
+// Paleta dos formulários de login/cadastro DENTRO do glassBox — o painel
+// expandido permanece em vidro escuro (não vira mais painel branco, ver
+// glassTintStyle), então esses textos/inputs usam a mesma família clara do
+// hero em vez das cores claras-sobre-branco padrão do resto do app.
+const FORM_TEXT = '#ffffff';
+const FORM_TEXT_SECONDARY = 'rgba(255,255,255,0.78)';
+const FORM_TEXT_TERTIARY = 'rgba(255,255,255,0.52)';
+const FORM_ICON = 'rgba(255,255,255,0.55)';
+const FORM_PLACEHOLDER = 'rgba(255,255,255,0.42)';
+const FORM_ACCENT = '#4ADE80';
+const FORM_ERROR_TEXT = '#FCA5A5';
+
+// ─── Botão de ação principal (Começar agora / Já tenho conta) ───────────
+// Hover/foco/pressionado próprios via Pressable (mesmo padrão de
+// components/RightSidebar.tsx), isolado do styles.btnPrimary/btnSecondary
+// usado pelos formulários de login/cadastro — não altera nada ali.
+const CTA_STYLES = {
+  heroPrimary: { base: 'ctaHeroPrimary', hover: 'ctaHeroPrimaryHover', pressed: 'ctaHeroPrimaryPressed', focus: 'ctaHeroPrimaryFocus', text: 'ctaHeroPrimaryText', iconColor: '#fff' },
+  heroSecondary: { base: 'ctaHeroSecondary', hover: 'ctaHeroSecondaryHover', pressed: 'ctaHeroSecondaryPressed', focus: 'ctaHeroSecondaryFocus', text: 'ctaHeroSecondaryText', iconColor: Colors.text },
+  mobilePrimary: { base: 'ctaMobilePrimary', hover: 'ctaMobilePrimaryHover', pressed: 'ctaMobilePrimaryPressed', focus: 'ctaMobilePrimaryFocus', text: 'ctaMobilePrimaryText', iconColor: Colors.primaryDark },
+  mobileSecondary: { base: 'ctaMobileSecondary', hover: 'ctaMobileSecondaryHover', pressed: 'ctaMobileSecondaryPressed', focus: 'ctaMobileSecondaryFocus', text: 'ctaMobileSecondaryText', iconColor: '#fff' },
+} as const;
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function CtaButton({
+  kind, label, icon, onPress, showIcon = true, extraStyle, labelStyle, hoverStyle,
+}: {
+  kind: keyof typeof CTA_STYLES;
+  label: string;
+  icon: IconName;
+  onPress: () => void;
+  showIcon?: boolean;
+  // Estilo animado extra (cor/borda) só usado pelo "Já tenho conta" do hero,
+  // que precisa ler bem tanto no cartão de vidro escuro quanto no painel
+  // claro expandido — ver colorização animada em WelcomeScreen. Fica ANTES
+  // dos overrides de hover/pressed/foco no array de estilos (não depois),
+  // pra esses continuarem aparecendo por cima normalmente.
+  extraStyle?: object;
+  labelStyle?: object;
+  // Sobrescreve styles[tokens.hover] quando informado — o hover estático
+  // (cinza claro) não lê bem em cima do vidro escuro; o "Já tenho conta"
+  // do hero passa uma versão animada que também crossfada com boxExpand.
+  hoverStyle?: object;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const tokens = CTA_STYLES[kind];
+
+  return (
+    // AnimatedPressable (Reanimated) não entende a prop `style` como FUNÇÃO
+    // — o recurso `style={({pressed}) => ...}` é implementado pelo próprio
+    // Pressable puro; embrulhado, ele quebra silenciosamente (fundo/layout
+    // do botão sumia). Por isso "pressed" vira estado próprio via
+    // onPressIn/onPressOut, e `style` fica sempre um array simples.
+    <AnimatedPressable
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      accessibilityRole="button"
+      style={[
+        styles[tokens.base],
+        extraStyle,
+        hovered && (hoverStyle ?? styles[tokens.hover]),
+        pressed && styles[tokens.pressed],
+        focused && styles[tokens.focus],
+      ]}
+    >
+      <Animated.Text style={[styles[tokens.text], labelStyle]}>{label}</Animated.Text>
+      {showIcon && <Ionicons name={icon} size={18} color={tokens.iconColor} />}
+    </AnimatedPressable>
+  );
 }
 
 // ─── Tipo de view ────────────────────────────────────────────────
@@ -120,8 +140,16 @@ type Panel = 'welcome' | 'login' | 'signup';
 
 // ════════════════════════════════════════════════════════════════
 export default function WelcomeScreen() {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isWide = width >= 900;
+  const isShort = height < 720;
+  const reducedMotion = useReducedMotion();
+  // Largura real do painel esquerdo (medida, não estimada) — usada só pra
+  // calcular o quanto o slide() precisa deslocar pra sair de tela por
+  // completo. Fica em 0 até o primeiro layout; o fallback em slide() cobre
+  // esse instante inicial.
+  const [leftPanelWidth, setLeftPanelWidth] = useState(0);
+
   // Lógica de login/cadastro (validação, chamadas de API, ticket de 2FA/
   // verificação de e-mail) mora inteira nesses hooks — os mesmos usados por
   // app/(auth)/login.tsx e app/(auth)/signup.tsx. O painel deslizante aqui
@@ -157,36 +185,141 @@ export default function WelcomeScreen() {
   const exitStyle  = useAnimatedStyle(() => ({ transform: [{ translateX: exitX.value }] }));
   const enterStyle = useAnimatedStyle(() => ({ transform: [{ translateX: enterX.value }] }));
 
-  // ── Parallax do mouse (só na web) ────────────────────────────
-  // Posição do cursor normalizada em -1..1 relativa ao centro da janela.
-  // As bolhas leem esses valores; o withSpring dá um leve atraso natural.
+  // ── Parallax do mouse + cauda do marcador (só na web) ────────────────
+  // Posição do cursor normalizada em -1..1 relativa ao centro da janela —
+  // só a camada de arte do bairro (NeighborhoodScape) lê isso, pra dar
+  // sensação de profundidade sem mexer no texto/cards por cima.
   const pointerX = useSharedValue(0);
   const pointerY = useSharedValue(0);
-  // Posição do mouse em px, relativa ao canto da grade de bolinhas (efeito
-  // "sensor tátil" — ver TactileDot acima). Começa fora do raio de
-  // influência pra nenhuma bolinha nascer "crescida".
-  const dotGridRef = useRef<View>(null);
-  const dotGridMouseX = useSharedValue(-1000);
-  const dotGridMouseY = useSharedValue(-1000);
+  // Direção (vetor 2D, não ângulo) que a cauda do marcador central deve
+  // apontar — animar x/y separadamente evita de vez a classe de bug de
+  // "ângulo dando volta": um escalar de ângulo acumulado precisa de lógica
+  // de menor-caminho pra cruzar a fronteira -180/180 sem girar pelo lado
+  // errado (uma tentativa anterior com essa lógica ainda quebrava e deixava
+  // a seta tremendo/invertida). Um vetor não tem fronteira nenhuma — dois
+  // valores interpolando linearmente sempre convergem pro alvo certo, sem
+  // acúmulo, sem "%", sem caso especial. O ângulo final só é calculado (via
+  // atan2) na hora de desenhar, dentro do próprio worklet (ver LocationCore).
+  // Calculado no MESMO espaço percentual 0–100 do SVG (não em pixels de
+  // tela), pra que a direção saia correta mesmo com o
+  // preserveAspectRatio="none" esticando os eixos de forma desigual.
+  const tailDirX = useSharedValue(0);
+  const tailDirY = useSharedValue(1); // padrão = "apontando pra baixo", igual à cauda sem rotação
+  const rightPanelRef = useRef<View>(null);
   useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || reducedMotion) return;
     const onMove = (e: MouseEvent) => {
       const nx = (e.clientX / window.innerWidth) * 2 - 1;
       const ny = (e.clientY / window.innerHeight) * 2 - 1;
       pointerX.value = withSpring(nx, { damping: 22, stiffness: 80, mass: 0.6 });
       pointerY.value = withSpring(ny, { damping: 22, stiffness: 80, mass: 0.6 });
 
-      const gridEl = dotGridRef.current as unknown as HTMLElement | null;
-      if (gridEl) {
-        const rect = gridEl.getBoundingClientRect();
-        dotGridMouseX.value = withSpring(e.clientX - rect.left, { damping: 18, stiffness: 200, mass: 0.4 });
-        dotGridMouseY.value = withSpring(e.clientY - rect.top, { damping: 18, stiffness: 200, mass: 0.4 });
+      const panelEl = rightPanelRef.current as unknown as HTMLElement | null;
+      const rect = panelEl?.getBoundingClientRect();
+      if (rect && rect.width > 0 && rect.height > 0) {
+        const px = ((e.clientX - rect.left) / rect.width) * 100;
+        const py = ((e.clientY - rect.top) / rect.height) * 100;
+        const dx = px - SCAPE_ANCHORS.marker.x;
+        const dy = py - SCAPE_ANCHORS.marker.y;
+        const mag = Math.sqrt(dx * dx + dy * dy) || 1;
+        tailDirX.value = withSpring(dx / mag, { damping: 20, stiffness: 150, mass: 0.4 });
+        tailDirY.value = withSpring(dy / mag, { damping: 20, stiffness: 150, mass: 0.4 });
       }
     };
     window.addEventListener('mousemove', onMove);
     return () => window.removeEventListener('mousemove', onMove);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [reducedMotion]);
+
+  const artParallaxStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: -pointerX.value * 10 },
+      { translateY: -pointerY.value * 8 },
+    ],
+  }));
+
+  // ── Painel de vidro: cartão flutuante (welcome) ⇄ painel cheio (login/
+  // cadastro) ──────────────────────────────────────────────────────────
+  // 0 = cartão flutuante com cantos arredondados e material translúcido;
+  // 1 = painel cheio rente às bordas do slot, igual ao visual anterior.
+  // Roda em paralelo ao slide() horizontal existente (não o substitui —
+  // são duas animações independentes na mesma transição: o CONTAINER muda
+  // de forma enquanto o CONTEÚDO desliza dentro dele).
+  const boxExpand = useSharedValue(0);
+  useEffect(() => {
+    boxExpand.value = withTiming(panel === 'welcome' ? 0 : 1, {
+      duration: reducedMotion ? 0 : 560,
+      easing: Easing.inOut(Easing.cubic),
+    });
+  }, [panel, reducedMotion, boxExpand]);
+
+  const glassBoxStyle = useAnimatedStyle(() => {
+    const inset = interpolate(boxExpand.value, [0, 1], [56, 0], Extrapolation.CLAMP);
+    const radius = interpolate(boxExpand.value, [0, 1], [28, 0], Extrapolation.CLAMP);
+    const shadowOpacity = interpolate(boxExpand.value, [0, 1], [0.22, 0], Extrapolation.CLAMP);
+    const shadowOffset = interpolate(boxExpand.value, [0, 1], [20, 0], Extrapolation.CLAMP);
+    const shadowBlur = interpolate(boxExpand.value, [0, 1], [48, 0], Extrapolation.CLAMP);
+    return {
+      top: inset, left: inset, right: inset, bottom: inset,
+      borderRadius: radius,
+      // `boxShadow` em vez das props shadow*/elevation (deprecadas no RN
+      // Web) — mesmo padrão já usado nos CTAs deste arquivo, só que
+      // recalculado a cada frame aqui pra poder animar.
+      boxShadow: `0px ${shadowOffset}px ${shadowBlur}px rgba(3,18,11,${shadowOpacity})`,
+    } as any;
+  });
+  // Vidro escuro (igual aos chips "Padaria nova..."/"Gatinha encontrada
+  // aqui" do mapa) tanto no cartão flutuante quanto no painel cheio — só a
+  // opacidade sobe um pouco no painel cheio (mais área de vidro, menos "ar"
+  // do bairro ao redor pedindo mais opacidade pra legibilidade dos
+  // formulários), a família de cor (vidro escuro) permanece a mesma; antes
+  // essa transição virava branco/off-white, que destoava do resto da tela.
+  const glassTintStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      boxExpand.value, [0, 1], ['rgba(8,26,17,0.34)', 'rgba(6,20,13,0.62)'],
+    ),
+  }));
+  const glassBorderStyle = useAnimatedStyle(() => ({
+    // Precisa do mesmo raio animado do glassBox: o overflow:hidden do pai
+    // corta este filho na forma arredondada de qualquer jeito, mas sem o
+    // raio aqui o traço da borda fica com cantos quadrados por baixo do
+    // corte, em vez de acompanhar a curva.
+    borderRadius: interpolate(boxExpand.value, [0, 1], [28, 0], Extrapolation.CLAMP),
+    borderColor: interpolateColor(boxExpand.value, [0, 1], ['rgba(255,255,255,0.32)', 'rgba(255,255,255,0)']),
+  }));
+  const edgeVeilAnimStyle = useAnimatedStyle(() => ({ opacity: boxExpand.value }));
+
+  // ── Cores do conteúdo do hero: claras sobre o vidro escuro ────────────
+  // O glassBox permanece em vidro escuro tanto no cartão flutuante quanto
+  // no painel cheio (ver glassTintStyle) — então o conteúdo do hero não
+  // precisa mais crossfadar pra cores escuras-sobre-claro; fica fixo na
+  // paleta clara em ambos os estados. Continuam como useAnimatedStyle (em
+  // vez de objeto plano) só pra manter a mesma assinatura usada pelos
+  // Animated.Text/View que os consomem.
+  const heroLogoTextStyle = useAnimatedStyle(() => ({ color: FORM_TEXT }));
+  const heroHeadlineStyle = useAnimatedStyle(() => ({ color: 'rgba(255,255,255,0.97)' }));
+  const heroSublineStyle = useAnimatedStyle(() => ({ color: 'rgba(255,255,255,0.8)' }));
+  const heroFeatureTextStyle = useAnimatedStyle(() => ({ color: 'rgba(255,255,255,0.94)' }));
+  const heroFeatureIconBgStyle = useAnimatedStyle(() => ({ backgroundColor: 'rgba(255,255,255,0.14)' }));
+  // Ionicons não aceita ser embrulhado em Animated.createAnimatedComponent
+  // (o ref interno dele não expõe setNativeProps do jeito que o Reanimated
+  // espera — quebra o app inteiro em runtime). Por isso o ícone claro fica
+  // sempre visível e o ícone escuro (usado antes só no painel branco) some
+  // de vez — mantidos como duas camadas pra não mexer no JSX que empilha
+  // os dois.
+  const heroFeatureIconLightStyle = useAnimatedStyle(() => ({ opacity: 1 }));
+  const heroFeatureIconDarkStyle = useAnimatedStyle(() => ({ opacity: 0 }));
+  const heroSecondaryBtnStyle = useAnimatedStyle(() => ({
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(255,255,255,0.3)',
+  }));
+  const heroSecondaryBtnTextStyle = useAnimatedStyle(() => ({ color: FORM_TEXT }));
+  const heroSecondaryHoverStyle = useAnimatedStyle(() => ({
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.45)',
+  }));
+  const heroTermsStyle = useAnimatedStyle(() => ({ color: 'rgba(255,255,255,0.55)' }));
+  const heroTermsLinkStyle = useAnimatedStyle(() => ({ color: 'rgba(255,255,255,0.88)' }));
 
   const finishSlide = () => {
     setShowExit(false);
@@ -202,7 +335,9 @@ export default function WelcomeScreen() {
     if (animBusy.current) return;
     animBusy.current = true;
 
-    const W = Math.round(width * 0.35); // ligeiramente maior que o painel 30%
+    // Ligeiramente maior que o painel esquerdo medido, pra garantir que a
+    // camada que sai fique totalmente fora da tela antes de desmontar.
+    const W = Math.round((leftPanelWidth || width * 0.4) + 60);
 
     // captura estado atual como "saindo"
     setExitPanel(panel);
@@ -249,56 +384,52 @@ export default function WelcomeScreen() {
   const renderHero = () => (
     <ScrollView
       style={styles.leftScroll}
-      contentContainerStyle={styles.leftContent}
+      contentContainerStyle={[styles.leftContent, isShort && styles.leftContentShort]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.logoRow}>
         <View style={styles.logoIcon}>
-          <Ionicons name="location" size={22} color="#fff" />
+          <DaquiMark size={52} color="#fff" />
         </View>
-        <Text style={styles.logoText}>daqui</Text>
+        <Animated.Text style={[styles.logoText, heroLogoTextStyle]}>daqui</Animated.Text>
       </View>
 
-      <Text style={styles.headline}>O seu bairro{'\n'}na palma da mão</Text>
-      <Text style={styles.subline}>
+      <Animated.Text style={[styles.headline, heroHeadlineStyle]}>O seu bairro na palma da mão</Animated.Text>
+      <Animated.Text style={[styles.subline, heroSublineStyle]}>
         Entre numa rede de vizinhos que se ajudam, compartilham e cuidam do bairro juntos.
-      </Text>
+      </Animated.Text>
 
-      <View style={styles.featuresArea}>
+      <View style={styles.featuresList}>
         {FEATURES.map((f) => (
           <View key={f.icon} style={styles.featureRow}>
-            <View style={styles.featureIcon}>
-              <Ionicons name={f.icon} size={16} color={Colors.primaryDark} />
-            </View>
-            <Text style={styles.featureText}>{f.label}</Text>
+            <Animated.View style={[styles.featureIcon, heroFeatureIconBgStyle]}>
+              <Animated.View style={[styles.featureIconGlyph, heroFeatureIconLightStyle]}>
+                <Ionicons name={f.icon} size={18} color="#fff" />
+              </Animated.View>
+              <Animated.View style={[styles.featureIconGlyph, heroFeatureIconDarkStyle]}>
+                <Ionicons name={f.icon} size={18} color={Colors.primaryDark} />
+              </Animated.View>
+            </Animated.View>
+            <Animated.Text style={[styles.featureText, heroFeatureTextStyle]}>{f.label}</Animated.Text>
           </View>
         ))}
       </View>
 
       <View style={styles.ctaArea}>
-        <TouchableOpacity
-          style={styles.btnPrimary}
-          onPress={() => isWide ? goTo('signup') : router.push('/(auth)/signup')}
-          activeOpacity={0.88}
-        >
-          <Text style={styles.btnPrimaryText}>Começar agora</Text>
-          <Ionicons name="arrow-forward" size={18} color="#fff" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.btnSecondary}
+        <CtaButton kind="heroPrimary" label="Começar agora" icon="arrow-forward" onPress={() => isWide ? goTo('signup') : router.push('/(auth)/signup')} />
+        <CtaButton
+          kind="heroSecondary" label="Já tenho conta" icon="arrow-forward" showIcon={false}
           onPress={() => isWide ? goTo('login') : router.push('/(auth)/login')}
-          activeOpacity={0.88}
-        >
-          <Text style={styles.btnSecondaryText}>Já tenho conta</Text>
-        </TouchableOpacity>
+          extraStyle={heroSecondaryBtnStyle} labelStyle={heroSecondaryBtnTextStyle} hoverStyle={heroSecondaryHoverStyle}
+        />
       </View>
 
-      <Text style={styles.terms}>
+      <Animated.Text style={[styles.terms, heroTermsStyle]}>
         Ao continuar, você aceita os{' '}
-        <Text style={styles.termsLink} onPress={() => router.push('/legal/terms')}>Termos de Uso</Text>
+        <Animated.Text style={[styles.termsLink, heroTermsLinkStyle]} onPress={() => router.push('/legal/terms')}>Termos de Uso</Animated.Text>
         {' '}e a{' '}
-        <Text style={styles.termsLink} onPress={() => router.push('/legal/privacy')}>Política de Privacidade</Text>
-      </Text>
+        <Animated.Text style={[styles.termsLink, heroTermsLinkStyle]} onPress={() => router.push('/legal/privacy')}>Política de Privacidade</Animated.Text>
+      </Animated.Text>
     </ScrollView>
   );
 
@@ -311,7 +442,7 @@ export default function WelcomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       <TouchableOpacity style={styles.backBtn} onPress={loginFlow.mode !== 'login' ? loginFlow.cancelSecondStep : goBack}>
-        <Ionicons name="arrow-back" size={18} color={Colors.textSecondary} />
+        <Ionicons name="arrow-back" size={18} color={FORM_TEXT} />
       </TouchableOpacity>
 
       <View style={styles.formHeader}>
@@ -332,11 +463,11 @@ export default function WelcomeScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Código de verificação</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+              <Ionicons name="keypad-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="000000"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={FORM_PLACEHOLDER}
                 value={loginFlow.code}
                 onChangeText={loginFlow.onCodeChange}
                 keyboardType="number-pad"
@@ -384,11 +515,11 @@ export default function WelcomeScreen() {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>E-mail</Text>
         <View style={styles.inputWrapper}>
-          <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+          <Ionicons name="mail-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
           <TextInput
             style={styles.input}
             placeholder="seu@email.com"
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={FORM_PLACEHOLDER}
             value={loginFlow.email}
             onChangeText={loginFlow.setEmail}
             keyboardType="email-address"
@@ -402,11 +533,11 @@ export default function WelcomeScreen() {
       <View style={styles.inputGroup}>
         <Text style={styles.label}>Senha</Text>
         <View style={styles.inputWrapper}>
-          <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+          <Ionicons name="lock-closed-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
           <TextInput
             style={styles.inputFlex}
             placeholder="Sua senha"
-            placeholderTextColor={Colors.textTertiary}
+            placeholderTextColor={FORM_PLACEHOLDER}
             value={loginFlow.password}
             onChangeText={loginFlow.setPassword}
             secureTextEntry={!loginFlow.showPassword}
@@ -414,7 +545,7 @@ export default function WelcomeScreen() {
             onSubmitEditing={loginFlow.handleLogin}
           />
           <TouchableOpacity onPress={() => loginFlow.setShowPassword(!loginFlow.showPassword)} style={styles.eyeBtn}>
-            <Ionicons name={loginFlow.showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.textTertiary} />
+            <Ionicons name={loginFlow.showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={FORM_ICON} />
           </TouchableOpacity>
         </View>
       </View>
@@ -483,7 +614,7 @@ export default function WelcomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       <TouchableOpacity style={styles.backBtn} onPress={goBack}>
-        <Ionicons name="arrow-back" size={18} color={Colors.textSecondary} />
+        <Ionicons name="arrow-back" size={18} color={FORM_TEXT} />
       </TouchableOpacity>
 
       {/* Step indicator */}
@@ -520,15 +651,15 @@ export default function WelcomeScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nome completo</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="person-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Seu nome" placeholderTextColor={Colors.textTertiary} value={signupFlow.name} onChangeText={signupFlow.setName} autoCapitalize="words" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <Ionicons name="person-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="Seu nome" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.name} onChangeText={signupFlow.setName} autoCapitalize="words" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
             </View>
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nome de usuário</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="at-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="seu.usuario" placeholderTextColor={Colors.textTertiary} value={signupFlow.username} onChangeText={(v) => signupFlow.setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))} autoCapitalize="none" autoCorrect={false} maxLength={18} onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <Ionicons name="at-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="seu.usuario" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.username} onChangeText={(v) => signupFlow.setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))} autoCapitalize="none" autoCorrect={false} maxLength={18} onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
               <AvailabilityIcon state={signupFlow.usernameCheck} />
             </View>
             {signupFlow.usernameCheck.status === 'error' && !!signupFlow.usernameCheck.error && (
@@ -538,8 +669,8 @@ export default function WelcomeScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>E-mail</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={Colors.textTertiary} value={signupFlow.email} onChangeText={signupFlow.setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <Ionicons name="mail-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.email} onChangeText={signupFlow.setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
               <AvailabilityIcon state={signupFlow.emailCheck} />
             </View>
             {signupFlow.emailCheck.status === 'error' && !!signupFlow.emailCheck.error && (
@@ -549,8 +680,8 @@ export default function WelcomeScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Senha</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor={Colors.textTertiary} value={signupFlow.password} onChangeText={signupFlow.setPassword} secureTextEntry onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <Ionicons name="lock-closed-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.password} onChangeText={signupFlow.setPassword} secureTextEntry onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
             </View>
           </View>
         </>
@@ -569,11 +700,11 @@ export default function WelcomeScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Código de verificação</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+              <Ionicons name="keypad-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="000000"
-                placeholderTextColor={Colors.textTertiary}
+                placeholderTextColor={FORM_PLACEHOLDER}
                 value={signupFlow.code}
                 onChangeText={signupFlow.onCodeChange}
                 keyboardType="number-pad"
@@ -650,83 +781,111 @@ export default function WelcomeScreen() {
     </ScrollView>
   );
 
-  // ── Painel direito: arte ──────────────────────────────────────
+  // ── Painel direito: bairro abstrato vivo ─────────────────────
+  // O gradiente de fundo agora é um layer único no root (ver return do
+  // desktop abaixo), cobrindo os dois lados sem costura — antes cada
+  // painel tinha o seu próprio gradiente, então a área por trás do cartão
+  // flutuante (ver glassBox) ficaria branca em vez de continuar o mapa.
   const renderArt = () => (
-    <View style={styles.rightPanel}>
-      <LinearGradient
-        colors={['#052E16', '#14532D', '#166534', '#15803D']}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-      <FloatingBlob px={pointerX} py={pointerY} depth={16} driftX={16} driftY={22} durX={7600} durY={9000}
-        style={[styles.blob, { width: 520, height: 520, top: -140, right: -140, opacity: 0.12 }]} />
-      <FloatingBlob px={pointerX} py={pointerY} depth={32} driftX={22} driftY={16} durX={6400} durY={7600} delay={600}
-        style={[styles.blob, { width: 320, height: 320, bottom: -80, left: -80,  opacity: 0.10 }]} />
-      <FloatingBlob px={pointerX} py={pointerY} depth={48} driftX={14} driftY={24} durX={5200} durY={6200} delay={1200}
-        style={[styles.blob, { width: 200, height: 200, top: '40%', left: '20%', opacity: 0.07 }]} />
+    <View style={styles.rightPanel} ref={rightPanelRef}>
 
-      <View style={styles.ringOuter}>
-        <View style={styles.ringInner}>
-          <Ionicons name="location" size={52} color={Colors.primary} />
-        </View>
+      <Animated.View
+        style={StyleSheet.absoluteFill}
+        entering={reducedMotion ? undefined : FadeIn.duration(1100)}
+      >
+        <Animated.View style={[StyleSheet.absoluteFill, artParallaxStyle]}>
+          <NeighborhoodScape variant="full" reducedMotion={reducedMotion} pointerDirX={tailDirX} pointerDirY={tailDirY} />
+        </Animated.View>
+      </Animated.View>
+
+      <View style={[styles.artHeadline, { top: `${SCAPE_ANCHORS.headline.y}%` }]}>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(700)}>
+          <Text style={styles.artWord}>
+            Seu bairro <Text style={styles.artWordAccent}>ganha vida.</Text>
+          </Text>
+        </Animated.View>
+        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(700)}>
+          <Text style={styles.artSubline}>
+            Descubra um novo horizonte para a vivência em comunidade e acompanhe as notícias das redondezas em tempo real.
+          </Text>
+        </Animated.View>
       </View>
-      <View style={styles.artCenter}>
-        <Text style={styles.artWord}>Vizinhança</Text>
-        <Text style={styles.artWord2}>de verdade.</Text>
-      </View>
+
       {communityStats && (
-        <View style={styles.avatarCluster}>
-          {communityStats.avatarUrls.slice(0, 5).map((url, i) => (
-            <Image key={`${url}-${i}`} source={{ uri: url }}
-              style={[styles.clusterAvatar, { marginLeft: i > 0 ? -14 : 0, zIndex: 10 - i }]} />
-          ))}
-          <View style={[styles.clusterBadge, communityStats.avatarUrls.length === 0 && { marginLeft: 0 }]}>
-            <Text style={styles.clusterBadgeText}>
-              {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
-                ? `${communityStats.totalUsers.toLocaleString('pt-BR')} vizinhos`
-                : 'Comunidade em crescimento'}
-            </Text>
-          </View>
+        <View style={[styles.avatarClusterWrap, { top: `${SCAPE_ANCHORS.avatarCluster.y}%` }]}>
+          <Animated.View
+            style={styles.avatarCluster}
+            entering={reducedMotion ? undefined : FadeInDown.delay(360).duration(700)}
+          >
+            {communityStats.avatarUrls.slice(0, 5).map((url, i) => (
+              <Image key={`${url}-${i}`} source={{ uri: url }}
+                style={[styles.clusterAvatar, { marginLeft: i > 0 ? -14 : 0, zIndex: 10 - i }]} />
+            ))}
+            <View style={[styles.clusterBadge, communityStats.avatarUrls.length === 0 && { marginLeft: 0 }]}>
+              <Text style={styles.clusterBadgeText}>
+                {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
+                  ? `${communityStats.totalUsers.toLocaleString('pt-BR')} vizinhos`
+                  : 'Comunidade em crescimento'}
+              </Text>
+            </View>
+          </Animated.View>
         </View>
       )}
-      {POSTS.map((p, i) => (
-        <View key={i} style={[styles.floatCard,
-          i === 0 && { bottom: 200, left: 32 },
-          i === 1 && { top: 140,   right: 40 },
-          i === 2 && { bottom: 120, right: 28 },
-        ]}>
-          <View style={[styles.floatCardDot, { backgroundColor: p.color }]} />
-          <View>
-            <Text style={styles.floatCardLabel}>{p.label}</Text>
-            <Text style={styles.floatCardText} numberOfLines={1}>{p.text}</Text>
-          </View>
-        </View>
-      ))}
-      <View ref={dotGridRef} pointerEvents="none" style={styles.dotGrid}>
-        {Array.from({ length: 48 }).map((_, i) => (
-          <TactileDot key={i} index={i} mx={dotGridMouseX} my={dotGridMouseY} />
-        ))}
-      </View>
+
+      {ACTIVITY_CARDS.map((c, i) => {
+        const anchor = SCAPE_ANCHORS[c.anchor];
+        const onRight = anchor.x > 50;
+        return (
+          <Animated.View
+            key={c.anchor}
+            style={[
+              styles.floatCardWrap,
+              { top: `${anchor.y}%` },
+              onRight ? { right: `${100 - anchor.x}%` } : { left: `${anchor.x}%` },
+            ]}
+            entering={reducedMotion ? undefined : FadeInDown.delay(560 + i * 150).duration(650)}
+          >
+            <BlurView intensity={36} tint="dark" style={styles.floatCard}>
+              <View style={[styles.floatCardIcon, { backgroundColor: `${c.color}2A` }]}>
+                <Ionicons name={c.icon} size={15} color={c.color} />
+              </View>
+              <View style={styles.floatCardBody}>
+                <Text style={styles.floatCardLabel}>{c.label}</Text>
+                <Text style={styles.floatCardText} numberOfLines={1}>{c.text}</Text>
+              </View>
+            </BlurView>
+          </Animated.View>
+        );
+      })}
     </View>
   );
 
-  // ── Mobile: gradiente completo ────────────────────────────────
+  // ── Mobile: composição compacta ───────────────────────────────
   if (!isWide) {
     return (
-      <LinearGradient colors={['#0D2918', '#15803D', '#22C55E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.mobileRoot}>
-        <FloatingBlob px={pointerX} py={pointerY} depth={20} driftX={18} driftY={24} durX={7200} durY={8400}
-          style={[styles.blob, { width: 340, height: 340, top: -100, right: -100, opacity: 0.1 }]} />
-        <FloatingBlob px={pointerX} py={pointerY} depth={34} driftX={22} driftY={18} durX={6000} durY={7000} delay={700}
-          style={[styles.blob, { width: 240, height: 240, bottom: -60, left: -60, opacity: 0.08 }]} />
+      <LinearGradient colors={['#041B10', '#0E3322', '#15803D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.mobileRoot}>
         <ScrollView contentContainerStyle={styles.mobileContent} showsVerticalScrollIndicator={false}>
           <View style={styles.mobileLogo}>
             <View style={styles.mobileLogoIcon}>
-              <Ionicons name="location" size={28} color={Colors.primary} />
+              <DaquiMark size={26} color="#fff" />
             </View>
             <Text style={styles.mobileAppName}>daqui</Text>
-            <Text style={styles.mobileTagline}>Seu bairro, do seu jeito</Text>
           </View>
+
+          <Animated.View
+            style={styles.mobileScape}
+            entering={reducedMotion ? undefined : FadeIn.duration(900)}
+          >
+            <NeighborhoodScape variant="compact" reducedMotion={reducedMotion} />
+          </Animated.View>
+
+          <Text style={styles.mobileHeadline}>
+            O seu bairro na palma da mão
+          </Text>
+          <Text style={styles.mobileSubline}>
+            Entre numa rede de vizinhos que se ajudam, compartilham e cuidam do bairro juntos.
+          </Text>
+
           {communityStats && (
             <View style={styles.mobileAvatarCard}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
@@ -747,23 +906,21 @@ export default function WelcomeScreen() {
               </Text>
             </View>
           )}
+
           <View style={styles.mobileFeaturesArea}>
             {FEATURES.map((f) => (
               <View key={f.icon} style={styles.mobileFeatureRow}>
-                <View style={styles.mobileFeatureIcon}><Ionicons name={f.icon} size={16} color={Colors.primary} /></View>
+                <View style={styles.mobileFeatureIcon}><Ionicons name={f.icon} size={16} color="#fff" /></View>
                 <Text style={styles.mobileFeatureText}>{f.label}</Text>
               </View>
             ))}
           </View>
+
           <View style={styles.mobileCtaArea}>
-            <TouchableOpacity style={styles.mobileBtnPrimary} onPress={() => router.push('/(auth)/signup')} activeOpacity={0.88}>
-              <Text style={styles.mobileBtnPrimaryText}>Começar agora</Text>
-              <Ionicons name="arrow-forward" size={18} color={Colors.primaryDark} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.mobileBtnSecondary} onPress={() => router.push('/(auth)/login')} activeOpacity={0.88}>
-              <Text style={styles.mobileBtnSecondaryText}>Já tenho conta</Text>
-            </TouchableOpacity>
+            <CtaButton kind="mobilePrimary" label="Começar agora" icon="arrow-forward" onPress={() => router.push('/(auth)/signup')} />
+            <CtaButton kind="mobileSecondary" label="Já tenho conta" icon="arrow-forward" showIcon={false} onPress={() => router.push('/(auth)/login')} />
           </View>
+
           <Text style={styles.mobileTerms}>
             Ao continuar, você aceita os{' '}
             <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/terms')}>Termos de Uso</Text>
@@ -775,28 +932,66 @@ export default function WelcomeScreen() {
     );
   }
 
-  // ── Desktop: split fixo com animação de deslize ─────────────
-  // Duas camadas absolutas: exit (sai) + enter (entra), cada uma com translate próprio
+  // ── Desktop: cartão de vidro flutuante ⇄ painel cheio ────────
+  // O slot esquerdo (leftPanel) tem tamanho fixo (mesma fração de sempre);
+  // só o "glassBox" DENTRO dele muda de forma — cartão arredondado com
+  // margem em welcome, painel rente às bordas em login/cadastro. O slide()
+  // horizontal do conteúdo (exit/enter) continua exatamente como antes,
+  // agora dentro do glassBox em vez de direto no slot.
   return (
     <View style={styles.root}>
-      <View style={styles.leftPanel}>
-        {/* Camada que sai — visível apenas durante a animação */}
-        {showExit && (
-          <Animated.View style={[StyleSheet.absoluteFill, exitStyle]}>
+      <LinearGradient
+        colors={['#041B10', '#0B3220', '#123E27', '#15803D']}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Textura ambiente cobrindo a tela inteira — sem isso, o mapa
+          detalhado (só do lado direito) parecia acabar bruscamente onde o
+          cartão de vidro flutuante deixa o fundo à mostra. */}
+      <AmbientBackdrop reducedMotion={reducedMotion} />
+      <View
+        style={styles.leftPanel}
+        onLayout={(e) => setLeftPanelWidth(e.nativeEvent.layout.width)}
+      >
+        <Animated.View style={[styles.glassBox, glassBoxStyle]}>
+          {/* tint="dark" fixo — o crossfade de cor real é o glassBoxTint por
+              cima; como ele fica quase opaco no estado expandido, o tint do
+              blur em si deixa de importar visualmente nesse ponto. */}
+          <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
+          <Animated.View style={[styles.glassBoxTint, glassTintStyle]} pointerEvents="none" />
+          <Animated.View style={[styles.glassBoxBorder, glassBorderStyle]} pointerEvents="none" />
+
+          {/* Camada que sai — visível apenas durante a animação */}
+          {showExit && (
+            <Animated.View style={[StyleSheet.absoluteFill, exitStyle]}>
+              <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                {exitPanel === 'welcome' && renderHero()}
+                {exitPanel === 'login'   && renderLogin()}
+                {exitPanel === 'signup'  && renderSignup(exitStep)}
+              </KeyboardAvoidingView>
+            </Animated.View>
+          )}
+          {/* Camada que entra — sempre presente */}
+          <Animated.View style={[StyleSheet.absoluteFill, enterStyle]}>
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-              {exitPanel === 'welcome' && renderHero()}
-              {exitPanel === 'login'   && renderLogin()}
-              {exitPanel === 'signup'  && renderSignup(exitStep)}
+              {panel === 'welcome' && renderHero()}
+              {panel === 'login'   && renderLogin()}
+              {panel === 'signup'  && renderSignup()}
             </KeyboardAvoidingView>
           </Animated.View>
-        )}
-        {/* Camada que entra — sempre presente */}
-        <Animated.View style={[StyleSheet.absoluteFill, enterStyle]}>
-          <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            {panel === 'welcome' && renderHero()}
-            {panel === 'login'   && renderLogin()}
-            {panel === 'signup'  && renderSignup()}
-          </KeyboardAvoidingView>
+          {/* Véu de transição — só aparece no estado "painel cheio", funde a
+              borda no verde escuro do lado direito em vez de um corte reto.
+              Sem sentido no cartão flutuante, que já tem margem visível pra
+              todos os lados. */}
+          <Animated.View style={[StyleSheet.absoluteFill, edgeVeilAnimStyle]} pointerEvents="none">
+            <LinearGradient
+              colors={['transparent', 'rgba(3,20,12,0.32)']}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={styles.leftEdgeVeil}
+            />
+          </Animated.View>
         </Animated.View>
       </View>
       {renderArt()}
@@ -806,133 +1001,206 @@ export default function WelcomeScreen() {
 
 // ─── Estilos ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: 'row', backgroundColor: '#fff' },
+  root: { flex: 1, flexDirection: 'row', backgroundColor: '#041B10' },
 
-  // Painel esquerdo
-  leftPanel: { flex: 3, overflow: 'hidden' },
+  // Painel esquerdo — slot de tamanho fixo (mesma fração de sempre); é só o
+  // glassBox lá dentro que muda de forma entre cartão flutuante e painel
+  // cheio (ver boxExpand/glassBoxStyle no componente).
+  leftPanel: { flex: 7, minWidth: 420, position: 'relative' },
+  // Sem backgroundColor próprio — a cor vem inteira do glassBoxTint (filho
+  // animado) por cima do BlurView; um fundo opaco fixo aqui atrás do blur
+  // esconderia o mapa que deveria aparecer através do vidro escuro.
+  glassBox: {
+    position: 'absolute',
+    overflow: 'hidden',
+  },
+  // Vidro escuro translúcido (igual aos chips do mapa) no cartão flutuante
+  // ⇄ off-white quase opaco no painel cheio — cor E opacidade animam juntas
+  // (ver glassTintStyle), não é só um tom fixo ficando mais opaco.
+  glassBoxTint: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  // Aro claro característico de liquid glass — só visível no cartão
+  // flutuante (some conforme expande, ver glassBorderStyle).
+  glassBoxBorder: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 1 },
+  leftEdgeVeil: { position: 'absolute', top: 0, right: 0, bottom: 0, width: 64 },
   leftScroll: { flex: 1 },
   leftContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 52,
-    paddingVertical: 60,
+    paddingHorizontal: 40,
+    paddingVertical: 56,
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
   },
-  formContent: { justifyContent: 'flex-start', paddingTop: 48 },
+  leftContentShort: { paddingVertical: 32 },
+  // Antes ficava ancorado no topo (justifyContent:'flex-start') — deixava
+  // login/cadastro parecendo menores e "mais pra cima" que o welcome, que
+  // centraliza verticalmente. Herda o center do leftContent pra ocupar o
+  // mesmo espaço visual.
+  formContent: { paddingTop: 4 },
 
   // Hero
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 48 },
-  logoIcon: { width: 38, height: 38, borderRadius: 11, backgroundColor: Colors.primaryDark, alignItems: 'center', justifyContent: 'center' },
-  logoText: { fontSize: 22, fontWeight: '800', color: Colors.text, letterSpacing: -0.5, fontFamily: BRAND_FONT },
-  headline: { fontSize: 42, fontWeight: '800', color: Colors.text, letterSpacing: -1.5, lineHeight: 50, marginBottom: 16 },
-  subline: { fontSize: 16, color: Colors.textSecondary, lineHeight: 26, marginBottom: 36 },
-  featuresArea: { gap: 12, marginBottom: 40 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  featureIcon: { width: 32, height: 32, borderRadius: 9, backgroundColor: Colors.primaryFaint, alignItems: 'center', justifyContent: 'center' },
-  featureText: { fontSize: 15, color: Colors.text, fontWeight: '500' },
+  logoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 48 },
+  logoIcon: { width: 84, height: 84, borderRadius: 23, backgroundColor: Colors.primaryDark, alignItems: 'center', justifyContent: 'center' },
+  logoText: { fontSize: 42, fontWeight: '800', color: Colors.text, letterSpacing: -1, fontFamily: BRAND_FONT },
+  headline: { fontSize: 42, fontWeight: '800', color: Colors.text, letterSpacing: -1, lineHeight: 49, marginBottom: 16 },
+  subline: { fontSize: 16.5, color: Colors.textSecondary, lineHeight: 26, marginBottom: 38, maxWidth: 360 },
 
-  // CTAs compartilhados
-  ctaArea: { gap: 10, marginBottom: 24 },
-  btnPrimary: { backgroundColor: Colors.primaryDark, borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...Colors.shadow.md },
-  btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  authErrorBox: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: Colors.error + '12', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12 },
-  authErrorText: { flex: 1, fontSize: 13, color: Colors.error, fontWeight: '500' },
-  btnSecondary: { borderRadius: 14, paddingVertical: 16, alignItems: 'center', borderWidth: 1.5, borderColor: Colors.border },
-  btnSecondaryText: { color: Colors.text, fontSize: 16, fontWeight: '600' },
+  featuresList: { gap: 22, marginBottom: 40 },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  featureIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.primaryFaint, alignItems: 'center', justifyContent: 'center' },
+  // Empilha os dois ícones (claro/escuro) exatamente um sobre o outro pra
+  // o crossfade de opacidade não deslocar nada.
+  featureIconGlyph: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  featureText: { fontSize: 15.5, color: Colors.text, fontWeight: '700' },
+
+  // CTAs do hero/mobile (só "Começar agora" / "Já tenho conta")
+  ctaArea: { gap: 10, marginBottom: 22 },
+  ctaHeroPrimary: {
+    backgroundColor: Colors.primaryDark, borderRadius: 14, height: 54,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    boxShadow: '0px 6px 16px rgba(21,128,61,0.22)',
+    transitionDuration: '160ms', transitionProperty: 'background-color, box-shadow, transform',
+  } as any,
+  ctaHeroPrimaryHover: { backgroundColor: '#127A3E', boxShadow: '0px 8px 20px rgba(21,128,61,0.3)' } as any,
+  ctaHeroPrimaryPressed: { transform: [{ scale: 0.98 }] },
+  ctaHeroPrimaryFocus: { outlineWidth: 2, outlineColor: Colors.primaryDark, outlineOffset: 3, outlineStyle: 'solid' } as any,
+  ctaHeroPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  ctaHeroSecondary: {
+    borderRadius: 14, height: 54, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1.5, borderColor: Colors.border, flexDirection: 'row', gap: 8,
+    transitionDuration: '160ms', transitionProperty: 'background-color, border-color, transform',
+  } as any,
+  ctaHeroSecondaryHover: { backgroundColor: Colors.borderLight, borderColor: Colors.textTertiary } as any,
+  ctaHeroSecondaryPressed: { transform: [{ scale: 0.98 }] },
+  ctaHeroSecondaryFocus: { outlineWidth: 2, outlineColor: Colors.primaryDark, outlineOffset: 3, outlineStyle: 'solid' } as any,
+  ctaHeroSecondaryText: { color: Colors.text, fontSize: 16, fontWeight: '600' },
+
+  authErrorBox: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(239,68,68,0.16)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.35)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12 },
+  authErrorText: { flex: 1, fontSize: 13, color: FORM_ERROR_TEXT, fontWeight: '500' },
   terms: { textAlign: 'center', color: Colors.textTertiary, fontSize: 12, lineHeight: 18 },
   termsLink: { color: Colors.textSecondary, textDecorationLine: 'underline' },
 
-  // Formulários
-  backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.borderLight, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
+  // Formulários (login/cadastro) — o glassBox permanece em vidro escuro
+  // também no painel expandido (ver glassTintStyle), então esses estilos
+  // usam a paleta clara FORM_* em vez das cores escuras-sobre-branco padrão
+  // do resto do app.
+  btnPrimary: { backgroundColor: Colors.primaryDark, borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...Colors.shadow.md },
+  btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
   formHeader: { marginBottom: 28 },
-  formTitle: { fontSize: 28, fontWeight: '800', color: Colors.text, letterSpacing: -0.5, marginBottom: 4 },
-  formSubtitle: { fontSize: 14, color: Colors.textSecondary },
+  formTitle: { fontSize: 28, fontWeight: '800', color: FORM_TEXT, letterSpacing: -0.5, marginBottom: 4 },
+  formSubtitle: { fontSize: 14, color: FORM_TEXT_SECONDARY },
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 7 },
-  fieldError: { fontSize: 12, color: Colors.error, marginTop: 6, fontWeight: '500' },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.background, borderRadius: 12, borderWidth: 1.5, borderColor: Colors.border, paddingHorizontal: 13, height: 50 },
+  label: { fontSize: 13, fontWeight: '600', color: FORM_TEXT, marginBottom: 7 },
+  fieldError: { fontSize: 12, color: FORM_ERROR_TEXT, marginTop: 6, fontWeight: '500' },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 13, height: 50 },
   inputIcon: { marginRight: 9 },
-  input: { flex: 1, fontSize: 15, color: Colors.text },
-  inputFlex: { flex: 1, fontSize: 15, color: Colors.text },
+  input: { flex: 1, fontSize: 15, color: FORM_TEXT },
+  inputFlex: { flex: 1, fontSize: 15, color: FORM_TEXT },
   eyeBtn: { padding: 4 },
   forgotBtn: { alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 },
-  forgotText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '600' },
+  forgotText: { fontSize: 13, color: FORM_ACCENT, fontWeight: '600' },
   divider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 20 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerText: { fontSize: 12, color: Colors.textTertiary, fontWeight: '500' },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.18)' },
+  dividerText: { fontSize: 12, color: FORM_TEXT_TERTIARY, fontWeight: '500' },
   socialRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  socialBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: Colors.surface, borderRadius: 12, paddingVertical: 13, borderWidth: 1.5, borderColor: Colors.border },
-  socialText: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  socialBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingVertical: 13, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)' },
+  socialText: { fontSize: 14, fontWeight: '600', color: FORM_TEXT },
   switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
-  switchText: { fontSize: 14, color: Colors.textSecondary },
-  switchLink: { fontSize: 14, color: Colors.primaryDark, fontWeight: '700' },
+  switchText: { fontSize: 14, color: FORM_TEXT_SECONDARY },
+  switchLink: { fontSize: 14, color: FORM_ACCENT, fontWeight: '700' },
 
   // Signup steps
   stepRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
   stepItem: { flexDirection: 'row', alignItems: 'center' },
-  stepDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.borderLight, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: Colors.border },
+  stepDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)' },
   stepDotActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   stepDotDone: { backgroundColor: Colors.primaryDark, borderColor: Colors.primaryDark },
-  stepNum: { fontSize: 11, fontWeight: '700', color: Colors.textTertiary },
+  stepNum: { fontSize: 11, fontWeight: '700', color: FORM_TEXT_TERTIARY },
   stepNumActive: { color: '#fff' },
-  stepLabel: { fontSize: 11, color: Colors.textTertiary, marginLeft: 5, fontWeight: '500' },
-  stepLabelActive: { color: Colors.text },
-  stepLine: { width: 20, height: 1.5, backgroundColor: Colors.border, marginHorizontal: 4 },
+  stepLabel: { fontSize: 11, color: FORM_TEXT_TERTIARY, marginLeft: 5, fontWeight: '500' },
+  stepLabelActive: { color: FORM_TEXT },
+  stepLine: { width: 20, height: 1.5, backgroundColor: 'rgba(255,255,255,0.18)', marginHorizontal: 4 },
   stepLineActive: { backgroundColor: Colors.primary },
 
   // Verificação de e-mail (signup step 1 / login mode "verify")
-  twoFaIntro: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: Colors.primaryFaint, borderRadius: 12, padding: 14, marginBottom: 20 },
-  twoFaText: { flex: 1, fontSize: 13, color: Colors.primaryDark, lineHeight: 18 },
-
-  infoBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: Colors.primaryFaint, borderRadius: 14, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: Colors.primaryLight },
-  infoIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  infoText: { flex: 1, fontSize: 13, color: Colors.textSecondary, lineHeight: 19 },
-  locationBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: Colors.primaryFaint, borderRadius: 12, borderWidth: 1, borderColor: Colors.primaryLight, marginBottom: 4 },
-  locationBtnText: { fontSize: 14, color: Colors.primaryDark, fontWeight: '600' },
+  twoFaIntro: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 14, marginBottom: 20 },
+  twoFaText: { flex: 1, fontSize: 13, color: FORM_TEXT_SECONDARY, lineHeight: 18 },
 
   successArea: { alignItems: 'center', paddingVertical: 16 },
   successIcon: { width: 68, height: 68, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 20, ...Colors.shadow.lg },
-  successDesc: { fontSize: 15, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  successDesc: { fontSize: 15, color: FORM_TEXT_SECONDARY, textAlign: 'center', lineHeight: 22, marginBottom: 24 },
 
-  // Painel direito (arte)
-  rightPanel: { flex: 7, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  blob: { position: 'absolute', borderRadius: 9999, backgroundColor: '#fff' },
-  ringOuter: { width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
-  ringInner: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  artCenter: { alignItems: 'center', marginBottom: 36 },
-  artWord: { fontSize: 42, fontWeight: '800', color: '#fff', letterSpacing: -1.5, opacity: 0.95 },
-  artWord2: { fontSize: 42, fontWeight: '800', color: Colors.primary, letterSpacing: -1.5 },
+  // Painel direito — bairro abstrato
+  rightPanel: { flex: 13, overflow: 'hidden', position: 'relative' },
+
+  artHeadline: { position: 'absolute', left: '8%', right: '8%', alignItems: 'center' },
+  artWord: { fontSize: 46, fontWeight: '800', color: 'rgba(255,255,255,0.96)', letterSpacing: -1.2, textAlign: 'center', lineHeight: 54 },
+  artWordAccent: { color: '#4ADE80' },
+  artSubline: {
+    fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.72)',
+    textAlign: 'center', lineHeight: 22, marginTop: 30,
+    maxWidth: 460, alignSelf: 'center',
+  },
+
+  avatarClusterWrap: { position: 'absolute', left: '8%', right: '8%', alignItems: 'center' },
   avatarCluster: { flexDirection: 'row', alignItems: 'center' },
-  clusterAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: '#14532D' },
-  clusterBadge: { marginLeft: 12, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  clusterBadgeText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  floatCard: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, maxWidth: 220 },
-  floatCardDot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
-  floatCardLabel: { fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 1 },
-  floatCardText: { fontSize: 13, color: '#fff', fontWeight: '500' },
-  dotGrid: { position: 'absolute', top: 24, left: 24, flexDirection: 'row', flexWrap: 'wrap', width: DOT_COLS * DOT_STEP - DOT_GAP, gap: DOT_GAP },
-  dot: { width: 2.5, height: 2.5, borderRadius: 2, backgroundColor: '#fff' },
+  clusterAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#0B3220' },
+  clusterBadge: { marginLeft: 12, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
+  clusterBadgeText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+
+  floatCardWrap: { position: 'absolute', maxWidth: 264 },
+  floatCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 16,
+    paddingVertical: 12, paddingHorizontal: 15, overflow: 'hidden',
+    backgroundColor: 'rgba(10,30,20,0.30)',
+  },
+  floatCardIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  floatCardBody: { flexShrink: 1 },
+  floatCardLabel: { fontSize: 10.5, fontWeight: '700', color: 'rgba(255,255,255,0.62)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
+  floatCardText: { fontSize: 14, color: '#fff', fontWeight: '500' },
 
   // Mobile
   mobileRoot: { flex: 1, overflow: 'hidden' },
-  mobileContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 60 },
-  mobileLogo: { alignItems: 'center', marginBottom: 32 },
-  mobileLogoIcon: { width: 68, height: 68, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  mobileAppName: { fontSize: 44, fontWeight: '800', color: '#fff', letterSpacing: -2, fontFamily: BRAND_FONT },
-  mobileTagline: { fontSize: 15, color: 'rgba(255,255,255,0.7)', marginTop: 4 },
-  mobileAvatarCard: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 18, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', marginBottom: 28 },
-  mobileAvatar: { width: 42, height: 42, borderRadius: 21, borderWidth: 2, borderColor: '#fff' },
+  mobileContent: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 48, paddingBottom: 36 },
+  mobileLogo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 18 },
+  mobileLogoIcon: { width: 44, height: 44, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  mobileAppName: { fontSize: 30, fontWeight: '800', color: '#fff', letterSpacing: -1, fontFamily: BRAND_FONT },
+  mobileScape: { height: 132, marginBottom: 8, position: 'relative' },
+  mobileHeadline: { fontSize: 27, fontWeight: '800', color: '#fff', letterSpacing: -0.6, lineHeight: 33, textAlign: 'center', marginBottom: 10 },
+  mobileSubline: { fontSize: 14.5, color: 'rgba(255,255,255,0.78)', lineHeight: 21, textAlign: 'center', marginBottom: 24, maxWidth: 340, alignSelf: 'center' },
+  mobileAvatarCard: { backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 18, padding: 18, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', marginBottom: 22 },
+  mobileAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: '#0E3322' },
   mobileBadge: { marginLeft: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   mobileBadgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  mobileAvatarLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '500' },
-  mobileFeaturesArea: { gap: 12, marginBottom: 32 },
-  mobileFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  mobileFeatureIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  mobileFeatureText: { color: 'rgba(255,255,255,0.9)', fontSize: 15, fontWeight: '500' },
+  mobileAvatarLabel: { color: 'rgba(255,255,255,0.85)', fontSize: 13.5, fontWeight: '500' },
+  mobileFeaturesArea: { gap: 18, marginBottom: 28, alignSelf: 'center', alignItems: 'flex-start' },
+  mobileFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  mobileFeatureIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  mobileFeatureText: { color: 'rgba(255,255,255,0.92)', fontSize: 14.5, fontWeight: '600' },
   mobileCtaArea: { gap: 10, marginBottom: 20 },
-  mobileBtnPrimary: { backgroundColor: '#fff', borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...Colors.shadow.md },
-  mobileBtnPrimaryText: { color: Colors.primaryDark, fontSize: 16, fontWeight: '700' },
-  mobileBtnSecondary: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 14, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
-  mobileBtnSecondaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  ctaMobilePrimary: {
+    backgroundColor: '#fff', borderRadius: 14, height: 54,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    boxShadow: '0px 6px 16px rgba(0,0,0,0.18)',
+    transitionDuration: '160ms', transitionProperty: 'background-color, box-shadow, transform',
+  } as any,
+  ctaMobilePrimaryHover: { backgroundColor: '#F0FDF4' } as any,
+  ctaMobilePrimaryPressed: { transform: [{ scale: 0.98 }] },
+  ctaMobilePrimaryFocus: { outlineWidth: 2, outlineColor: '#fff', outlineOffset: 3, outlineStyle: 'solid' } as any,
+  ctaMobilePrimaryText: { color: Colors.primaryDark, fontSize: 16, fontWeight: '700' },
+  ctaMobileSecondary: {
+    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 14, height: 54,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.24)',
+    flexDirection: 'row', gap: 8,
+    transitionDuration: '160ms', transitionProperty: 'background-color, border-color, transform',
+  } as any,
+  ctaMobileSecondaryHover: { backgroundColor: 'rgba(255,255,255,0.18)' } as any,
+  ctaMobileSecondaryPressed: { transform: [{ scale: 0.98 }] },
+  ctaMobileSecondaryFocus: { outlineWidth: 2, outlineColor: '#fff', outlineOffset: 3, outlineStyle: 'solid' } as any,
+  ctaMobileSecondaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   mobileTerms: { textAlign: 'center', color: 'rgba(255,255,255,0.5)', fontSize: 12, lineHeight: 18 },
   mobileTermsLink: { color: 'rgba(255,255,255,0.8)', textDecorationLine: 'underline' },
 });

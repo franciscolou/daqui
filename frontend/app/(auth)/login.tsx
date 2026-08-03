@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import DaquiMark from '../../components/DaquiMark';
 import { Colors } from '../../constants/Colors';
 import { submitOnEnter } from '../../lib/keyboard';
 import { goBack } from '../../lib/navigation';
@@ -50,7 +51,7 @@ export default function LoginScreen() {
 
             <View style={styles.logoRow}>
               <View style={styles.logoIcon}>
-                <Ionicons name="location" size={18} color={Colors.primary} />
+                <DaquiMark size={18} color={Colors.primary} />
               </View>
               <Text style={styles.logoText}>daqui</Text>
             </View>

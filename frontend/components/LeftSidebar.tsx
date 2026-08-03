@@ -5,6 +5,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import DaquiMark from './DaquiMark';
 import { router, usePathname } from 'expo-router';
 import { Palette } from '../constants/Colors';
 import { BRAND_FONT } from '../constants/BrandFont';
@@ -151,7 +152,7 @@ export default function LeftSidebar({
       {/* Brand */}
       <View style={styles.brand}>
         <LinearGradient colors={Colors.gradient.primary} style={styles.brandIcon}>
-          <Ionicons name="location" size={18} color="#fff" />
+          <DaquiMark size={18} color="#fff" />
         </LinearGradient>
         <Text style={styles.brandName}>daqui</Text>
       </View>

@@ -1,0 +1,28 @@
+import Svg, { Path, Circle } from 'react-native-svg';
+
+const MARK_WIDTH = 551.36;
+const MARK_HEIGHT = 701.2;
+// O traço tem um "talo" reto à esquerda e uma curva aberta à direita, o que o
+// faz parecer desalinhado para a esquerda quando centralizado pela própria
+// bounding box. Alarga o viewBox só à esquerda para puxar o centro óptico
+// para a direita (mesma proporção usada no icon-background.svg do design).
+const LEFT_PAD = MARK_WIDTH * 0.143;
+const VIEW_BOX = `-${LEFT_PAD} 0 ${MARK_WIDTH + LEFT_PAD} ${MARK_HEIGHT}`;
+const ASPECT = (MARK_WIDTH + LEFT_PAD) / MARK_HEIGHT;
+
+interface DaquiMarkProps {
+  size?: number;
+  color?: string;
+}
+
+export default function DaquiMark({ size = 24, color = '#0E9945' }: DaquiMarkProps) {
+  return (
+    <Svg width={size * ASPECT} height={size} viewBox={VIEW_BOX}>
+      <Path
+        fill={color}
+        d="M405.84,639.99c-53.25,38.72-116.64,61.1-182.09,61.12l-199.65.09C10.97,701.21,0,689.78,0,676.68L.02,21.12C.02,9.5,9.98-.03,21.34,0l207.88.47c55.82.13,110.68,19.27,157.72,48.61,61.62,38.44,108.65,95.84,136.36,162.61,32.2,77.57,37.06,163.65,12.64,244.07-22.32,73.49-67.47,138.7-130.1,184.23ZM275.19,570.28c24.21-9.58,44.83-23.47,63.38-41.04,32.63-30.89,55.23-70.01,66.1-113.83,11.59-46.69,10.26-95.73-4.48-141.62-13.9-43.26-39.94-81.23-74.89-109.89-27.63-22.66-69.84-42.01-105.15-42.15l-73.87-.29-.09,81.35c-.03,26.51,13.36,48.68,39.58,59.12-17.88,7.23-32.48,14.7-44.25,28.52-21.57,25.32-29.43,58.78-18.4,91.99,9.19,27.67,31.65,50.18,63,59.96-25.81,10.69-39.76,31.68-39.78,57.55l-.06,82.37,76.83-.25c18.15-.06,34.89-4.99,52.08-11.79Z"
+      />
+      <Circle cx={208.98} cy={352.24} r={57.52} fill={color} />
+    </Svg>
+  );
+}
