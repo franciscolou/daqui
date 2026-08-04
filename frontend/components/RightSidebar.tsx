@@ -20,6 +20,13 @@ export default function RightSidebar() {
   const [stats, setStats] = useState<NeighborhoodStats | null>(null);
   const [alertHovered, setAlertHovered] = useState(false);
 
+  // Sem bairro configurado (ex.: conta recém-criada, ainda não passou por
+  // "Configure seu bairro"): não dá pra mostrar mapa/cidade de verdade, então
+  // deixamos isso explícito em vez de cair num centro/cidade "genéricos".
+  const hasNeighborhood = !!user?.neighborhood;
+  const goConfigureNeighborhood = () =>
+    router.push({ pathname: '/(tabs)', params: { view: 'meu' } } as any);
+
   useEffect(() => {
     api.getPopular().then((n) => setPopularUsers(n.slice(0, 4))).catch(() => {});
     api.getTopImportant().then(setImportantPost).catch(() => {});
@@ -32,9 +39,9 @@ export default function RightSidebar() {
       <View style={styles.card}>
         <Pressable
           style={styles.mapPlaceholder}
-          onPress={() => router.push('/(tabs)/map' as any)}
+          onPress={hasNeighborhood ? () => router.push('/(tabs)/map' as any) : goConfigureNeighborhood}
         >
-          {user?.latitude != null && user?.longitude != null ? (
+          {hasNeighborhood && user?.latitude != null && user?.longitude != null ? (
             // Miniatura não-interativa: o toque leva ao mapa (pointerEvents none no mapa).
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               <LeafletMap
@@ -46,19 +53,25 @@ export default function RightSidebar() {
             </View>
           ) : (
             <LinearGradient
-              colors={['#0D2918', '#16A34A']}
+              colors={hasNeighborhood ? ['#0D2918', '#16A34A'] : ['#78350F', '#D97706']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
               <View style={styles.mapOverlay}>
-                <Ionicons name="map" size={28} color="rgba(255,255,255,0.3)" />
+                <Ionicons
+                  name={hasNeighborhood ? 'map' : 'warning'}
+                  size={28}
+                  color="rgba(255,255,255,0.55)"
+                />
               </View>
             </LinearGradient>
           )}
           <View style={styles.mapBadge}>
-            <Ionicons name="location" size={12} color={Colors.primary} />
-            <Text style={styles.mapBadgeText}>{user?.neighborhood}</Text>
+            <Ionicons name="location" size={12} color={hasNeighborhood ? Colors.primary : Colors.error} />
+            <Text style={styles.mapBadgeText}>
+              {hasNeighborhood ? user?.neighborhood : 'Sem localização'}
+            </Text>
           </View>
           <View style={styles.mapExpand}>
             <Ionicons name="expand" size={13} color="#fff" />
@@ -66,22 +79,31 @@ export default function RightSidebar() {
         </Pressable>
 
         <View style={styles.cardBody}>
-          <Text style={styles.neighborhoodName}>{user?.neighborhood}</Text>
-          <Text style={styles.cityName}>
-            {user?.city ?? 'São Paulo'}{user?.state ? `, ${user.state}` : ''}
-          </Text>
+          {hasNeighborhood ? (
+            <>
+              <Text style={styles.neighborhoodName}>{user?.neighborhood}</Text>
+              <Text style={styles.cityName}>
+                {user?.city ?? 'São Paulo'}{user?.state ? `, ${user.state}` : ''}
+              </Text>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{stats?.neighbors ?? '—'}</Text>
-              <Text style={styles.statLabel}>vizinhos</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{stats?.posts ?? '—'}</Text>
-              <Text style={styles.statLabel}>posts</Text>
-            </View>
-          </View>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>{stats?.neighbors ?? '—'}</Text>
+                  <Text style={styles.statLabel}>vizinhos</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>{stats?.posts ?? '—'}</Text>
+                  <Text style={styles.statLabel}>posts</Text>
+                </View>
+              </View>
+            </>
+          ) : (
+            <>
+              <Text style={styles.neighborhoodName}>Localização não configurada</Text>
+              <Text style={styles.cityName}>Toque para configurar seu bairro</Text>
+            </>
+          )}
         </View>
       </View>
 

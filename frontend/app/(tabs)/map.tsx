@@ -26,9 +26,6 @@ import { MapMarker } from '../../components/leafletHtml';
 
 const MAP_HEIGHT = 440;
 
-// Centro padrão (Leme, Rio) caso ainda não haja coordenadas do usuário/posts.
-const FALLBACK_CENTER = { latitude: -22.9631, longitude: -43.1665 };
-
 export default function MapScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -95,6 +92,9 @@ export default function MapScreen() {
     [posts],
   );
 
+  // Sem foco/coords do usuário/posts com local: não há centro confiável pra
+  // mostrar — melhor deixar isso explícito do que abrir o mapa num lugar
+  // arbitrário que não tem nada a ver com o usuário.
   const center = useMemo(() => {
     if (focusCoords) return focusCoords;
     if (userCoords) return userCoords;
@@ -103,7 +103,7 @@ export default function MapScreen() {
       const lon = located.reduce((s, p) => s + (p.longitude ?? 0), 0) / located.length;
       return { latitude: lat, longitude: lon };
     }
-    return FALLBACK_CENTER;
+    return null;
   }, [focusCoords, userCoords, located]);
 
   const markers = useMemo(() => {
@@ -154,7 +154,7 @@ export default function MapScreen() {
           <Text style={styles.headerTitle}>Mapa do Bairro</Text>
           <View style={styles.headerSub}>
             <Ionicons name="location" size={14} color={Colors.primary} />
-            <Text style={styles.headerSubText}>{user?.neighborhood ?? 'Seu bairro'}</Text>
+            <Text style={styles.headerSubText}>{user?.neighborhood || 'Bairro não configurado'}</Text>
           </View>
         </View>
 
@@ -163,6 +163,21 @@ export default function MapScreen() {
           {loading ? (
             <View style={styles.mapLoading}>
               <ActivityIndicator color={Colors.primary} size="large" />
+            </View>
+          ) : !center ? (
+            <View style={styles.mapEmpty}>
+              <Ionicons name="location-outline" size={32} color={Colors.textTertiary} />
+              <Text style={styles.mapEmptyTitle}>Localização não configurada</Text>
+              <Text style={styles.mapEmptyDesc}>
+                Configure seu bairro para ver o mapa da sua região.
+              </Text>
+              <TouchableOpacity
+                style={styles.mapEmptyBtn}
+                onPress={() => router.push({ pathname: '/(tabs)', params: { view: 'meu' } } as any)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.mapEmptyBtnText}>Configurar meu bairro</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <LeafletMap
@@ -304,6 +319,23 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   map: { flex: 1, width: '100%', height: '100%' },
   mapLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  mapEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 6,
+  },
+  mapEmptyTitle: { fontSize: 15, fontWeight: '800', color: Colors.text, marginTop: 6 },
+  mapEmptyDesc: { fontSize: 13, color: Colors.textTertiary, textAlign: 'center', lineHeight: 18 },
+  mapEmptyBtn: {
+    marginTop: 10,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  mapEmptyBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   legend: { paddingVertical: 4 },
   legendRow: { paddingHorizontal: 16, gap: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
