@@ -145,12 +145,7 @@ const PATHS: Record<string, React.ReactNode> = {
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </>
   ),
-  arrowLeft: (
-    <>
-      <line x1="19" y1="12" x2="5" y2="12" />
-      <polyline points="12 19 5 12 12 5" />
-    </>
-  ),
+  arrowLeft: <polyline points="15 18 9 12 15 6" />,
   externalLink: (
     <>
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />

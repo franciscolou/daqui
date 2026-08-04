@@ -65,7 +65,7 @@ export default function LoginScreen() {
             style={[styles.header, isWide && styles.headerWide]}
           >
             <TouchableOpacity style={styles.backBtn} onPress={() => goBack('/(auth)/welcome')}>
-              <Ionicons name="arrow-back" size={20} color="#fff" />
+              <Ionicons name="chevron-back" size={20} color="#fff" />
             </TouchableOpacity>
 
             <View style={styles.logoRow}>

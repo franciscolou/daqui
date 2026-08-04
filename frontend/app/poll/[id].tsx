@@ -99,7 +99,7 @@ export default function EditPollScreen() {
       <WideLayout showMobileMenu={false}>
         <View style={styles.topBar}>
           <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${id}` as any)} hitSlop={10}>
-            <Ionicons name="arrow-back" size={22} color={Colors.text} />
+            <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>Editar enquete</Text>
           <TouchableOpacity

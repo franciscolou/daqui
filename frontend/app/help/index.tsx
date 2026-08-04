@@ -36,7 +36,7 @@ export default function HelpScreen() {
     <FeedLayout showMobileMenu={false}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Ajuda e suporte</Text>
         <View style={styles.iconBtn} />

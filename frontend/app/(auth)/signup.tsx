@@ -73,7 +73,7 @@ export default function SignupScreen() {
                 else goBack('/(auth)/welcome');
               }}
             >
-              <Ionicons name="arrow-back" size={20} color="#fff" />
+              <Ionicons name="chevron-back" size={20} color="#fff" />
             </TouchableOpacity>
 
             {/* Step indicator */}

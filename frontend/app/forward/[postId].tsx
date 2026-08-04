@@ -146,7 +146,7 @@ export default function ForwardScreen() {
         <View style={styles.column}>
           <View style={styles.topBar}>
             <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${postId}` as any)} hitSlop={10}>
-              <Ionicons name="arrow-back" size={22} color={Colors.text} />
+              <Ionicons name="chevron-back" size={22} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>Encaminhar</Text>
             <View style={styles.topBarIconBtn} />

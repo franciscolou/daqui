@@ -245,7 +245,7 @@ export default function GroupInfoScreen() {
     <FeedLayout showMobileMenu={false}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => goBack(`/groups/${id}` as any)}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Informações do grupo</Text>
         <View style={styles.backBtn} />

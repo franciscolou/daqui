@@ -73,7 +73,7 @@ export default function MyCampaignsDashboard() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Meus anúncios</Text>
         <View style={styles.iconBtn} />

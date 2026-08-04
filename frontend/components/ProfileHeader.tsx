@@ -51,7 +51,7 @@ export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }:
           <View style={styles.topRow} pointerEvents="box-none">
             {onBack ? (
               <TouchableOpacity style={styles.iconBtn} onPress={onBack} hitSlop={6}>
-                <Ionicons name="arrow-back" size={20} color="#fff" />
+                <Ionicons name="chevron-back" size={20} color="#fff" />
               </TouchableOpacity>
             ) : (
               <View style={styles.iconBtn} />

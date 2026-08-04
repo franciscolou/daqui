@@ -105,7 +105,7 @@ export default function AdvertiserPanelScreen() {
       <View style={styles.header}>
         <View style={styles.headerInner}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.replace('/advertise/dashboard')}>
-            <Ionicons name="arrow-back" size={22} color={Colors.text} />
+            <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Meu anúncio</Text>
           {campaign && campaign.status !== 'awaiting_content' && (

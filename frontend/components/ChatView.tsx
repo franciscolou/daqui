@@ -563,7 +563,7 @@ export default function ChatView({
       <View style={styles.header}>
         {onBack && (
           <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-            <Ionicons name="arrow-back" size={22} color={Colors.text} />
+            <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
         )}
         <TouchableOpacity

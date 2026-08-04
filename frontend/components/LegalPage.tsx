@@ -32,7 +32,7 @@ export default function LegalPage({ doc }: { doc: LegalDoc }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
-          <Ionicons name="arrow-back" size={20} color={Colors.textSecondary} />
+          <Ionicons name="chevron-back" size={20} color={Colors.textSecondary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Documentos legais</Text>
         <View style={styles.iconBtn} />

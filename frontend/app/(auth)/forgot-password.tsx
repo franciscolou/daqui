@@ -63,7 +63,7 @@ export default function ForgotPasswordScreen() {
             style={[styles.header, isWide && styles.headerWide]}
           >
             <TouchableOpacity style={styles.backBtn} onPress={() => goBack('/(auth)/login')}>
-              <Ionicons name="arrow-back" size={20} color="#fff" />
+              <Ionicons name="chevron-back" size={20} color="#fff" />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Esqueceu a senha?</Text>

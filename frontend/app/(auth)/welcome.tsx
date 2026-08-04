@@ -463,7 +463,7 @@ export default function WelcomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       <TouchableOpacity style={styles.backBtn} onPress={loginFlow.mode !== 'login' ? loginFlow.cancelSecondStep : goBack}>
-        <Ionicons name="arrow-back" size={18} color={FORM_TEXT} />
+        <Ionicons name="chevron-back" size={18} color={FORM_TEXT} />
       </TouchableOpacity>
 
       <View style={styles.formHeader}>
@@ -640,7 +640,7 @@ export default function WelcomeScreen() {
       showsVerticalScrollIndicator={false}
     >
       <TouchableOpacity style={[styles.backBtn, isCompactDesktop && styles.backBtnCompact]} onPress={goBack}>
-        <Ionicons name="arrow-back" size={18} color={FORM_TEXT} />
+        <Ionicons name="chevron-back" size={18} color={FORM_TEXT} />
       </TouchableOpacity>
 
       {/* Step indicator */}
@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: Colors.primaryDark, borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...Colors.shadow.md },
   btnPrimaryCompact: { paddingVertical: 13 },
   btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
+  backBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
   backBtnCompact: { width: 34, height: 34, marginBottom: 14 },
   formHeader: { marginBottom: 28 },
   formHeaderCompact: { marginBottom: 18 },
