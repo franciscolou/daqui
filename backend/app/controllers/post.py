@@ -7,6 +7,7 @@ from app.core.deps import get_current_moderator, get_current_user, get_db
 from app.models.post import PostCategory
 from app.models.user import User
 from app.schemas.post import (
+    ImportantQuota,
     PollVoteIn,
     PostCreate,
     PostFeed,
@@ -79,6 +80,13 @@ def upload_media(
     current_user: User = Depends(get_current_user),
 ) -> PostMediaItem:
     return post.upload_media(current_user, str(request.base_url), file)
+
+
+def get_important_quota(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ImportantQuota:
+    return post.get_important_quota(db, current_user)
 
 
 def create_post(

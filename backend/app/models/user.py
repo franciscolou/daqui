@@ -47,7 +47,7 @@ class User(Base):
     bio: Mapped[str] = mapped_column(Text, default="")
     avatar_url: Mapped[str | None] = mapped_column(String(500))
     cover_url: Mapped[str | None] = mapped_column(String(500))
-    neighborhood: Mapped[str] = mapped_column(String(120), default="")
+    neighborhood: Mapped[str] = mapped_column(String(120), default="", index=True)
     city: Mapped[str] = mapped_column(String(120), default="São Paulo")
     state: Mapped[str] = mapped_column(String(2), default="SP")  # UF
     # Coordenadas capturadas no cadastro (usadas p/ centralizar o mapa do bairro).
@@ -90,6 +90,11 @@ class User(Base):
     notify_comments: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_messages: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_neighborhood_alerts: Mapped[bool] = mapped_column(Boolean, default=True)
+    # "Incluir redondezas" (toggle do feed, ver LeftSidebar): quando ligado, o
+    # usuário também é elegível a receber o aviso de post importante de
+    # bairros vizinhos ao seu (ver services/post.py::create_post), além de já
+    # controlar se o feed inclui posts das redondezas.
+    include_nearby: Mapped[bool] = mapped_column(Boolean, default=False)
 
     @property
     def two_factor_enabled(self) -> bool:

@@ -16,10 +16,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as ImagePicker from 'expo-image-picker';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { CATEGORIES, PostCategory } from '../../data/mock';
-import { api, ApiError } from '../../lib/api';
+import { api, ApiError, ImportantQuota } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
@@ -76,6 +76,14 @@ function maskPrice(input: string): string {
   });
 }
 
+// "X dias (12 de setembro)" até a cota mensal de posts importantes renovar.
+function formatQuotaReset(resetsAtIso: string): string {
+  const resetDate = new Date(resetsAtIso);
+  const days = Math.max(1, Math.ceil((resetDate.getTime() - Date.now()) / 86400000));
+  const label = resetDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+  return `${days === 1 ? '1 dia' : `${days} dias`} (${label})`;
+}
+
 export default function PublishScreen() {
   const { user } = useAuth();
   const Colors = useTheme();
@@ -88,6 +96,15 @@ export default function PublishScreen() {
   const [isImportant, setIsImportant] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Cota mensal de posts importantes — consultada ao abrir a tela pra já
+  // desabilitar o toggle (com o motivo) em vez de deixar o usuário tentar
+  // publicar e só então descobrir que estourou o limite.
+  const [importantQuota, setImportantQuota] = useState<ImportantQuota | null>(null);
+  useEffect(() => {
+    api.getImportantQuota().then(setImportantQuota).catch(() => {});
+  }, []);
+  const importantQuotaExhausted = !!importantQuota && importantQuota.remaining <= 0;
 
   // Campos específicos por categoria
   const [location, setLocationRaw] = useState('');
@@ -398,19 +415,24 @@ export default function PublishScreen() {
           </View>
 
           {/* Important toggle */}
-          <View style={styles.importantRow}>
+          <View style={[styles.importantRow, importantQuotaExhausted && styles.importantRowDisabled]}>
             <View style={styles.importantLeft}>
               <View style={[styles.importantIcon, isImportant && styles.importantIconActive]}>
                 <Ionicons name="alert-circle" size={18} color={isImportant ? '#fff' : Colors.error} />
               </View>
               <View>
                 <Text style={styles.importantLabel}>Marcar como importante</Text>
-                <Text style={styles.importantDesc}>Notifica todos os vizinhos imediatamente</Text>
+                <Text style={styles.importantDesc}>
+                  {importantQuotaExhausted && importantQuota
+                    ? `Limite de ${importantQuota.limit} posts importantes usado este mês. Renova em ${formatQuotaReset(importantQuota.resetsAt)}.`
+                    : 'Notifica os vizinhos do bairro imediatamente (e as redondezas de quem ativou isso)'}
+                </Text>
               </View>
             </View>
             <TouchableOpacity
               style={[styles.toggle, isImportant && styles.toggleActive]}
               onPress={() => setIsImportant(!isImportant)}
+              disabled={importantQuotaExhausted}
             >
               <View style={[styles.toggleThumb, isImportant && styles.toggleThumbActive]} />
             </TouchableOpacity>
@@ -919,6 +941,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  importantRowDisabled: { opacity: 0.55 },
   importantLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   importantIcon: {
     width: 38,

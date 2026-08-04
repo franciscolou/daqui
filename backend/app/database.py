@@ -115,6 +115,11 @@ def _ensure_columns():
                 conn.execute(
                     text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id ON users (google_id)")
                 )
+            if "include_nearby" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN include_nearby BOOLEAN DEFAULT 0 NOT NULL"))
+            # Índice pra get_neighbors()/get_nearby_alert_subscribers() (busca por
+            # bairro no broadcast de aviso do bairro) não virar full table scan.
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_neighborhood ON users (neighborhood)"))
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}

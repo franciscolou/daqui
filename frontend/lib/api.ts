@@ -192,6 +192,14 @@ interface BackendUser {
   notify_comments?: boolean;
   notify_messages?: boolean;
   notify_neighborhood_alerts?: boolean;
+  include_nearby?: boolean;
+}
+
+interface BackendImportantQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+  resets_at: string;
 }
 
 interface BackendPollOption {
@@ -709,7 +717,19 @@ export function mapUser(u: BackendUser): User {
     notifyComments: u.notify_comments,
     notifyMessages: u.notify_messages,
     notifyNeighborhoodAlerts: u.notify_neighborhood_alerts,
+    includeNearby: u.include_nearby,
   };
+}
+
+export interface ImportantQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+  resetsAt: string; // ISO — início do próximo mês
+}
+
+function mapImportantQuota(q: BackendImportantQuota): ImportantQuota {
+  return { used: q.used, limit: q.limit, remaining: q.remaining, resetsAt: q.resets_at };
 }
 
 function mapPoll(p: BackendPoll): Poll {
@@ -1126,6 +1146,7 @@ export const api = {
     notify_comments?: boolean;
     notify_messages?: boolean;
     notify_neighborhood_alerts?: boolean;
+    include_nearby?: boolean;
   }): Promise<User> {
     return mapUser(
       await request<BackendUser>('/users/me', { method: 'PATCH', body: payload }),
@@ -1298,6 +1319,10 @@ export const api = {
   async uploadTicketAttachment(asset: PickedMediaAsset): Promise<PostMedia> {
     const formData = await buildMediaFormData(asset);
     return requestMultipart<PostMedia>('/support-tickets/attachments', formData);
+  },
+
+  async getImportantQuota(): Promise<ImportantQuota> {
+    return mapImportantQuota(await request<BackendImportantQuota>('/posts/important-quota'));
   },
 
   async createPost(payload: {

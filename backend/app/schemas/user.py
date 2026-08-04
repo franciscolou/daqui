@@ -48,6 +48,9 @@ class UserMe(UserPublic):
     notify_comments: bool = True
     notify_messages: bool = True
     notify_neighborhood_alerts: bool = True
+    # "Incluir redondezas": inclui bairros vizinhos no feed e torna o usuário
+    # elegível a avisos de post importante desses bairros (ver User.include_nearby).
+    include_nearby: bool = False
     # Cargo de staff (app de moderação). None = residente comum.
     staff_role: StaffRole | None = None
 
@@ -110,6 +113,7 @@ class UserUpdate(BaseModel):
     notify_comments: bool | None = None
     notify_messages: bool | None = None
     notify_neighborhood_alerts: bool | None = None
+    include_nearby: bool | None = None
 
     @field_validator("username")
     @classmethod

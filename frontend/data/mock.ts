@@ -58,6 +58,9 @@ export interface User {
   notifyComments?: boolean;
   notifyMessages?: boolean;
   notifyNeighborhoodAlerts?: boolean;
+  // "Incluir redondezas": inclui bairros vizinhos no feed e torna o usuário
+  // elegível a avisos de post importante desses bairros.
+  includeNearby?: boolean;
 }
 
 export interface PostMedia {

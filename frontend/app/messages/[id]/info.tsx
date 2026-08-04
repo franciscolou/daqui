@@ -16,6 +16,7 @@ import { User } from '../../../data/mock';
 import { goBack } from '../../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import FeedLayout from '../../../components/FeedLayout';
+import ImageViewerModal from '../../../components/ImageViewerModal';
 import NotificationMuteRow from '../../../components/NotificationMuteRow';
 import VerifiedBadge from '../../../components/VerifiedBadge';
 
@@ -31,6 +32,7 @@ export default function DmInfoScreen() {
 
   const [other, setOther] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avatarVisible, setAvatarVisible] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -70,7 +72,15 @@ export default function DmInfoScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
           {/* Cartão do destinatário */}
           <View style={styles.hero}>
-            <Image source={{ uri: other.avatar }} style={styles.heroAvatar} />
+            <TouchableOpacity
+              style={styles.heroAvatarTouchable}
+              activeOpacity={0.85}
+              onPress={() => setAvatarVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel={`Ver foto de ${other.name}`}
+            >
+              <Image source={{ uri: other.avatar }} style={styles.heroAvatar} />
+            </TouchableOpacity>
             <View style={styles.heroNameRow}>
               <Text style={styles.heroName}>{other.name}</Text>
               {other.verified && <VerifiedBadge size={16} />}
@@ -104,6 +114,14 @@ export default function DmInfoScreen() {
           <NotificationMuteRow kind="dm" id={other.id} />
         </ScrollView>
       )}
+
+      {other && (
+        <ImageViewerModal
+          media={[{ url: other.avatar, type: 'image' }]}
+          visible={avatarVisible}
+          onClose={() => setAvatarVisible(false)}
+        />
+      )}
     </FeedLayout>
   );
 }
@@ -128,6 +146,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   emptyDesc: { fontSize: 14, color: Colors.textTertiary, textAlign: 'center' },
 
   hero: { alignItems: 'center', gap: 6, paddingVertical: 12, marginBottom: 18 },
+  heroAvatarTouchable: { borderRadius: 28 },
   heroAvatar: { width: 88, height: 88, borderRadius: 28, backgroundColor: Colors.border },
   heroNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   heroName: { fontSize: 18, fontWeight: '800', color: Colors.text },

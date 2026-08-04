@@ -69,9 +69,12 @@ export default function FeedScreen() {
 
   // Visualização ativa e preferência de "redondezas" por visualização.
   // Padrão "perto de mim": "Meu bairro" pode exigir configurar o bairro antes.
+  // Semeada a partir da preferência persistida (User.includeNearby) — que
+  // também decide, no backend, se este usuário recebe aviso de post
+  // importante de bairros vizinhos (ver services/post.py::create_post).
   const [viewMode, setViewMode] = useState<ViewMode>('perto');
-  const [nearbyMeu, setNearbyMeu] = useState(false);
-  const [nearbyPerto, setNearbyPerto] = useState(false);
+  const [nearbyMeu, setNearbyMeu] = useState(() => !!user?.includeNearby);
+  const [nearbyPerto, setNearbyPerto] = useState(() => !!user?.includeNearby);
   // "Perto de mim": bairro/coords resolvidos pelo GPS atual do dispositivo.
   const [pertoCoords, setPertoCoords] = useState<Coords | null>(null);
   const [pertoNeighborhood, setPertoNeighborhood] = useState<string | null>(null);
@@ -346,6 +349,9 @@ export default function FeedScreen() {
     (value: boolean) => {
       if (viewMode === 'meu') setNearbyMeu(value);
       else setNearbyPerto(value);
+      // Persiste a preferência (sobrevive a reload e alimenta o broadcast de
+      // post importante no backend) — best-effort, sem bloquear a UI.
+      api.updateProfile({ include_nearby: value }).catch(() => {});
     },
     [viewMode],
   );

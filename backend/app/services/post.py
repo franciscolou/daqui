@@ -14,6 +14,7 @@ from app.models.user import User
 from app.schemas.message import SharedCommentOut, SharedPostOut
 from app.schemas.post import (
     MAX_MEDIA_ITEMS,
+    ImportantQuota,
     PollOptionOut,
     PollOut,
     PollUpdate,
@@ -268,10 +269,52 @@ def upload_media(user: User, base_url: str, file: UploadFile) -> PostMediaItem:
     return PostMediaItem(url=url, type=media_type)
 
 
+# Post importante notifica todo o bairro (e redondezas) na hora — limite pra
+# não virar spam de notificação (ver contagem em create_post/get_important_quota).
+MAX_IMPORTANT_POSTS_PER_MONTH = 2
+
+
+def _current_month_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
+    """(início do mês corrente, início do próximo mês), ambos em UTC."""
+    now = now or datetime.now(timezone.utc)
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    next_start = (
+        start.replace(year=start.year + 1, month=1)
+        if start.month == 12
+        else start.replace(month=start.month + 1)
+    )
+    return start, next_start
+
+
+def get_important_quota(db: Session, user: User) -> ImportantQuota:
+    """Cota mensal de posts importantes do usuário — consultada pelo app antes
+    de publicar, pra desabilitar o toggle sem precisar tentar e falhar."""
+    start, next_start = _current_month_bounds()
+    used = post_dao.count_important_since(db, user.id, start)
+    return ImportantQuota(
+        used=used,
+        limit=MAX_IMPORTANT_POSTS_PER_MONTH,
+        remaining=max(0, MAX_IMPORTANT_POSTS_PER_MONTH - used),
+        resets_at=next_start,
+    )
+
+
 def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> PostOut:
     is_poll = payload.category == PostCategory.ENQUETE
     if is_poll and payload.poll is None:
         raise HTTPException(status_code=400, detail="Configure a enquete")
+
+    if payload.important:
+        month_start, _ = _current_month_bounds()
+        used = post_dao.count_important_since(db, user.id, month_start)
+        if used >= MAX_IMPORTANT_POSTS_PER_MONTH:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Você já usou os {MAX_IMPORTANT_POSTS_PER_MONTH} posts importantes "
+                    "deste mês. Tente novamente no mês que vem."
+                ),
+            )
 
     # Repost com citação: no máximo um dos dois, e o alvo precisa existir.
     if payload.quoted_post_id is not None and payload.quoted_comment_id is not None:
@@ -354,11 +397,28 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         db, user, f"{post.title or ''} {post.content or ''}", post.id, post.content or post.title or ""
     )
 
-    # Aviso do bairro: post de categoria aviso/segurança notifica todos os vizinhos.
-    if post.category in (PostCategory.AVISO, PostCategory.SEGURANCA):
+    # Aviso do bairro: só post marcado como importante notifica todos os
+    # vizinhos do bairro — e também os moradores das redondezas que ligaram
+    # "Incluir redondezas". Categoria (aviso/segurança) não entra mais nisso:
+    # sem o flag, o post se comporta como qualquer outro.
+    if post.important:
         preview = (post.content or post.title or "")[:200]
-        neighbors = user_dao.get_neighbors(db, user.neighborhood, exclude_id=user.id, limit=10_000)
-        for neighbor in neighbors:
+        recipients = {
+            n.id: n
+            for n in user_dao.get_neighbors(db, user.neighborhood, exclude_id=user.id, limit=10_000)
+        }
+        # Bairros vizinhos: usa a localização do post (endereço marcado) e, na
+        # falta, a do autor — mesmo fallback usado no feed (get_feed acima).
+        lat = post.latitude if post.latitude is not None else user.latitude
+        lon = post.longitude if post.longitude is not None else user.longitude
+        if lat is not None and lon is not None:
+            nearby_names = [
+                name for name in geo.neighborhoods_around(lat, lon) if name and name != user.neighborhood
+            ]
+            if nearby_names:
+                for n in user_dao.get_nearby_alert_subscribers(db, nearby_names, exclude_id=user.id):
+                    recipients.setdefault(n.id, n)
+        for neighbor in recipients.values():
             notification_service.notify(
                 db,
                 user_id=neighbor.id,

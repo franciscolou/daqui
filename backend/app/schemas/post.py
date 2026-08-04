@@ -16,6 +16,17 @@ class PostMediaItem(BaseModel):
     type: MediaType
 
 
+class ImportantQuota(BaseModel):
+    """Cota mensal de posts marcados como importantes (ver
+    services/post.py::MAX_IMPORTANT_POSTS_PER_MONTH) — usada pra desabilitar o
+    toggle "Marcar como importante" no app antes de o usuário tentar publicar."""
+
+    used: int
+    limit: int
+    remaining: int
+    resets_at: datetime  # início do próximo mês (UTC)
+
+
 # ── Enquete ───────────────────────────────────────────────────────────
 class PollCreate(BaseModel):
     options: list[str]

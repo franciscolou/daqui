@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.controllers import post
-from app.schemas.post import PostFeed, PostMediaItem, PostOut
+from app.schemas.post import ImportantQuota, PostFeed, PostMediaItem, PostOut
 from app.schemas.user import UserPublic
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -15,6 +15,14 @@ router.get(
     "/important",
     response_model=PostOut | None,
 )(post.get_top_important)
+
+# Estático antes de "/{post_id}" — cota de posts importantes do mês (ver
+# services/post.py::get_important_quota), consultada pelo publish.tsx antes de
+# publicar pra desabilitar o toggle sem depender de tentar e falhar.
+router.get(
+    "/important-quota",
+    response_model=ImportantQuota,
+)(post.get_important_quota)
 
 router.get(
     "/map",

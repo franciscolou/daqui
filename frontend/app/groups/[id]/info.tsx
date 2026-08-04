@@ -22,6 +22,7 @@ import { useAuth } from '../../../lib/auth';
 import { goBack } from '../../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import FeedLayout from '../../../components/FeedLayout';
+import ImageViewerModal from '../../../components/ImageViewerModal';
 import NotificationMuteRow from '../../../components/NotificationMuteRow';
 
 const PRIVACY_OPTIONS: GroupPrivacy[] = ['public', 'request', 'closed'];
@@ -44,6 +45,7 @@ export default function GroupInfoScreen() {
   const [busyId, setBusyId] = useState<string | null>(null); // membro em ação
   const [adding, setAdding] = useState(false); // painel de adicionar aberto
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarVisible, setAvatarVisible] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<GroupMember | null>(null); // membro a confirmar remoção
@@ -263,7 +265,15 @@ export default function GroupInfoScreen() {
           <View style={styles.hero}>
             <View style={styles.heroAvatarWrap}>
               {group.avatar ? (
-                <Image source={{ uri: group.avatar }} style={styles.heroAvatar} />
+                <TouchableOpacity
+                  style={styles.heroAvatarTouchable}
+                  activeOpacity={0.85}
+                  onPress={() => setAvatarVisible(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver foto do grupo"
+                >
+                  <Image source={{ uri: group.avatar }} style={styles.heroAvatar} />
+                </TouchableOpacity>
               ) : (
                 <View style={[styles.heroAvatar, styles.heroAvatarGroup]}>
                   <Ionicons name="people" size={40} color={Colors.primary} />
@@ -598,6 +608,14 @@ export default function GroupInfoScreen() {
         </ScrollView>
       )}
 
+      {group?.avatar && (
+        <ImageViewerModal
+          media={[{ url: group.avatar, type: 'image' }]}
+          visible={avatarVisible}
+          onClose={() => setAvatarVisible(false)}
+        />
+      )}
+
       {/* Modal de confirmação para remover um membro */}
       <Modal
         visible={!!pendingRemove}
@@ -663,6 +681,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   body: { padding: 16, paddingBottom: 48 },
   hero: { alignItems: 'center', gap: 8, paddingVertical: 8 },
   heroAvatarWrap: { position: 'relative' },
+  heroAvatarTouchable: { borderRadius: 28 },
   editAvatarBtnWrap: {
     position: 'absolute',
     bottom: -2,

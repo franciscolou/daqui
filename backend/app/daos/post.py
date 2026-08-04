@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
@@ -90,6 +92,20 @@ def list_by_author(db: Session, author_id: int) -> list[Post]:
 
 def count_by_author(db: Session, author_id: int) -> int:
     return db.query(Post).filter(Post.author_id == author_id).count()
+
+
+def count_important_since(db: Session, author_id: int, since: datetime) -> int:
+    """Quantos posts marcados como importantes o autor já publicou a partir de
+    `since` (usado pra limitar posts importantes por mês, ver services/post.py)."""
+    return (
+        db.query(Post)
+        .filter(
+            Post.author_id == author_id,
+            Post.important.is_(True),
+            Post.created_at >= since,
+        )
+        .count()
+    )
 
 
 def count_feed(db: Session, neighborhoods: list[str], category: PostCategory | None) -> int:

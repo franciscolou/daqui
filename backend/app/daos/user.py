@@ -94,6 +94,25 @@ def get_neighbors(
     )
 
 
+def get_nearby_alert_subscribers(
+    db: Session, neighborhoods: list[str], exclude_id: int, limit: int = 10_000
+) -> list[User]:
+    """Moradores de bairros vizinhos (não o próprio) que ligaram "Incluir
+    redondezas" — elegíveis ao aviso de post importante fora do próprio bairro."""
+    if not neighborhoods:
+        return []
+    return (
+        db.query(User)
+        .filter(
+            User.neighborhood.in_(neighborhoods),
+            User.include_nearby.is_(True),
+            User.id != exclude_id,
+        )
+        .limit(limit)
+        .all()
+    )
+
+
 def search(db: Session, query: str, limit: int = 30) -> list[User]:
     like = f"%{query}%"
     return (
