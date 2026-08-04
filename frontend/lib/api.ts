@@ -504,6 +504,14 @@ export type LoginResult =
   | { status: '2fa'; ticket: string }
   | { status: 'verify'; ticket: string };
 
+// Resultado de "Entrar com Google": conta já existia (ou foi vinculada por
+// e-mail já verificado pelo Google) → token direto; conta nova → falta
+// escolher um nome de usuário, ver `signup_ticket` que completa em
+// /auth/google/complete-signup.
+export type GoogleAuthResult =
+  | { status: 'ok'; token: string }
+  | { status: 'needs_username'; ticket: string };
+
 export interface TwoFactorSetup {
   secret: string;
   otpauthUrl: string;
@@ -970,6 +978,33 @@ export const api = {
       auth: false,
     });
     return r.ticket;
+  },
+
+  // "Entrar com Google": envia o id_token do Google (ver GoogleSignInButton).
+  // Conta nova devolve needs_username + um ticket que completa o cadastro em
+  // completeGoogleSignup (ver `useAuth().completeGoogleSignup`).
+  async googleAuth(idToken: string): Promise<GoogleAuthResult> {
+    const r = await request<{
+      needs_username: boolean;
+      signup_ticket: string | null;
+      access_token: string | null;
+    }>('/auth/google', {
+      method: 'POST',
+      body: { id_token: idToken },
+      auth: false,
+    });
+    if (r.needs_username) return { status: 'needs_username', ticket: r.signup_ticket! };
+    return { status: 'ok', token: r.access_token! };
+  },
+
+  // Último passo do cadastro via Google: escolher um nome de usuário.
+  async completeGoogleSignup(ticket: string, username: string): Promise<string> {
+    const r = await request<{ access_token: string }>('/auth/google/complete-signup', {
+      method: 'POST',
+      body: { signup_ticket: ticket, username },
+      auth: false,
+    });
+    return r.access_token;
   },
 
   async forgotPassword(email: string): Promise<void> {

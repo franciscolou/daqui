@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.core import totp
+from app.core import google_oauth, totp
 from app.core import username as username_lib
 from app.core.config import settings
 from app.core.deps import suspension_message
@@ -16,9 +16,11 @@ from app.core.security import (
     create_2fa_ticket,
     create_access_token,
     create_email_verify_ticket,
+    create_google_signup_ticket,
     create_password_reset_token,
     decode_2fa_ticket,
     decode_email_verify_ticket,
+    decode_google_signup_ticket,
     decode_password_reset_token,
     hash_password,
     verify_password,
@@ -31,6 +33,9 @@ from app.schemas.auth import (
     AvailabilityResponse,
     ChangePasswordRequest,
     ForgotPasswordRequest,
+    GoogleAuthRequest,
+    GoogleAuthResponse,
+    GoogleCompleteSignupRequest,
     LoginRequest,
     LoginResponse,
     ResendVerificationRequest,
@@ -273,6 +278,90 @@ def login_2fa(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Código inválido")
     if user.is_currently_suspended:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=suspension_message(user))
+    jti = _start_session(db, user, user_agent, ip_address)
+    return TokenResponse(access_token=create_access_token(user.id, jti))
+
+
+def _unusable_password_hash() -> str:
+    """Hash bcrypt de um segredo aleatório — contas criadas via Google não têm
+    senha própria; login por senha nunca bate contra esse hash (ver
+    google_complete_signup)."""
+    return hash_password(secrets.token_urlsafe(32))
+
+
+def google_auth(
+    db: Session, payload: GoogleAuthRequest, user_agent: str = "", ip_address: str | None = None
+) -> GoogleAuthResponse:
+    claims = google_oauth.verify_id_token(payload.id_token)
+    google_id = claims["sub"]
+    email = claims.get("email") or ""
+    if not claims.get("email_verified") or not email:
+        raise HTTPException(
+            status_code=400, detail="O e-mail da conta Google precisa estar verificado."
+        )
+
+    user = user_dao.get_by_google_id(db, google_id)
+    if not user:
+        existing = user_dao.get_by_email(db, email)
+        if existing:
+            # Já existia uma conta com esse e-mail (cadastro com senha) — o
+            # Google já validou o e-mail, então vinculamos em vez de exigir
+            # escolher um novo nome de usuário.
+            user = user_dao.update(db, existing, {"google_id": google_id, "email_verified": True})
+
+    if not user:
+        ticket = create_google_signup_ticket(
+            google_id=google_id,
+            email=email,
+            name=claims.get("name") or email.split("@")[0],
+            avatar_url=claims.get("picture"),
+        )
+        return GoogleAuthResponse(needs_username=True, signup_ticket=ticket)
+
+    if user.is_currently_suspended:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=suspension_message(user))
+    jti = _start_session(db, user, user_agent, ip_address)
+    return GoogleAuthResponse(access_token=create_access_token(user.id, jti))
+
+
+def google_complete_signup(
+    db: Session,
+    payload: GoogleCompleteSignupRequest,
+    user_agent: str = "",
+    ip_address: str | None = None,
+) -> TokenResponse:
+    try:
+        claims = decode_google_signup_ticket(payload.signup_ticket)
+    except JWTError:
+        raise HTTPException(
+            status_code=401, detail="Sessão de cadastro expirada. Entre com o Google novamente."
+        ) from None
+
+    google_id = claims["sub"]
+    email = claims["email"]
+    if user_dao.get_by_google_id(db, google_id) or user_dao.get_by_email(db, email):
+        raise HTTPException(status_code=400, detail="Esta conta já foi criada. Entre com o Google.")
+
+    uname = username_lib.normalize(payload.username)
+    error = username_lib.validation_error(uname)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    if user_dao.get_by_username(db, uname):
+        raise HTTPException(status_code=400, detail=_USERNAME_TAKEN)
+
+    user = user_dao.create(
+        db,
+        username=uname,
+        name=claims.get("name") or uname,
+        email=email,
+        hashed_password=_unusable_password_hash(),
+        neighborhood="",
+        city="São Paulo",
+        state="SP",
+        email_verified=True,
+        google_id=google_id,
+        avatar_url=claims.get("picture"),
+    )
     jti = _start_session(db, user, user_agent, ip_address)
     return TokenResponse(access_token=create_access_token(user.id, jti))
 

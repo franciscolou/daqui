@@ -12,6 +12,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 import DaquiMark from '../../components/DaquiMark';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import NeighborhoodScape, { SCAPE_ANCHORS, AmbientBackdrop } from '../../components/NeighborhoodScape';
 import { useState, useRef, useEffect } from 'react';
 import { submitOnEnter } from '../../lib/keyboard';
@@ -20,6 +21,7 @@ import { Colors } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { AvailabilityState } from '../../lib/useAvailability';
+import { useAuth } from '../../lib/auth';
 import { useSignupFlow } from '../../lib/useSignupFlow';
 import { useLoginFlow } from '../../lib/useLoginFlow';
 import { api, CommunityStats } from '../../lib/api';
@@ -157,6 +159,21 @@ export default function WelcomeScreen() {
   // duplica a regra de negócio (é assim que as duas telas ficam em sync).
   const signupFlow = useSignupFlow();
   const loginFlow = useLoginFlow();
+  const { loginWithGoogle } = useAuth();
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const handleGoogleToken = async (idToken: string) => {
+    setGoogleError(null);
+    try {
+      const result = await loginWithGoogle(idToken);
+      if (result.status === 'needs_username') {
+        router.push({ pathname: '/(auth)/google-username', params: { ticket: result.ticket } });
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch {
+      setGoogleError('Não foi possível entrar com o Google.');
+    }
+  };
 
   // Vitrine "vizinhos" da arte (ver renderArt/mobile abaixo) — total de
   // contas + fotos reais, sem login (endpoint público). `null` enquanto não
@@ -583,11 +600,20 @@ export default function WelcomeScreen() {
         <View style={styles.dividerLine} />
       </View>
 
+      {googleError && (
+        <View style={styles.authErrorBox}>
+          <Ionicons name="alert-circle" size={16} color={Colors.error} />
+          <Text style={styles.authErrorText}>{googleError}</Text>
+        </View>
+      )}
+
       <View style={styles.socialRow}>
-        <TouchableOpacity style={styles.socialBtn}>
-          <Ionicons name="logo-google" size={20} color="#EA4335" />
-          <Text style={styles.socialText}>Google</Text>
-        </TouchableOpacity>
+        <GoogleSignInButton
+          style={styles.socialBtn}
+          textStyle={styles.socialText}
+          onIdToken={handleGoogleToken}
+          onError={setGoogleError}
+        />
         <TouchableOpacity style={styles.socialBtn}>
           <Ionicons name="logo-facebook" size={20} color="#1877F2" />
           <Text style={styles.socialText}>Facebook</Text>

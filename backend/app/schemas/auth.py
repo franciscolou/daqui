@@ -86,3 +86,24 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+
+# ── "Entrar com Google" ──────────────────────────────────────────────────
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+
+
+class GoogleAuthResponse(BaseModel):
+    # Conta já existia (ou acabou de ser vinculada por e-mail já verificado
+    # pelo Google): vem com access_token, login completo.
+    # Conta nova: falta escolher um nome de usuário — signup_ticket completa
+    # em /auth/google/complete-signup.
+    needs_username: bool = False
+    signup_ticket: str | None = None
+    access_token: str | None = None
+    token_type: str = "bearer"
+
+
+class GoogleCompleteSignupRequest(BaseModel):
+    signup_ticket: str
+    username: str

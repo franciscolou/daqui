@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     # depender em produção.
     HERE_API_KEY: str = ""
 
+    # Client ID OAuth do Google Cloud Console (tipo "Aplicativo da Web").
+    # Único audience aceito em /auth/google — inclusive nos ID tokens emitidos
+    # nativamente (iOS/Android configuram GoogleSignin com este mesmo valor
+    # como webClientId de propósito, pra sair só uma audience pro backend
+    # validar). Vazio = /auth/google responde 501 (ver core/google_oauth.py).
+    GOOGLE_WEB_CLIENT_ID: str = ""
+
     class Config:
         env_file = ".env"
 

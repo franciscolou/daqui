@@ -7,6 +7,9 @@ from app.schemas.auth import (
     AvailabilityResponse,
     ChangePasswordRequest,
     ForgotPasswordRequest,
+    GoogleAuthRequest,
+    GoogleAuthResponse,
+    GoogleCompleteSignupRequest,
     LoginRequest,
     LoginResponse,
     ResendVerificationRequest,
@@ -78,6 +81,20 @@ def login_2fa(
     payload: TwoFactorLoginRequest, request: Request, db: Session = Depends(get_db)
 ) -> TokenResponse:
     return auth.login_2fa(db, payload, request.headers.get("user-agent", ""), _client_ip(request))
+
+
+def google_auth(
+    payload: GoogleAuthRequest, request: Request, db: Session = Depends(get_db)
+) -> GoogleAuthResponse:
+    return auth.google_auth(db, payload, request.headers.get("user-agent", ""), _client_ip(request))
+
+
+def google_complete_signup(
+    payload: GoogleCompleteSignupRequest, request: Request, db: Session = Depends(get_db)
+) -> TokenResponse:
+    return auth.google_complete_signup(
+        db, payload, request.headers.get("user-agent", ""), _client_ip(request)
+    )
 
 
 def me(

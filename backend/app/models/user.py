@@ -38,6 +38,12 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Preenchido só para contas criadas/vinculadas via "Entrar com Google"
+    # (sub do token — ver core/google_oauth.py). Conta assim NÃO tem senha de
+    # verdade: hashed_password guarda um hash de segredo aleatório inútil,
+    # só pra manter a coluna NOT NULL sem espalhar Optional por login/troca
+    # de senha (ver services/auth.py::_unusable_password_hash).
+    google_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     bio: Mapped[str] = mapped_column(Text, default="")
     avatar_url: Mapped[str | None] = mapped_column(String(500))
     cover_url: Mapped[str | None] = mapped_column(String(500))

@@ -13,10 +13,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import DaquiMark from '../../components/DaquiMark';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { Colors } from '../../constants/Colors';
 import { submitOnEnter } from '../../lib/keyboard';
 import { goBack } from '../../lib/navigation';
+import { useAuth } from '../../lib/auth';
 import { useLoginFlow } from '../../lib/useLoginFlow';
 
 export default function LoginScreen() {
@@ -27,6 +30,22 @@ export default function LoginScreen() {
     submitting, error, mode, code, onCodeChange, resending, resent,
     handleLogin, handleVerify, handleResend, cancelSecondStep,
   } = useLoginFlow();
+  const { loginWithGoogle } = useAuth();
+  const [googleError, setGoogleError] = useState<string | null>(null);
+
+  const handleGoogleToken = async (idToken: string) => {
+    setGoogleError(null);
+    try {
+      const result = await loginWithGoogle(idToken);
+      if (result.status === 'needs_username') {
+        router.push({ pathname: '/(auth)/google-username', params: { ticket: result.ticket } });
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch {
+      setGoogleError('Não foi possível entrar com o Google.');
+    }
+  };
 
   return (
     <KeyboardAvoidingView
@@ -232,11 +251,20 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
+            {googleError && (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                <Text style={styles.errorText}>{googleError}</Text>
+              </View>
+            )}
+
             <View style={styles.socialRow}>
-              <TouchableOpacity style={styles.socialBtn}>
-                <Ionicons name="logo-google" size={20} color="#EA4335" />
-                <Text style={styles.socialText}>Google</Text>
-              </TouchableOpacity>
+              <GoogleSignInButton
+                style={styles.socialBtn}
+                textStyle={styles.socialText}
+                onIdToken={handleGoogleToken}
+                onError={setGoogleError}
+              />
               <TouchableOpacity style={styles.socialBtn}>
                 <Ionicons name="logo-facebook" size={20} color="#1877F2" />
                 <Text style={styles.socialText}>Facebook</Text>

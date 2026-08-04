@@ -16,6 +16,10 @@ def get_by_username(db: Session, username: str) -> User | None:
     return db.query(User).filter(User.username == username).first()
 
 
+def get_by_google_id(db: Session, google_id: str) -> User | None:
+    return db.query(User).filter(User.google_id == google_id).first()
+
+
 def create(
     db: Session,
     *,
@@ -31,6 +35,8 @@ def create(
     staff_role: StaffRole | None = None,
     verified: bool = False,
     email_verified: bool = False,
+    google_id: str | None = None,
+    avatar_url: str | None = None,
 ) -> User:
     user = User(
         username=username,
@@ -46,6 +52,8 @@ def create(
         verified=verified,
         staff_role=staff_role,
         email_verified=email_verified,
+        google_id=google_id,
+        avatar_url=avatar_url,
     )
     db.add(user)
     db.commit()

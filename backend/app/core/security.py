@@ -124,3 +124,33 @@ def decode_staff_invite_token(token: str) -> dict:
     if payload.get("scope") != "staff_invite":
         raise JWTError("Convite inválido")
     return payload
+
+
+# Emitido quando "Entrar com Google" é a primeira vez desse usuário (sem conta
+# com o mesmo e-mail ainda): carrega o perfil já validado pelo Google (sub,
+# e-mail, nome, foto) até o passo final do cadastro — escolher um nome de
+# usuário — em /auth/google/complete-signup. Mesmo prazo do ticket de
+# verificação de e-mail comum.
+_GOOGLE_SIGNUP_TICKET_MINUTES = 30
+
+
+def create_google_signup_ticket(
+    google_id: str, email: str, name: str, avatar_url: str | None
+) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=_GOOGLE_SIGNUP_TICKET_MINUTES)
+    payload = {
+        "sub": google_id,
+        "email": email,
+        "name": name,
+        "picture": avatar_url,
+        "scope": "google_signup",
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_google_signup_ticket(token: str) -> dict:
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    if payload.get("scope") != "google_signup":
+        raise JWTError("Ticket de cadastro Google inválido")
+    return payload

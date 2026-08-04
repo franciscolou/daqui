@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { router } from 'expo-router';
 import InfoModal from '../components/InfoModal';
-import { api, loadToken, setForceLogoutHandler, setToken, LoginResult } from './api';
+import { api, loadToken, setForceLogoutHandler, setToken, GoogleAuthResult, LoginResult } from './api';
 import { registerPushToken, unregisterPushToken } from './push';
 import { User } from '../data/mock';
 
@@ -33,6 +33,10 @@ interface AuthState {
   }) => Promise<string>;
   verifyEmailCode: (ticket: string, code: string) => Promise<void>;
   resendVerification: (ticket: string) => Promise<string>;
+  // "Entrar com Google": 'ok' já loga (mesmo efeito de login/verifyEmailCode);
+  // 'needs_username' devolve o ticket que completa em completeGoogleSignup.
+  loginWithGoogle: (idToken: string) => Promise<GoogleAuthResult>;
+  completeGoogleSignup: (ticket: string, username: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -128,6 +132,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return api.resendVerification(ticket);
   }, []);
 
+  const loginWithGoogle = useCallback(async (idToken: string): Promise<GoogleAuthResult> => {
+    const result = await api.googleAuth(idToken);
+    if (result.status === 'ok') {
+      await setToken(result.token);
+      const u = await api.me();
+      setUser(u);
+      showPendingNotice(u);
+    }
+    return result;
+  }, [showPendingNotice]);
+
+  const completeGoogleSignup = useCallback(async (ticket: string, username: string) => {
+    const token = await api.completeGoogleSignup(ticket, username);
+    await setToken(token);
+    const u = await api.me();
+    setUser(u);
+    showPendingNotice(u);
+  }, [showPendingNotice]);
+
   // Registra o push token do dispositivo sempre que uma sessão fica ativa —
   // cobre login, verificação de 2FA/e-mail e restauração de sessão no boot
   // num único lugar, em vez de repetir a chamada nos 3 fluxos.
@@ -156,10 +179,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signup,
       verifyEmailCode,
       resendVerification,
+      loginWithGoogle,
+      completeGoogleSignup,
       logout,
       refresh,
     }),
-    [user, loading, login, verifyLogin2fa, signup, verifyEmailCode, resendVerification, logout, refresh],
+    [
+      user, loading, login, verifyLogin2fa, signup, verifyEmailCode, resendVerification,
+      loginWithGoogle, completeGoogleSignup, logout, refresh,
+    ],
   );
 
   return (

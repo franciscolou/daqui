@@ -110,6 +110,11 @@ def _ensure_columns():
                 conn.execute(
                     text("ALTER TABLE users ADD COLUMN notify_neighborhood_alerts BOOLEAN DEFAULT 1 NOT NULL")
                 )
+            if "google_id" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN google_id VARCHAR(255)"))
+                conn.execute(
+                    text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id ON users (google_id)")
+                )
 
     if "messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("messages")}

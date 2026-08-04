@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.controllers import auth
 from app.schemas.auth import (
     AvailabilityResponse,
+    GoogleAuthResponse,
     LoginResponse,
     TokenResponse,
     TwoFactorSetupResponse,
@@ -23,6 +24,8 @@ router.post("/forgot-password", status_code=204)(auth.forgot_password)
 router.post("/reset-password",  status_code=204)(auth.reset_password)
 router.post("/login",       response_model=LoginResponse)(auth.login)
 router.post("/login/2fa",   response_model=TokenResponse)(auth.login_2fa)
+router.post("/google",                 response_model=GoogleAuthResponse)(auth.google_auth)
+router.post("/google/complete-signup", response_model=TokenResponse)(auth.google_complete_signup)
 router.get( "/me",          response_model=UserMe)(auth.me)
 router.post("/2fa/setup",   response_model=TwoFactorSetupResponse)(auth.two_factor_setup)
 router.post("/2fa/enable",  response_model=UserMe)(auth.two_factor_enable)
