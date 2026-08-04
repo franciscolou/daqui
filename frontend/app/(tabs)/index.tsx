@@ -40,6 +40,13 @@ type FeedItem = { kind: 'post'; post: Post } | { kind: 'ad'; ad: Ad };
 
 const WIDE = 900;
 
+const normalizeNeighborhood = (value?: string | null) =>
+  value
+    ?.normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase('pt-BR') ?? '';
+
 export default function FeedScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
@@ -53,6 +60,8 @@ export default function FeedScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedAd, setFeedAd] = useState<Ad | null>(null);
   const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
+  const [adViewerReady, setAdViewerReady] = useState(false);
+  const [adLoading, setAdLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +77,7 @@ export default function FeedScreen() {
   const [pertoNeighborhood, setPertoNeighborhood] = useState<string | null>(null);
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
+  const [initialViewLoading, setInitialViewLoading] = useState(true);
 
   const nearbyActive = viewMode === 'meu' ? nearbyMeu : nearbyPerto;
 
@@ -142,11 +152,14 @@ export default function FeedScreen() {
   // chegue atrasada depois que o usuário já trocou de visualização/bairro
   // (senão ela apareceria colada num feed que já é de outro contexto).
   const feedSeq = useRef(0);
+  const adSeq = useRef(0);
   const loadingMorePostsRef = useRef(false);
 
   const load = useCallback(async () => {
+    if (initialViewLoading) return;
     const seq = ++feedSeq.current;
     try {
+      setLoading(true);
       setError(null);
       const params = feedParams(1);
       if (!params) {
@@ -166,7 +179,7 @@ export default function FeedScreen() {
     } finally {
       if (seq === feedSeq.current) setLoading(false);
     }
-  }, [feedParams]);
+  }, [feedParams, initialViewLoading]);
 
   const loadMorePosts = useCallback(() => {
     if (loadingMorePostsRef.current || posts.length >= totalPosts) return;
@@ -203,41 +216,79 @@ export default function FeedScreen() {
     }, [load]),
   );
 
-  // "Perto de mim" é a visualização padrão ao abrir o app, mas bairro/coords
-  // só eram resolvidos ao tocar na aba (switchView) — sem isso, `load()`
-  // ficava esperando pra sempre (posts=[]) e só o anúncio aparecia, até o
-  // usuário trocar pra "Meu bairro" e voltar (o que finalmente disparava
-  // fetchPertoLocation). Aqui resolve automaticamente assim que a tela foca
-  // com "perto" ativo e ainda sem localização. `autoLocFetchedRef` garante
-  // só 1 tentativa automática: sem ele, uma falha (GPS negado etc.) dispararia
-  // um loop de retentativas, já que o estado continua "sem localização" a
-  // cada vez que este efeito reavalia após locLoading voltar a false. Retoque
-  // manual na aba ou o botão "Tentar novamente" continuam chamando
-  // fetchPertoLocation direto, sem passar por essa trava.
-  const autoLocFetchedRef = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      if (
-        viewMode === 'perto' &&
-        !pertoCoords &&
-        !pertoNeighborhood &&
-        !locLoading &&
-        !autoLocFetchedRef.current
-      ) {
-        autoLocFetchedRef.current = true;
-        fetchPertoLocation();
+  // Antes de revelar o feed, resolve a localização e escolhe a visualização
+  // inicial. Se o bairro atual for o cadastrado, abre "Meu bairro"; nos
+  // demais casos (inclusive sem bairro cadastrado), abre "Perto de mim".
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (requestedView === 'meu') {
+        setViewMode('meu');
+        indicator.set(0);
+        setInitialViewLoading(false);
+        return;
       }
-    }, [viewMode, pertoCoords, pertoNeighborhood, locLoading, fetchPertoLocation]),
-  );
+
+      setLocError(null);
+      setLocLoading(true);
+      try {
+        const coords = await getDeviceCoords();
+        const res = await api.resolveNeighborhood(coords.latitude, coords.longitude);
+        if (cancelled) return;
+
+        setPertoCoords(coords);
+        setPertoNeighborhood(res.neighborhood);
+        const isHome = !!user?.neighborhood
+          && normalizeNeighborhood(res.neighborhood) === normalizeNeighborhood(user.neighborhood);
+        setViewMode(isHome ? 'meu' : 'perto');
+        indicator.set(isHome ? 0 : 1);
+      } catch (e) {
+        if (cancelled) return;
+        setPertoCoords(null);
+        setPertoNeighborhood(null);
+        setViewMode('perto');
+        indicator.set(1);
+        setLocError(
+          e instanceof LocationError
+            ? e.message
+            : 'Não foi possível descobrir seu bairro agora.',
+        );
+      } finally {
+        if (!cancelled) {
+          setLocLoading(false);
+          setInitialViewLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // A escolha inicial deve acontecer uma única vez para não trocar a aba
+    // escolhida manualmente quando o usuário for atualizado no contexto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeNeighborhood = viewMode === 'meu' ? user?.neighborhood : pertoNeighborhood ?? undefined;
 
   useEffect(() => {
-    getOrCreateAdViewerId().then(setAdViewerId);
+    getOrCreateAdViewerId()
+      .then(setAdViewerId)
+      .catch(() => setAdViewerId(undefined))
+      .finally(() => setAdViewerReady(true));
   }, []);
 
   useFocusEffect(
     useCallback(() => {
+      const seq = ++adSeq.current;
+      if (initialViewLoading || !adViewerReady) return;
+      if (viewMode === 'perto' && (!pertoNeighborhood || !pertoCoords)) {
+        setFeedAd(null);
+        setAdLoading(false);
+        return;
+      }
+      setAdLoading(true);
       adsApi
         .getAd('post', {
           neighborhood: activeNeighborhood ?? undefined,
@@ -247,9 +298,16 @@ export default function FeedScreen() {
           engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
           viewerId: adViewerId,
         })
-        .then(setFeedAd)
-        .catch(() => setFeedAd(null));
-    }, [activeNeighborhood, viewMode, activeCategory, user?.interactionsCount, user?.city, adViewerId]),
+        .then((ad) => {
+          if (seq === adSeq.current) setFeedAd(ad);
+        })
+        .catch(() => {
+          if (seq === adSeq.current) setFeedAd(null);
+        })
+        .finally(() => {
+          if (seq === adSeq.current) setAdLoading(false);
+        });
+    }, [activeNeighborhood, viewMode, activeCategory, user?.interactionsCount, user?.city, adViewerId, adViewerReady, initialViewLoading, pertoCoords, pertoNeighborhood]),
   );
 
   const handlePostDeleted = useCallback((postId: string) => {
@@ -263,11 +321,11 @@ export default function FeedScreen() {
       return;
     }
     const dir = mode === 'perto' ? 1 : -1;
-    contentX.value = dir * 28;
-    contentOpacity.value = 0.4;
-    contentX.value = withSpring(0, { damping: 20, stiffness: 220, mass: 0.6 });
-    contentOpacity.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) });
-    indicator.value = withSpring(mode === 'perto' ? 1 : 0, { damping: 20, stiffness: 220, mass: 0.6 });
+    contentX.set(dir * 28);
+    contentOpacity.set(0.4);
+    contentX.set(withSpring(0, { damping: 20, stiffness: 220, mass: 0.6 }));
+    contentOpacity.set(withTiming(1, { duration: 220, easing: Easing.out(Easing.quad) }));
+    indicator.set(withSpring(mode === 'perto' ? 1 : 0, { damping: 20, stiffness: 220, mass: 0.6 }));
     setViewMode(mode);
     if (mode === 'perto') fetchPertoLocation();
   }, [viewMode, fetchPertoLocation, contentX, contentOpacity, indicator]);
@@ -466,7 +524,24 @@ export default function FeedScreen() {
   // O slide anima só o conteúdo (posts/setup), não o header nem as abas —
   // por isso o transform vai no `Animated.View` de cada item/conteúdo, nunca
   // num wrapper que também contenha `viewTabsBlock`/`feedHeader`.
-  const feed = needsHomeSetup ? (
+  const feedPending = initialViewLoading || locLoading || loading || adLoading;
+
+  const feed = feedPending ? (
+    <FlatList
+      style={styles.feedFill}
+      data={[] as FeedItem[]}
+      keyExtractor={(item) => (item.kind === 'post' ? item.post.id : `ad-${item.ad.id}`)}
+      renderItem={() => null}
+      showsVerticalScrollIndicator={false}
+      ListHeaderComponent={feedHeader}
+      contentContainerStyle={[styles.listContent, styles.loadingListContent]}
+      ListEmptyComponent={(
+        <View style={styles.initialLoader}>
+          <ActivityIndicator color={Colors.primary} size="large" />
+        </View>
+      )}
+    />
+  ) : needsHomeSetup ? (
     <View style={styles.feedFill}>
       {viewTabsBlock}
       <Animated.View style={[styles.feedFill, contentStyle]}>
@@ -646,6 +721,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.border,
   },
   feedFill: { flex: 1 },
+  loadingListContent: { flexGrow: 1 },
+  initialLoader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   /* ── View tabs (Meu bairro / Perto de mim) ── */
   viewTabs: {
     flexDirection: 'row',
