@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { DEFAULT_API_URL } from '../lib/config';
+import { BrandMark } from '../ui/BrandMark';
 import { Field } from '../ui/primitives';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
@@ -100,7 +101,9 @@ export function Login() {
 
       <div className="auth-card">
         <div className="auth-brand">
-          <div className="brand-dot">d</div>
+          <div className="brand-dot">
+            <BrandMark size={22} />
+          </div>
           <h1>Anúncios Daqui</h1>
         </div>
         <p className="muted">Painel do time de anúncios. Login separado do app Daqui.</p>

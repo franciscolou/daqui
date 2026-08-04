@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { canManageStaff, useAuth } from '../lib/auth';
 import { STAFF_ROLE_LABEL } from '../lib/labels';
+import { BrandMark } from '../ui/BrandMark';
 import { Icon, IconName } from '../ui/Icon';
 import { Avatar } from '../ui/primitives';
 import { ThemeToggle } from '../ui/ThemeToggle';
@@ -125,7 +126,9 @@ export function Shell() {
     <div className="shell">
       <nav className="sidebar">
         <div className="sidebar-brand">
-          <div className="brand-dot">d</div>
+          <div className="brand-dot">
+            <BrandMark size={17} />
+          </div>
           <span>Anúncios</span>
         </div>
 

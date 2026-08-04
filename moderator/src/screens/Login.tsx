@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api, errorMessage } from '../lib/api';
 import { NotStaffError, useAuth } from '../lib/auth';
 import { DEFAULT_API_URL, DEFAULT_APP_URL } from '../lib/config';
+import { BrandMark } from '../ui/BrandMark';
 import { Field } from '../ui/primitives';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
@@ -109,7 +110,9 @@ export function Login() {
 
       <div className="auth-card">
         <div className="auth-brand">
-          <div className="brand-dot">d</div>
+          <div className="brand-dot">
+            <BrandMark size={22} />
+          </div>
           <h1>Moderação Daqui</h1>
         </div>
         <p className="muted">Acesso restrito a moderadores.</p>
