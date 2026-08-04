@@ -140,6 +140,7 @@ export default function NotificationsScreen() {
               adsApi.trackAdClick(ad.id, { viewerId: adViewerId, creativeId: ad.creativeId, format: 'notification' });
               Linking.openURL(ad.targetUrl);
             } else if (REMOVED_TYPES.has(item.type) && item.snapshot) setRemovedPreview(item);
+            else if (item.type === 'welcome') router.push('/help');
             else if (item.postId) router.push(`/post/${item.postId}` as any);
             else if (item.actor) router.push(`/user/${item.actor.id}` as any);
           };

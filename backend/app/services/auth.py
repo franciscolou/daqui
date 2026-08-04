@@ -28,6 +28,7 @@ from app.core.security import (
 from app.core.user_agent import parse_device_name
 from app.daos import session as session_dao
 from app.daos import user as user_dao
+from app.models.notification import NotificationType
 from app.models.user import User
 from app.schemas.auth import (
     AvailabilityResponse,
@@ -115,6 +116,18 @@ def _send_verification_code(db: Session, user: User) -> str:
     return create_email_verify_ticket(user.id)
 
 
+def _send_welcome_notification(db: Session, user: User) -> None:
+    notification_service.notify(
+        db,
+        user_id=user.id,
+        type_=NotificationType.WELCOME,
+        content="Bem-vindo(a) ao Daqui! Antes de começar, confira a "
+        "seção Ajuda e suporte pra aprender a usar o app.",
+        push_title="Bem-vindo(a) ao Daqui!",
+        push_body="Dê uma olhada na seção Ajuda e suporte pra aprender a usar o app.",
+    )
+
+
 def signup(
     db: Session, payload: SignupRequest, user_agent: str = "", ip_address: str | None = None
 ) -> VerificationTicketResponse:
@@ -140,6 +153,7 @@ def signup(
         latitude=payload.latitude,
         longitude=payload.longitude,
     )
+    _send_welcome_notification(db, user)
     ticket = _send_verification_code(db, user)
     return VerificationTicketResponse(ticket=ticket)
 
@@ -362,6 +376,7 @@ def google_complete_signup(
         google_id=google_id,
         avatar_url=claims.get("picture"),
     )
+    _send_welcome_notification(db, user)
     jti = _start_session(db, user, user_agent, ip_address)
     return TokenResponse(access_token=create_access_token(user.id, jti))
 

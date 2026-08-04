@@ -3,6 +3,14 @@ import { AppNotification } from '../lib/api';
 
 const QUOTE = '"';
 
+// Texto fixo no app (não vem do backend) — assim, se o desenvolvedor mudar
+// esse texto, quem já recebeu a notificação de boas-vindas também vê a
+// versão nova, em vez de ficar preso ao `content` gravado no banco na hora
+// do cadastro.
+const WELCOME_BEFORE = 'Bem-vindo(a) ao Daqui! Antes de começar, confira a seção ';
+const WELCOME_HIGHLIGHT = 'Ajuda e suporte';
+const WELCOME_AFTER = ' pra aprender a usar o app.';
+
 function truncate(value: string, max = 70): string {
   return value.length > max ? `${value.slice(0, max - 1).trimEnd()}…` : value;
 }
@@ -43,6 +51,8 @@ export function notificationParts(n: AppNotification, boldStyle: StyleProp<TextS
       return <>{actor} mencionou você: {QUOTE}{target}{QUOTE}</>;
     case 'follow':
       return <>{actor} começou a seguir você</>;
+    case 'welcome':
+      return <>{WELCOME_BEFORE}<Text style={boldStyle}>{WELCOME_HIGHLIGHT}</Text>{WELCOME_AFTER}</>;
     default:
       return <>{n.content}</>;
   }
