@@ -430,7 +430,16 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
 
   nearbyArea: { marginTop: 8 },
-  nearbyToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 8 },
+  nearbyToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
   nearbyToggleText: { fontSize: 13, color: Colors.primaryDark, fontWeight: '600', textAlign: 'center' },
   nearbyLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10 },
   nearbyLoadingText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
