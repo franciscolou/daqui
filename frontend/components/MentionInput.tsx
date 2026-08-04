@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TextInputProps, TouchableOpacity, Image, ActivityIndicator,
+  View, Text, TextInput, TextInputProps, TouchableOpacity, Image, ActivityIndicator, ScrollView,
   StyleSheet, StyleProp, ViewStyle, TextStyle, NativeSyntheticEvent,
   TextInputSelectionChangeEventData, TextInputKeyPressEventData,
 } from 'react-native';
@@ -10,7 +10,8 @@ import { api } from '../lib/api';
 import { User } from '../data/mock';
 
 // Campo de texto com menção de usuários (@handle) — mesmo comportamento das
-// redes sociais: ao digitar "@" seguido de um nome, aparece um sugeridor
+// redes sociais: ao digitar "@", aparece um sugeridor que é refinado conforme
+// o nome é digitado
 // dinâmico (busca on-type, com debounce) mostrando foto, nome e @username;
 // escolher (toque ou Enter) insere "@username " no ponto certo do texto.
 // Reaproveitável em qualquer composer (post, comentário, etc.).
@@ -62,7 +63,7 @@ export default function MentionInput({
   // localmente (grupo → só membros); senão, busca global com debounce.
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
-    if (query == null || query.length < 1) { setResults([]); setLoading(false); return; }
+    if (query == null) { setResults([]); setLoading(false); return; }
     if (candidates) {
       const q = query.toLowerCase();
       setLoading(false);
@@ -84,7 +85,7 @@ export default function MentionInput({
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [query, candidates]);
 
-  const open = query != null && query.length >= 1 && (loading || results.length > 0);
+  const open = query != null && (loading || results.length > 0);
 
   // Em caixas multilinha (o composer de post, alto e majoritariamente vazio),
   // ancorar o dropdown embaixo da linha atual (perto do "@" digitado) em vez
@@ -185,15 +186,22 @@ export default function MentionInput({
               <Text style={styles.loadingText}>Buscando…</Text>
             </View>
           ) : (
-            results.map((u) => (
-              <TouchableOpacity key={u.id} style={styles.row} activeOpacity={0.7} onPress={() => pick(u)}>
-                <Image source={{ uri: u.avatar }} style={styles.avatar} />
-                <View style={styles.rowText}>
-                  <Text style={styles.name} numberOfLines={1}>{u.name}</Text>
-                  <Text style={styles.username} numberOfLines={1}>@{u.username}</Text>
-                </View>
-              </TouchableOpacity>
-            ))
+            <ScrollView
+              style={styles.resultsList}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+            >
+              {results.map((u) => (
+                <TouchableOpacity key={u.id} style={styles.row} activeOpacity={0.7} onPress={() => pick(u)}>
+                  <Image source={{ uri: u.avatar }} style={styles.avatar} />
+                  <View style={styles.rowText}>
+                    <Text style={styles.name} numberOfLines={1}>{u.name}</Text>
+                    <Text style={styles.username} numberOfLines={1}>@{u.username}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           )}
         </View>
       )}
@@ -231,6 +239,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   dropdownUp: { bottom: '100%', marginBottom: 4 },
   loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
   loadingText: { fontSize: 13, color: Colors.textSecondary },
+  resultsList: { maxHeight: 232 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 8 },
   avatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: Colors.borderLight },
   rowText: { flex: 1, minWidth: 0 },

@@ -21,8 +21,11 @@ def search(db: Session, user: User, query: str, type_: str) -> SearchResults:
         if type_ in ("all", "posts"):
             found = post_dao.search(db, user.neighborhood, query)
             posts = [_to_schema(p, user, db) for p in found]
-        if type_ in ("all", "users"):
-            # Usuários de outros bairros podem ser encontrados, mas vêm bloqueados.
-            users = [public_view(user, u) for u in user_dao.search(db, query)]
+    if type_ in ("all", "users") and (query or type_ == "users"):
+        # A busca vazia exclusiva de usuários alimenta as sugestões genéricas
+        # exibidas assim que alguém digita apenas "@". A ordenação por atividade
+        # já aplicada pelo DAO mantém as sugestões úteis sem um termo digitado.
+        # Usuários de outros bairros podem ser encontrados, mas vêm bloqueados.
+        users = [public_view(user, u) for u in user_dao.search(db, query)]
 
     return SearchResults(posts=posts, users=users)
