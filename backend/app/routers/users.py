@@ -33,3 +33,4 @@ admin_router.get("/{user_id}/posts", response_model=list[PostOut])(post.admin_li
 admin_router.get("/{user_id}/comments", response_model=list[CommentOut])(comment.admin_list_by_author)
 admin_router.post("/{user_id}/suspend", response_model=UserAdminOut)(user.admin_suspend_user)
 admin_router.delete("/{user_id}/suspend", response_model=UserAdminOut)(user.admin_unsuspend_user)
+admin_router.delete("/{user_id}", status_code=204)(user.admin_delete_user)

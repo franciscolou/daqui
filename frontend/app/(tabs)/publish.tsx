@@ -425,7 +425,7 @@ export default function PublishScreen() {
                 <Text style={styles.importantDesc}>
                   {importantQuotaExhausted && importantQuota
                     ? `Limite de ${importantQuota.limit} posts importantes usado este mês. Renova em ${formatQuotaReset(importantQuota.resetsAt)}.`
-                    : 'Notifica os vizinhos do bairro imediatamente (e as redondezas de quem ativou isso)'}
+                    : 'Notifica os vizinhos do bairro (e as redondezas para quem está com "Incluir redondezas" ligado)'}
                 </Text>
               </View>
             </View>

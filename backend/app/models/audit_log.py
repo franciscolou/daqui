@@ -19,6 +19,7 @@ class AuditLogAction(StrEnum):
     COMMENT_DELETE = "comment_delete"
     USER_SUSPEND = "user_suspend"
     USER_UNSUSPEND = "user_unsuspend"
+    USER_DELETE = "user_delete"
     TICKET_REPLY = "ticket_reply"
     STAFF_INVITE = "staff_invite"
     STAFF_INVITE_ACCEPTED = "staff_invite_accepted"

@@ -74,6 +74,7 @@ export const AUDIT_ACTION_FILTERS_PLATFORM = [
   { key: 'comment_delete', label: 'Exclusão de comentário' },
   { key: 'user_suspend', label: 'Suspensão de conta' },
   { key: 'user_unsuspend', label: 'Reativação de conta' },
+  { key: 'user_delete', label: 'Exclusão de conta' },
   { key: 'ticket_reply', label: 'Resposta de chamado' },
 ];
 
@@ -106,6 +107,7 @@ export const AUDIT_ACTION_VERB: Record<string, string> = {
   comment_delete: 'excluiu um comentário de',
   user_suspend: 'suspendeu a conta de',
   user_unsuspend: 'reativou a conta de',
+  user_delete: 'excluiu a conta de',
   ticket_reply: 'respondeu um chamado de',
   // Alvo é a própria conta recém-criada (quem ativa o convite é quem o
   // aceita) — o texto evita "ativou o convite de @fulano" repetindo @fulano.
@@ -125,6 +127,7 @@ export const AUDIT_ACTION_VERB_NO_TARGET: Record<string, string> = {
   comment_delete: 'excluiu um comentário',
   user_suspend: 'suspendeu uma conta',
   user_unsuspend: 'reativou uma conta',
+  user_delete: 'excluiu uma conta',
   ticket_reply: 'respondeu um chamado',
   staff_invite: 'convidou uma nova conta de staff',
   staff_username_change: 'alterou o nome de usuário de uma conta de staff',

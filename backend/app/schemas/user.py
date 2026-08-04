@@ -69,6 +69,12 @@ class UserSuspendIn(BaseModel):
     reason: str = ""
 
 
+class UserDeleteIn(BaseModel):
+    """Confirmação explícita exigida para a exclusão irreversível pela moderação."""
+
+    username: str
+
+
 class UsernameAvailability(BaseModel):
     username: str
     valid: bool

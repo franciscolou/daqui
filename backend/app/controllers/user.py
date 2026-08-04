@@ -8,6 +8,7 @@ from app.schemas.user import (
     CoverUpdate,
     NeighborhoodStats,
     UserAdminOut,
+    UserDeleteIn,
     UsernameAvailability,
     UserPublic,
     UserSuspendIn,
@@ -126,3 +127,12 @@ def admin_unsuspend_user(
     _mod: User = Depends(get_current_moderator),
 ) -> UserAdminOut:
     return user.admin_unsuspend(db, user_id, _mod)
+
+
+def admin_delete_user(
+    user_id: int,
+    payload: UserDeleteIn,
+    db: Session = Depends(get_db),
+    _mod: User = Depends(get_current_moderator),
+) -> None:
+    user.admin_delete(db, user_id, payload, _mod)

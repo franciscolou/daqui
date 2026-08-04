@@ -54,7 +54,7 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
-  del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  del: <T>(path: string, body?: unknown) => request<T>(path, { method: 'DELETE', body }),
   /** Chamadas sem sessão (login, esqueci a senha) contra uma base específica. */
   public: <T>(path: string, body: unknown, base: string) =>
     request<T>(path, { method: 'POST', body, auth: false, base }),

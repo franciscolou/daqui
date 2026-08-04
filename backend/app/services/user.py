@@ -1,9 +1,11 @@
+import secrets
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core import realtime_registry
+from app.core.security import hash_password
 from app.core.uploads import save_data_url_image
 from app.daos import mention as mention_dao
 from app.daos import post as post_dao
@@ -15,6 +17,7 @@ from app.schemas.user import (
     CommunityStats,
     NeighborhoodStats,
     UserAdminOut,
+    UserDeleteIn,
     UsernameAvailability,
     UserPublic,
     UserSuspendIn,
@@ -185,3 +188,63 @@ def admin_unsuspend(db: Session, user_id: int, moderator: User) -> UserAdminOut:
     )
     audit_log_service.log(db, moderator, AuditLogAction.USER_UNSUSPEND, target.id, "Suspensão revogada")
     return _admin_out(target)
+
+
+def admin_delete(db: Session, user_id: int, payload: UserDeleteIn, moderator: User) -> None:
+    """Exclui o acesso e anonimiza irreversivelmente os dados da conta.
+
+    A linha é preservada para não quebrar autoria de conteúdo, conversas,
+    denúncias e auditoria; nenhuma credencial ou dado pessoal permanece nela.
+    """
+    target = user_dao.get_by_id(db, user_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if target.is_moderator:
+        raise HTTPException(status_code=400, detail="Contas da equipe devem ser gerenciadas na seção Equipe")
+    if target.suspension_reason == "Conta excluída pela moderação":
+        raise HTTPException(status_code=410, detail="Esta conta já foi excluída")
+    if payload.username.strip().lower().removeprefix("@") != target.username.lower():
+        raise HTTPException(status_code=400, detail="O nome de usuário digitado não corresponde à conta")
+
+    old_username = target.username
+    old_name = target.name
+    anonymized_username = f"conta_excluida_{target.id}"
+    mention_dao.rewrite_handle(db, old_username, anonymized_username)
+    user_dao.update(
+        db,
+        target,
+        {
+            "username": anonymized_username,
+            "name": "Conta excluída",
+            "email": f"deleted-{target.id}-{secrets.token_hex(8)}@deleted.invalid",
+            "hashed_password": hash_password(secrets.token_urlsafe(32)),
+            "google_id": None,
+            "bio": "",
+            "avatar_url": None,
+            "cover_url": None,
+            "neighborhood": "",
+            "city": "",
+            "state": "",
+            "latitude": None,
+            "longitude": None,
+            "verified": False,
+            "email_verified": False,
+            "verification_code_hash": None,
+            "verification_code_expires_at": None,
+            "totp_secret": None,
+            "totp_enabled": False,
+            "show_location": False,
+            "searchable": False,
+            "is_suspended": True,
+            "suspended_until": None,
+            "suspension_reason": "Conta excluída pela moderação",
+        },
+    )
+    audit_log_service.log(
+        db,
+        moderator,
+        AuditLogAction.USER_DELETE,
+        target.id,
+        f"Conta excluída permanentemente: {old_name} (@{old_username})",
+    )
+    realtime_registry.wake(target.id)

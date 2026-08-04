@@ -72,7 +72,14 @@ export function Users({ userId }: { userId: number | null }) {
           <Icon name="arrowLeft" size={14} />
           Voltar à busca
         </button>
-        <UserDetail user={selected} onUpdated={setSelected} />
+        <UserDetail
+          user={selected}
+          onUpdated={setSelected}
+          onDeleted={() => {
+            setResults((current) => current?.filter((u) => u.id !== selected.id) ?? current);
+            setSelected(null);
+          }}
+        />
       </div>
     );
   }
@@ -118,12 +125,15 @@ export function Users({ userId }: { userId: number | null }) {
 function UserDetail({
   user,
   onUpdated,
+  onDeleted,
 }: {
   user: AdminUser;
   onUpdated: (next: AdminUser) => void;
+  onDeleted: () => void;
 }) {
   const dialogs = useDialogs();
   const [suspendOpen, setSuspendOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const unsuspend = async () => {
     const ok = await dialogs.confirm('Reativar esta conta?', {
@@ -172,6 +182,9 @@ function UserDetail({
               Suspender conta
             </button>
           )}
+          <button type="button" className="btn danger" onClick={() => setDeleteOpen(true)}>
+            Excluir conta
+          </button>
         </div>
       </div>
 
@@ -187,7 +200,76 @@ function UserDetail({
           }}
         />
       )}
+      {deleteOpen && (
+        <DeleteUserModal
+          user={user}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={onDeleted}
+        />
+      )}
     </>
+  );
+}
+
+function DeleteUserModal({
+  user,
+  onClose,
+  onDeleted,
+}: {
+  user: AdminUser;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const dialogs = useDialogs();
+  const [confirmation, setConfirmation] = useState('');
+  const [busy, setBusy] = useState(false);
+  const expected = `@${user.username}`;
+  const matches = confirmation.trim().toLowerCase() === expected.toLowerCase();
+
+  const submit = async () => {
+    if (!matches || busy) return;
+    setBusy(true);
+    try {
+      await api.del(`/admin/users/${user.id}`, { username: confirmation.trim() });
+      onDeleted();
+    } catch (e) {
+      dialogs.alert(errorMessage(e), 'Erro');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Excluir conta permanentemente"
+      onClose={busy ? () => {} : onClose}
+      footer={
+        <>
+          <button type="button" className="btn" disabled={busy} onClick={onClose}>
+            Cancelar
+          </button>
+          <button type="button" className="btn danger" disabled={!matches || busy} onClick={submit}>
+            {busy ? 'Excluindo…' : 'Excluir conta'}
+          </button>
+        </>
+      }
+    >
+      <div>
+        Esta ação <strong>não pode ser desfeita</strong>. O acesso será invalidado e os dados
+        pessoais da conta serão removidos permanentemente.
+      </div>
+      <Field label={`Digite ${expected} para confirmar`}>
+        <input
+          autoFocus
+          autoComplete="off"
+          value={confirmation}
+          onChange={(e) => setConfirmation(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submit();
+          }}
+          placeholder={expected}
+        />
+      </Field>
+    </Modal>
   );
 }
 
