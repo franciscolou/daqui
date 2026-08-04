@@ -2,12 +2,13 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Activi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { goBack } from '../../lib/navigation';
 import { adsApi, AdFormat, AdObjective, AdvertiserType, AdsApiError, GeoScope } from '../../lib/adsApi';
 import { isValidDocument } from '../../lib/brDocuments';
+import { getSavedAdvertiserInfo, saveAdvertiserInfo, clearSavedAdvertiserInfo } from '../../lib/storage';
 import AdCreativeEditor, {
   CreativeBlocks,
   blocksToCreatives,
@@ -59,11 +60,26 @@ export default function CheckoutScreen() {
   const [advertiserDocument, setAdvertiserDocument] = useState(prefill?.advertiserDocument ?? '');
   const [advertiserEmail, setAdvertiserEmail] = useState(prefill?.advertiserEmail ?? '');
   const [advertiserPhone, setAdvertiserPhone] = useState(prefill?.advertiserPhone ?? '');
+  const [rememberInfo, setRememberInfo] = useState(true);
   const [blocks, setBlocks] = useState<CreativeBlocks>(() =>
     prefill?.creatives ? creativesToBlocks(prefill.creatives) : emptyCreativeBlocks(),
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Renovação (`prefill`) já traz os dados da campanha anterior — não
+  // sobrescreve com o que ficou lembrado de uma campanha diferente.
+  useEffect(() => {
+    if (prefill) return;
+    getSavedAdvertiserInfo().then((saved) => {
+      if (!saved) return;
+      setAdvertiserType(saved.type);
+      setAdvertiserName(saved.name);
+      setAdvertiserDocument(saved.document);
+      setAdvertiserEmail(saved.email);
+      setAdvertiserPhone(saved.phone);
+    });
+  }, [prefill]);
 
   // Campanha com o formato "mapa" precisa de um ponto marcado — sem ele o
   // anúncio não teria pin nenhum pra mostrar (o ads-backend recusa, ver
@@ -104,6 +120,17 @@ export default function CheckoutScreen() {
         creatives: blocksToCreatives(blocks),
         renewedFromToken: params.renewedFromToken || undefined,
       });
+      if (rememberInfo) {
+        await saveAdvertiserInfo({
+          type: advertiserType,
+          name: advertiserName.trim(),
+          document: advertiserDocument.trim(),
+          email: advertiserEmail.trim(),
+          phone: advertiserPhone.trim(),
+        });
+      } else {
+        await clearSavedAdvertiserInfo();
+      }
       await Linking.openURL(checkoutUrl);
     } catch (e) {
       setError(e instanceof AdsApiError ? e.message : 'Não foi possível iniciar o pagamento. Tente novamente.');
@@ -144,6 +171,19 @@ export default function CheckoutScreen() {
             />
             <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
             <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
+
+            <TouchableOpacity
+              style={styles.rememberRow}
+              activeOpacity={0.7}
+              onPress={() => setRememberInfo((v) => !v)}
+            >
+              <Ionicons
+                name={rememberInfo ? 'checkbox' : 'square-outline'}
+                size={20}
+                color={rememberInfo ? Colors.primary : Colors.textTertiary}
+              />
+              <Text style={styles.rememberText}>Lembrar meus dados para campanhas futuras</Text>
+            </TouchableOpacity>
 
             <AdCreativeEditor formats={formats} value={blocks} onChange={setBlocks} />
 
@@ -213,6 +253,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.surface,
     outlineStyle: 'none',
   } as any,
+
+  rememberRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rememberText: { fontSize: 13, fontWeight: '600', color: Colors.text, flex: 1 },
 
   errorText: { fontSize: 12, fontWeight: '600', color: Colors.error },
   hintText: { fontSize: 12, fontWeight: '600', color: Colors.textTertiary },

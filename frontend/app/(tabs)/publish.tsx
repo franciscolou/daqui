@@ -883,6 +883,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginTop: 12,
+    borderRadius: 6,
   },
   checkbox: {
     width: 22,

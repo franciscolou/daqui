@@ -95,7 +95,7 @@ export default function NeighborhoodPicker({ value, onChange, placeholder, max }
           {value.map((name, idx) => (
             <View key={`${name}-${idx}`} style={styles.chip}>
               <Text style={styles.chipText} numberOfLines={1}>{name}</Text>
-              <TouchableOpacity onPress={() => removeChip(idx)} hitSlop={8}>
+              <TouchableOpacity style={styles.chipRemoveBtn} onPress={() => removeChip(idx)} hitSlop={8}>
                 <Ionicons name="close" size={14} color={Colors.primary} />
               </TouchableOpacity>
             </View>
@@ -167,6 +167,7 @@ export default function NeighborhoodPicker({ value, onChange, placeholder, max }
 const makeStyles = (Colors: Palette) => StyleSheet.create({
   wrap: { gap: 8 },
   chipList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipRemoveBtn: { borderRadius: 999 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

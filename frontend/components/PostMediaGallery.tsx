@@ -28,17 +28,17 @@ export default function PostMediaGallery({ media }: { media: MediaItem[] }) {
         {media.length === 2 && (
           <View style={styles.row}>
             {visible.map((item, i) => (
-              <Tile key={i} item={item} style={styles.half} onPress={() => open(i)} />
+              <Tile key={i} item={item} style={i === 0 ? styles.halfLeft : styles.halfRight} onPress={() => open(i)} />
             ))}
           </View>
         )}
 
         {media.length === 3 && (
           <View style={styles.row}>
-            <Tile item={media[0]} style={styles.half} onPress={() => open(0)} />
+            <Tile item={media[0]} style={styles.halfLeft} onPress={() => open(0)} />
             <View style={[styles.half, styles.stack]}>
-              <Tile item={media[1]} style={styles.stackTile} onPress={() => open(1)} />
-              <Tile item={media[2]} style={styles.stackTile} onPress={() => open(2)} />
+              <Tile item={media[1]} style={styles.stackTopTile} onPress={() => open(1)} />
+              <Tile item={media[2]} style={styles.stackBottomTile} onPress={() => open(2)} />
             </View>
           </View>
         )}
@@ -49,7 +49,7 @@ export default function PostMediaGallery({ media }: { media: MediaItem[] }) {
               <Tile
                 key={i}
                 item={item}
-                style={styles.quarter}
+                style={QUARTER_STYLES[i]}
                 onPress={() => open(i)}
                 overlayCount={i === MAX_VISIBLE - 1 && extraCount > 0 ? extraCount : undefined}
               />
@@ -98,13 +98,23 @@ function Tile({
 const styles = StyleSheet.create({
   wrap: { marginBottom: 10, borderRadius: 14, overflow: 'hidden' },
   image: { width: '100%', height: '100%' },
-  single: { width: '100%', height: GALLERY_HEIGHT },
+  // Cada tile do mosaico declara seu próprio borderRadius (mesmo raio do
+  // `wrap` que os clipa) nos cantos que efetivamente ficam arredondados —
+  // sem isso, o hover/press do TouchableOpacity (que segue o borderRadius do
+  // próprio elemento, não do pai que clipa) sai com cantos retos.
+  single: { width: '100%', height: GALLERY_HEIGHT, borderRadius: 14 },
   row: { flexDirection: 'row', gap: 3, height: GALLERY_HEIGHT },
   half: { flex: 1 },
+  halfLeft: { flex: 1, borderTopLeftRadius: 14, borderBottomLeftRadius: 14 },
+  halfRight: { flex: 1, borderTopRightRadius: 14, borderBottomRightRadius: 14 },
   stack: { gap: 3 },
-  stackTile: { flex: 1 },
+  stackTopTile: { flex: 1, borderTopRightRadius: 14 },
+  stackBottomTile: { flex: 1, borderBottomRightRadius: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, height: GALLERY_HEIGHT * 1.4 },
-  quarter: { width: '49.3%', height: '49.3%' },
+  quarterTopLeft: { width: '49.3%', height: '49.3%', borderTopLeftRadius: 14 },
+  quarterTopRight: { width: '49.3%', height: '49.3%', borderTopRightRadius: 14 },
+  quarterBottomLeft: { width: '49.3%', height: '49.3%', borderBottomLeftRadius: 14 },
+  quarterBottomRight: { width: '49.3%', height: '49.3%', borderBottomRightRadius: 14 },
   overlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -113,3 +123,12 @@ const styles = StyleSheet.create({
   },
   overlayText: { color: '#fff', fontSize: 20, fontWeight: '800' },
 });
+
+// Posição de cada tile no grid 2×2 (4+ mídias) → canto que deve ficar
+// arredondado, na mesma ordem em que `visible` é mapeado.
+const QUARTER_STYLES = [
+  styles.quarterTopLeft,
+  styles.quarterTopRight,
+  styles.quarterBottomLeft,
+  styles.quarterBottomRight,
+];

@@ -119,7 +119,7 @@ export default function NeighborhoodMapPickerModal({
             {value.map((name, idx) => (
               <View key={`${name}-${idx}`} style={styles.chip}>
                 <Text style={styles.chipText} numberOfLines={1}>{name}</Text>
-                <TouchableOpacity onPress={() => removeChip(idx)} hitSlop={8}>
+                <TouchableOpacity style={styles.chipRemoveBtn} onPress={() => removeChip(idx)} hitSlop={8}>
                   <Ionicons name="close" size={14} color={Colors.primary} />
                 </TouchableOpacity>
               </View>
@@ -256,6 +256,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
+  chipRemoveBtn: { borderRadius: 999 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -191,6 +191,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     height: 90,
     position: 'relative',
     overflow: 'hidden',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   mapOverlay: {
     position: 'absolute',

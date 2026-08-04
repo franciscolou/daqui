@@ -56,3 +56,36 @@ export async function getOrCreateAdViewerId(): Promise<string> {
   await setItem(AD_VIEWER_ID_KEY, id);
   return id;
 }
+
+const AD_ADVERTISER_INFO_KEY = 'daqui.adAdvertiserInfo';
+
+export interface SavedAdvertiserInfo {
+  type: 'individual' | 'company';
+  name: string;
+  document: string;
+  email: string;
+  phone: string;
+}
+
+/**
+ * Dados de Pessoa Física/Jurídica lembrados no dispositivo para
+ * pré-preencher o formulário de novas campanhas de anúncio — opt-in via
+ * checkbox em `advertise/checkout.tsx`, nunca enviado a nenhum backend.
+ */
+export async function getSavedAdvertiserInfo(): Promise<SavedAdvertiserInfo | null> {
+  const raw = await getItem(AD_ADVERTISER_INFO_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as SavedAdvertiserInfo;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveAdvertiserInfo(info: SavedAdvertiserInfo): Promise<void> {
+  await setItem(AD_ADVERTISER_INFO_KEY, JSON.stringify(info));
+}
+
+export async function clearSavedAdvertiserInfo(): Promise<void> {
+  await removeItem(AD_ADVERTISER_INFO_KEY);
+}

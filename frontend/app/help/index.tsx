@@ -412,6 +412,7 @@ function TicketsSection() {
                       {t.attachments.map((a, i) => (
                         <TouchableOpacity
                           key={a.url}
+                          style={styles.ticketAttachmentThumbBtn}
                           onPress={() => setViewer({ media: t.attachments, index: i })}
                           activeOpacity={0.85}
                         >
@@ -633,6 +634,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   statusAnsweredText: { color: Colors.primary },
   ticketMessage: { fontSize: 13, color: Colors.textSecondary, lineHeight: 19, marginTop: 4 },
   ticketAttachmentsRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  ticketAttachmentThumbBtn: { borderRadius: 10 },
   ticketAttachmentThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: Colors.border },
   ticketAttachmentVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E293B' },
   responseBox: {
