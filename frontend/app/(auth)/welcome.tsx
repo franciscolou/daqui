@@ -144,7 +144,11 @@ type Panel = 'welcome' | 'login' | 'signup';
 export default function WelcomeScreen() {
   const { width, height } = useWindowDimensions();
   const isWide = width >= 900;
-  const isShort = height < 720;
+  // Notebooks costumam ter 720–800px de altura útil depois das barras do
+  // navegador/SO. Nessa faixa o hero desktop precisa ficar mais compacto
+  // para o cartão continuar inteiro, sem alterar a composição espaçosa de
+  // monitores altos.
+  const isCompactDesktop = isWide && height < 840;
   const reducedMotion = useReducedMotion();
   // Largura real do painel esquerdo (medida, não estimada) — usada só pra
   // calcular o quanto o slide() precisa deslocar pra sair de tela por
@@ -271,8 +275,8 @@ export default function WelcomeScreen() {
   }, [panel, reducedMotion, boxExpand]);
 
   const glassBoxStyle = useAnimatedStyle(() => {
-    const inset = interpolate(boxExpand.value, [0, 1], [44, 0], Extrapolation.CLAMP);
-    const radius = interpolate(boxExpand.value, [0, 1], [28, 0], Extrapolation.CLAMP);
+    const inset = interpolate(boxExpand.value, [0, 1], [isCompactDesktop ? 32 : 44, 0], Extrapolation.CLAMP);
+    const radius = interpolate(boxExpand.value, [0, 1], [isCompactDesktop ? 24 : 28, 0], Extrapolation.CLAMP);
     const shadowOpacity = interpolate(boxExpand.value, [0, 1], [0.22, 0], Extrapolation.CLAMP);
     const shadowOffset = interpolate(boxExpand.value, [0, 1], [20, 0], Extrapolation.CLAMP);
     const shadowBlur = interpolate(boxExpand.value, [0, 1], [48, 0], Extrapolation.CLAMP);
@@ -301,7 +305,7 @@ export default function WelcomeScreen() {
     // corta este filho na forma arredondada de qualquer jeito, mas sem o
     // raio aqui o traço da borda fica com cantos quadrados por baixo do
     // corte, em vez de acompanhar a curva.
-    borderRadius: interpolate(boxExpand.value, [0, 1], [28, 0], Extrapolation.CLAMP),
+    borderRadius: interpolate(boxExpand.value, [0, 1], [isCompactDesktop ? 24 : 28, 0], Extrapolation.CLAMP),
     borderColor: interpolateColor(boxExpand.value, [0, 1], ['rgba(255,255,255,0.32)', 'rgba(255,255,255,0)']),
   }));
   const edgeVeilAnimStyle = useAnimatedStyle(() => ({ opacity: boxExpand.value }));
@@ -401,25 +405,25 @@ export default function WelcomeScreen() {
   const renderHero = () => (
     <ScrollView
       style={styles.leftScroll}
-      contentContainerStyle={[styles.leftContent, isShort && styles.leftContentShort]}
+      contentContainerStyle={[styles.leftContent, isCompactDesktop && styles.leftContentCompact]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.logoRow}>
-        <View style={styles.logoIcon}>
-          <DaquiMark size={52} color="#fff" />
+      <View style={[styles.logoRow, isCompactDesktop && styles.logoRowCompact]}>
+        <View style={[styles.logoIcon, isCompactDesktop && styles.logoIconCompact]}>
+          <DaquiMark size={isCompactDesktop ? 42 : 52} color="#fff" />
         </View>
-        <Animated.Text style={[styles.logoText, heroLogoTextStyle]}>daqui</Animated.Text>
+        <Animated.Text style={[styles.logoText, isCompactDesktop && styles.logoTextCompact, heroLogoTextStyle]}>daqui</Animated.Text>
       </View>
 
-      <Animated.Text style={[styles.headline, heroHeadlineStyle]}>O seu bairro na palma da mão</Animated.Text>
-      <Animated.Text style={[styles.subline, heroSublineStyle]}>
+      <Animated.Text style={[styles.headline, isCompactDesktop && styles.headlineCompact, heroHeadlineStyle]}>O seu bairro na palma da mão</Animated.Text>
+      <Animated.Text style={[styles.subline, isCompactDesktop && styles.sublineCompact, heroSublineStyle]}>
         Entre numa rede de vizinhos que se ajudam, compartilham e cuidam do bairro juntos.
       </Animated.Text>
 
-      <View style={styles.featuresList}>
+      <View style={[styles.featuresList, isCompactDesktop && styles.featuresListCompact]}>
         {FEATURES.map((f) => (
-          <View key={f.icon} style={styles.featureRow}>
-            <Animated.View style={[styles.featureIcon, heroFeatureIconBgStyle]}>
+          <View key={f.icon} style={[styles.featureRow, isCompactDesktop && styles.featureRowCompact]}>
+            <Animated.View style={[styles.featureIcon, isCompactDesktop && styles.featureIconCompact, heroFeatureIconBgStyle]}>
               <Animated.View style={[styles.featureIconGlyph, heroFeatureIconLightStyle]}>
                 <Ionicons name={f.icon} size={18} color="#fff" />
               </Animated.View>
@@ -427,17 +431,17 @@ export default function WelcomeScreen() {
                 <Ionicons name={f.icon} size={18} color={Colors.primaryDark} />
               </Animated.View>
             </Animated.View>
-            <Animated.Text style={[styles.featureText, heroFeatureTextStyle]}>{f.label}</Animated.Text>
+            <Animated.Text style={[styles.featureText, isCompactDesktop && styles.featureTextCompact, heroFeatureTextStyle]}>{f.label}</Animated.Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.ctaArea}>
-        <CtaButton kind="heroPrimary" label="Começar agora" icon="arrow-forward" onPress={() => isWide ? goTo('signup') : router.push('/(auth)/signup')} />
+      <View style={[styles.ctaArea, isCompactDesktop && styles.ctaAreaCompact]}>
+        <CtaButton kind="heroPrimary" label="Começar agora" icon="arrow-forward" extraStyle={isCompactDesktop ? styles.ctaHeroCompact : undefined} onPress={() => isWide ? goTo('signup') : router.push('/(auth)/signup')} />
         <CtaButton
           kind="heroSecondary" label="Já tenho conta" icon="arrow-forward" showIcon={false}
           onPress={() => isWide ? goTo('login') : router.push('/(auth)/login')}
-          extraStyle={heroSecondaryBtnStyle} labelStyle={heroSecondaryBtnTextStyle} hoverStyle={heroSecondaryHoverStyle}
+          extraStyle={[heroSecondaryBtnStyle, isCompactDesktop && styles.ctaHeroCompact]} labelStyle={heroSecondaryBtnTextStyle} hoverStyle={heroSecondaryHoverStyle}
         />
       </View>
 
@@ -631,16 +635,16 @@ export default function WelcomeScreen() {
   const renderSignup = (step = signupStep) => (
     <ScrollView
       style={styles.leftScroll}
-      contentContainerStyle={[styles.leftContent, styles.formContent]}
+      contentContainerStyle={[styles.leftContent, styles.formContent, isCompactDesktop && styles.signupContentCompact]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <TouchableOpacity style={styles.backBtn} onPress={goBack}>
+      <TouchableOpacity style={[styles.backBtn, isCompactDesktop && styles.backBtnCompact]} onPress={goBack}>
         <Ionicons name="arrow-back" size={18} color={FORM_TEXT} />
       </TouchableOpacity>
 
       {/* Step indicator */}
-      <View style={styles.stepRow}>
+      <View style={[styles.stepRow, isCompactDesktop && styles.stepRowCompact]}>
         {SIGNUP_STEPS.map((s, i) => (
           <View key={s} style={styles.stepItem}>
             <View style={[styles.stepDot, i <= step && styles.stepDotActive, i < step && styles.stepDotDone]}>
@@ -657,8 +661,8 @@ export default function WelcomeScreen() {
         ))}
       </View>
 
-      <View style={styles.formHeader}>
-        <Text style={styles.formTitle}>
+      <View style={[styles.formHeader, isCompactDesktop && styles.formHeaderCompact]}>
+        <Text style={[styles.formTitle, isCompactDesktop && styles.formTitleCompact]}>
           {step === 0 ? 'Crie sua conta' : step === 1 ? 'Confirme seu e-mail' : 'Tudo certo!'}
         </Text>
         <Text style={styles.formSubtitle}>
@@ -670,16 +674,16 @@ export default function WelcomeScreen() {
 
       {step === 0 && (
         <>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nome completo</Text>
-            <View style={styles.inputWrapper}>
+          <View style={[styles.inputGroup, isCompactDesktop && styles.inputGroupCompact]}>
+            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>Nome completo</Text>
+            <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="person-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput style={styles.input} placeholder="Seu nome" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.name} onChangeText={signupFlow.setName} autoCapitalize="words" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
             </View>
           </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nome de usuário</Text>
-            <View style={styles.inputWrapper}>
+          <View style={[styles.inputGroup, isCompactDesktop && styles.inputGroupCompact]}>
+            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>Nome de usuário</Text>
+            <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="at-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput style={styles.input} placeholder="seu.usuario" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.username} onChangeText={(v) => signupFlow.setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))} autoCapitalize="none" autoCorrect={false} maxLength={18} onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
               <AvailabilityIcon state={signupFlow.usernameCheck} />
@@ -688,9 +692,9 @@ export default function WelcomeScreen() {
               <Text style={styles.fieldError}>{signupFlow.usernameCheck.error}</Text>
             )}
           </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>E-mail</Text>
-            <View style={styles.inputWrapper}>
+          <View style={[styles.inputGroup, isCompactDesktop && styles.inputGroupCompact]}>
+            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>E-mail</Text>
+            <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="mail-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.email} onChangeText={signupFlow.setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
               <AvailabilityIcon state={signupFlow.emailCheck} />
@@ -699,9 +703,9 @@ export default function WelcomeScreen() {
               <Text style={styles.fieldError}>{signupFlow.emailCheck.error}</Text>
             )}
           </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Senha</Text>
-            <View style={styles.inputWrapper}>
+          <View style={[styles.inputGroup, isCompactDesktop && styles.inputGroupCompact]}>
+            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>Senha</Text>
+            <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="lock-closed-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.password} onChangeText={signupFlow.setPassword} secureTextEntry onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
             </View>
@@ -775,7 +779,7 @@ export default function WelcomeScreen() {
           : () => router.replace('/(tabs)');
         return (
           <TouchableOpacity
-            style={[styles.btnPrimary, { marginTop: 16 }, busy && { opacity: 0.7 }]}
+            style={[styles.btnPrimary, isCompactDesktop && styles.btnPrimaryCompact, { marginTop: isCompactDesktop ? 12 : 16 }, busy && { opacity: 0.7 }]}
             onPress={onPress}
             activeOpacity={0.88}
             disabled={busy}
@@ -793,7 +797,7 @@ export default function WelcomeScreen() {
       })()}
 
       {step === 0 && (
-        <View style={styles.switchRow}>
+        <View style={[styles.switchRow, isCompactDesktop && styles.switchRowCompact]}>
           <Text style={styles.switchText}>Já tem conta? </Text>
           <TouchableOpacity onPress={() => goTo('login')}>
             <Text style={styles.switchLink}>Entrar</Text>
@@ -808,6 +812,8 @@ export default function WelcomeScreen() {
   // desktop abaixo), cobrindo os dois lados sem costura — antes cada
   // painel tinha o seu próprio gradiente, então a área por trás do cartão
   // flutuante (ver glassBox) ficaria branca em vez de continuar o mapa.
+  const artHeadlineY = isCompactDesktop ? 42 : SCAPE_ANCHORS.headline.y;
+  const avatarClusterY = isCompactDesktop ? 63 : SCAPE_ANCHORS.avatarCluster.y;
   const renderArt = () => (
     <View style={styles.rightPanel} ref={rightPanelRef}>
 
@@ -820,21 +826,31 @@ export default function WelcomeScreen() {
         </Animated.View>
       </Animated.View>
 
-      <View style={[styles.artHeadline, { top: `${SCAPE_ANCHORS.headline.y}%` }]}>
+      <View style={[
+        styles.artHeadline,
+        isCompactDesktop && styles.artHeadlineCompact,
+        { top: `${artHeadlineY}%`, height: `${avatarClusterY - artHeadlineY}%` },
+      ]}>
         <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(700)}>
-          <Text style={styles.artWord}>
+          <Text style={[styles.artWord, isCompactDesktop && styles.artWordCompact]}>
             Seu bairro <Text style={styles.artWordAccent}>ganha vida.</Text>
           </Text>
         </Animated.View>
-        <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(700)}>
-          <Text style={styles.artSubline}>
+        <Animated.View
+          style={styles.artSublineSlot}
+          entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(700)}
+        >
+          <Text style={[styles.artSubline, isCompactDesktop && styles.artSublineCompact]}>
             Descubra um novo horizonte para a vivência em comunidade e acompanhe as notícias das redondezas em tempo real.
           </Text>
         </Animated.View>
       </View>
 
       {communityStats && (
-        <View style={[styles.avatarClusterWrap, { top: `${SCAPE_ANCHORS.avatarCluster.y}%` }]}>
+        <View style={[
+          styles.avatarClusterWrap,
+          { top: `${avatarClusterY}%` },
+        ]}>
           <Animated.View
             style={styles.avatarCluster}
             entering={reducedMotion ? undefined : FadeInDown.delay(360).duration(700)}
@@ -867,8 +883,8 @@ export default function WelcomeScreen() {
             ]}
             entering={reducedMotion ? undefined : FadeInDown.delay(560 + i * 150).duration(650)}
           >
-            <BlurView intensity={36} tint="dark" style={styles.floatCard}>
-              <View style={[styles.floatCardIcon, { backgroundColor: `${c.color}2A` }]}>
+            <BlurView intensity={36} tint="dark" style={[styles.floatCard, isCompactDesktop && styles.floatCardCompact]}>
+              <View style={[styles.floatCardIcon, isCompactDesktop && styles.floatCardIconCompact, { backgroundColor: `${c.color}2A` }]}>
                 <Ionicons name={c.icon} size={15} color={c.color} />
               </View>
               <View style={styles.floatCardBody}>
@@ -1054,30 +1070,42 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     alignSelf: 'center',
   },
-  leftContentShort: { paddingVertical: 32 },
+  leftContentCompact: { paddingHorizontal: 36, paddingVertical: 28 },
   // Antes ficava ancorado no topo (justifyContent:'flex-start') — deixava
   // login/cadastro parecendo menores e "mais pra cima" que o welcome, que
   // centraliza verticalmente. Herda o center do leftContent pra ocupar o
   // mesmo espaço visual.
   formContent: { paddingTop: 4 },
+  signupContentCompact: { paddingHorizontal: 36, paddingBottom: 24 },
 
   // Hero
   logoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 48 },
+  logoRowCompact: { gap: 13, marginBottom: 24 },
   logoIcon: { width: 84, height: 84, borderRadius: 23, backgroundColor: Colors.primaryDark, alignItems: 'center', justifyContent: 'center' },
+  logoIconCompact: { width: 66, height: 66, borderRadius: 19 },
   logoText: { fontSize: 42, fontWeight: '800', color: Colors.text, letterSpacing: -1, fontFamily: BRAND_FONT },
+  logoTextCompact: { fontSize: 36 },
   headline: { fontSize: 42, fontWeight: '800', color: Colors.text, letterSpacing: -1, lineHeight: 49, marginBottom: 16 },
+  headlineCompact: { fontSize: 34, lineHeight: 39, marginBottom: 10 },
   subline: { fontSize: 16.5, color: Colors.textSecondary, lineHeight: 26, marginBottom: 38, maxWidth: 360 },
+  sublineCompact: { fontSize: 15, lineHeight: 21, marginBottom: 22 },
 
   featuresList: { gap: 22, marginBottom: 40 },
+  featuresListCompact: { gap: 10, marginBottom: 22 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  featureRowCompact: { gap: 11 },
   featureIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.primaryFaint, alignItems: 'center', justifyContent: 'center' },
+  featureIconCompact: { width: 32, height: 32, borderRadius: 10 },
   // Empilha os dois ícones (claro/escuro) exatamente um sobre o outro pra
   // o crossfade de opacidade não deslocar nada.
   featureIconGlyph: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   featureText: { fontSize: 15.5, color: Colors.text, fontWeight: '700' },
+  featureTextCompact: { fontSize: 14.5 },
 
   // CTAs do hero/mobile (só "Começar agora" / "Já tenho conta")
   ctaArea: { gap: 10, marginBottom: 22 },
+  ctaAreaCompact: { gap: 8, marginBottom: 14 },
+  ctaHeroCompact: { height: 46 },
   ctaHeroPrimary: {
     backgroundColor: Colors.primaryDark, borderRadius: 14, height: 54,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -1113,15 +1141,22 @@ const styles = StyleSheet.create({
   // usam a paleta clara FORM_* em vez das cores escuras-sobre-branco padrão
   // do resto do app.
   btnPrimary: { backgroundColor: Colors.primaryDark, borderRadius: 14, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...Colors.shadow.md },
+  btnPrimaryCompact: { paddingVertical: 13 },
   btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   backBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
+  backBtnCompact: { width: 34, height: 34, marginBottom: 14 },
   formHeader: { marginBottom: 28 },
+  formHeaderCompact: { marginBottom: 18 },
   formTitle: { fontSize: 28, fontWeight: '800', color: FORM_TEXT, letterSpacing: -0.5, marginBottom: 4 },
+  formTitleCompact: { fontSize: 25 },
   formSubtitle: { fontSize: 14, color: FORM_TEXT_SECONDARY },
   inputGroup: { marginBottom: 16 },
+  inputGroupCompact: { marginBottom: 10 },
   label: { fontSize: 13, fontWeight: '600', color: FORM_TEXT, marginBottom: 7 },
+  labelCompact: { marginBottom: 5 },
   fieldError: { fontSize: 12, color: FORM_ERROR_TEXT, marginTop: 6, fontWeight: '500' },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 13, height: 50 },
+  inputWrapperCompact: { height: 46 },
   inputIcon: { marginRight: 9 },
   input: { flex: 1, fontSize: 15, color: FORM_TEXT },
   inputFlex: { flex: 1, fontSize: 15, color: FORM_TEXT },
@@ -1135,11 +1170,13 @@ const styles = StyleSheet.create({
   socialBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 12, paddingVertical: 13, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.2)' },
   socialText: { fontSize: 14, fontWeight: '600', color: FORM_TEXT },
   switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
+  switchRowCompact: { marginTop: 12 },
   switchText: { fontSize: 14, color: FORM_TEXT_SECONDARY },
   switchLink: { fontSize: 14, color: FORM_ACCENT, fontWeight: '700' },
 
   // Signup steps
   stepRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+  stepRowCompact: { marginBottom: 16 },
   stepItem: { flexDirection: 'row', alignItems: 'center' },
   stepDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.22)' },
   stepDotActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
@@ -1163,13 +1200,17 @@ const styles = StyleSheet.create({
   rightPanel: { flex: 13, overflow: 'hidden', position: 'relative' },
 
   artHeadline: { position: 'absolute', left: '8%', right: '8%', alignItems: 'center' },
+  artHeadlineCompact: { left: '10%', right: '10%' },
   artWord: { fontSize: 46, fontWeight: '800', color: 'rgba(255,255,255,0.96)', letterSpacing: -1.2, textAlign: 'center', lineHeight: 54 },
+  artWordCompact: { fontSize: 40, lineHeight: 46 },
   artWordAccent: { color: '#4ADE80' },
+  artSublineSlot: { flex: 1, justifyContent: 'center', width: '100%' },
   artSubline: {
     fontSize: 15, fontWeight: '500', color: 'rgba(255,255,255,0.72)',
-    textAlign: 'center', lineHeight: 22, marginTop: 30,
+    textAlign: 'center', lineHeight: 22,
     maxWidth: 460, alignSelf: 'center',
   },
+  artSublineCompact: { fontSize: 14, lineHeight: 20, maxWidth: 430 },
 
   avatarClusterWrap: { position: 'absolute', left: '8%', right: '8%', alignItems: 'center' },
   avatarCluster: { flexDirection: 'row', alignItems: 'center' },
@@ -1184,7 +1225,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 15, overflow: 'hidden',
     backgroundColor: 'rgba(10,30,20,0.30)',
   },
+  floatCardCompact: { gap: 10, paddingVertical: 10, paddingHorizontal: 13 },
   floatCardIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  floatCardIconCompact: { width: 30, height: 30, borderRadius: 9 },
   floatCardBody: { flexShrink: 1 },
   floatCardLabel: { fontSize: 10.5, fontWeight: '700', color: 'rgba(255,255,255,0.62)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 },
   floatCardText: { fontSize: 14, color: '#fff', fontWeight: '500' },
