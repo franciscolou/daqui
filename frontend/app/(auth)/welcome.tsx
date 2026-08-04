@@ -271,7 +271,7 @@ export default function WelcomeScreen() {
   }, [panel, reducedMotion, boxExpand]);
 
   const glassBoxStyle = useAnimatedStyle(() => {
-    const inset = interpolate(boxExpand.value, [0, 1], [56, 0], Extrapolation.CLAMP);
+    const inset = interpolate(boxExpand.value, [0, 1], [44, 0], Extrapolation.CLAMP);
     const radius = interpolate(boxExpand.value, [0, 1], [28, 0], Extrapolation.CLAMP);
     const shadowOpacity = interpolate(boxExpand.value, [0, 1], [0.22, 0], Extrapolation.CLAMP);
     const shadowOffset = interpolate(boxExpand.value, [0, 1], [20, 0], Extrapolation.CLAMP);
@@ -1100,7 +1100,12 @@ const styles = StyleSheet.create({
 
   authErrorBox: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(239,68,68,0.16)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.35)', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 12 },
   authErrorText: { flex: 1, fontSize: 13, color: FORM_ERROR_TEXT, fontWeight: '500' },
-  terms: { textAlign: 'center', color: Colors.textTertiary, fontSize: 12, lineHeight: 18 },
+  // Quebra a margem horizontal do leftContent (40px) só nesta linha — o
+  // texto dos termos é o único conteúdo do hero largo o bastante pra
+  // precisar da caixa inteira do glassBox pra caber numa linha só; os
+  // demais elementos (headline, botões, etc.) continuam com o respiro
+  // padrão do leftContent.
+  terms: { textAlign: 'center', color: Colors.textTertiary, fontSize: 12, lineHeight: 18, marginHorizontal: -40 },
   termsLink: { color: Colors.textSecondary, textDecorationLine: 'underline' },
 
   // Formulários (login/cadastro) — o glassBox permanece em vidro escuro
