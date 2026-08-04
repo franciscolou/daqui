@@ -265,10 +265,6 @@ export default function LoginScreen() {
                 onIdToken={handleGoogleToken}
                 onError={setGoogleError}
               />
-              <TouchableOpacity style={styles.socialBtn}>
-                <Ionicons name="logo-facebook" size={20} color="#1877F2" />
-                <Text style={styles.socialText}>Facebook</Text>
-              </TouchableOpacity>
             </View>
 
             <View style={styles.altRow}>

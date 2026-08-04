@@ -5,9 +5,9 @@ import { LayoutChangeEvent, StyleProp, View, ViewStyle } from 'react-native';
 // tem suporte a web no plano gratuito (ver node_modules, GoogleSignin.web.ts
 // só loga "not implemented"). Aqui falamos direto com o Google Identity
 // Services (GIS), carregado sob demanda via <script>, e renderizamos o botão
-// OFICIAL do Google — GIS não permite customizar o botão pra dar match visual
-// com o companheiro "Facebook" ao lado (ver login.tsx/welcome.tsx); é o preço
-// de usar o fluxo suportado (clique precisa ser no elemento deles).
+// OFICIAL do Google — GIS não permite customizar o botão, então o visual
+// difere do resto do formulário; é o preço de usar o fluxo suportado
+// (clique precisa ser no elemento deles).
 
 declare global {
   interface Window {
