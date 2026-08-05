@@ -97,7 +97,7 @@ PLANS = [
     dict(
         name="Vizinhança",
         slug="local-vizinhanca",
-        description="Apareça pra quem passa todo dia perto do seu comércio — post no feed com pin no mapa do seu bairro.",
+        description="Apareça para quem passa todo dia perto do seu comércio — post no feed com pin no mapa do seu bairro.",
         price_cents=_plan_price([AdFormat.POST, AdFormat.MAP], 7, GeoScope.NEIGHBORHOOD, max_neighborhoods=1),
         duration_days=7,
         formats=[AdFormat.POST, AdFormat.MAP],
