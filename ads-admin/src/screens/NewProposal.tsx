@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import NeighborhoodPicker from '@daqui/components/NeighborhoodPicker';
 import CityPicker from '@daqui/components/CityPicker';
+import AdAdvancedSelectors from '@daqui/components/AdAdvancedSelectors';
 import { api, errorMessage } from '../lib/api';
 import { APP_URL } from '../lib/config';
-import { fmtMoney, maskDocument, parseCsvNumbers, parseCsvStrings } from '../lib/format';
+import { fmtMoney, maskDocument, parseCsvNumbers } from '../lib/format';
 import { ALL_FORMATS, FORMAT_LABEL, GEO_SCOPES, GeoScope, OBJECTIVE_LABEL } from '../lib/labels';
 import { CheckPill, CollapseSection, CopyButton, Field } from '../ui/primitives';
 
@@ -23,11 +24,11 @@ interface AdvancedState {
   recency: string;
   includeNearby: boolean;
   engagementActive: boolean;
-  categories: string;
+  categories: string[];
   groupIds: string;
-  hours: string;
-  daysOfWeek: string;
-  specialDates: string;
+  hours: number[] | null;
+  daysOfWeek: number[] | null;
+  specialDates: string[];
 }
 
 const INITIAL_ADVANCED: AdvancedState = {
@@ -39,11 +40,11 @@ const INITIAL_ADVANCED: AdvancedState = {
   recency: 'all',
   includeNearby: false,
   engagementActive: false,
-  categories: '',
+  categories: [],
   groupIds: '',
-  hours: '',
-  daysOfWeek: '',
-  specialDates: '',
+  hours: null,
+  daysOfWeek: null,
+  specialDates: [],
 };
 
 export function NewProposal() {
@@ -106,15 +107,15 @@ export function NewProposal() {
         cities: scopedCities,
         include_nearby: advanced.includeNearby,
         audience: advanced.audience,
-        categories: parseCsvStrings(advanced.categories),
+        categories: advanced.categories,
         group_ids: parseCsvNumbers(advanced.groupIds),
         user_recency: advanced.recency,
         engagement: advanced.engagementActive ? 'active' : 'any',
       },
       schedule: {
-        hours: advanced.hours.trim() ? parseCsvNumbers(advanced.hours) : null,
-        days_of_week: advanced.daysOfWeek.trim() ? parseCsvNumbers(advanced.daysOfWeek) : null,
-        special_dates: parseCsvStrings(advanced.specialDates),
+        hours: advanced.hours,
+        days_of_week: advanced.daysOfWeek,
+        special_dates: advanced.specialDates,
       },
     };
   }, [
@@ -365,39 +366,24 @@ export function NewProposal() {
               Só usuários ativos (engajamento)
             </CheckPill>
           </div>
-          <Field label="Categorias de post (opcional, separadas por vírgula)">
-            <input
-              placeholder="evento, venda"
-              value={advanced.categories}
-              onChange={(e) => setAdv('categories', e.target.value)}
-            />
-          </Field>
+          <div className="daqui-field">
+            <View>
+              <AdAdvancedSelectors
+                value={{
+                  categories: advanced.categories,
+                  hours: advanced.hours,
+                  daysOfWeek: advanced.daysOfWeek,
+                  specialDates: advanced.specialDates,
+                }}
+                onChange={(next) => setAdvanced((prev) => ({ ...prev, ...next }))}
+              />
+            </View>
+          </div>
           <Field label="Grupos alvo (IDs separados por vírgula, opcional)">
             <input
               placeholder="1, 4"
               value={advanced.groupIds}
               onChange={(e) => setAdv('groupIds', e.target.value)}
-            />
-          </Field>
-          <Field label="Agenda: horários (0-23, separados por vírgula; vazio = qualquer hora)">
-            <input
-              placeholder="18, 19, 20, 21"
-              value={advanced.hours}
-              onChange={(e) => setAdv('hours', e.target.value)}
-            />
-          </Field>
-          <Field label="Agenda: dias da semana (0=seg...6=dom; vazio = qualquer dia)">
-            <input
-              placeholder="5, 6"
-              value={advanced.daysOfWeek}
-              onChange={(e) => setAdv('daysOfWeek', e.target.value)}
-            />
-          </Field>
-          <Field label="Datas especiais (opcional, YYYY-MM-DD separadas por vírgula)">
-            <input
-              placeholder="2026-12-25"
-              value={advanced.specialDates}
-              onChange={(e) => setAdv('specialDates', e.target.value)}
             />
           </Field>
         </CollapseSection>

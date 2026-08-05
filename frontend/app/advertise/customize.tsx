@@ -15,6 +15,7 @@ import { adsApi, AdFormat, AdObjective, GeoScope, PriceFactor } from '../../lib/
 import NeighborhoodPicker from '../../components/NeighborhoodPicker';
 import CityPicker from '../../components/CityPicker';
 import InfoTooltip from '../../components/InfoTooltip';
+import AdAdvancedSelectors from '../../components/AdAdvancedSelectors';
 
 const FORMATS: { key: AdFormat; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'post', label: 'Post no feed', desc: 'Card no meio do feed do bairro, como um post comum.', icon: 'newspaper-outline' },
@@ -406,10 +407,12 @@ export default function CustomizeScreen() {
   const [perUserCap, setPerUserCap] = useState(prefillData?.perUserImpressionCap != null ? String(prefillData.perUserImpressionCap) : '');
   const [includeNearby, setIncludeNearby] = useState(prefillData?.includeNearby ?? false);
   const [audience, setAudience] = useState<'all' | 'residents' | 'visitors'>(prefillData?.audience ?? 'all');
-  const [categoriesText, setCategoriesText] = useState(prefillData?.categories?.join(', ') ?? '');
-  const [hoursText, setHoursText] = useState(prefillData?.hours?.join(', ') ?? '');
-  const [daysOfWeekText, setDaysOfWeekText] = useState(prefillData?.daysOfWeek?.join(', ') ?? '');
-  const [specialDatesText, setSpecialDatesText] = useState(prefillData?.specialDates?.join(', ') ?? '');
+  const [advancedSelectors, setAdvancedSelectors] = useState({
+    categories: prefillData?.categories ?? [],
+    hours: prefillData?.hours ?? null,
+    daysOfWeek: prefillData?.daysOfWeek ?? null,
+    specialDates: prefillData?.specialDates ?? [],
+  });
 
   useEffect(() => {
     if (!params.planId) return;
@@ -429,9 +432,6 @@ export default function CustomizeScreen() {
       }
     }).catch(() => {});
   }, [params.planId]);
-
-  const parseCsvNumbers = (raw: string) => raw.split(',').map((s) => s.trim()).filter(Boolean).map(Number).filter((n) => !Number.isNaN(n));
-  const parseCsvStrings = (raw: string) => raw.split(',').map((s) => s.trim()).filter(Boolean);
 
   const priorityNum = Math.min(5, Math.max(1, parseInt(priority, 10) || 3));
   const rotationWeightNum = parseFloat(rotationWeight) || 1.0;
@@ -467,12 +467,12 @@ export default function CustomizeScreen() {
       targeting: {
         includeNearby,
         audience,
-        categories: parseCsvStrings(categoriesText),
+        categories: advancedSelectors.categories,
       },
       schedule: {
-        hours: hoursText.trim() ? parseCsvNumbers(hoursText) : null,
-        daysOfWeek: daysOfWeekText.trim() ? parseCsvNumbers(daysOfWeekText) : null,
-        specialDates: parseCsvStrings(specialDatesText),
+        hours: advancedSelectors.hours,
+        daysOfWeek: advancedSelectors.daysOfWeek,
+        specialDates: advancedSelectors.specialDates,
       },
     })
       .then((r) => { if (!cancelled) { setPriceCents(r.priceCents); setFactors(r.factors); } })
@@ -481,7 +481,7 @@ export default function CustomizeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     formats.join(','), durationDays, geoScope, neighborhoods.join(','), city, cities.join(','), objective, priorityNum,
-    perUserCapNum, includeNearby, audience, categoriesText, hoursText, daysOfWeekText, specialDatesText,
+    perUserCapNum, includeNearby, audience, advancedSelectors,
     plan,
   ]);
 
@@ -552,12 +552,12 @@ export default function CustomizeScreen() {
         targeting: JSON.stringify({
           includeNearby,
           audience,
-          categories: parseCsvStrings(categoriesText),
+          categories: advancedSelectors.categories,
         }),
         schedule: JSON.stringify({
-          hours: hoursText.trim() ? parseCsvNumbers(hoursText) : null,
-          daysOfWeek: daysOfWeekText.trim() ? parseCsvNumbers(daysOfWeekText) : null,
-          specialDates: parseCsvStrings(specialDatesText),
+          hours: advancedSelectors.hours,
+          daysOfWeek: advancedSelectors.daysOfWeek,
+          specialDates: advancedSelectors.specialDates,
         }),
         prefill: params.prefill ?? '',
         renewedFromToken: params.renewedFromToken ?? '',
@@ -786,17 +786,7 @@ export default function CustomizeScreen() {
               <Switch value={includeNearby} onValueChange={setIncludeNearby} />
             </View>
 
-            <LabelWithInfo text="Categorias de post (opcional)" info={ADVANCED_FIELD_INFO.categories} />
-            <TextInput style={styles.input} value={categoriesText} onChangeText={setCategoriesText} placeholder="evento, venda" placeholderTextColor={Colors.textTertiary} />
-
-            <LabelWithInfo text="Horários (0-23, opcional)" info={ADVANCED_FIELD_INFO.hours} />
-            <TextInput style={styles.input} value={hoursText} onChangeText={setHoursText} placeholder="18, 19, 20, 21" placeholderTextColor={Colors.textTertiary} />
-
-            <LabelWithInfo text="Dias da semana (0=seg...6=dom, opcional)" info={ADVANCED_FIELD_INFO.daysOfWeek} />
-            <TextInput style={styles.input} value={daysOfWeekText} onChangeText={setDaysOfWeekText} placeholder="5, 6" placeholderTextColor={Colors.textTertiary} />
-
-            <LabelWithInfo text="Datas especiais (opcional)" info={ADVANCED_FIELD_INFO.specialDates} />
-            <TextInput style={styles.input} value={specialDatesText} onChangeText={setSpecialDatesText} placeholder="2026-12-25" placeholderTextColor={Colors.textTertiary} />
+            <AdAdvancedSelectors value={advancedSelectors} onChange={setAdvancedSelectors} />
           </View>
         )}
 

@@ -14,7 +14,7 @@ const rnJsxInJs: Plugin = {
   async transform(code, id) {
     if (!id.includes('node_modules')) return null;
     if (!/\.js$/.test(id.split('?')[0])) return null;
-    if (!/(@expo\/vector-icons|react-native-vector-icons|@react-native)/.test(id)) return null;
+    if (!/(@expo\/vector-icons|react-native-|@react-native)/.test(id)) return null;
     const out = await transformWithEsbuild(code, id, { loader: 'jsx', jsx: 'automatic' });
     return { code: out.code, map: out.map as unknown as null };
   },

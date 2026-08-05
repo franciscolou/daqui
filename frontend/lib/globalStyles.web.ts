@@ -119,6 +119,15 @@ if (typeof document !== 'undefined') {
         div[tabindex="0"]:active::after {
           background-color: var(--hover-tint-active, rgba(120, 130, 145, 0.26));
         }
+
+        /* O calendário de segmentação já comunica todos os estados por cor.
+           Remove inclusive o hover do overlay externo, que clarearia a box
+           inteira por causa da regra global acima. */
+        #ad-calendar-no-hover::after,
+        #ad-calendar-no-hover div[tabindex="0"]::after {
+          display: none !important;
+        }
+
       }
     `;
     document.head.appendChild(style);

@@ -157,6 +157,19 @@ h3 {
   background-clip: content-box;
 }
 
+/* O calendário compartilhado usa estados persistentes de seleção; nenhum
+   elemento dentro do modal deve ganhar realce temporário ao passar o mouse. */
+#ad-calendar-no-hover,
+#ad-calendar-no-hover * {
+  --hover-tint: transparent;
+  --hover-tint-active: transparent;
+}
+
+#ad-calendar-no-hover::after,
+#ad-calendar-no-hover div[tabindex='0']::after {
+  display: none !important;
+}
+
 /* ── Tipografia utilitária ── */
 .muted {
   color: var(--text-3);
