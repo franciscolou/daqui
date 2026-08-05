@@ -17,6 +17,11 @@ export interface AdAdvancedSelectorValue {
 interface Props {
   value: AdAdvancedSelectorValue;
   onChange: (value: AdAdvancedSelectorValue) => void;
+  // Janela real da campanha ('YYYY-MM-DD', inclusive dos dois lados) — datas
+  // especiais fora dela nunca coincidem com a campanha ativa (ver
+  // `daos/ad.py::_matches_schedule` no backend) e são recusadas no checkout.
+  minDate: string;
+  maxDate: string;
 }
 
 const POST_CATEGORIES = CATEGORIES.filter((category) => category.key !== 'todos');
@@ -27,7 +32,7 @@ const INFO = {
   categories: 'Só vale para o formato "Post no feed". Selecione os assuntos junto dos quais o anúncio pode aparecer.',
   hours: 'Selecione as horas em que o anúncio pode aparecer. Sem seleção, ele pode ser exibido o dia inteiro.',
   days: 'Selecione os dias em que o anúncio pode aparecer. Sem seleção, ele pode ser exibido todos os dias.',
-  dates: 'Escolha no calendário datas específicas importantes para a campanha, como feriados ou eventos.',
+  dates: 'Ao escolher datas aqui, o anúncio passa a aparecer SÓ nelas — os horários e dias da semana acima deixam de valer. Útil pra concentrar a verba num feriado ou evento específico. Só é possível escolher datas dentro do período da campanha (duração/data de início definidos acima).',
 };
 
 function FieldLabel({
@@ -59,20 +64,28 @@ function toggle<T>(items: T[], item: T): T[] {
   return items.includes(item) ? items.filter((current) => current !== item) : [...items, item];
 }
 
+function formatBrDate(date: string): string {
+  return date.split('-').reverse().join('/');
+}
+
 function CalendarDay({
   date,
   today,
+  minDate,
+  maxDate,
   selected,
   onToggle,
 }: {
   date: DateData;
   today: string;
+  minDate: string;
+  maxDate: string;
   selected: boolean;
   onToggle: (date: string) => void;
 }) {
   const styles = useThemedStyles(makeStyles);
   const [hovered, setHovered] = useState(false);
-  const selectable = date.dateString >= today;
+  const selectable = date.dateString >= minDate && date.dateString <= maxDate;
 
   return (
     <Pressable
@@ -102,7 +115,7 @@ function CalendarDay({
   );
 }
 
-export default function AdAdvancedSelectors({ value, onChange }: Props) {
+export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate }: Props) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -225,11 +238,16 @@ export default function AdAdvancedSelectors({ value, onChange }: Props) {
         <Ionicons name="calendar-outline" size={17} color={Colors.primary} />
         <Text style={styles.calendarButtonText}>Escolher no calendário</Text>
       </TouchableOpacity>
+      <Text style={styles.helper}>
+        {value.specialDates.length
+          ? `O anúncio vai aparecer só nessas datas, dentro do período da campanha (${formatBrDate(minDate)} a ${formatBrDate(maxDate)}).`
+          : `Sem datas escolhidas, o anúncio segue os horários/dias acima durante todo o período da campanha (${formatBrDate(minDate)} a ${formatBrDate(maxDate)}).`}
+      </Text>
       {!!value.specialDates.length && (
         <View style={styles.chips}>
           {value.specialDates.map((date) => (
             <TouchableOpacity key={date} style={styles.dateChip} onPress={() => toggleDate(date)}>
-              <Text style={styles.dateText}>{date.split('-').reverse().join('/')}</Text>
+              <Text style={styles.dateText}>{formatBrDate(date)}</Text>
               <Ionicons name="close" size={14} color={Colors.primary} />
             </TouchableOpacity>
           ))}
@@ -250,8 +268,9 @@ export default function AdAdvancedSelectors({ value, onChange }: Props) {
             </View>
             <ScrollView>
               <Calendar
-                current={today}
-                minDate={today}
+                current={minDate}
+                minDate={minDate}
+                maxDate={maxDate}
                 disableAllTouchEventsForDisabledDays
                 markedDates={markedDates}
                 onDayPress={(day: DateData) => toggleDate(day.dateString)}
@@ -261,6 +280,8 @@ export default function AdAdvancedSelectors({ value, onChange }: Props) {
                     <CalendarDay
                       date={date}
                       today={today}
+                      minDate={minDate}
+                      maxDate={maxDate}
                       selected={value.specialDates.includes(date.dateString)}
                       onToggle={toggleDate}
                     />

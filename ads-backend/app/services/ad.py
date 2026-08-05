@@ -121,22 +121,25 @@ def list_public_plans(db: Session) -> list[AdPlanOut]:
 
 
 def quote(db: Session, payload: QuoteRequest) -> QuoteResponse:
-    if payload.plan_id is not None:
-        result = _plan_quote_breakdown(
-            db, payload.plan_id, payload.duration_days, payload.formats
-        )
-        if result is None:
-            raise HTTPException(status_code=404, detail="Plano não encontrado")
-        return QuoteResponse(
-            price_cents=result["price_cents"],
-            base_cents=result["base_cents"],
-            factors=[
-                PriceFactor(label=label, multiplier=m) for label, m in result["factors"]
-            ],
-        )
     targeting = payload.effective_targeting()
-    _check_targeting(targeting)
     schedule = payload.schedule or ScheduleIn()
+    if payload.plan_id is not None:
+        plan = ad_dao.get_plan(db, payload.plan_id)
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plano não encontrado")
+        if _plan_price_applicable(
+            plan, targeting, schedule, payload.objective, payload.priority,
+            payload.per_user_impression_cap,
+        ):
+            result = _plan_quote_breakdown(db, plan, payload.duration_days, payload.formats)
+            return QuoteResponse(
+                price_cents=result["price_cents"],
+                base_cents=result["base_cents"],
+                factors=[
+                    PriceFactor(label=label, multiplier=m) for label, m in result["factors"]
+                ],
+            )
+    _check_targeting(targeting)
     result = _quote_breakdown(
         db,
         formats=payload.formats,
@@ -161,20 +164,63 @@ def upload_media(base_url: str, file: UploadFile) -> MediaUploadOut:
     return MediaUploadOut(url=url, type=media_type)
 
 
+def _plan_price_applicable(
+    plan,
+    targeting: TargetingIn,
+    schedule: ScheduleIn,
+    objective: AdObjective,
+    priority: int,
+    per_user_impression_cap: int | None,
+) -> bool:
+    """O preço fixo de um plano só cobre o que `ad_pricing.plan_quote` de fato
+    precifica: duração e formatos (que escalam) e o escopo geográfico do
+    plano com QUALQUER bairro/cidade dentro do limite anunciado (que não
+    escala — "até N bairros por R$ X" sempre custa R$ X). Nenhuma outra
+    segmentação/agenda/objetivo/prioridade/limite de frequência entra na
+    conta — então exige todos eles no padrão. Qualquer desvio disso (trocar
+    o escopo geográfico inteiro, passar do limite de bairros/cidades, ligar
+    qualquer configuração avançada) muda o custo real de entrega de um jeito
+    que o preço fixo nunca embutiu; nesse caso o chamador deve cair pra
+    mesma engine dinâmica usada sem plano nenhum (`ad_pricing.quote`), pra
+    que uma configuração final igual sempre custe o mesmo, tenha ela
+    partido de um plano ou não. Bug que isso corrige: antes, qualquer opção
+    escolhida partindo de um plano (inclusive trocar pra "Brasil todo") não
+    mexia nada no preço, então o valor final dependia só de qual plano se
+    usou como ponto de partida — nunca da configuração escolhida de fato."""
+    if targeting.geo_scope != plan.geo_scope:
+        return False
+    if plan.max_neighborhoods is not None and len(targeting.neighborhoods) > plan.max_neighborhoods:
+        return False
+    if plan.max_cities is not None and len(targeting.cities) > plan.max_cities:
+        return False
+    plan_default_targeting = TargetingIn(
+        geo_scope=targeting.geo_scope,
+        neighborhoods=targeting.neighborhoods,
+        city=targeting.city,
+        cities=targeting.cities,
+    )
+    if targeting.model_dump() != plan_default_targeting.model_dump():
+        return False
+    if schedule.model_dump() != ScheduleIn().model_dump():
+        return False
+    if objective != AdObjective.CLICKS or priority != 3 or per_user_impression_cap is not None:
+        return False
+    return True
+
+
 def _plan_quote_breakdown(
-    db: Session, plan_id: int, duration_days: int, formats: list[AdFormat] | None = None
-) -> dict | None:
+    db: Session, plan, duration_days: int, formats: list[AdFormat] | None = None
+) -> dict:
     """Preço de um plano predefinido (já com o multiplicador de mercado,
     igual ao mostrado no card em `list_public_plans`) — NÃO a cotação
     dinâmica completa: a segmentação (bairros, alcance, concorrência…) não
     entra aqui. É o que garante que "até 3 bairros por R$ X" cobre
-    exatamente R$ X mesmo com os 3 bairros preenchidos.
+    exatamente R$ X mesmo com os 3 bairros preenchidos. Só deve ser chamada
+    quando `_plan_price_applicable` confirma que a configuração está dentro
+    da "caixa" que esse preço fixo cobre.
     Quando `duration_days`/`formats` diferem dos do plano, o preço escala via
     `ad_pricing.plan_quote` (sempre menos por dia quanto mais tempo, e
     proporcional às superfícies escolhidas — ver docstring de lá)."""
-    plan = ad_dao.get_plan(db, plan_id)
-    if not plan:
-        return None
     multiplier = settings_dao.get(db).price_multiplier
     result = ad_pricing.plan_quote(
         plan.price_cents,
@@ -191,17 +237,32 @@ def _plan_quote_breakdown(
 
 
 def _plan_locked_price(
-    db: Session, plan_id: int | None, duration_days: int, formats: list[AdFormat]
+    db: Session,
+    plan_id: int | None,
+    duration_days: int,
+    formats: list[AdFormat],
+    targeting: TargetingIn,
+    schedule: ScheduleIn,
+    objective: AdObjective,
+    priority: int,
+    per_user_impression_cap: int | None,
 ) -> int | None:
     """Preço final de uma campanha contratada via plano, pra a duração e os
-    formatos escolhidos — os MESMOS argumentos da cotação (`quote`), pra que
-    o valor cobrado no checkout seja exatamente o que foi mostrado na tela.
-    Sem plano (montagem 100% avulsa), devolve `None` e o preço volta a sair
+    formatos escolhidos — os MESMOS argumentos e a MESMA regra de
+    aplicabilidade (`_plan_price_applicable`) usados na cotação (`quote`),
+    pra que o valor cobrado no checkout seja exatamente o que foi mostrado
+    na tela. Sem plano, ou quando a configuração escolhida saiu da "caixa"
+    que o preço fixo do plano cobre, devolve `None` e o preço volta a sair
     da engine dinâmica."""
     if plan_id is None:
         return None
-    result = _plan_quote_breakdown(db, plan_id, duration_days, formats)
-    return result["price_cents"] if result else None
+    plan = ad_dao.get_plan(db, plan_id)
+    if not plan or not _plan_price_applicable(
+        plan, targeting, schedule, objective, priority, per_user_impression_cap
+    ):
+        return None
+    result = _plan_quote_breakdown(db, plan, duration_days, formats)
+    return result["price_cents"]
 
 
 def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
@@ -209,7 +270,9 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
     _check_targeting(targeting)
     schedule = payload.schedule or ScheduleIn()
     price_cents = _plan_locked_price(
-        db, payload.plan_id, payload.duration_days, payload.formats
+        db, payload.plan_id, payload.duration_days, payload.formats,
+        targeting, schedule, payload.objective, payload.priority,
+        payload.per_user_impression_cap,
     )
     if price_cents is None:
         result = _quote_breakdown(
@@ -470,7 +533,9 @@ def admin_create_manual_campaign(
     price_cents = payload.price_cents
     if price_cents is None:
         price_cents = _plan_locked_price(
-            db, payload.plan_id, payload.duration_days, payload.formats
+            db, payload.plan_id, payload.duration_days, payload.formats,
+            targeting, schedule, payload.objective, payload.priority,
+            payload.per_user_impression_cap,
         )
     if price_cents is None:
         result = _quote_breakdown(

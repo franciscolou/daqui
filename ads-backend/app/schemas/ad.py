@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -48,6 +48,16 @@ class ScheduleIn(BaseModel):
     hours: list[int] | None = None
     days_of_week: list[int] | None = None
     special_dates: list[str] = []
+
+    @field_validator("special_dates")
+    @classmethod
+    def check_special_dates_format(cls, v: list[str]) -> list[str]:
+        for d in v:
+            try:
+                datetime.strptime(d, "%Y-%m-%d")
+            except ValueError as e:
+                raise ValueError(f"Data especial inválida: {d!r} (use AAAA-MM-DD)") from e
+        return v
 
 
 # ── Criativos ────────────────────────────────────────────────────────────
@@ -273,6 +283,28 @@ class CampaignCreateBase(BaseModel):
         if v is not None and v.date() < datetime.now(timezone.utc).date():
             raise ValueError("Data de início não pode ser no passado")
         return v
+
+    @model_validator(mode="after")
+    def check_special_dates_window(self) -> "CampaignCreateBase":
+        # `special_dates`, quando preenchido, SUBSTITUI horário/dia da semana
+        # como filtro de exibição (ver `daos/ad.py::_matches_schedule`) — o
+        # anúncio só roda nos dias escolhidos, nunca fora deles. Uma data fora
+        # do período real da campanha (início escolhido, ou hoje quando
+        # imediato, até início + duração) faz esse dia nunca coincidir com a
+        # janela em que a campanha está ativa: o anunciante paga o prêmio de
+        # sazonalidade por um dia que o anúncio jamais vai exibir.
+        dates = (self.schedule.special_dates if self.schedule else None) or []
+        if not dates:
+            return self
+        start = (self.starts_at or datetime.now(timezone.utc)).date()
+        end = start + timedelta(days=self.duration_days - 1)
+        out_of_range = [d for d in dates if not (start.isoformat() <= d <= end.isoformat())]
+        if out_of_range:
+            raise ValueError(
+                f"Datas especiais fora do período da campanha ({start.isoformat()} a "
+                f"{end.isoformat()}): {', '.join(out_of_range)}"
+            )
+        return self
 
     @model_validator(mode="after")
     def check_document(self) -> "CampaignCreateBase":

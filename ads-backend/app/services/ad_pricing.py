@@ -123,9 +123,23 @@ def competition_multiplier(competing_count: int) -> float:
     return min(1 + 0.1 * competing_count, 1.5)
 
 
-def seasonality_multiplier(schedule: dict) -> float:
-    if schedule.get("special_dates"):
-        return 1.15
+SPECIAL_DATES_MAX_PREMIUM = 0.3
+SPECIAL_DATES_MIN_PREMIUM = 0.05
+
+
+def seasonality_multiplier(schedule: dict, duration_days: int = 1) -> float:
+    """`special_dates`, quando preenchido, SUBSTITUI `hours`/`days_of_week`
+    como filtro de exibição (ver `daos/ad.py::_matches_schedule`) — o
+    anúncio deixa de rodar todo dia da campanha e passa a rodar SÓ nesses
+    dias. Isso é cobrado com um prêmio que escala com o quão concentrada
+    fica a entrega: escolher 1 dia num período de 30 é muito mais exclusivo
+    (e cobra o prêmio máximo) do que escolher 28 desses 30 dias (quase
+    equivalente a não restringir nada, prêmio mínimo). Sem isso, escolher
+    mais ou menos datas especiais não mudava nada no preço."""
+    dates = schedule.get("special_dates") or []
+    if dates:
+        fraction = min(1.0, len(set(dates)) / max(1, duration_days))
+        return SPECIAL_DATES_MIN_PREMIUM + (SPECIAL_DATES_MAX_PREMIUM - SPECIAL_DATES_MIN_PREMIUM) * (1 - fraction) + 1.0
     days = schedule.get("days_of_week")
     if days is not None and set(days) <= {5, 6}:  # só fim de semana
         return 1.1
@@ -224,7 +238,7 @@ def quote(
         *([(BUNDLE_FACTOR_LABEL, bundle_factor)] if bundle_factor < 1 else []),
         ("Alcance", reach_multiplier(targeting)),
         ("Concorrência no período/bairros", competition_multiplier(competing_count)),
-        ("Sazonalidade", seasonality_multiplier(schedule)),
+        ("Sazonalidade", seasonality_multiplier(schedule, duration_days)),
         ("Horário escolhido", daypart_multiplier(schedule)),
         ("Objetivo da campanha", objective_multiplier(objective)),
         ("Prioridade", priority_multiplier(priority)),

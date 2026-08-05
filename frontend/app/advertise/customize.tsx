@@ -61,6 +61,24 @@ const DURATION_SCALE: [number, number][] = [
   [1, MAX_DURATION_DAYS],
 ];
 
+function todayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToDateString(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const next = new Date(y, m - 1, d);
+  next.setDate(next.getDate() + days);
+  const year = next.getFullYear();
+  const month = String(next.getMonth() + 1).padStart(2, '0');
+  const day = String(next.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function durationScalePosToDays(pos: number): number {
   const s = DURATION_SCALE;
   if (pos <= s[0][0]) return s[0][1];
@@ -268,7 +286,7 @@ const ADVANCED_FIELD_INFO = {
   categories: 'Só vale pro formato "Post no feed": marque uma ou mais categorias (como "evento" ou "venda") pra seu anúncio aparecer junto de posts do mesmo assunto, chegando em quem já se interessa por esse tipo de conteúdo.',
   hours: 'Em quais horas do dia (de 0 a 23, sendo 0 a meia-noite) seu anúncio pode ser exibido. Por exemplo, "18, 19, 20" faz ele aparecer só entre 18h e a 20h59. Deixe em branco pra exibir em qualquer horário do dia.',
   daysOfWeek: 'Em quais dias da semana o anúncio pode aparecer, numerando de 0 (segunda-feira) a 6 (domingo). Por exemplo, "5, 6" mostra o anúncio só no sábado e no domingo. Deixe em branco pra exibir todos os dias.',
-  specialDates: 'Datas específicas (no formato AAAA-MM-DD) em que você quer garantir que o anúncio apareça, como um feriado ou uma data comemorativa importante pro seu negócio — por exemplo, "2026-12-25" pro Natal.',
+  specialDates: 'Ao escolher datas aqui, o anúncio passa a aparecer SÓ nelas — os horários e dias da semana acima deixam de valer. Útil pra concentrar a verba num feriado ou evento específico, como o Natal. Só é possível escolher datas dentro do período da campanha (duração/data de início escolhidos acima); escolher menos datas dentro desse período custa mais caro por dia exibido.',
 } as const;
 
 // Linha "Rótulo + i" reaproveitada em todo campo das configurações
@@ -421,6 +439,25 @@ export default function CustomizeScreen() {
     specialDates: prefillData?.specialDates ?? [],
   });
 
+  // Janela real da campanha ('YYYY-MM-DD', inclusive) — as datas especiais
+  // só fazem sentido dentro dela (ver `AdAdvancedSelectors`/backend
+  // `check_special_dates_window`): fora da janela, a data escolhida nunca
+  // coincide com o período em que a campanha está de fato ativa.
+  const campaignStart = useMemo(() => startsAt ?? todayDateString(), [startsAt]);
+  const campaignEnd = useMemo(() => addDaysToDateString(campaignStart, durationDays - 1), [campaignStart, durationDays]);
+
+  // Se a duração/data de início mudar depois de já ter datas especiais
+  // escolhidas, remove as que ficaram fora da nova janela em vez de deixar
+  // o anunciante pagar o prêmio de sazonalidade por um dia que o anúncio
+  // nunca vai exibir.
+  useEffect(() => {
+    setAdvancedSelectors((prev) => {
+      if (!prev.specialDates.length) return prev;
+      const filtered = prev.specialDates.filter((d) => d >= campaignStart && d <= campaignEnd);
+      return filtered.length === prev.specialDates.length ? prev : { ...prev, specialDates: filtered };
+    });
+  }, [campaignStart, campaignEnd]);
+
   useEffect(() => {
     if (!params.planId) return;
     adsApi.getAdPlans().then((plans) => {
@@ -525,6 +562,16 @@ export default function CustomizeScreen() {
   };
 
   const canContinue = formats.length > 0 && hasGeoTarget && priceCents != null;
+
+  // O backend só trava o preço no valor fixo do plano enquanto a
+  // configuração continua dentro da "caixa" que esse preço cobre (mesmo
+  // escopo geográfico do plano, sem segmentação/agenda/objetivo/prioridade
+  // avançada — ver `_plan_price_applicable` no ads-backend); qualquer
+  // desvio disso faz o preço vir da mesma engine dinâmica de "Personalizar
+  // direto", identificável aqui pela presença do fator "Alcance" (nunca
+  // aparece na cotação de plano). Sem essa checagem, a tela continuaria
+  // dizendo "Valor do plano" mesmo depois do preço já ter virado dinâmico.
+  const planPriceLocked = !!plan && priceCents != null && !factors.some((f) => f.label === 'Alcance');
 
   // Quanto do preço atual já é economia da duração escolhida: isola o fator
   // "Desconto por duração" (sempre presente, ver ad_pricing.py) dos demais —
@@ -796,7 +843,12 @@ export default function CustomizeScreen() {
               <Switch value={includeNearby} onValueChange={setIncludeNearby} />
             </View>
 
-            <AdAdvancedSelectors value={advancedSelectors} onChange={setAdvancedSelectors} />
+            <AdAdvancedSelectors
+              value={advancedSelectors}
+              onChange={setAdvancedSelectors}
+              minDate={campaignStart}
+              maxDate={campaignEnd}
+            />
           </View>
         )}
 
@@ -808,7 +860,7 @@ export default function CustomizeScreen() {
           onPress={() => setShowBreakdown((v) => !v)}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={styles.priceLabel}>{plan ? 'Valor do plano' : 'Valor estimado'}</Text>
+            <Text style={styles.priceLabel}>{planPriceLocked ? 'Valor do plano' : 'Valor estimado'}</Text>
             <Text style={styles.priceValue}>{priceCents != null ? formatMoney(priceCents) : '—'}</Text>
           </View>
           {reach && (
@@ -819,7 +871,9 @@ export default function CustomizeScreen() {
           )}
           {priceCents != null && (
             <Text style={styles.priceHint}>
-              {plan ? 'Preço não muda com os bairros — escala com a duração e os formatos escolhidos. ' : ''}
+              {planPriceLocked
+                ? 'Preço não muda com os bairros — escala com a duração e os formatos escolhidos. '
+                : (plan ? 'Essa configuração saiu do que o plano cobre — o preço passou a ser calculado dinamicamente, igual à personalização avulsa. ' : '')}
               {showBreakdown ? '▾ ver menos' : '▸ ver como calculamos'}
             </Text>
           )}
