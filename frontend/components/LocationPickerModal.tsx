@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import { useGeo } from '../lib/geoProvider';
 import LeafletMap from './LeafletMap';
 
@@ -51,6 +52,7 @@ export default function LocationPickerModal({
 }: LocationPickerModalProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { resolveLocation } = useGeo();
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
@@ -77,7 +79,10 @@ export default function LocationPickerModal({
         setLabel(null);
         setPickedCoords(null);
         setStatus('error');
-        setError(`Esse ponto fica em ${res.neighborhood}, fora do seu bairro (${neighborhood}).`);
+        setError(t('location.pickerModal.outsideNeighborhood', {
+          neighborhood: res.neighborhood,
+          userNeighborhood: neighborhood,
+        }));
         return;
       }
       setLabel(res.displayName);
@@ -87,7 +92,7 @@ export default function LocationPickerModal({
       setLabel(null);
       setPickedCoords(null);
       setStatus('error');
-      setError(e instanceof Error ? e.message : 'Não foi possível identificar o endereço.');
+      setError(e instanceof Error ? e.message : t('location.pickerModal.genericError'));
     }
   };
 
@@ -100,13 +105,13 @@ export default function LocationPickerModal({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Selecionar local no mapa</Text>
+          <Text style={styles.headerTitle}>{t('location.pickerModal.headerTitle')}</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={22} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.hint}>Toque no mapa pra marcar o local — dá pra arrastar o pin depois</Text>
+        <Text style={styles.hint}>{t('location.pickerModal.hint')}</Text>
 
         <View style={[styles.mapWrap, !isWide && styles.mapWrapMobile]}>
           {visible && (
@@ -125,12 +130,12 @@ export default function LocationPickerModal({
           <View style={[styles.footerInner, isWide && styles.footerInnerWide]}>
             <View style={isWide ? styles.footerStatusWide : styles.footerStatus}>
               {status === 'idle' && (
-                <Text style={styles.footerHint}>Nenhum ponto selecionado ainda.</Text>
+                <Text style={styles.footerHint}>{t('location.mapPicker.noPointSelected')}</Text>
               )}
               {status === 'resolving' && (
                 <View style={styles.footerRow}>
                   <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={styles.footerHint}>Identificando o endereço…</Text>
+                  <Text style={styles.footerHint}>{t('location.pickerModal.resolving')}</Text>
                 </View>
               )}
               {status === 'resolved' && label && (
@@ -158,7 +163,7 @@ export default function LocationPickerModal({
               activeOpacity={0.85}
             >
               <Text style={[styles.confirmBtnText, status !== 'resolved' && styles.confirmBtnTextDisabled]}>
-                Usar este local
+                {t('location.pickerModal.confirmButton')}
               </Text>
             </TouchableOpacity>
           </View>

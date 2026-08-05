@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import { NeighborhoodSuggestion, reverseNeighborhood } from '../lib/geocode';
 import LeafletMap from './LeafletMap';
 
@@ -51,6 +52,7 @@ export default function NeighborhoodMapPickerModal({
 }: NeighborhoodMapPickerModalProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
 
@@ -104,14 +106,14 @@ export default function NeighborhoodMapPickerModal({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Escolher bairros no mapa</Text>
+          <Text style={styles.headerTitle}>{t('location.neighborhoodMapPicker.headerTitle')}</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={22} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
         <Text style={styles.hint}>
-          Toque num ponto do mapa, confira o bairro e confirme. Repita pra adicionar outros.
+          {t('location.neighborhoodMapPicker.hint')}
         </Text>
 
         {value.length > 0 && (
@@ -146,14 +148,19 @@ export default function NeighborhoodMapPickerModal({
               {status === 'idle' && (
                 <Text style={styles.footerHint}>
                   {atMax
-                    ? `Limite de ${max} bairro${max === 1 ? '' : 's'} atingido.`
-                    : 'Nenhum ponto selecionado ainda.'}
+                    ? t(
+                        max === 1
+                          ? 'location.neighborhoodMapPicker.limitReached'
+                          : 'location.neighborhoodMapPicker.limitReachedPlural',
+                        { count: max },
+                      )
+                    : t('location.mapPicker.noPointSelected')}
                 </Text>
               )}
               {status === 'resolving' && (
                 <View style={styles.footerRow}>
                   <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={styles.footerHint}>Identificando o bairro…</Text>
+                  <Text style={styles.footerHint}>{t('location.neighborhoodMapPicker.resolving')}</Text>
                 </View>
               )}
               {status === 'resolved' && pending && (
@@ -167,7 +174,7 @@ export default function NeighborhoodMapPickerModal({
                       </Text>
                     )}
                     {alreadyAdded && (
-                      <Text style={styles.footerWarn}>Esse bairro já está na lista.</Text>
+                      <Text style={styles.footerWarn}>{t('location.neighborhoodMapPicker.alreadyAdded')}</Text>
                     )}
                   </View>
                 </View>
@@ -176,7 +183,7 @@ export default function NeighborhoodMapPickerModal({
                 <View style={styles.footerRow}>
                   <Ionicons name="alert-circle" size={16} color={Colors.error} />
                   <Text style={styles.footerError} numberOfLines={2}>
-                    Não identificamos nenhum bairro nesse ponto — tente mais perto de uma rua.
+                    {t('location.neighborhoodMapPicker.notFound')}
                   </Text>
                 </View>
               )}
@@ -184,7 +191,9 @@ export default function NeighborhoodMapPickerModal({
                 <View style={styles.footerRow}>
                   <Ionicons name="alert-circle" size={16} color={Colors.error} />
                   <Text style={styles.footerError} numberOfLines={2}>
-                    Esse ponto fica em {pending.country || 'outro país'}, fora do Brasil — o Daqui atua só no Brasil.
+                    {t('location.neighborhoodMapPicker.outsideBr', {
+                      country: pending.country || t('location.neighborhoodMapPicker.outsideBrFallbackCountry'),
+                    })}
                   </Text>
                 </View>
               )}
@@ -192,7 +201,7 @@ export default function NeighborhoodMapPickerModal({
                 <View style={styles.footerRow}>
                   <Ionicons name="alert-circle" size={16} color={Colors.error} />
                   <Text style={styles.footerError} numberOfLines={2}>
-                    Não foi possível consultar o mapa agora.
+                    {t('location.mapPicker.genericError')}
                   </Text>
                 </View>
               )}
@@ -200,7 +209,7 @@ export default function NeighborhoodMapPickerModal({
 
             <View style={styles.footerButtons}>
               <TouchableOpacity style={styles.doneBtn} onPress={onClose} activeOpacity={0.85}>
-                <Text style={styles.doneBtnText}>Concluir</Text>
+                <Text style={styles.doneBtnText}>{t('common.done')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -217,7 +226,7 @@ export default function NeighborhoodMapPickerModal({
                     (status !== 'resolved' || alreadyAdded || atMax) && styles.confirmBtnTextDisabled,
                   ]}
                 >
-                  Confirmar bairro
+                  {t('location.neighborhoodMapPicker.confirmButton')}
                 </Text>
               </TouchableOpacity>
             </View>

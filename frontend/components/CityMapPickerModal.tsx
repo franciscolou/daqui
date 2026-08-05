@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import { CitySuggestion, reverseCity } from '../lib/geocode';
 import LeafletMap from './LeafletMap';
 
@@ -45,6 +46,7 @@ export default function CityMapPickerModal({
 }: CityMapPickerModalProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
 
@@ -98,15 +100,15 @@ export default function CityMapPickerModal({
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Escolher cidade no mapa</Text>
+          <Text style={styles.headerTitle}>{t('location.cityMapPicker.headerTitle')}</Text>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={22} color={Colors.text} />
           </TouchableOpacity>
         </View>
 
         <Text style={styles.hint}>
-          Toque num ponto do mapa, confira a cidade e confirme.
-          {max !== 1 ? ' Repita pra adicionar outras.' : ''}
+          {t('location.cityMapPicker.hint')}
+          {max !== 1 ? t('location.cityMapPicker.hintRepeat') : ''}
         </Text>
 
         {value.length > 0 && (
@@ -141,14 +143,19 @@ export default function CityMapPickerModal({
               {status === 'idle' && (
                 <Text style={styles.footerHint}>
                   {atMax
-                    ? `Limite de ${max} cidade${max === 1 ? '' : 's'} atingido.`
-                    : 'Nenhum ponto selecionado ainda.'}
+                    ? t(
+                        max === 1
+                          ? 'location.cityMapPicker.limitReached'
+                          : 'location.cityMapPicker.limitReachedPlural',
+                        { count: max },
+                      )
+                    : t('location.mapPicker.noPointSelected')}
                 </Text>
               )}
               {status === 'resolving' && (
                 <View style={styles.footerRow}>
                   <ActivityIndicator size="small" color={Colors.primary} />
-                  <Text style={styles.footerHint}>Identificando a cidade…</Text>
+                  <Text style={styles.footerHint}>{t('location.cityMapPicker.resolving')}</Text>
                 </View>
               )}
               {status === 'resolved' && pending && (
@@ -162,7 +169,7 @@ export default function CityMapPickerModal({
                       </Text>
                     )}
                     {alreadyAdded && (
-                      <Text style={styles.footerWarn}>Essa cidade já está na lista.</Text>
+                      <Text style={styles.footerWarn}>{t('location.cityMapPicker.alreadyAdded')}</Text>
                     )}
                   </View>
                 </View>
@@ -171,7 +178,7 @@ export default function CityMapPickerModal({
                 <View style={styles.footerRow}>
                   <Ionicons name="alert-circle" size={16} color={Colors.error} />
                   <Text style={styles.footerError} numberOfLines={2}>
-                    Não identificamos nenhuma cidade nesse ponto — tente mais perto de um centro urbano.
+                    {t('location.cityMapPicker.notFound')}
                   </Text>
                 </View>
               )}
@@ -179,7 +186,9 @@ export default function CityMapPickerModal({
                 <View style={styles.footerRow}>
                   <Ionicons name="alert-circle" size={16} color={Colors.error} />
                   <Text style={styles.footerError} numberOfLines={2}>
-                    Essa cidade fica em {pending.country || 'outro país'}, fora do Brasil — o Daqui atua só no Brasil.
+                    {t('location.cityMapPicker.outsideBr', {
+                      country: pending.country || t('location.cityMapPicker.outsideBrFallbackCountry'),
+                    })}
                   </Text>
                 </View>
               )}
@@ -187,7 +196,7 @@ export default function CityMapPickerModal({
                 <View style={styles.footerRow}>
                   <Ionicons name="alert-circle" size={16} color={Colors.error} />
                   <Text style={styles.footerError} numberOfLines={2}>
-                    Não foi possível consultar o mapa agora.
+                    {t('location.mapPicker.genericError')}
                   </Text>
                 </View>
               )}
@@ -195,7 +204,7 @@ export default function CityMapPickerModal({
 
             <View style={styles.footerButtons}>
               <TouchableOpacity style={styles.doneBtn} onPress={onClose} activeOpacity={0.85}>
-                <Text style={styles.doneBtnText}>Concluir</Text>
+                <Text style={styles.doneBtnText}>{t('common.done')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -212,7 +221,7 @@ export default function CityMapPickerModal({
                     (status !== 'resolved' || alreadyAdded || atMax) && styles.confirmBtnTextDisabled,
                   ]}
                 >
-                  Confirmar cidade
+                  {t('location.cityMapPicker.confirmButton')}
                 </Text>
               </TouchableOpacity>
             </View>

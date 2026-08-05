@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet 
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import { GeoSearchResult, useGeo } from '../lib/geoProvider';
 import MapPickButton from './MapPickButton';
 
@@ -39,12 +40,16 @@ export default function LocationAutocompleteInput({
   onSelectResult,
   onPickOnMap,
   status,
-  placeholder = 'Ex.: Rua das Flores 123, Praça...',
-  emptyHint = 'Nenhum endereço encontrado no seu bairro.',
-  validHint = 'Endereço confirmado no seu bairro',
+  placeholder,
+  emptyHint,
+  validHint,
 }: LocationAutocompleteInputProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
+  const resolvedPlaceholder = placeholder ?? t('location.autocomplete.placeholder');
+  const resolvedEmptyHint = emptyHint ?? t('location.autocomplete.emptyHint');
+  const resolvedValidHint = validHint ?? t('location.autocomplete.validHint');
   const { searchAddress } = useGeo();
   const [suggestions, setSuggestions] = useState<GeoSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +95,7 @@ export default function LocationAutocompleteInput({
         <Ionicons name="location-outline" size={18} color={Colors.textTertiary} />
         <TextInput
           style={styles.input}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           placeholderTextColor={Colors.textTertiary}
           value={value}
           onChangeText={onChangeText}
@@ -102,7 +107,7 @@ export default function LocationAutocompleteInput({
       {status !== 'valid' && loading && (
         <View style={styles.statusRow}>
           <ActivityIndicator size="small" color={Colors.primary} />
-          <Text style={styles.statusHint}>Buscando endereços…</Text>
+          <Text style={styles.statusHint}>{t('location.autocomplete.searching')}</Text>
         </View>
       )}
 
@@ -125,14 +130,14 @@ export default function LocationAutocompleteInput({
       {showEmpty && (
         <View style={styles.statusRow}>
           <Ionicons name="alert-circle" size={14} color={Colors.error} />
-          <Text style={[styles.statusHint, { color: Colors.error }]}>{emptyHint}</Text>
+          <Text style={[styles.statusHint, { color: Colors.error }]}>{resolvedEmptyHint}</Text>
         </View>
       )}
 
       {status === 'valid' && (
         <View style={styles.statusRow}>
           <Ionicons name="checkmark-circle" size={14} color={Colors.primary} />
-          <Text style={[styles.statusHint, { color: Colors.primary }]}>{validHint}</Text>
+          <Text style={[styles.statusHint, { color: Colors.primary }]}>{resolvedValidHint}</Text>
         </View>
       )}
     </View>

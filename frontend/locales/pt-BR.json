@@ -3,7 +3,8 @@
     "back": "Voltar",
     "cancel": "Cancelar",
     "save": "Salvar",
-    "loading": "Carregando…"
+    "loading": "Carregando…",
+    "done": "Concluir"
   },
   "nav": {
     "home": "Início",
@@ -182,6 +183,91 @@
       "auto": "Automático (idioma do dispositivo)",
       "pt": "Português",
       "en": "English"
+    }
+  },
+  "location": {
+    "homeSetup": {
+      "title": "Configure seu bairro",
+      "subtitle": "Diga onde você mora para ver e participar da sua comunidade.",
+      "errorDenied": "Permita o acesso à localização para descobrirmos seu bairro.",
+      "errorLocation": "Não conseguimos obter sua localização. Tente novamente.",
+      "errorGeneric": "Não foi possível identificar seu bairro.",
+      "errorSave": "Não foi possível salvar seu bairro.",
+      "locatingTitle": "Descobrindo seu bairro…",
+      "locatingDesc": "Estamos usando a localização do seu aparelho para encontrar sua comunidade.",
+      "eyebrow": "Você está em",
+      "errorTitle": "Não encontramos seu bairro",
+      "errorDescFallback": "Verifique a permissão de localização e tente novamente.",
+      "confirmButton": "Sim, esse é meu bairro",
+      "retryButton": "Tentar novamente",
+      "nearbyLoading": "Buscando bairros vizinhos…",
+      "nearbyTitle": "Bairros nas redondezas",
+      "nearbyEmpty": "Não encontramos bairros vizinhos por aqui.",
+      "nearbyToggle": "Não é seu bairro? Informe-nos um bairro nas redondezas"
+    },
+    "neighborhoodPicker": {
+      "placeholder": "Digite o nome de um bairro...",
+      "limit": "Limite de {{count}} bairro do plano atingido.",
+      "limitPlural": "Limite de {{count}} bairros do plano atingido."
+    },
+    "neighborhoodMapPicker": {
+      "headerTitle": "Escolher bairros no mapa",
+      "hint": "Toque num ponto do mapa, confira o bairro e confirme. Repita pra adicionar outros.",
+      "limitReached": "Limite de {{count}} bairro atingido.",
+      "limitReachedPlural": "Limite de {{count}} bairros atingido.",
+      "resolving": "Identificando o bairro…",
+      "alreadyAdded": "Esse bairro já está na lista.",
+      "notFound": "Não identificamos nenhum bairro nesse ponto — tente mais perto de uma rua.",
+      "outsideBr": "Esse ponto fica em {{country}}, fora do Brasil — o Daqui atua só no Brasil.",
+      "outsideBrFallbackCountry": "outro país",
+      "confirmButton": "Confirmar bairro"
+    },
+    "cityPicker": {
+      "placeholder": "Digite o nome de uma cidade...",
+      "limitSingle": "Toque no × acima pra trocar de cidade.",
+      "limitPlural": "Limite de {{count}} cidades do plano atingido."
+    },
+    "cityMapPicker": {
+      "headerTitle": "Escolher cidade no mapa",
+      "hint": "Toque num ponto do mapa, confira a cidade e confirme.",
+      "hintRepeat": " Repita pra adicionar outras.",
+      "limitReached": "Limite de {{count}} cidade atingido.",
+      "limitReachedPlural": "Limite de {{count}} cidades atingido.",
+      "resolving": "Identificando a cidade…",
+      "alreadyAdded": "Essa cidade já está na lista.",
+      "notFound": "Não identificamos nenhuma cidade nesse ponto — tente mais perto de um centro urbano.",
+      "outsideBr": "Essa cidade fica em {{country}}, fora do Brasil — o Daqui atua só no Brasil.",
+      "outsideBrFallbackCountry": "outro país",
+      "confirmButton": "Confirmar cidade"
+    },
+    "autocomplete": {
+      "placeholder": "Ex.: Rua das Flores 123, Praça...",
+      "emptyHint": "Nenhum endereço encontrado no seu bairro.",
+      "validHint": "Endereço confirmado no seu bairro",
+      "searching": "Buscando endereços…"
+    },
+    "pickerModal": {
+      "headerTitle": "Selecionar local no mapa",
+      "hint": "Toque no mapa pra marcar o local — dá pra arrastar o pin depois",
+      "resolving": "Identificando o endereço…",
+      "outsideNeighborhood": "Esse ponto fica em {{neighborhood}}, fora do seu bairro ({{userNeighborhood}}).",
+      "genericError": "Não foi possível identificar o endereço.",
+      "confirmButton": "Usar este local"
+    },
+    "mapPicker": {
+      "noPointSelected": "Nenhum ponto selecionado ainda.",
+      "genericError": "Não foi possível consultar o mapa agora."
+    },
+    "mapPickButton": {
+      "label": "Escolher no mapa"
+    },
+    "startDate": {
+      "info": "Quando o anúncio começa a rodar. Deixe em \"imediatamente\" pra começar assim que o pagamento for confirmado — a duração escolhida acima passa a contar a partir da data marcada aqui.",
+      "label": "Data de início",
+      "clearButton": "Voltar pra imediatamente",
+      "immediateNow": "Imediatamente, assim que o pagamento confirmar",
+      "modalSubtitle": "Escolha quando o anúncio começa a rodar",
+      "immediateButton": "Começar imediatamente"
     }
   }
 }

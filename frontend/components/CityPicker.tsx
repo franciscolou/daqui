@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import { searchCities, CitySuggestion } from '../lib/geocode';
 import { Coords, getDeviceCoords } from '../lib/location';
 import MapPickButton from './MapPickButton';
@@ -29,6 +30,7 @@ interface CityPickerProps {
 export default function CityPicker({ value, onChange, placeholder, max }: CityPickerProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<CitySuggestion[]>([]);
@@ -98,7 +100,9 @@ export default function CityPicker({ value, onChange, placeholder, max }: CityPi
 
       {atMax ? (
         <Text style={styles.limitText}>
-          {max === 1 ? 'Toque no × acima pra trocar de cidade.' : `Limite de ${max} cidades do plano atingido.`}
+          {max === 1
+            ? t('location.cityPicker.limitSingle')
+            : t('location.cityPicker.limitPlural', { count: max })}
         </Text>
       ) : (
         <View style={styles.inputRow}>
@@ -111,14 +115,14 @@ export default function CityPicker({ value, onChange, placeholder, max }: CityPi
             onKeyPress={(e) => {
               if (e.nativeEvent.key === ',') { e.preventDefault?.(); onSubmit(); }
             }}
-            placeholder={placeholder || 'Digite o nome de uma cidade...'}
+            placeholder={placeholder || t('location.cityPicker.placeholder')}
             placeholderTextColor={Colors.textTertiary}
             autoCapitalize="words"
             autoCorrect={false}
             returnKeyType="done"
           />
           {loading && <ActivityIndicator size="small" color={Colors.primary} />}
-          <MapPickButton onPress={() => setMapOpen(true)} label="Escolher no mapa" />
+          <MapPickButton onPress={() => setMapOpen(true)} label={t('location.mapPickButton.label')} />
         </View>
       )}
 

@@ -4,6 +4,7 @@ import { Calendar, type DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import InfoTooltip from './InfoTooltip';
 
 interface Props {
@@ -11,8 +12,6 @@ interface Props {
   value: string | null;
   onChange: (value: string | null) => void;
 }
-
-const INFO = 'Quando o anúncio começa a rodar. Deixe em "imediatamente" pra começar assim que o pagamento for confirmado — a duração escolhida acima passa a contar a partir da data marcada aqui.';
 
 function formatDate(date: string) {
   return date.split('-').reverse().join('/');
@@ -64,6 +63,7 @@ function CalendarDay({
 export default function StartDatePicker({ value, onChange }: Props) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const today = useMemo(() => {
     const now = new Date();
@@ -87,19 +87,19 @@ export default function StartDatePicker({ value, onChange }: Props) {
     <View style={styles.container}>
       <View style={styles.labelRow}>
         <View style={styles.labelAndInfo}>
-          <Text style={styles.label}>Data de início</Text>
-          <InfoTooltip text={INFO} />
+          <Text style={styles.label}>{t('location.startDate.label')}</Text>
+          <InfoTooltip text={t('location.startDate.info')} />
         </View>
         {value && (
           <TouchableOpacity style={styles.clearButton} onPress={() => onChange(null)}>
-            <Text style={styles.clearButtonText}>Voltar pra imediatamente</Text>
+            <Text style={styles.clearButtonText}>{t('location.startDate.clearButton')}</Text>
           </TouchableOpacity>
         )}
       </View>
       <TouchableOpacity style={styles.dateButton} onPress={() => setOpen(true)}>
         <Ionicons name="calendar-outline" size={17} color={Colors.primary} />
         <Text style={styles.dateButtonText}>
-          {value ? formatDate(value) : 'Imediatamente, assim que o pagamento confirmar'}
+          {value ? formatDate(value) : t('location.startDate.immediateNow')}
         </Text>
       </TouchableOpacity>
 
@@ -108,8 +108,8 @@ export default function StartDatePicker({ value, onChange }: Props) {
           <Pressable style={styles.modalCard} onPress={() => {}}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Data de início</Text>
-                <Text style={styles.modalSubtitle}>Escolha quando o anúncio começa a rodar</Text>
+                <Text style={styles.modalTitle}>{t('location.startDate.label')}</Text>
+                <Text style={styles.modalSubtitle}>{t('location.startDate.modalSubtitle')}</Text>
               </View>
               <TouchableOpacity style={styles.closeButton} onPress={() => setOpen(false)}>
                 <Ionicons name="close" size={20} color={Colors.text} />
@@ -146,7 +146,7 @@ export default function StartDatePicker({ value, onChange }: Props) {
               />
             </ScrollView>
             <TouchableOpacity style={styles.immediateButton} onPress={pickImmediate}>
-              <Text style={styles.immediateButtonText}>Começar imediatamente</Text>
+              <Text style={styles.immediateButtonText}>{t('location.startDate.immediateButton')}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>

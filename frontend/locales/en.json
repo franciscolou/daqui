@@ -3,7 +3,8 @@
     "back": "Back",
     "cancel": "Cancel",
     "save": "Save",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "done": "Done"
   },
   "nav": {
     "home": "Home",
@@ -182,6 +183,91 @@
       "auto": "Automatic (device language)",
       "pt": "Português",
       "en": "English"
+    }
+  },
+  "location": {
+    "homeSetup": {
+      "title": "Set up your neighborhood",
+      "subtitle": "Tell us where you live to see and take part in your community.",
+      "errorDenied": "Allow location access so we can find your neighborhood.",
+      "errorLocation": "We couldn't get your location. Try again.",
+      "errorGeneric": "We couldn't identify your neighborhood.",
+      "errorSave": "We couldn't save your neighborhood.",
+      "locatingTitle": "Finding your neighborhood…",
+      "locatingDesc": "We're using your device's location to find your community.",
+      "eyebrow": "You're in",
+      "errorTitle": "We couldn't find your neighborhood",
+      "errorDescFallback": "Check your location permission and try again.",
+      "confirmButton": "Yes, this is my neighborhood",
+      "retryButton": "Try again",
+      "nearbyLoading": "Looking for nearby neighborhoods…",
+      "nearbyTitle": "Nearby neighborhoods",
+      "nearbyEmpty": "We couldn't find any nearby neighborhoods.",
+      "nearbyToggle": "Not your neighborhood? Tell us a nearby one"
+    },
+    "neighborhoodPicker": {
+      "placeholder": "Type a neighborhood name...",
+      "limit": "Your plan's limit of {{count}} neighborhood has been reached.",
+      "limitPlural": "Your plan's limit of {{count}} neighborhoods has been reached."
+    },
+    "neighborhoodMapPicker": {
+      "headerTitle": "Choose neighborhoods on the map",
+      "hint": "Tap a point on the map, check the neighborhood, and confirm. Repeat to add more.",
+      "limitReached": "Limit of {{count}} neighborhood reached.",
+      "limitReachedPlural": "Limit of {{count}} neighborhoods reached.",
+      "resolving": "Identifying the neighborhood…",
+      "alreadyAdded": "This neighborhood is already on the list.",
+      "notFound": "We couldn't identify a neighborhood at that point — try somewhere closer to a street.",
+      "outsideBr": "This point is in {{country}}, outside Brazil — Daqui only operates in Brazil.",
+      "outsideBrFallbackCountry": "another country",
+      "confirmButton": "Confirm neighborhood"
+    },
+    "cityPicker": {
+      "placeholder": "Type a city name...",
+      "limitSingle": "Tap the × above to change city.",
+      "limitPlural": "Your plan's limit of {{count}} cities has been reached."
+    },
+    "cityMapPicker": {
+      "headerTitle": "Choose city on the map",
+      "hint": "Tap a point on the map, check the city, and confirm.",
+      "hintRepeat": " Repeat to add more.",
+      "limitReached": "Limit of {{count}} city reached.",
+      "limitReachedPlural": "Limit of {{count}} cities reached.",
+      "resolving": "Identifying the city…",
+      "alreadyAdded": "This city is already on the list.",
+      "notFound": "We couldn't identify a city at that point — try somewhere closer to an urban center.",
+      "outsideBr": "This city is in {{country}}, outside Brazil — Daqui only operates in Brazil.",
+      "outsideBrFallbackCountry": "another country",
+      "confirmButton": "Confirm city"
+    },
+    "autocomplete": {
+      "placeholder": "E.g.: Rua das Flores 123, Praça...",
+      "emptyHint": "No address found in your neighborhood.",
+      "validHint": "Address confirmed in your neighborhood",
+      "searching": "Searching addresses…"
+    },
+    "pickerModal": {
+      "headerTitle": "Select location on the map",
+      "hint": "Tap the map to mark the location — you can drag the pin afterward",
+      "resolving": "Identifying the address…",
+      "outsideNeighborhood": "This point is in {{neighborhood}}, outside your neighborhood ({{userNeighborhood}}).",
+      "genericError": "We couldn't identify the address.",
+      "confirmButton": "Use this location"
+    },
+    "mapPicker": {
+      "noPointSelected": "No point selected yet.",
+      "genericError": "We couldn't check the map right now."
+    },
+    "mapPickButton": {
+      "label": "Choose on map"
+    },
+    "startDate": {
+      "info": "When the ad starts running. Leave it on \"immediately\" to start as soon as payment is confirmed — the duration chosen above starts counting from the date set here.",
+      "label": "Start date",
+      "clearButton": "Back to immediate",
+      "immediateNow": "Immediately, once payment is confirmed",
+      "modalSubtitle": "Choose when the ad starts running",
+      "immediateButton": "Start immediately"
     }
   }
 }

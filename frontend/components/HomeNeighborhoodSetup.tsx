@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import { api, ApiError, NearbyNeighborhood } from '../lib/api';
 import { getDeviceCoords, LocationError } from '../lib/location';
 import { useAuth } from '../lib/auth';
@@ -27,6 +28,7 @@ const formatDistance = (meters: number) =>
 export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?: () => void }) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { refresh } = useAuth();
 
   const [geoStatus, setGeoStatus] = useState<GeoStatus>('locating');
@@ -62,13 +64,13 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
       if (e instanceof LocationError) {
         setError(
           e.reason === 'denied'
-            ? 'Permita o acesso à localização para descobrirmos seu bairro.'
-            : 'Não conseguimos obter sua localização. Tente novamente.',
+            ? t('location.homeSetup.errorDenied')
+            : t('location.homeSetup.errorLocation'),
         );
       } else if (e instanceof ApiError) {
         setError(e.message);
       } else {
-        setError('Não foi possível identificar seu bairro.');
+        setError(t('location.homeSetup.errorGeneric'));
       }
     }
   }, []);
@@ -113,7 +115,7 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
       await refresh();
       onConfigured?.();
     } catch (e) {
-      setSubmitError(e instanceof ApiError ? e.message : 'Não foi possível salvar seu bairro.');
+      setSubmitError(e instanceof ApiError ? e.message : t('location.homeSetup.errorSave'));
     } finally {
       setSubmitting(false);
     }
@@ -121,9 +123,9 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>Configure seu bairro</Text>
+      <Text style={styles.title}>{t('location.homeSetup.title')}</Text>
       <Text style={styles.subtitle}>
-        Diga onde você mora para ver e participar da sua comunidade.
+        {t('location.homeSetup.subtitle')}
       </Text>
 
       <View style={styles.geoArea}>
@@ -132,9 +134,9 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
             <View style={styles.geoSpinnerWrap}>
               <ActivityIndicator color={Colors.primary} size="large" />
             </View>
-            <Text style={styles.geoLocatingTitle}>Descobrindo seu bairro…</Text>
+            <Text style={styles.geoLocatingTitle}>{t('location.homeSetup.locatingTitle')}</Text>
             <Text style={styles.geoLocatingDesc}>
-              Estamos usando a localização do seu aparelho para encontrar sua comunidade.
+              {t('location.homeSetup.locatingDesc')}
             </Text>
           </>
         )}
@@ -147,7 +149,7 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
               </LinearGradient>
               <View style={styles.emblemPulse} />
             </View>
-            <Text style={styles.geoEyebrow}>Você está em</Text>
+            <Text style={styles.geoEyebrow}>{t('location.homeSetup.eyebrow')}</Text>
             <Text style={styles.geoNeighborhood}>{neighborhood}</Text>
             <Text style={styles.geoCity}>{city}{uf ? ` - ${uf}` : ''}</Text>
 
@@ -165,9 +167,9 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
             <View style={styles.geoErrorIcon}>
               <Ionicons name="location-outline" size={34} color={Colors.error} />
             </View>
-            <Text style={styles.geoLocatingTitle}>Não encontramos seu bairro</Text>
+            <Text style={styles.geoLocatingTitle}>{t('location.homeSetup.errorTitle')}</Text>
             <Text style={styles.geoLocatingDesc}>
-              {error ?? 'Verifique a permissão de localização e tente novamente.'}
+              {error ?? t('location.homeSetup.errorDescFallback')}
             </Text>
           </>
         )}
@@ -204,7 +206,7 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
             ) : (
               <>
                 <Text style={styles.btnText}>
-                  {geoStatus === 'resolved' ? 'Sim, esse é meu bairro' : 'Tentar novamente'}
+                  {geoStatus === 'resolved' ? t('location.homeSetup.confirmButton') : t('location.homeSetup.retryButton')}
                 </Text>
                 <Ionicons name={geoStatus === 'resolved' ? 'checkmark' : 'arrow-forward'} size={18} color="#fff" />
               </>
@@ -218,14 +220,14 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
           {nearbyLoading ? (
             <View style={styles.nearbyLoading}>
               <ActivityIndicator color={Colors.primary} size="small" />
-              <Text style={styles.nearbyLoadingText}>Buscando bairros vizinhos…</Text>
+              <Text style={styles.nearbyLoadingText}>{t('location.homeSetup.nearbyLoading')}</Text>
             </View>
           ) : nearbyOpen && nearby !== null ? (
             <>
               <View style={styles.nearbyHeader}>
-                <Text style={styles.nearbyTitle}>Bairros nas redondezas</Text>
+                <Text style={styles.nearbyTitle}>{t('location.homeSetup.nearbyTitle')}</Text>
                 <TouchableOpacity onPress={() => setNearbyOpen(false)} hitSlop={8}>
-                  <Text style={styles.nearbyCancel}>Cancelar</Text>
+                  <Text style={styles.nearbyCancel}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
               </View>
               {(() => {
@@ -234,7 +236,7 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
                   .sort((a, b) => a.distanceM - b.distanceM);
                 return options.length === 0 ? (
                   <Text style={styles.nearbyEmpty}>
-                    Não encontramos bairros vizinhos por aqui.
+                    {t('location.homeSetup.nearbyEmpty')}
                   </Text>
                 ) : (
                   <View style={styles.nearbyList}>
@@ -261,7 +263,7 @@ export default function HomeNeighborhoodSetup({ onConfigured }: { onConfigured?:
             <TouchableOpacity style={styles.nearbyToggle} onPress={openNearby} activeOpacity={0.7}>
               <Ionicons name="navigate-outline" size={15} color={Colors.primaryDark} />
               <Text style={styles.nearbyToggleText}>
-                Não é seu bairro? Informe-nos um bairro nas redondezas
+                {t('location.homeSetup.nearbyToggle')}
               </Text>
             </TouchableOpacity>
           )}

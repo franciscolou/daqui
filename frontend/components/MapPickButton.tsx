@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../lib/theme';
+import { useT } from '../lib/i18n';
 
 const LABEL_WIDTH = 128;
 
@@ -12,13 +13,15 @@ const LABEL_WIDTH = 128;
 // bairros (NeighborhoodPicker), que abre a seleção por etapas no mapa.
 export default function MapPickButton({
   onPress,
-  label = 'Escolher no mapa',
+  label,
 }: {
   onPress: () => void;
   label?: string;
 }) {
   const Colors = useTheme();
+  const { t } = useT();
   const anim = useRef(new Animated.Value(0)).current;
+  const resolvedLabel = label ?? t('location.mapPickButton.label');
 
   const animateTo = (toValue: number) => {
     Animated.timing(anim, { toValue, duration: 180, useNativeDriver: false }).start();
@@ -40,7 +43,7 @@ export default function MapPickButton({
         }}
       >
         <Text style={[styles.label, { color: Colors.primary }]} numberOfLines={1}>
-          {label}
+          {resolvedLabel}
         </Text>
       </Animated.View>
     </Pressable>
