@@ -117,8 +117,10 @@ export default function StartDatePicker({ value, onChange }: Props) {
             </View>
             <ScrollView>
               <Calendar
+                style={{ minHeight: 350 }}
                 current={value && value >= today ? value : today}
                 minDate={today}
+                hideExtraDays
                 disableAllTouchEventsForDisabledDays
                 onDayPress={(day: DateData) => pick(day.dateString)}
                 dayComponent={({ date }) => {

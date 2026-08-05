@@ -490,7 +490,9 @@ export default function PublishScreen() {
                   <Calendar
                     // Remonta ao trocar de tema para o calendário recalcular seus estilos
                     key={Colors.background}
+                    style={{ minHeight: 350 }}
                     minDate={today}
+                    hideExtraDays
                     markedDates={markedDates}
                     onDayPress={(day) => toggleDate(day.dateString)}
                     theme={{

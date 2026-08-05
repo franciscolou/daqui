@@ -173,7 +173,9 @@ export default function PollEditor({
         <View style={styles.calendarWrap}>
           <Calendar
             key={Colors.background}
+            style={{ minHeight: 350 }}
             minDate={today}
+            hideExtraDays
             markedDates={marked}
             onDayPress={(day) => onChange({ ...value, date: day.dateString })}
             theme={{

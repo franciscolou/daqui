@@ -268,9 +268,11 @@ export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate 
             </View>
             <ScrollView>
               <Calendar
+                style={{ minHeight: 350 }}
                 current={minDate}
                 minDate={minDate}
                 maxDate={maxDate}
+                hideExtraDays
                 disableAllTouchEventsForDisabledDays
                 markedDates={markedDates}
                 onDayPress={(day: DateData) => toggleDate(day.dateString)}
