@@ -23,6 +23,7 @@ import { getOrCreateAdViewerId } from '../../lib/storage';
 import { useAuth } from '../../lib/auth';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { useT } from '../../lib/i18n';
 import PostCard from '../../components/PostCard';
 import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
@@ -30,18 +31,19 @@ import AdSearchPoster from '../../components/AdSearchPoster';
 
 const WIDE = 900;
 
-const FILTERS: { key: SearchType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'all', label: 'Tudo', icon: 'apps-outline' },
-  { key: 'posts', label: 'Posts', icon: 'document-text-outline' },
-  { key: 'users', label: 'Pessoas', icon: 'people-outline' },
-];
-
 export default function SearchScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { user } = useAuth();
+
+  const FILTERS: { key: SearchType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { key: 'all', label: t('search.filterAll'), icon: 'apps-outline' },
+    { key: 'posts', label: t('search.filterPosts'), icon: 'document-text-outline' },
+    { key: 'users', label: t('search.filterPeople'), icon: 'people-outline' },
+  ];
 
   const [query, setQuery] = useState('');
   const [type, setType] = useState<SearchType>('all');
@@ -216,7 +218,7 @@ export default function SearchScreen() {
           <Ionicons name="search" size={18} color={Colors.textTertiary} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar posts e pessoas..."
+            placeholder={t('search.placeholder')}
             placeholderTextColor={Colors.textTertiary}
             value={query}
             onChangeText={onChangeQuery}
@@ -261,7 +263,7 @@ export default function SearchScreen() {
         <>
           <View style={styles.state}>
             <Ionicons name="search-outline" size={34} color={Colors.textTertiary} />
-            <Text style={styles.stateText}>Busque por posts e vizinhos.</Text>
+            <Text style={styles.stateText}>{t('search.emptyState')}</Text>
           </View>
           {ads.map((a) => (
             <AdSearchPoster key={a.id} ad={a} viewerId={adViewerId} />
@@ -275,14 +277,14 @@ export default function SearchScreen() {
       ) : searched && !hasResults ? (
         <View style={styles.state}>
           <Ionicons name="sad-outline" size={34} color={Colors.textTertiary} />
-          <Text style={styles.stateText}>Nada encontrado para “{query.trim()}”.</Text>
+          <Text style={styles.stateText}>{t('search.noResults', { query: query.trim() })}</Text>
         </View>
       ) : (
         <>
           {/* Users */}
           {showUsers && users.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Pessoas</Text>
+              <Text style={styles.sectionTitle}>{t('search.sectionPeople')}</Text>
               {users.map((u) => (
                 <TouchableOpacity
                   key={u.id}
@@ -312,7 +314,7 @@ export default function SearchScreen() {
           {/* Posts */}
           {showPosts && posts.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Posts</Text>
+              <Text style={styles.sectionTitle}>{t('search.sectionPosts')}</Text>
               {posts.map((p) => <PostCard key={p.id} post={p} onDeleted={handlePostDeleted} />)}
             </View>
           )}

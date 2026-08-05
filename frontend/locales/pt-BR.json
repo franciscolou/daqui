@@ -183,5 +183,72 @@
       "pt": "Português",
       "en": "English"
     }
+  },
+  "categories": {
+    "todos": "Todos",
+    "geral": "Geral",
+    "aviso": "Avisos",
+    "seguranca": "Segurança",
+    "evento": "Eventos",
+    "recomendacao": "Recomendações",
+    "venda": "Vendas",
+    "pets": "Pets",
+    "ajuda": "Ajuda",
+    "perdidos": "Perdidos",
+    "enquete": "Enquetes"
+  },
+  "notifications": {
+    "title": "Novidades",
+    "subtitle": "Curtidas, comentários e avisos do seu bairro",
+    "emptyTitle": "Tudo em dia",
+    "emptyDesc": "Você não tem novidades no momento",
+    "sponsored": "Publicidade",
+    "someone": "Alguém",
+    "onePerson": "outra pessoa",
+    "morePeople": "outras {{count}} pessoas",
+    "and": " e ",
+    "likedYourPostGroupSuffix": " curtiram seu post",
+    "likedYourPost": " curtiu seu post: ",
+    "likedYourComment": " curtiu seu comentário ",
+    "commented": " comentou: ",
+    "mentionedYou": " mencionou você: ",
+    "startedFollowing": " começou a seguir você",
+    "welcomeBefore": "Bem-vindo(a) ao Daqui! Antes de começar, confira a seção ",
+    "welcomeHighlight": "Ajuda e suporte",
+    "welcomeAfter": " pra aprender a usar o app."
+  },
+  "search": {
+    "filterAll": "Tudo",
+    "filterPosts": "Posts",
+    "filterPeople": "Pessoas",
+    "placeholder": "Buscar posts e pessoas...",
+    "emptyState": "Busque por posts e vizinhos.",
+    "noResults": "Nada encontrado para “{{query}}”.",
+    "sectionPeople": "Pessoas",
+    "sectionPosts": "Posts"
+  },
+  "map": {
+    "title": "Mapa do Bairro",
+    "neighborhoodNotSet": "Bairro não configurado",
+    "locationNotSetTitle": "Localização não configurada",
+    "locationNotSetDesc": "Configure seu bairro para ver o mapa da sua região.",
+    "configureNeighborhood": "Configurar meu bairro",
+    "nearYou": "Perto de você",
+    "noLocatedPosts": "Nenhum post com local no bairro ainda.",
+    "inNeighborhood": "no bairro",
+    "sponsoredAuthor": "Anúncio",
+    "activityTitle": "Atividade do bairro",
+    "activityStats": "{{posts}} posts · {{neighbors}} vizinhos"
+  },
+  "rightSidebar": {
+    "noLocation": "Sem localização",
+    "neighbors": "vizinhos",
+    "posts": "posts",
+    "featuredNeighbors": "Vizinhos em destaque",
+    "neighborStats": "{{posts}} posts · {{interactions}} interações",
+    "important": "Importante",
+    "securityAlertFallback": "Alerta de segurança",
+    "locationNotSetTitle": "Localização não configurada",
+    "locationNotSetDesc": "Toque para configurar seu bairro"
   }
 }

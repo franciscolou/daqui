@@ -8,6 +8,7 @@ import { Post, User } from '../data/mock';
 import { api, NeighborhoodStats } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import HoverTime from './HoverTime';
 import LeafletMap from './LeafletMap';
 
@@ -15,6 +16,7 @@ export default function RightSidebar() {
   const { user } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const [popularUsers, setPopularUsers] = useState<User[]>([]);
   const [importantPost, setImportantPost] = useState<Post | null>(null);
   const [stats, setStats] = useState<NeighborhoodStats | null>(null);
@@ -70,7 +72,7 @@ export default function RightSidebar() {
           <View style={styles.mapBadge}>
             <Ionicons name="location" size={12} color={hasNeighborhood ? Colors.primary : Colors.error} />
             <Text style={styles.mapBadgeText}>
-              {hasNeighborhood ? user?.neighborhood : 'Sem localização'}
+              {hasNeighborhood ? user?.neighborhood : t('rightSidebar.noLocation')}
             </Text>
           </View>
           <View style={styles.mapExpand}>
@@ -89,19 +91,19 @@ export default function RightSidebar() {
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statNum}>{stats?.neighbors ?? '—'}</Text>
-                  <Text style={styles.statLabel}>vizinhos</Text>
+                  <Text style={styles.statLabel}>{t('rightSidebar.neighbors')}</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
                   <Text style={styles.statNum}>{stats?.posts ?? '—'}</Text>
-                  <Text style={styles.statLabel}>posts</Text>
+                  <Text style={styles.statLabel}>{t('rightSidebar.posts')}</Text>
                 </View>
               </View>
             </>
           ) : (
             <>
-              <Text style={styles.neighborhoodName}>Localização não configurada</Text>
-              <Text style={styles.cityName}>Toque para configurar seu bairro</Text>
+              <Text style={styles.neighborhoodName}>{t('rightSidebar.locationNotSetTitle')}</Text>
+              <Text style={styles.cityName}>{t('rightSidebar.locationNotSetDesc')}</Text>
             </>
           )}
         </View>
@@ -112,7 +114,7 @@ export default function RightSidebar() {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <Ionicons name="trending-up" size={15} color={Colors.primary} />
-            <Text style={styles.sectionTitle}>Vizinhos em destaque</Text>
+            <Text style={styles.sectionTitle}>{t('rightSidebar.featuredNeighbors')}</Text>
           </View>
         </View>
         <View style={styles.neighborsList}>
@@ -127,7 +129,7 @@ export default function RightSidebar() {
               <View style={styles.neighborInfo}>
                 <Text style={styles.neighborName} numberOfLines={1}>{u.name.split(' ')[0]}{' '}{u.name.split(' ')[1]?.[0] ? `${u.name.split(' ')[1][0]}.` : ''}</Text>
                 <Text style={styles.neighborDist} numberOfLines={1}>
-                  {u.postsCount} posts · {u.interactionsCount} interações
+                  {t('rightSidebar.neighborStats', { posts: u.postsCount, interactions: u.interactionsCount })}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
@@ -146,13 +148,13 @@ export default function RightSidebar() {
         >
           <View style={styles.alertBadge}>
             <Ionicons name="alert-circle" size={12} color="#fff" />
-            <Text style={styles.alertBadgeText}>Importante</Text>
+            <Text style={styles.alertBadgeText}>{t('rightSidebar.important')}</Text>
           </View>
           <View style={styles.alertTop}>
             <View style={styles.alertIconBox}>
               <Ionicons name="shield-checkmark" size={18} color={Colors.error} />
             </View>
-            <Text style={styles.alertTitle}>{importantPost.title || 'Alerta de segurança'}</Text>
+            <Text style={styles.alertTitle}>{importantPost.title || t('rightSidebar.securityAlertFallback')}</Text>
           </View>
           <Text style={styles.alertBody} numberOfLines={3}>
             {importantPost.content}
