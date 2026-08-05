@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { LayoutChangeEvent, StyleProp, View, ViewStyle } from 'react-native';
+import { useT } from '../lib/i18n';
 
 // Versão web — a lib nativa (@react-native-google-signin/google-signin) não
 // tem suporte a web no plano gratuito (ver node_modules, GoogleSignin.web.ts
@@ -62,6 +63,7 @@ export default function GoogleSignInButton({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const renderedWidth = useRef(0);
   const [width, setWidth] = useState(0);
+  const { t } = useT();
 
   useEffect(() => {
     if (!CLIENT_ID || !width || !containerRef.current) return;
@@ -78,7 +80,7 @@ export default function GoogleSignInButton({
           client_id: CLIENT_ID,
           callback: (response) => {
             if (response.credential) onIdToken(response.credential);
-            else onError?.('Não foi possível entrar com o Google.');
+            else onError?.(t('auth.login.googleError'));
           },
         });
         containerRef.current.innerHTML = '';
@@ -90,12 +92,12 @@ export default function GoogleSignInButton({
           width: Math.round(Math.min(width, 400)),
         });
       })
-      .catch(() => onError?.('Não foi possível carregar o login do Google.'));
+      .catch(() => onError?.(t('auth.login.googleLoadError')));
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width]);
+  }, [width, t]);
 
   if (!CLIENT_ID) return null;
 

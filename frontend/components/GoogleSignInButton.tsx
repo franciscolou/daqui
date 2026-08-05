@@ -7,6 +7,7 @@ import {
   isSuccessResponse,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
+import { useT } from '../lib/i18n';
 
 // Versão nativa (iOS/Android) — ver GoogleSignInButton.web.tsx para a versão
 // web (biblioteca nativa não roda no browser). GoogleSignin exige um
@@ -38,6 +39,7 @@ export default function GoogleSignInButton({
   onError?: (message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const { t } = useT();
 
   const handlePress = async () => {
     if (busy) return;
@@ -48,12 +50,12 @@ export default function GoogleSignInButton({
       const response = await GoogleSignin.signIn();
       if (isSuccessResponse(response)) {
         if (response.data.idToken) onIdToken(response.data.idToken);
-        else onError?.('Não foi possível obter o token do Google.');
+        else onError?.(t('auth.login.googleTokenError'));
       }
       // resposta "cancelled": usuário desistiu, não é um erro a reportar.
     } catch (e) {
       if (!isErrorWithCode(e) || e.code !== statusCodes.SIGN_IN_CANCELLED) {
-        onError?.('Não foi possível entrar com o Google.');
+        onError?.(t('auth.login.googleError'));
       }
     } finally {
       setBusy(false);
