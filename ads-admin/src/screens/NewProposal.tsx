@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import NeighborhoodPicker from '@daqui/components/NeighborhoodPicker';
 import CityPicker from '@daqui/components/CityPicker';
 import AdAdvancedSelectors from '@daqui/components/AdAdvancedSelectors';
+import StartDatePicker from '@daqui/components/StartDatePicker';
 import { api, errorMessage } from '../lib/api';
 import { APP_URL } from '../lib/config';
 import { fmtMoney, maskDocument, parseCsvNumbers } from '../lib/format';
@@ -56,6 +57,8 @@ export function NewProposal() {
 
   const [formats, setFormats] = useState<string[]>([]);
   const [duration, setDuration] = useState('15');
+  // 'YYYY-MM-DD', ou null = imediatamente (assim que a proposta virar paga).
+  const [startsAt, setStartsAt] = useState<string | null>(null);
   const [price, setPrice] = useState('');
 
   const [geoScope, setGeoScope] = useState<GeoScope>('neighborhood');
@@ -85,6 +88,7 @@ export function NewProposal() {
     return {
       formats,
       duration_days: parseInt(duration, 10),
+      starts_at: startsAt || null,
       geo_scope: geoScope,
       neighborhoods: scopedNeighborhoods,
       city: scopedCity,
@@ -119,7 +123,7 @@ export function NewProposal() {
       },
     };
   }, [
-    formats, duration, geoScope, neighborhoods, city, cities, name, email, phone,
+    formats, duration, startsAt, geoScope, neighborhoods, city, cities, name, email, phone,
     advertiserType, document, price, advanced,
   ]);
 
@@ -247,6 +251,12 @@ export function NewProposal() {
               onChange={(e) => setPrice(e.target.value)}
             />
           </Field>
+        </div>
+
+        <div className="daqui-field">
+          <View>
+            <StartDatePicker value={startsAt} onChange={setStartsAt} />
+          </View>
         </div>
 
         <Field label="Onde anunciar">

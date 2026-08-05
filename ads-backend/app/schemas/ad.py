@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -237,6 +237,10 @@ class CampaignCreateBase(BaseModel):
     priority: int = 3
     rotation_weight: float = 1.0
     per_user_impression_cap: int | None = None
+    # Quando informado, a campanha só começa a rodar (e a duração só passa a
+    # contar) a partir desta data — ver `services/ad.py::_activate`. `None`
+    # (padrão) = imediatamente, assim que o pagamento confirmar.
+    starts_at: datetime | None = None
 
     advertiser_name: str
     advertiser_email: str
@@ -258,6 +262,16 @@ class CampaignCreateBase(BaseModel):
     def check_duration(cls, v: int) -> int:
         if not 1 <= v <= 720:
             raise ValueError("Duração deve estar entre 1 e 720 dias")
+        return v
+
+    @field_validator("starts_at")
+    @classmethod
+    def check_starts_at(cls, v: datetime | None) -> datetime | None:
+        # Compara só a data (não o instante exato) — quem escolhe "hoje" não
+        # pode cair pro passado só porque o relógio já passou da meia-noite
+        # entre o clique e a chegada no servidor.
+        if v is not None and v.date() < datetime.now(timezone.utc).date():
+            raise ValueError("Data de início não pode ser no passado")
         return v
 
     @model_validator(mode="after")

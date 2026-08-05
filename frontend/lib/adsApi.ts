@@ -296,6 +296,9 @@ export interface CheckoutParams extends QuoteParams {
   advertiserType: AdvertiserType;
   advertiserDocument: string;
   rotationWeight?: number;
+  // 'YYYY-MM-DD'. Ausente/undefined = imediatamente, assim que o pagamento
+  // confirmar (ver `services/ad.py::_activate`).
+  startsAt?: string;
   // Um bloco fixo por formato (sem teste A/B — ver AdCreativeEditor).
   creatives: CreativeInput[];
   // Se preenchido, esta contratação é uma reativação da campanha desse token.
@@ -744,6 +747,7 @@ export const adsApi = {
         priority: params.priority ?? 3,
         rotation_weight: params.rotationWeight ?? 1.0,
         per_user_impression_cap: params.perUserImpressionCap ?? null,
+        starts_at: params.startsAt ?? null,
         advertiser_name: params.advertiserName,
         advertiser_email: params.advertiserEmail,
         advertiser_phone: params.advertiserPhone,

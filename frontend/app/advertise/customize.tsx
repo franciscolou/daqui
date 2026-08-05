@@ -16,6 +16,7 @@ import NeighborhoodPicker from '../../components/NeighborhoodPicker';
 import CityPicker from '../../components/CityPicker';
 import InfoTooltip from '../../components/InfoTooltip';
 import AdAdvancedSelectors from '../../components/AdAdvancedSelectors';
+import StartDatePicker from '../../components/StartDatePicker';
 
 const FORMATS: { key: AdFormat; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'post', label: 'Post no feed', desc: 'Card no meio do feed do bairro, como um post comum.', icon: 'newspaper-outline' },
@@ -365,6 +366,12 @@ export default function CustomizeScreen() {
 
   const [formats, setFormats] = useState<AdFormat[]>(prefillData?.formats ?? ['post']);
   const [durationDays, setDurationDays] = useState(prefillData?.durationDays ?? 15);
+  // 'YYYY-MM-DD', ou null = imediatamente (assim que o pagamento confirmar) —
+  // a duração acima passa a contar a partir dessa data (ver
+  // `services/ad.py::_activate`). Nunca vem de reativação: a data da
+  // campanha anterior já passou, então cada reativação nasce "imediatamente"
+  // por padrão, editável igual a uma campanha nova.
+  const [startsAt, setStartsAt] = useState<string | null>(null);
   // Espelha `durationDays` como texto editável (campo pequeno ao lado do
   // slider) — permite digitar livremente sem forçar um número válido a cada
   // tecla; só vira `durationDays` de fato quando o valor digitado é válido.
@@ -540,6 +547,7 @@ export default function CustomizeScreen() {
       params: {
         formats: JSON.stringify(formats),
         durationDays: String(durationDays),
+        startsAt: startsAt ?? '',
         geoScope,
         neighborhoods: JSON.stringify(neighborhoods),
         city,
@@ -684,6 +692,8 @@ export default function CustomizeScreen() {
             <Text style={styles.discountValue}>{formatDiscountValue(durationDiscountCents)}</Text>
           )}
         </View>
+
+        <StartDatePicker value={startsAt} onChange={setStartsAt} />
 
         <Text style={styles.label}>Onde anunciar</Text>
         <View style={styles.chipsWrap}>

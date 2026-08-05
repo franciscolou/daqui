@@ -243,6 +243,7 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
         priority=payload.priority,
         rotation_weight=payload.rotation_weight,
         per_user_impression_cap=payload.per_user_impression_cap,
+        starts_at=payload.starts_at,
         schedule=schedule.model_dump(),
         payment_provider=PaymentProvider.STRIPE,
         renewed_from_id=renewed_from_id,
@@ -284,10 +285,21 @@ def _activate(
     campanha vier de uma proposta manual — o checkout self-service não tem
     admin nenhum a quem atribuir."""
     now = datetime.now(timezone.utc)
+    # `campaign.starts_at` já vem preenchido desde a criação se o anunciante
+    # escolheu uma data de início específica (ver `checkout`/
+    # `admin_create_manual_campaign`) — só cai pro comportamento antigo
+    # (começar agora) quando não foi escolhida nenhuma, ou quando a data
+    # escolhida já ficou no passado por demorar pra pagar (nunca deixa a
+    # campanha nascer com início retroativo).
+    requested_starts_at = campaign.starts_at
+    if requested_starts_at is not None and requested_starts_at.tzinfo is None:
+        # SQLite não guarda tz — mesmo caso de daos/geo_cache.py.
+        requested_starts_at = requested_starts_at.replace(tzinfo=timezone.utc)
+    starts_at = requested_starts_at if requested_starts_at and requested_starts_at > now else now
     fields = dict(
         status=AdCampaignStatus.ACTIVE,
-        starts_at=now,
-        ends_at=now + timedelta(days=campaign.duration_days),
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(days=campaign.duration_days),
         paid_at=now,
         payment_reference=payment_reference,
     )
@@ -491,6 +503,7 @@ def admin_create_manual_campaign(
         priority=payload.priority,
         rotation_weight=payload.rotation_weight,
         per_user_impression_cap=payload.per_user_impression_cap,
+        starts_at=payload.starts_at,
         schedule=schedule.model_dump(),
         created_by_admin_id=admin.id,
         payment_provider=PaymentProvider.STRIPE,

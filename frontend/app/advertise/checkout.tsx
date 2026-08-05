@@ -24,6 +24,7 @@ export default function CheckoutScreen() {
   const params = useLocalSearchParams<{
     formats: string;
     durationDays: string;
+    startsAt?: string;
     geoScope: string;
     neighborhoods: string;
     city: string;
@@ -98,6 +99,7 @@ export default function CheckoutScreen() {
         planId,
         formats,
         durationDays,
+        startsAt: params.startsAt || undefined,
         geoScope,
         neighborhoods,
         city,
