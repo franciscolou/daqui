@@ -35,36 +35,38 @@ export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }:
 
   return (
     <View style={[styles.container, isWide && styles.containerWide]}>
-      <View style={styles.coverWrap}>
-        {user.cover ? (
-          <Image source={{ uri: user.cover }} style={styles.coverImage} />
-        ) : (
-          <LinearGradient
-            colors={[Colors.primaryLight, Colors.background]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        )}
+      <View style={styles.coverSection}>
+        <View style={styles.coverWrap}>
+          {user.cover ? (
+            <Image source={{ uri: user.cover }} style={styles.coverImage} />
+          ) : (
+            <LinearGradient
+              colors={[Colors.primaryLight, Colors.background]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
 
-        {(onBack || onMenu) && (
-          <View style={styles.topRow} pointerEvents="box-none">
-            {onBack ? (
-              <TouchableOpacity style={styles.iconBtn} onPress={onBack} hitSlop={6}>
-                <Ionicons name="chevron-back" size={20} color="#fff" />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.iconBtn} />
-            )}
-            {onMenu ? (
-              <TouchableOpacity style={styles.iconBtn} onPress={onMenu} hitSlop={6}>
-                <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.iconBtn} />
-            )}
-          </View>
-        )}
+          {(onBack || onMenu) && (
+            <View style={styles.topRow} pointerEvents="box-none">
+              {onBack ? (
+                <TouchableOpacity style={styles.iconBtn} onPress={onBack} hitSlop={6}>
+                  <Ionicons name="chevron-back" size={20} color="#fff" />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.iconBtn} />
+              )}
+              {onMenu ? (
+                <TouchableOpacity style={styles.iconBtn} onPress={onMenu} hitSlop={6}>
+                  <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.iconBtn} />
+              )}
+            </View>
+          )}
+        </View>
 
         <View style={styles.avatarWrap}>
           <TouchableOpacity
@@ -77,7 +79,7 @@ export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }:
         </View>
       </View>
 
-      {!!actions && <View style={styles.actionsRow}>{actions}</View>}
+      {!!actions && <View style={styles.actionsRow} pointerEvents="box-none">{actions}</View>}
 
       <View style={[styles.info, !actions && styles.infoNoActions]}>
         <Text style={styles.name}>{user.name}</Text>
@@ -138,6 +140,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderColor: Colors.borderLight,
   },
 
+  coverSection: {
+    paddingBottom: AVATAR_SIZE / 2,
+  },
   coverWrap: {
     width: '100%',
     aspectRatio: 3,
@@ -166,7 +171,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   avatarWrap: {
     position: 'absolute',
     left: 16,
-    bottom: -AVATAR_SIZE / 2,
+    bottom: 0,
   },
   avatarTouchable: {
     borderRadius: AVATAR_SIZE / 2 + 4,
@@ -184,6 +189,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    marginTop: -AVATAR_SIZE / 2,
     paddingTop: 10,
     paddingHorizontal: 16,
     minHeight: AVATAR_SIZE / 2 + 10,
@@ -195,7 +201,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingBottom: 16,
     gap: 6,
   },
-  infoNoActions: { paddingTop: AVATAR_SIZE / 2 + 12 },
+  infoNoActions: { paddingTop: 12 },
 
   name: { fontSize: 20, fontWeight: '800', color: Colors.text, letterSpacing: -0.4 },
   username: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500', marginTop: -4 },
