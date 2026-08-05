@@ -13,6 +13,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { useT } from '../../lib/i18n';
 import { CATEGORY_LABELS, CATEGORY_ICONS, CATEGORY_LIFESPAN_DAYS, PostCategory, Post } from '../../data/mock';
 import { api, NeighborhoodStats } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
@@ -29,6 +30,7 @@ const MAP_HEIGHT = 440;
 export default function MapScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { user } = useAuth();
   const params = useLocalSearchParams<{ focus?: string; lat?: string; lng?: string }>();
 
@@ -128,12 +130,12 @@ export default function MapScreen() {
         color: Colors.accent,
         title: ad.title,
         description: ad.content,
-        authorName: 'Anúncio',
+        authorName: t('map.sponsoredAuthor'),
         imageUrl: ad.imageUrl,
       });
     }
     return list;
-  }, [located, Colors, ad]);
+  }, [located, Colors, ad, t]);
 
   const nearby = useMemo(() => {
     const withDist = located.map((p) => ({
@@ -151,10 +153,10 @@ export default function MapScreen() {
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
         {/* Header — padrão claro, uniforme com as demais telas (mobile e desktop) */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Mapa do Bairro</Text>
+          <Text style={styles.headerTitle}>{t('map.title')}</Text>
           <View style={styles.headerSub}>
             <Ionicons name="location" size={14} color={Colors.primary} />
-            <Text style={styles.headerSubText}>{user?.neighborhood || 'Bairro não configurado'}</Text>
+            <Text style={styles.headerSubText}>{user?.neighborhood || t('map.neighborhoodNotSet')}</Text>
           </View>
         </View>
 
@@ -167,16 +169,16 @@ export default function MapScreen() {
           ) : !center ? (
             <View style={styles.mapEmpty}>
               <Ionicons name="location-outline" size={32} color={Colors.textTertiary} />
-              <Text style={styles.mapEmptyTitle}>Localização não configurada</Text>
+              <Text style={styles.mapEmptyTitle}>{t('map.locationNotSetTitle')}</Text>
               <Text style={styles.mapEmptyDesc}>
-                Configure seu bairro para ver o mapa da sua região.
+                {t('map.locationNotSetDesc')}
               </Text>
               <TouchableOpacity
                 style={styles.mapEmptyBtn}
                 onPress={() => router.push({ pathname: '/(tabs)', params: { view: 'meu' } } as any)}
                 activeOpacity={0.85}
               >
-                <Text style={styles.mapEmptyBtnText}>Configurar meu bairro</Text>
+                <Text style={styles.mapEmptyBtnText}>{t('map.configureNeighborhood')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -213,13 +215,13 @@ export default function MapScreen() {
         {/* Nearby section */}
         <View style={styles.nearbySection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Perto de você</Text>
+            <Text style={styles.sectionTitle}>{t('map.nearYou')}</Text>
           </View>
 
           {nearby.length === 0 ? (
             <View style={styles.emptyBox}>
               <Ionicons name="map-outline" size={28} color={Colors.textTertiary} />
-              <Text style={styles.emptyText}>Nenhum post com local no bairro ainda.</Text>
+              <Text style={styles.emptyText}>{t('map.noLocatedPosts')}</Text>
             </View>
           ) : (
             <View style={styles.nearbyList}>
@@ -244,7 +246,7 @@ export default function MapScreen() {
                       <View style={styles.nearbyMeta}>
                         <Ionicons name="navigate-outline" size={11} color={Colors.textTertiary} />
                         <Text style={styles.nearbyMetaText}>
-                          {meters != null ? formatDistance(meters) : (post.location ?? 'no bairro')}
+                          {meters != null ? formatDistance(meters) : (post.location ?? t('map.inNeighborhood'))}
                         </Text>
                       </View>
                     </View>
@@ -265,9 +267,9 @@ export default function MapScreen() {
           <LinearGradient colors={Colors.gradient.primary} style={styles.heatGradient}>
             <View style={styles.heatContent}>
               <View>
-                <Text style={styles.heatTitle}>Atividade do bairro</Text>
+                <Text style={styles.heatTitle}>{t('map.activityTitle')}</Text>
                 <Text style={styles.heatDesc}>
-                  {stats ? `${stats.posts} posts · ${stats.neighbors} vizinhos` : '—'}
+                  {stats ? t('map.activityStats', { posts: stats.posts, neighbors: stats.neighbors }) : '—'}
                 </Text>
               </View>
               <View style={styles.heatIcon}>

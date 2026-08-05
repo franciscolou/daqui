@@ -24,6 +24,7 @@ import { useAuth } from '../../lib/auth';
 import { useRealtime } from '../../lib/realtime';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { useT } from '../../lib/i18n';
 import FeedLayout from '../../components/FeedLayout';
 import MobileMenu from '../../components/MobileMenu';
 
@@ -35,6 +36,7 @@ export default function NotificationsScreen() {
   const isWide = width >= WIDE;
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { subscribeNotifications } = useRealtime();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -82,11 +84,11 @@ export default function NotificationsScreen() {
       id: `ad-${ad.id}`,
       type: 'ad',
       content: ad.title,
-      time: 'Publicidade',
+      time: t('notifications.sponsored'),
       read: true,
     };
     return [adNotification, ...notifications];
-  }, [notifications, ad]);
+  }, [notifications, ad, t]);
 
   // Recarrega ao vivo quando o servidor avisa (via websocket) que chegou algo novo.
   useEffect(() => subscribeNotifications(load), [subscribeNotifications, load]);
@@ -106,8 +108,8 @@ export default function NotificationsScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View style={styles.headerTexts}>
-            <Text style={styles.headerTitle}>Novidades</Text>
-            <Text style={styles.headerSub}>Curtidas, comentários e avisos do seu bairro</Text>
+            <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
+            <Text style={styles.headerSub}>{t('notifications.subtitle')}</Text>
           </View>
           {!isWide && <MobileMenu inline />}
         </View>
@@ -128,8 +130,8 @@ export default function NotificationsScreen() {
           ) : (
             <View style={styles.empty}>
               <Ionicons name="notifications-outline" size={48} color={Colors.textTertiary} />
-              <Text style={styles.emptyTitle}>Tudo em dia</Text>
-              <Text style={styles.emptyDesc}>Você não tem novidades no momento</Text>
+              <Text style={styles.emptyTitle}>{t('notifications.emptyTitle')}</Text>
+              <Text style={styles.emptyDesc}>{t('notifications.emptyDesc')}</Text>
             </View>
           )
         }
@@ -171,7 +173,7 @@ export default function NotificationsScreen() {
               )}
               <View style={styles.notifContent}>
                 <Text style={[styles.notifText, !item.read && styles.notifTextUnread]}>
-                  {notificationParts(item, styles.notifBold)}
+                  {notificationParts(item, styles.notifBold, t)}
                 </Text>
                 <Text style={styles.notifTime}>{item.time}</Text>
               </View>

@@ -269,5 +269,72 @@
       "modalSubtitle": "Choose when the ad starts running",
       "immediateButton": "Start immediately"
     }
+  },
+  "categories": {
+    "todos": "All",
+    "geral": "General",
+    "aviso": "Notices",
+    "seguranca": "Safety",
+    "evento": "Events",
+    "recomendacao": "Recommendations",
+    "venda": "For sale",
+    "pets": "Pets",
+    "ajuda": "Help",
+    "perdidos": "Lost & found",
+    "enquete": "Polls"
+  },
+  "notifications": {
+    "title": "Updates",
+    "subtitle": "Likes, comments, and alerts from your neighborhood",
+    "emptyTitle": "All caught up",
+    "emptyDesc": "You have no updates right now",
+    "sponsored": "Advertisement",
+    "someone": "Someone",
+    "onePerson": "another person",
+    "morePeople": "{{count}} other people",
+    "and": " and ",
+    "likedYourPostGroupSuffix": " liked your post",
+    "likedYourPost": " liked your post: ",
+    "likedYourComment": " liked your comment ",
+    "commented": " commented: ",
+    "mentionedYou": " mentioned you: ",
+    "startedFollowing": " started following you",
+    "welcomeBefore": "Welcome to Daqui! Before you start, check out the ",
+    "welcomeHighlight": "Help & support",
+    "welcomeAfter": " section to learn how to use the app."
+  },
+  "search": {
+    "filterAll": "All",
+    "filterPosts": "Posts",
+    "filterPeople": "People",
+    "placeholder": "Search posts and people...",
+    "emptyState": "Search for posts and neighbors.",
+    "noResults": "Nothing found for “{{query}}”.",
+    "sectionPeople": "People",
+    "sectionPosts": "Posts"
+  },
+  "map": {
+    "title": "Neighborhood Map",
+    "neighborhoodNotSet": "Neighborhood not set",
+    "locationNotSetTitle": "Location not set",
+    "locationNotSetDesc": "Set up your neighborhood to see the map of your area.",
+    "configureNeighborhood": "Set up my neighborhood",
+    "nearYou": "Near you",
+    "noLocatedPosts": "No posts with a location in your neighborhood yet.",
+    "inNeighborhood": "in the neighborhood",
+    "sponsoredAuthor": "Ad",
+    "activityTitle": "Neighborhood activity",
+    "activityStats": "{{posts}} posts · {{neighbors}} neighbors"
+  },
+  "rightSidebar": {
+    "noLocation": "No location",
+    "neighbors": "neighbors",
+    "posts": "posts",
+    "featuredNeighbors": "Featured neighbors",
+    "neighborStats": "{{posts}} posts · {{interactions}} interactions",
+    "important": "Important",
+    "securityAlertFallback": "Security alert",
+    "locationNotSetTitle": "Location not set",
+    "locationNotSetDesc": "Tap to set up your neighborhood"
   }
 }
