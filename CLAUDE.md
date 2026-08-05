@@ -1,1 +1,170 @@
 @AGENTS.md
+
+# Daqui
+
+Rede social de bairro (estilo Nextdoor) para São Paulo. Monorepo com **backend FastAPI** (`backend/`) e **app Expo/React Native** universal (`frontend/`) que roda em web, Android e iOS a partir do mesmo código. Há ainda um **app de moderação separado** (`moderator/`, HTML estático) que consome o mesmo backend para moderar as avaliações do app, e um **backend + painel de anunciantes** totalmente independentes (`ads-backend/`, `ads-admin/`) para planos, campanhas e pagamento de anúncios — ver seção própria abaixo. UI e textos são em **português**.
+
+## Subir o ambiente
+
+```bash
+./dev.sh          # sobe backend (:8000) + ads-backend (:8001) + frontend (expo web :8081) + moderação (:8090) + ads-admin (:8091) juntos
+```
+
+Isolado:
+- Backend: `cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000`
+- Frontend: `cd frontend && npx expo start --web` (ou `--android` / `--ios`)
+- Seed do banco: `cd backend && .venv/bin/python -m app.seed` (não roda se já houver usuários)
+- Seed de grupos de teste: `cd backend && .venv/bin/python -m app.seed_groups` (idempotente — pula grupos já existentes; roda mesmo com banco populado)
+- Seed de moderador: `cd backend && .venv/bin/python -m app.seed_moderator` (idempotente — cria/garante `moderador@daqui.com` / `senha123` com `is_moderator`)
+- App de moderação: `cd moderator && python3 -m http.server 8090` (ou abrir `moderator/index.html`); loga com a conta de moderador. Consome `/admin/reviews`, `/admin/reports`, `/admin/support-tickets` e `/admin/audit-logs` (papel `is_moderator`, ver `core/deps.get_current_moderator`) — ver seção própria abaixo.
+- Ads backend: `cd ads-backend && .venv/bin/uvicorn app.main:app --reload --port 8001`
+- Seed de admin de anúncios: `cd ads-backend && .venv/bin/python -m app.seed_admin` (idempotente — cria/garante `ads@daqui.com` / `senha123`) e `.venv/bin/python -m app.seed_plans` (planos de exemplo)
+- Seed de campanhas do usuário de teste: `cd ads-backend && .venv/bin/python -m app.seed_own_campaigns` (idempotente — cria 2 campanhas com `advertiser_email=francisco@daqui.com`, pra ver "Meus anúncios" populado ao logar com o usuário de teste do Daqui)
+- Painel de anúncios: `cd ads-admin && python3 -m http.server 8091` (ou abrir `ads-admin/index.html`); loga com a conta de admin de anúncios **do ads-backend** (não é a mesma conta/login do backend/moderador do Daqui).
+
+Não há `pip`/`npm install` necessário no dia a dia: o venv está em `backend/.venv` e os módulos do front em `frontend/node_modules`. Use sempre `backend/.venv/bin/python` (não existe `python` global no PATH).
+
+Usuário de teste seedado: `francisco@daqui.com` / `senha123`.
+
+## Backend (`backend/app`)
+
+FastAPI + SQLAlchemy 2.0 (ORM tipado, `Mapped[...]`) + SQLite (`daqui.db`, gitignored). Auth por JWT (`python-jose`), senhas com `passlib`/bcrypt. Pydantic v2 para schemas.
+
+Arquitetura em camadas — uma feature toca um arquivo em cada pasta, sempre na mesma ordem de dependência:
+
+```
+routers/      → declara rotas; só amarra path → função do controller (sem lógica)
+controllers/  → injeta Depends (get_db, get_current_user) e chama o service
+services/     → regra de negócio; levanta HTTPException; orquestra DAOs
+daos/         → única camada que fala com o banco (queries SQLAlchemy)
+models/       → tabelas ORM
+schemas/      → modelos Pydantic de entrada/saída (snake_case)
+```
+
+Convenções:
+- Tudo é montado sob `/api/v1` (ver `main.py`). CORS liberado para `*` (dev).
+- Rotas com path estático e dinâmico no mesmo prefixo: **declare a estática antes** da `/{id}` (ex.: `/users/popular` vem antes de `/users/{user_id}`), senão o FastAPI captura como id.
+- `get_current_user` (em `core/deps.py`) é a dependência de auth; quase toda rota a usa.
+- SQLite não tem `greatest/least` — queries que precisariam disso são resolvidas em Python (ex.: `daos/message.get_last_per_conversation`).
+- Lint: `ruff` (config em `ruff.toml`; aspas duplas, isort). `E501` ignorado.
+
+Domínio: `User`, `Post` (+ `PostLike`, `PostRepost`, `PollOption`/`PollVote`), `Comment`, `Message`, `Notification`, `Group` (+ `GroupMember`/`GroupMessage`/`GroupJoinRequest`), `Report`, `Review`, `UserSession`, `SupportTicket`, `AuditLog`, `ConversationMute`, `PushToken`. Feed é filtrado pelo `neighborhood` do usuário. Contadores (`likes_count`, `comments_count`, `posts_count`, `reposts_count`) são denormalizados nas tabelas e atualizados na escrita.
+
+Subsistemas além do CRUD básico de posts/comentários:
+- **Grupos** (`models/group.py`, `daos|services|controllers/group.py`, `routers/groups.py`): `Group` tem dono, membros com papel `owner`/`admin`/`member` e chat próprio (`GroupMessage`, com resposta via `reply_to_id`; não-lidas rastreadas por `GroupMember.last_read_message_id`). `privacy` define 3 modos — `public` (entra na hora), `request` (cria `GroupJoinRequest` pendente, aprovado/rejeitado por admin/owner em `join-requests/{user_id}/approve|reject`), `closed` (só convite, não aparece no Discover). Mute de notificação de grupo reaproveita `ConversationMute` com `kind="group"`.
+- **Menções** (`services/mentions.py`): `MENTION_RE` extrai `@handle` de texto de post/comentário; `notify_mentions()` resolve cada handle (ignora desconhecidos e auto-menção) e dispara `notification_service.notify()` — mesmo pipeline usado por likes/comments (grava `Notification`, acorda o websocket do usuário, manda push).
+- **Mutes** (`models/mute.py`, `services/mutes.py`): `ConversationMute` cobre DM (`kind="dm"`, alvo = id do outro usuário) e grupo (`kind="group"`, alvo = id do grupo) na mesma tabela, único por `(user_id, kind, target_id)`. `muted_until=None` = indefinido; data passada é lida como inativo (sem cron, `is_active` computa na hora). Silencia **só push** — não afeta contador de não-lidas no app.
+- **Push** (`core/push.py`, `services/push.py`, `models/push_token.py`): Expo Push Service, lotes de 100, best-effort (nunca levanta exceção — falha de push não pode quebrar o fluxo de mensagem/notificação). Em `ENVIRONMENT=development` só loga em vez de chamar a Expo. `PushToken` é único por token; reassocia a um novo usuário se o mesmo device loga como outra conta.
+- **Encaminhar/citar post**: `Message.shared_post_id`/`shared_comment_id` guardam o post/comentário anexado a uma DM; encaminhar **post** ou **comentário** não tem restrição de bairro (nem a própria DM tem — dá pra iniciar conversa com morador de outro bairro pelo perfil dele). Repost usa `PostRepost` (simples, 1 por usuário/post) ou `Post.quoted_post_id`/`quoted_comment_id` (citação com comentário, mesmo padrão em `Comment`); ambos incrementam `reposts_count`/`shares_count` do alvo.
+- **Enquetes**: `category == "enquete"` em `Post`, com `poll_multiple`/`poll_closes_at` + `PollOption`/`PollVote` (1 linha por voto, permite múltipla escolha).
+- **Busca** (`services/search.py`, `routers/search.py`, `GET /search`): `VALID_TYPES = {"all", "posts", "users"}` — só posts e usuários, sem grupos. Posts são escopados pelo `neighborhood`; usuários são buscados fora do bairro também, mas o card vem "bloqueado" (`public_view`) se o resultado for de outro bairro.
+- **Geo** (`routers/geo.py`, `services/geo.py`, `core/geocoding.py` — wrapper de Nominatim/Overpass): `/geo/resolve` (reverse geocode de coordenadas → bairro), `/geo/nearby` (bairros vizinhos pro toggle "incluir bairros próximos" no feed, cache em memória de 6h por lat/lng arredondado), `/geo/geocode` e `/geo/search` (forward geocode/autocomplete) — os dois últimos recusam (400) endereço fora do bairro alvo.
+- **Sessões** (`models/session.py`): `UserSession` rastreia login por `jti` do JWT (device/user-agent/ip/criado em/revogado em); `GET/DELETE /auth/sessions` (roteador de auth principal) alimenta a lista de "dispositivos conectados".
+- **Denúncias e avaliações**: `Report` cobre post/comentário/perfil (exatamente um alvo, via `CheckConstraint`), motivos variam por tipo (`REASONS_BY_TARGET`), status `pending → reviewed|dismissed`. `Review` é só nota 0–5 (1 por usuário), sem fluxo de aprovação — moderador só apaga avaliação abusiva. Ver seção "Moderação" abaixo pra quem consome isso.
+
+## Moderação (`moderator/`)
+
+App estático (`index.html`, mesmo padrão single-file do `ads-admin/`) que consome o **backend principal** — não tem banco/serviço próprio. Um moderador é só um `User` com `is_moderator=True`, não uma entidade separada; login, 2FA e recuperação de senha usam os **mesmos** endpoints de auth do app (`/auth/login`, `/auth/login/2fa`, `/auth/2fa/setup|enable|disable`, `/auth/forgot-password`, `/auth/reset-password`) — nada de auth próprio aqui, diferente do `ads-backend`.
+
+Toda ação de escrita nas telas abaixo fica registrada em `AuditLog` (`services/audit_log.py`, ações em `ACTIONS` no model — inclui suspender usuário e apagar post/comentário), consultável (só leitura) em `/admin/audit-logs`, filtrável por moderador/alvo/ação:
+- **Avaliações** (`/admin/reviews`): apagar avaliação abusiva.
+- **Denúncias** (`/admin/reports`): listar/filtrar, resolver/descartar/apagar.
+- **Chamados de suporte** (`/admin/support-tickets`, `SupportTicket`): usuário abre em "Ajuda → Meus chamados" no app; moderador responde (`pending → answered`), resposta some visível pro usuário.
+
+UI tem toggle claro/escuro persistido e ícones SVG inline (não emoji, mesmo padrão do `ads-admin`); cards de denúncia/avaliação linkam direto pro perfil admin do usuário envolvido.
+
+## Backend de anúncios (`ads-backend/app`)
+
+Serviço FastAPI **separado** do `backend/` (banco, venv, porta e auth próprios — zero import cruzado). Mesma arquitetura em camadas de cima, replicada dentro do próprio serviço. Existe porque anunciantes/campanhas são um domínio comercial à parte do domínio social do app, com deploy e billing independentes.
+
+- Domínio: `AdPlan` (planos predefinidos) e `AdCampaign` (contratada via checkout ou inserida manualmente como proposta) em `models/ad.py`. 4 formatos possíveis por campanha: `post` (feed + pin no mapa), `conversation` (linha na aba Mensagens), `notification` (aba Novidades), `search_poster` (poster na Busca).
+- Auth própria: `AdAdmin` (`models/admin.py`) é o time interno que gerencia campanhas — **não** é o `User`/`is_moderator` do Daqui. Login em `/auth/login` deste serviço, JWT com `SECRET_KEY` próprio.
+- **Criativos por-formato**: o conteúdo (título/texto/mídia/CTA/link) não vive na campanha, vive em `AdCreative` (1:N, `models/ad.py`). `format=None` = criativo padrão, usado como fallback pra qualquer formato da campanha sem um bloco próprio; um `format` específico (`"conversation"`/`"notification"`) sobrepõe só aquele formato — é assim que "post" pode ter uma imagem e "Novidades" outro ícone. `daos/ad.py::pick_creative` resolve essa cascata. Sem teste A/B: no máximo um criativo por formato (sem `weight`/`is_active`), o admin não tem CRUD de criativo — só visualização (`GET /admin/ads/campaigns/{id}/creatives`) — e quem cria/edita o conteúdo é sempre o próprio anunciante (`upsert_creatives_by_format`, ver "Edição pelo próprio anunciante" abaixo). `AdCreative.linked_user_id` (opaco aqui, é um id de `User` do Daqui) é o que permite um anúncio "post" aparecer vinculado a uma conta real (ver seção do frontend).
+- **Edição pelo próprio anunciante**: `PATCH /ads/my-campaign/{token}` (schema `MyCampaignUpdate`) deixa o anunciante trocar contato (nome/e-mail/telefone) e o conjunto de criativos (`daos/ad.py::upsert_creatives_by_format`, casado por `format` — preserva id/contadores do que já existia). Termos comerciais (preço, duração, segmentação, formatos, agendamento) **não** são editáveis por aqui, só pelo admin.
+- **Renovação/histórico**: `AdCampaign.renewed_from_id`/`root_campaign_id` formam uma cadeia self-referencial — reativar uma campanha cria uma **nova linha** (novo período, novo `access_token`) apontando pra anterior via `renewed_from_id`; `root_campaign_id` sempre resolve pro ancestral mais antigo, permitindo buscar "todos os períodos da família" com um `WHERE` plano (`daos/ad.py::list_campaign_family`). `CampaignCreateBase.renewed_from_token` (aceito tanto em `POST /ads/checkout` quanto em `POST /admin/ads/campaigns`) é como o frontend referencia a campanha anterior. `GET /ads/my-campaign/{token}` devolve esse histórico (`MyCampaignOut.history`).
+- Precificação inteligente: `services/ad_pricing.py::quote()` — função pura (taxa diária por formato × duração com desconto por faixa × alcance por bairro/cidade toda), exposta em `POST /ads/quote`. `AdPlan.price_cents` (ver `seed_plans.py`) não é mais escolhido à mão: é calculado chamando a própria `quote()` nos parâmetros canônicos do plano e aplicando `PLAN_DISCOUNT` (15%, mesma taxa pra todo plano) — existe pra manter plano fixo e configurador dinâmico sempre consistentes entre si (antes divergiam de -50% a +169% dependendo do plano). Dentro de `reach_multiplier()`, três refinamentos de audiência (`user_recency` != all, `engagement == active`, `audience == visitors`) dão um desconto de ~5-10% que é **de propósito** mais barato do que o mercado de ads real pratica (nesses mercados, retargeting/público engajado/geofencing em tempo real costumam ser *premium*, não desconto) — decisão consciente pra manter o produto de anúncios, ainda emergente, atrativo pros primeiros anunciantes; revisitar quando houver dado real de demanda/concorrência pra calibrar. Isso é diferente do `daily_impression_cap`, que não é um desconto e sim uma sobretaxa sem essa mesma justificativa de crescimento (ver uso dele em `daos/ad.py::_pacing_factor`/`_within_caps`).
+- Pagamento: `core/payments.py` isola o Stripe Checkout atrás de duas funções (`create_checkout_session`/`verify_webhook`) — trocar de gateway não toca `services/ad.py`. `POST /admin/ads/campaigns` (criação manual) nasce `awaiting_content` — o admin só define a parte comercial (preço, sugerido pela engine e sobrescrevível, duração, formatos, segmentação), **sem** criativo. `POST /ads/my-campaign/{token}/submit-content` é o passo seguinte: o próprio anunciante preenche o criativo (mesmo token do painel dele), só aí a campanha gera o `checkout_url` real e vira `pending_payment`. `POST /admin/ads/campaigns/{id}/mark-paid` confirma manualmente um pagamento combinado por fora (ou serve de atalho pra testar sem chave Stripe real, ver "Gap conhecido" abaixo), reaproveitando o mesmo `services/ad.py::_activate()` do webhook. Toda mutação de campanha feita pelo admin vira entrada no log de auditoria próprio do `ads-backend` (`models/audit_log.py::AdAuditLog`, consultável em `/admin/audit-logs`, aba "Auditoria" do `ads-admin`): as 3 etapas da proposta manual (`proposal_create`/`proposal_content_submitted`/`proposal_activated`), pausar/reativar (`campaign_pause`/`campaign_reactivate`), marcar como paga (`campaign_mark_paid`, sempre atribuído ao admin que clicou — não ao `created_by_admin_id` da campanha) e qualquer outro campo editado via `PATCH /admin/ads/campaigns/{id}` (`campaign_update`, genérico). `services/ad.py::_activate()` aceita um `actor` opcional pra não duplicar log entre o caminho "admin clicou mark-paid" (loga `campaign_mark_paid` ali mesmo) e o caminho automático do webhook do Stripe (sem admin nenhum na jogada — só loga `proposal_activated` se a campanha vier de proposta manual).
+- Servir anúncio ativo: `GET /ads/active/{format}?neighborhood=...` — o bairro vem por query param (o serviço não tem acesso à tabela `users` do Daqui); rotação simples por `last_served_at` quando há mais de uma campanha elegível.
+- **Painel do próprio anunciante** (sem conta/login — capability token): cada `AdCampaign` ganha um `access_token` único na criação. `GET /ads/my-campaign/{token}` devolve status/criativos/analytics/histórico de UMA campanha (usado por `/advertise/dashboard/[token]` no app). Já `GET /ads/my-campaigns?email=...` (+ `campaign_ids` opcional p/ comparar só algumas, `date_from`/`date_to`) devolve o mesmo formato agregado do analytics do admin (`services/ad.py::_campaigns_analytics`, compartilhado), mas escopado por igualdade exata de `advertiser_email` — é o que alimenta o dashboard "Meus anúncios" (`/advertise/dashboard`) a partir do e-mail do usuário logado no Daqui. `GET /ads/my-campaigns/exists?email=...` é a checagem leve que a `LeftSidebar` do app usa pra decidir entre rotular o item "Meus anúncios" ou "Anuncie conosco".
+- Seeds: `seed_admin.py` (conta `AdAdmin`), `seed_plans.py` (planos de exemplo) e `seed_own_campaigns.py` (2 campanhas com `advertiser_email=francisco@daqui.com`, pra testar "Meus anúncios" com o usuário de teste do Daqui) — mesmo padrão idempotente do `seed_moderator.py`.
+- Painel `ads-admin/` (fala só com este serviço) tem seções: campanhas (lista + status, com botão "Copiar link" do painel do anunciante e "Marcar como paga" quando `pending_payment`), inserir proposta manual (só a parte comercial — preço sugerido calculado ao vivo via `POST /ads/quote`, sobrescrevível, sem nenhum campo de criativo; ao criar mostra o link do painel do anunciante pra enviar, não mais um `checkout_url` cru), auditoria (`/admin/audit-logs`) e CRUD de `AdPlan`.
+- **2FA e recuperação de senha do `AdAdmin`** (diferente do moderador — aqui é auth própria do `ads-backend`, não reaproveita nada do backend principal): `core/totp.py` (TOTP RFC 6238, SHA1/6 dígitos/30s, sem libs externas, espelha o `totp.py` do backend principal) + `core/security.py` (JWT de ticket 2FA e de reset de senha) + `core/email.py`. Login com senha emite um ticket curto se `totp_enabled`; `/auth/login/2fa` valida o código. Reset de senha é um JWT de 20min mandado por e-mail como link `ads-admin/index.html?reset_token=...`. Sem código de backup — perder o device TOTP sem desativar antes trava a conta (só resolve mexendo direto no banco).
+- **Gap conhecido**: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (`core/config.py`) vêm vazios por padrão — sem `.env` com chaves reais, tanto `POST /ads/checkout` quanto `POST /ads/my-campaign/{token}/submit-content` (proposta manual, depois que o anunciante preenche o criativo) levantam erro do Stripe em vez de devolver um `checkout_url` que completa de verdade; pra testar o fluxo de ativação sem pagar de verdade, use `POST /admin/ads/campaigns/{id}/mark-paid`.
+
+## Frontend (`frontend/`)
+
+Expo SDK **56** + Expo Router (file-based routing) + React Native Web. **Sem Redux** — estado de auth vive em `lib/auth.tsx` (Context); o resto é estado local + fetch.
+
+Estrutura:
+```
+app/                 rotas (file-based)
+  (auth)/            welcome, login, signup — fluxo deslogado
+  (tabs)/            app logado: index (feed), map, publish, messages, notifications, search, profile
+  post/[id], user/[id], messages/[id], poll/[id]        telas full-screen empilhadas (Stack na raiz)
+  groups/, forward/[postId], quote/[postId], neighbors/, rate/, help/, settings.tsx, advertise/   idem (ver seções abaixo)
+components/          PostCard, LeftSidebar, RightSidebar, WideLayout, etc.
+lib/api.ts           ÚNICO ponto de acesso HTTP ao backend (objeto `api`)
+lib/auth.tsx         AuthProvider/useAuth (token + usuário atual)
+lib/storage.ts       kv simples: localStorage na web, memória no nativo
+data/mock.ts         tipos do app (User, Post, ...) + alguns mocks legados
+constants/Colors.ts  paleta/tema central — use SEMPRE, nunca hex solto
+```
+
+Convenções importantes:
+- **Todo acesso ao backend passa por `lib/api.ts`.** Lá ficam: o helper `request<T>`, os adaptadores `mapXxx` que convertem o **snake_case** do backend para os modelos **camelCase** do app, e o `relativeTime`. Ao adicionar um endpoint: defina a interface `BackendXxx`, um `mapXxx`, e um método em `api`. Telas não chamam `fetch` direto. Única exceção: `lib/adsApi.ts` fala com o `ads-backend` (serviço HTTP diferente, ver seção própria) e segue o mesmo padrão isoladamente, com base URL de `EXPO_PUBLIC_ADS_API_URL`.
+- Token: mantido em memória + storage; `Authorization: Bearer` injetado automático por `request`. `API_URL` vem de `EXPO_PUBLIC_API_URL` ou `http://localhost:8000/api/v1`.
+- **Layout responsivo por largura**, não por plataforma: `width >= 900` = desktop. No desktop, `WideLayout` envolve o conteúdo com `LeftSidebar` (nav) + `RightSidebar` (widgets) e a tab bar custom some (`(tabs)/_layout.tsx` retorna `null`). Telas largas costumam ter variantes `...Wide` nos styles.
+- **Tema claro/escuro** (`lib/theme.tsx`): `constants/Colors.ts` exporta `lightColors`/`darkColors` (tipo `Palette`) e `Colors` (= claro, p/ telas pré-login não migradas). Padrão de migração de uma tela: troque `const styles = StyleSheet.create({...})` por `const makeStyles = (Colors: Palette) => StyleSheet.create({...})` (o parâmetro chama-se `Colors` de propósito, para não mexer no corpo), e no componente use `const styles = useThemedStyles(makeStyles)` + `const Colors = useTheme()` (para usos inline). Cada componente que usa `styles` precisa chamar `useThemedStyles` (inclusive subcomponentes como `MessageRow`). Toggle via `useThemeMode()` (`mode`/`toggle`), preferência persistida em storage, default do sistema. As telas de auth e alguns badges com pastéis fixos (#FEE2E2 etc.) seguem só o tema claro.
+- Cores/sombras: use a paleta do tema (`Colors.category`, `Colors.gradient`, `Colors.shadow`). Não hardcode cores fora de gradientes decorativos.
+- Ícones: `@expo/vector-icons` (`Ionicons`).
+- Navegação: `router.push('/post/123')` etc. Rotas full-screen novas (fora de tabs) precisam ser declaradas no `<Stack>` de `app/_layout.tsx`.
+- **Idioma** (`lib/i18n.tsx`, decisões completas em `frontend/I18N.md`): `expo-localization` + `i18next`/`react-i18next`. `I18nProvider` (topo de `app/_layout.tsx`) detecta o idioma do dispositivo automaticamente (`useLocales()`, reativo, funciona igual em nativo e web) com fallback `pt`; usuário pode sobrepor manualmente em Configurações → Aparência → Idioma (`useLanguage()`, preferência `'auto'|'pt'|'en'` persistida em storage, mesmo padrão do `lib/theme.tsx`). Uso em componente: `const { t } = useT();` + chaves em `locales/pt-BR.json`/`locales/en.json` (mesmo par de arquivos sempre, chaves espelhadas). Cobertura atual: navegação (tabs/sidebar/drawer) + fluxo de auth completo + seletor de idioma em si; o resto do app (feed, posts, mensagens, grupos, anúncios etc.) ainda está fixo em português — ver `frontend/I18N.md` para o porquê do escopo e como estender.
+
+### Grupos, menções, mutes, push, repost e enquetes
+
+- **Grupos** (`app/groups/`): `index.tsx` (conversas + Discover), `new.tsx` (criação — escolhe privacidade `public`/`request`/`closed` + membros iniciais), `[id]/index.tsx` (chat), `[id]/info.tsx` (membros/papéis, aprovar/rejeitar pedido de entrada, mute).
+- **Menções**: `components/MentionInput.tsx` (composer reaproveitável — detecta `@query` antes do cursor, busca com debounce, aceita `candidates` locais pra restringir a membros de um grupo) e `components/MentionText.tsx` (renderiza `@handle` salvo como link tocável).
+- **Mutes**: `components/MuteMenu.tsx` (modal DM/grupo, durações 8h/1d/1w/sempre) + `components/NotificationMuteRow.tsx`; só silencia push, não mexe no badge de não-lidas.
+- **Push** (`lib/push.ts`): registra token Expo após login/restauração de sessão (`lib/auth.tsx`), desregistra no logout, cria canal de notificação Android, trata tap → deep link (DM/grupo/aba Novidades) montado uma vez em `app/_layout.tsx`. No-op na web.
+- **Encaminhar/citar post**: `app/forward/[postId].tsx` (pro chat) e `app/quote/[postId].tsx` (repost com comentário) — ambos reaproveitam `components/SharedPostPreview.tsx`/`SharedCommentPreview.tsx`. Repost simples é um botão em `PostCard.tsx` (`api.toggleRepost`).
+- **Enquetes**: `components/PollEditor.tsx` (montar opções em `publish.tsx`, categoria `enquete`) e `components/PollBlock.tsx` (votar, renderizado por `PostCard.tsx`).
+- **Selecionar local no mapa** (`components/LocationPickerModal.tsx` + `components/MapPickButton.tsx`, usados em `publish.tsx` e `AdCreativeEditor.tsx`): tocar no mapa reverse-geocoda via `/geo/resolve` e só habilita "Usar este local" se o ponto cair dentro do bairro do usuário; `components/LocationAutocompleteInput.tsx` continua como alternativa por texto (geocodifica no backend).
+- **Pins do mapa "envelhecem"**: efeito só visual, sem campo de expiração no backend — `CATEGORY_LIFESPAN_DAYS` (`data/mock.ts`) define por categoria quantos dias até o pin encolher até `MIN_PIN_SCALE` (`components/leafletHtml.ts::pinScale`); pin nunca some de verdade, e não é configurável ao publicar.
+- **Denúncias**: `components/ReportModal.tsx` (post/comentário/perfil), acionado de `post/[id].tsx`, `PostCard.tsx`, `user/[id].tsx`.
+- **Sessões e suporte**: `app/settings.tsx` lista dispositivos conectados (`api.getSessions`, revogar sessão remota) e `app/help/index.tsx` tem aba "Meus chamados" pra abrir/acompanhar chamado de suporte.
+
+### Anúncios no app (`lib/adsApi.ts`, `app/advertise/`)
+
+`lib/adsApi.ts` é a exceção citada acima: mesmo padrão `BackendXxx` → `mapXxx` → método (`getAd`, `getAdPlans`, `quoteAd`, `createAdCheckout`, `updateMyCampaign`, `trackAdClick`, `uploadAdMedia`, `getMyCampaign`, `hasMyCampaigns`, `getMyCampaignsAnalytics`), mas fala só com o `ads-backend` (`EXPO_PUBLIC_ADS_API_URL`, default `http://localhost:8001/api/v1`) e tem sua própria `AdsApiError`. Canais de contato do responsável (Instagram/WhatsApp/Gmail) ficam centralizados em `constants/ads.ts` (`AD_CONTACT_CHANNELS`).
+
+**`components/AdCreativeEditor.tsx`** — editor de criativos por-formato, construído uma vez e reaproveitado tanto na criação (`checkout.tsx`) quanto na edição (`dashboard/edit/[token].tsx`): um bloco fixo "O anúncio" (formato padrão, cobre `post`+`search_poster`) sempre visível, mais um bloco opcional por formato (`conversation`/`notification`, só imagem — são ícones, sem vídeo) atrás de um toggle "Usar mídia diferente para X". Dentro do bloco padrão tem o picker de "Vincular a uma conta do Daqui" (busca com debounce 300ms via `api.search(query, 'users')`, mesmo padrão de `(tabs)/search.tsx`), que seta `linkedUserId` no criativo. Exporta também os conversores `blocksToCreatives`/`creativesToBlocks` (estado do editor ⇄ `CreativeInput[]`/`MyCampaignCreative[]`).
+
+Páginas do anunciante — público, fora de `(tabs)`, registradas no `<Stack>` de `app/_layout.tsx`:
+- `app/advertise/index.tsx` — planos (`adsApi.getAdPlans()`) + seção de contato direto; imagem/vídeo do criativo é upload de arquivo (não URL), mesmo padrão de `(tabs)/publish.tsx` (ver seção de mídia abaixo).
+- `app/advertise/customize.tsx` — configurador (formatos, duração, bairros/cidade toda) com preço em tempo real via `adsApi.quoteAd`. Aceita `prefill`/`renewedFromToken` (route params vindos do botão "Reativar campanha" do dashboard) pra pré-popular formatos/duração/segmentação/avançado a partir de uma campanha anterior — repassa os dois params adiante pro checkout sem modificá-los.
+- `app/advertise/checkout.tsx` — formulário de contato + `<AdCreativeEditor>` → `adsApi.createAdCheckout` → `Linking.openURL` pro Stripe Checkout. Mesmos `prefill`/`renewedFromToken`: se vierem preenchidos, populam contato/criativos iniciais e são enviados no checkout pra encadear a renovação.
+- `app/advertise/checkout/success.tsx` — tela de retorno pós-pagamento (`STRIPE_SUCCESS_URL`); mostra/copia o link do painel do anunciante (`?token=` do `access_token` da campanha) e leva pra ele.
+- **Painel do anunciante, sem login** (capability token, ver seção do `ads-backend` acima): `app/advertise/dashboard/[token].tsx` mostra status/criativo/analytics/**histórico de renovações** de UMA campanha, com 2 botões no header — "Editar" (→ `dashboard/edit/[token].tsx`) e "Reativar campanha" (monta um `prefill` JSON a partir da campanha carregada e navega pra `customize.tsx` com `renewedFromToken` = o token atual). Quando `status === 'awaiting_content'` (proposta manual sem criativo ainda), a tela troca esses botões e o corpo normal (criativo/analytics/histórico não fazem sentido ainda) por um resumo read-only da config (período, formatos, segmentação, investimento) + CTA "Preencher conteúdo do anúncio" → `dashboard/edit/[token]`. A seção "Histórico" só aparece quando a campanha já foi renovada (`history.length > 1`), listando cada período com status/datas/resultados resumidos, cada um linkando pro seu próprio `dashboard/[token]`. `app/advertise/dashboard/edit/[token].tsx` é a tela de edição (contato + `<AdCreativeEditor>`, prefill via `getMyCampaign`, salva via `adsApi.updateMyCampaign`) — quando a campanha ainda está `awaiting_content`, vira a tela de preenchimento inicial: esconde a seção de identidade (é responsabilidade do moderador, não editável aqui), e o botão vira "Ir para o pagamento" (`adsApi.submitMyCampaignContent` → `POST /ads/my-campaign/{token}/submit-content` → abre o `checkout_url` retornado com `Linking.openURL`, sem voltar pro dashboard). `app/advertise/dashboard/index.tsx` é o dashboard agregado "Meus anúncios" — métricas/insights/série temporal somados, com chips pra comparar só algumas campanhas (`adsApi.getMyCampaignsAnalytics(email, { campaignIds })`), CTA chamativo "Criar nova campanha" (→ `/advertise`) e cada card de campanha leva pro `dashboard/[token]` dela. Acessado pela `LeftSidebar`: o item vira "Meus anúncios" (ícone `stats-chart-outline`, rota `/advertise/dashboard`) em vez de "Anuncie conosco" (rota `/advertise`) assim que `adsApi.hasMyCampaigns(user.email)` acusar alguma campanha do usuário logado — só existe na sidebar desktop (`components/LeftSidebar.tsx`), não no `MobileMenu`.
+
+Injeção do anúncio ativo — cada tela busca só o próprio formato via `adsApi.getAd(format, { neighborhood })` e só renderiza se vier algo (sem espaço reservado quando ausente), disparando `adsApi.trackAdClick(ad.id)` antes de `Linking.openURL`:
+- Feed (`(tabs)/index.tsx`, formato `post`): inserido como 3º item da lista via union `FeedItem`, renderiza `components/AdPostCard.tsx`. Se o criativo tiver `linkedUserId`, o card resolve o `User` via `api.getUser(id)` e ganha um cabeçalho de post de verdade (avatar/nome/`@username`/`<VerifiedBadge/>` se `verified` + "· Patrocinado"), caindo pra tag genérica "Anúncio" quando não vinculado ou se o usuário não resolver (404). Tocar na mídia abre `<ImageViewerModal>` em tela cheia (mesmo componente usado por posts reais) em vez de navegar pro `targetUrl` — só esse tap muda de comportamento, o resto do card continua abrindo o link externo + trackeando clique.
+- Mapa (`(tabs)/map.tsx`, mesmo anúncio `post`): se tiver lat/lng vira marker extra (`id: ad-{id}`); tocar nele trackeia clique e abre o link em vez de navegar pro post.
+- Mensagens (`(tabs)/messages.tsx`, formato `conversation`): prepended no inbox via `AdInboxRow` (ícone de megafone, ou a imagem do criativo `conversation`-específico se o anunciante tiver configurado um).
+- Novidades (`(tabs)/notifications.tsx`, formato `notification`): prepended como notificação sintética (`type: 'ad'`); `constants/notifications.ts` ganhou entrada `ad` em `NOTIF_ICONS`. Mostra a imagem do criativo (mesmo slot de avatar usado por notificações reais) quando existe, senão cai no ícone de megafone.
+- Busca (`(tabs)/search.tsx`, formato `search_poster`): `components/AdSearchPoster.tsx` só no estado vazio, antes de buscar.
+
+`components/VerifiedBadge.tsx` — selo de verificado (ícone check), mesmo padrão visual de `ResidentBadge.tsx`; `User.verified` existe no modelo desde sempre mas só ganhou uma UI própria com o cabeçalho de anúncio vinculado a conta.
+
+### Pegadinhas conhecidas (lint)
+`npm run lint` **não passa limpo no baseline**: dezenas de erros pré-existentes de regras `react-hooks/*` (a maioria `set-state-in-effect`, no padrão `useEffect(() => load(), [load])`; também `immutability`, `refs`, `exhaustive-deps`, `preserve-manual-memoization`, `use-memo`) espalhados por boa parte das telas/`lib/`. Ao escrever código novo, prefira disparar `setState`/efeitos colaterais em handlers de evento em vez de dentro de `useEffect` quando der. `tsc --noEmit` também tem um erro pré-existente em `(tabs)/_layout.tsx` (`@react-navigation/bottom-tabs` sem tipos) — não é regressão sua.
+
+## Verificação rápida
+
+- TS: `cd frontend && npx tsc --noEmit` (ignore os erros pré-existentes acima).
+- Backend smoke test sem subir servidor: `TestClient(app)` — logar com o usuário seed e bater nos endpoints. Ex.:
+  ```python
+  from fastapi.testclient import TestClient; from app.main import app
+  c = TestClient(app)
+  tok = c.post('/api/v1/auth/login', json={'email':'francisco@daqui.com','password':'senha123'}).json()['access_token']
+  c.get('/api/v1/posts/feed', headers={'Authorization': f'Bearer {tok}'})
+  ```

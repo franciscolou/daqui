@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from './api';
 import { useAuth } from './auth';
+import { useT } from './i18n';
 import { useAvailability, AvailabilityState } from './useAvailability';
 
 const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
@@ -11,6 +12,7 @@ const emailLooksReady = (v: string) => /^\S+@\S+\.\S+$/.test(v.trim());
 // divirjam de novo quando o fluxo mudar.
 export function useSignupFlow() {
   const { signup, verifyEmailCode, resendVerification } = useAuth();
+  const { t: translate } = useT();
 
   const [step, setStep] = useState(0); // 0 conta, 1 verificar e-mail, 2 pronto
   const [name, setName] = useState('');
@@ -38,34 +40,34 @@ export function useSignupFlow() {
   const createAccount = async () => {
     setError(null);
     if (!name.trim() || !username.trim() || !email.trim() || !password) {
-      setError('Preencha nome, usuário, e-mail e senha.');
+      setError(translate('auth.flowErrors.fillAllFields'));
       return;
     }
     if (usernameCheck.status === 'checking' || emailCheck.status === 'checking') {
-      setError('Aguarde a verificação do usuário e do e-mail.');
+      setError(translate('auth.flowErrors.checkingAvailability'));
       return;
     }
     if (usernameCheck.status !== 'ok') {
-      setError(usernameCheck.error ?? 'Escolha um nome de usuário válido e disponível.');
+      setError(usernameCheck.error ?? translate('auth.flowErrors.invalidUsername'));
       return;
     }
     if (emailCheck.status !== 'ok') {
-      setError(emailCheck.error ?? 'Informe um e-mail válido e disponível.');
+      setError(emailCheck.error ?? translate('auth.flowErrors.invalidEmail'));
       return;
     }
     setSubmitting(true);
     try {
-      const t = await signup({
+      const newTicket = await signup({
         name: name.trim(),
         username: username.trim(),
         email: email.trim(),
         password,
       });
-      setTicket(t);
+      setTicket(newTicket);
       setCode('');
       setStep(1);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Falha ao criar conta.');
+      setError(e instanceof ApiError ? e.message : translate('auth.flowErrors.signupFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +77,7 @@ export function useSignupFlow() {
     if (submitting || !ticket) return;
     setError(null);
     if (code.trim().length < 6) {
-      setError('Digite o código de 6 dígitos que enviamos por e-mail.');
+      setError(translate('auth.flowErrors.codeHintEmail'));
       return;
     }
     setSubmitting(true);
@@ -83,7 +85,7 @@ export function useSignupFlow() {
       await verifyEmailCode(ticket, code.trim());
       setStep(2);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível verificar o código.');
+      setError(e instanceof ApiError ? e.message : translate('auth.flowErrors.verifyFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -99,7 +101,7 @@ export function useSignupFlow() {
       setCode('');
       setResent(true);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível reenviar o código.');
+      setError(e instanceof ApiError ? e.message : translate('auth.flowErrors.resendFailed'));
     } finally {
       setResending(false);
     }

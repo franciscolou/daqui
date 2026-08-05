@@ -17,12 +17,14 @@ import { useState } from 'react';
 import DaquiMark from '../../components/DaquiMark';
 import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { Colors } from '../../constants/Colors';
+import { useT } from '../../lib/i18n';
 import { submitOnEnter } from '../../lib/keyboard';
 import { goBack } from '../../lib/navigation';
 import { useAuth } from '../../lib/auth';
 import { useLoginFlow } from '../../lib/useLoginFlow';
 
 export default function LoginScreen() {
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
   const {
@@ -43,7 +45,7 @@ export default function LoginScreen() {
         router.replace('/(tabs)');
       }
     } catch {
-      setGoogleError('Não foi possível entrar com o Google.');
+      setGoogleError(t('auth.login.googleError'));
     }
   };
 
@@ -76,14 +78,14 @@ export default function LoginScreen() {
             </View>
 
             <Text style={styles.headerTitle}>
-              {mode === '2fa' ? 'Verificação em duas etapas'
-                : mode === 'verify' ? 'Confirme seu e-mail'
-                : 'Bem-vindo de volta'}
+              {mode === '2fa' ? t('auth.login.twoFaTitle')
+                : mode === 'verify' ? t('auth.login.verifyTitle')
+                : t('auth.login.title')}
             </Text>
             <Text style={styles.headerSubtitle}>
-              {mode === '2fa' ? 'Confirme sua identidade'
-                : mode === 'verify' ? 'Enviamos um código de 6 dígitos para você'
-                : 'Entre na sua conta'}
+              {mode === '2fa' ? t('auth.login.twoFaSubtitle')
+                : mode === 'verify' ? t('auth.login.verifySubtitle')
+                : t('auth.login.subtitle')}
             </Text>
           </LinearGradient>
 
@@ -99,13 +101,13 @@ export default function LoginScreen() {
                   />
                   <Text style={styles.twoFaText}>
                     {mode === '2fa'
-                      ? 'Digite o código de 6 dígitos gerado pelo seu app autenticador (Google Authenticator, Authy, etc.).'
-                      : 'Digite o código de 6 dígitos que enviamos por e-mail. Ele vale por 10 minutos.'}
+                      ? t('auth.login.twoFaCodeHintApp')
+                      : t('auth.login.twoFaCodeHintEmail')}
                   </Text>
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Código de verificação</Text>
+                  <Text style={styles.label}>{t('auth.login.verificationCode')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
@@ -126,7 +128,7 @@ export default function LoginScreen() {
                 {mode === 'verify' && (
                   <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.forgotBtn}>
                     <Text style={styles.forgotText}>
-                      {resending ? 'Reenviando…' : resent ? 'Código reenviado ✓' : 'Reenviar código'}
+                      {resending ? t('auth.login.resending') : resent ? t('auth.login.resent') : t('auth.login.resendCode')}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -154,7 +156,7 @@ export default function LoginScreen() {
                       <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Text style={styles.btnText}>Verificar</Text>
+                        <Text style={styles.btnText}>{t('auth.login.verify')}</Text>
                         <Ionicons name="arrow-forward" size={18} color="#fff" />
                       </>
                     )}
@@ -162,14 +164,14 @@ export default function LoginScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.altRow} onPress={cancelSecondStep}>
-                  <Text style={styles.altLink}>Voltar ao login</Text>
+                  <Text style={styles.altLink}>{t('auth.login.backToLogin')}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
             <>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>E-mail</Text>
+              <Text style={styles.label}>{t('auth.login.email')}</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                 <TextInput
@@ -188,12 +190,12 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Senha</Text>
+              <Text style={styles.label}>{t('auth.login.password')}</Text>
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.inputFlex}
-                  placeholder="Sua senha"
+                  placeholder={t('auth.login.passwordPlaceholder')}
                   placeholderTextColor={Colors.textTertiary}
                   value={password}
                   onChangeText={setPassword}
@@ -212,7 +214,7 @@ export default function LoginScreen() {
             </View>
 
             <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/forgot-password')}>
-              <Text style={styles.forgotText}>Esqueceu a senha?</Text>
+              <Text style={styles.forgotText}>{t('auth.login.forgotPassword')}</Text>
             </TouchableOpacity>
 
             {error && (
@@ -238,7 +240,7 @@ export default function LoginScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <>
-                    <Text style={styles.btnText}>Entrar</Text>
+                    <Text style={styles.btnText}>{t('auth.login.signIn')}</Text>
                     <Ionicons name="arrow-forward" size={18} color="#fff" />
                   </>
                 )}
@@ -247,7 +249,7 @@ export default function LoginScreen() {
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>ou continue com</Text>
+              <Text style={styles.dividerText}>{t('auth.login.orContinueWith')}</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -268,9 +270,9 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.altRow}>
-              <Text style={styles.altText}>Não tem conta? </Text>
+              <Text style={styles.altText}>{t('auth.login.noAccount')}</Text>
               <TouchableOpacity onPress={() => router.replace('/(auth)/signup')}>
-                <Text style={styles.altLink}>Cadastre-se grátis</Text>
+                <Text style={styles.altLink}>{t('auth.login.signUpFree')}</Text>
               </TouchableOpacity>
             </View>
             </>

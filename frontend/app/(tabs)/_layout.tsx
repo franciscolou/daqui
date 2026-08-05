@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Palette } from '../../constants/Colors';
+import { useT } from '../../lib/i18n';
 import { useRealtime } from '../../lib/realtime';
 import { useScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -14,12 +15,12 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 // 'mapa' também fica de fora — acessível pela barra lateral/menu — para abrir
 // espaço para as notificações aqui embaixo.
 const TAB_ITEMS = [
-  { name: 'index', label: 'Início', icon: 'home-outline', iconActive: 'home' },
-  { name: 'search', label: 'Buscar', icon: 'search-outline', iconActive: 'search' },
-  { name: 'publish', label: '', icon: 'add', iconActive: 'add' },
-  { name: 'notifications', label: 'Novidades', icon: 'notifications-outline', iconActive: 'notifications' },
-  { name: 'messages', label: 'Mensagens', icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
-];
+  { name: 'index', labelKey: 'nav.home', icon: 'home-outline', iconActive: 'home' },
+  { name: 'search', labelKey: 'nav.search', icon: 'search-outline', iconActive: 'search' },
+  { name: 'publish', labelKey: '', icon: 'add', iconActive: 'add' },
+  { name: 'notifications', labelKey: 'nav.notifications', icon: 'notifications-outline', iconActive: 'notifications' },
+  { name: 'messages', labelKey: 'nav.messages', icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
+] as const;
 
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { width } = useWindowDimensions();
@@ -28,6 +29,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const styles = useThemedStyles(makeStyles);
   const { unreadMessages, unreadNotifications } = useRealtime();
   const { trigger } = useScrollToTop();
+  const { t } = useT();
 
   if (width >= 900) return null;
 
@@ -84,6 +86,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
           const showDot =
             (tabItem.name === 'messages' && unreadMessages > 0) ||
             (tabItem.name === 'notifications' && unreadNotifications > 0);
+          const label = tabItem.labelKey ? t(tabItem.labelKey) : '';
 
           return (
             <Pressable
@@ -91,7 +94,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
               onPress={() => go(tabItem.name)}
               style={styles.tabItem}
               accessibilityRole="button"
-              accessibilityLabel={tabItem.label}
+              accessibilityLabel={label}
               {...({ tabIndex: -1 } as any)}
             >
               {({ hovered }: { hovered?: boolean }) => (

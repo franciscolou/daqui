@@ -6,6 +6,7 @@ import { StyleSheet } from 'react-native';
 import { AuthProvider } from '../lib/auth';
 import { daquiGeoAdapter } from '../lib/daquiGeo';
 import { GeoProvider } from '../lib/geoProvider';
+import { I18nProvider } from '../lib/i18n';
 import { addNotificationTapListener } from '../lib/push';
 import { RealtimeProvider } from '../lib/realtime';
 import { ScrollToTopProvider } from '../lib/scrollToTop';
@@ -27,6 +28,7 @@ function PushNotificationTapHandler() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
+      <I18nProvider>
       <ThemeProvider>
         <AuthProvider>
           <RealtimeProvider>
@@ -68,6 +70,7 @@ export default function RootLayout() {
           </RealtimeProvider>
         </AuthProvider>
       </ThemeProvider>
+      </I18nProvider>
     </GestureHandlerRootView>
   );
 }

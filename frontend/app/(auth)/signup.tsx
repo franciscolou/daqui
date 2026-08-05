@@ -14,12 +14,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
+import { useT } from '../../lib/i18n';
 import { submitOnEnter } from '../../lib/keyboard';
 import { goBack } from '../../lib/navigation';
 import { AvailabilityState } from '../../lib/useAvailability';
 import { useSignupFlow } from '../../lib/useSignupFlow';
-
-const STEPS = ['Conta', 'Verificar', 'Pronto'];
 
 // Indicador de status de disponibilidade (dentro do input).
 function AvailabilityIcon({ state }: { state: AvailabilityState }) {
@@ -30,6 +29,8 @@ function AvailabilityIcon({ state }: { state: AvailabilityState }) {
 }
 
 export default function SignupScreen() {
+  const { t } = useT();
+  const STEPS = [t('auth.signup.steps.account'), t('auth.signup.steps.verify'), t('auth.signup.steps.done')];
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
   const {
@@ -39,11 +40,11 @@ export default function SignupScreen() {
     createAccount, handleVerify, handleResend,
   } = useSignupFlow();
 
-  const headerTitle = step === 0 ? 'Crie sua conta' : step === 1 ? 'Confirme seu e-mail' : 'Tudo certo!';
+  const headerTitle = step === 0 ? t('auth.signup.title') : step === 1 ? t('auth.signup.verifyTitle') : t('auth.signup.doneTitle');
   const headerSubtitle =
-    step === 0 ? 'Junte-se a milhares de vizinhos'
-    : step === 1 ? 'Enviamos um código de 6 dígitos para você'
-    : 'Sua conta foi criada com sucesso';
+    step === 0 ? t('auth.signup.subtitle')
+    : step === 1 ? t('auth.signup.verifySubtitle')
+    : t('auth.signup.doneSubtitle');
 
   return (
     <KeyboardAvoidingView
@@ -107,12 +108,12 @@ export default function SignupScreen() {
             {step === 0 && (
               <>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Nome completo</Text>
+                  <Text style={styles.label}>{t('auth.signup.fullName')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="person-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Seu nome"
+                      placeholder={t('auth.signup.fullNamePlaceholder')}
                       placeholderTextColor={Colors.textTertiary}
                       value={name}
                       onChangeText={setName}
@@ -123,12 +124,12 @@ export default function SignupScreen() {
                   </View>
                 </View>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Nome de usuário</Text>
+                  <Text style={styles.label}>{t('auth.signup.username')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="at-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="seu.usuario"
+                      placeholder={t('auth.signup.usernamePlaceholder')}
                       placeholderTextColor={Colors.textTertiary}
                       value={username}
                       onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))}
@@ -145,7 +146,7 @@ export default function SignupScreen() {
                   )}
                 </View>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>E-mail</Text>
+                  <Text style={styles.label}>{t('auth.signup.email')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
@@ -166,12 +167,12 @@ export default function SignupScreen() {
                   )}
                 </View>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Senha</Text>
+                  <Text style={styles.label}>{t('auth.signup.password')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.inputFlex}
-                      placeholder="Mínimo 8 caracteres"
+                      placeholder={t('auth.signup.passwordPlaceholder')}
                       placeholderTextColor={Colors.textTertiary}
                       value={password}
                       onChangeText={setPassword}
@@ -196,13 +197,13 @@ export default function SignupScreen() {
                 <View style={styles.twoFaIntro}>
                   <Ionicons name="mail-open-outline" size={22} color={Colors.primary} />
                   <Text style={styles.twoFaText}>
-                    Enviamos um código de 6 dígitos para <Text style={{ fontWeight: '700' }}>{email.trim()}</Text>.
-                    Ele vale por 10 minutos.
+                    {t('auth.signup.sentCodeTo')} <Text style={{ fontWeight: '700' }}>{email.trim()}</Text>.
+                    {' '}{t('auth.signup.codeValidFor')}
                   </Text>
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Código de verificação</Text>
+                  <Text style={styles.label}>{t('auth.signup.verificationCode')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="keypad-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
@@ -222,7 +223,7 @@ export default function SignupScreen() {
 
                 <TouchableOpacity onPress={handleResend} disabled={resending} style={styles.altRow}>
                   <Text style={styles.altLink}>
-                    {resending ? 'Reenviando…' : resent ? 'Código reenviado ✓' : 'Reenviar código'}
+                    {resending ? t('auth.login.resending') : resent ? t('auth.login.resent') : t('auth.login.resendCode')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -235,11 +236,9 @@ export default function SignupScreen() {
                     <Ionicons name="checkmark" size={36} color="#fff" />
                   </LinearGradient>
                 </View>
-                <Text style={styles.successTitle}>Bem-vindo ao Daqui! 🎉</Text>
+                <Text style={styles.successTitle}>{t('auth.signup.welcomeTitle')}</Text>
                 <Text style={styles.successDesc}>
-                  Sua conta foi criada. Você já pode ver o que está rolando perto de você em
-                  "Perto de mim" — quando quiser, configure "Meu bairro" para participar da
-                  comunidade onde você mora.
+                  {t('auth.signup.welcomeDesc')}
                 </Text>
               </View>
             )}
@@ -273,7 +272,7 @@ export default function SignupScreen() {
                 ) : (
                   <>
                     <Text style={styles.btnText}>
-                      {step === 0 ? 'Continuar' : step === 1 ? 'Verificar' : 'Começar a usar o Daqui'}
+                      {step === 0 ? t('auth.signup.continueLabel') : step === 1 ? t('auth.signup.verify') : t('auth.signup.startUsing')}
                     </Text>
                     <Ionicons
                       name={step === 2 ? 'navigate' : 'arrow-forward'}
@@ -287,9 +286,9 @@ export default function SignupScreen() {
 
             {step === 0 && (
               <View style={styles.altRow}>
-                <Text style={styles.altText}>Já tem conta? </Text>
+                <Text style={styles.altText}>{t('auth.signup.haveAccount')}</Text>
                 <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
-                  <Text style={styles.altLink}>Entrar</Text>
+                  <Text style={styles.altLink}>{t('auth.signup.signIn')}</Text>
                 </TouchableOpacity>
               </View>
             )}

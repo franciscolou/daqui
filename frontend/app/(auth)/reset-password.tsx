@@ -16,12 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
 import { api, ApiError } from '../../lib/api';
+import { useT } from '../../lib/i18n';
 import { submitOnEnter } from '../../lib/keyboard';
 
 // Aberta a partir do link enviado por e-mail (?token=...), válido por 20min —
 // ver `FRONTEND_URL` em backend/app/core/config.py e `forgot_password` em
 // backend/app/services/auth.py.
 export default function ResetPasswordScreen() {
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -37,11 +39,11 @@ export default function ResetPasswordScreen() {
     if (submitting || !token) return;
     setError(null);
     if (password.length < 6) {
-      setError('A nova senha deve ter ao menos 6 caracteres.');
+      setError(t('auth.resetPassword.tooShort'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('As senhas não coincidem.');
+      setError(t('auth.resetPassword.mismatch'));
       return;
     }
     setSubmitting(true);
@@ -49,7 +51,7 @@ export default function ResetPasswordScreen() {
       await api.resetPassword(token, password);
       setDone(true);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível redefinir a senha.');
+      setError(e instanceof ApiError ? e.message : t('auth.resetPassword.genericError'));
     } finally {
       setSubmitting(false);
     }
@@ -71,9 +73,9 @@ export default function ResetPasswordScreen() {
             colors={['#0D2918', '#15803D']}
             style={[styles.header, isWide && styles.headerWide]}
           >
-            <Text style={styles.headerTitle}>Nova senha</Text>
+            <Text style={styles.headerTitle}>{t('auth.resetPassword.title')}</Text>
             <Text style={styles.headerSubtitle}>
-              {done ? 'Senha redefinida' : 'Escolha uma nova senha para sua conta'}
+              {done ? t('auth.resetPassword.subtitleDone') : t('auth.resetPassword.subtitleIdle')}
             </Text>
           </LinearGradient>
 
@@ -82,10 +84,10 @@ export default function ResetPasswordScreen() {
               <View style={styles.successArea}>
                 <Ionicons name="alert-circle-outline" size={40} color={Colors.error} />
                 <Text style={[styles.successDesc, { marginTop: 16 }]}>
-                  Link inválido. Solicite um novo link de redefinição de senha.
+                  {t('auth.resetPassword.invalidLink')}
                 </Text>
                 <TouchableOpacity style={styles.altRow} onPress={() => router.replace('/(auth)/forgot-password')}>
-                  <Text style={styles.altLink}>Solicitar novo link</Text>
+                  <Text style={styles.altLink}>{t('auth.resetPassword.requestNewLink')}</Text>
                 </TouchableOpacity>
               </View>
             ) : done ? (
@@ -96,8 +98,7 @@ export default function ResetPasswordScreen() {
                   </LinearGradient>
                 </View>
                 <Text style={styles.successDesc}>
-                  Sua senha foi redefinida. Todas as sessões anteriores foram encerradas por
-                  segurança — entre novamente com a nova senha.
+                  {t('auth.resetPassword.doneDesc')}
                 </Text>
                 <TouchableOpacity
                   style={styles.btnPrimary}
@@ -110,7 +111,7 @@ export default function ResetPasswordScreen() {
                     end={{ x: 1, y: 0 }}
                     style={styles.btnGradient}
                   >
-                    <Text style={styles.btnText}>Ir para o login</Text>
+                    <Text style={styles.btnText}>{t('auth.resetPassword.goToLogin')}</Text>
                     <Ionicons name="arrow-forward" size={18} color="#fff" />
                   </LinearGradient>
                 </TouchableOpacity>
@@ -118,12 +119,12 @@ export default function ResetPasswordScreen() {
             ) : (
               <>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Nova senha</Text>
+                  <Text style={styles.label}>{t('auth.resetPassword.newPassword')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.inputFlex}
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder={t('auth.resetPassword.newPasswordPlaceholder')}
                       placeholderTextColor={Colors.textTertiary}
                       value={password}
                       onChangeText={setPassword}
@@ -143,12 +144,12 @@ export default function ResetPasswordScreen() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Confirmar nova senha</Text>
+                  <Text style={styles.label}>{t('auth.resetPassword.confirmPassword')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="lock-closed-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.inputFlex}
-                      placeholder="Repita a senha"
+                      placeholder={t('auth.resetPassword.confirmPasswordPlaceholder')}
                       placeholderTextColor={Colors.textTertiary}
                       value={confirmPassword}
                       onChangeText={setConfirmPassword}
@@ -182,7 +183,7 @@ export default function ResetPasswordScreen() {
                       <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Text style={styles.btnText}>Redefinir senha</Text>
+                        <Text style={styles.btnText}>{t('auth.resetPassword.resetPasswordAction')}</Text>
                         <Ionicons name="arrow-forward" size={18} color="#fff" />
                       </>
                     )}

@@ -12,6 +12,7 @@ import { BRAND_FONT } from '../constants/BrandFont';
 import { CATEGORIES, PostCategory } from '../data/mock';
 import { adsApi } from '../lib/adsApi';
 import { useAuth } from '../lib/auth';
+import { useT } from '../lib/i18n';
 import { useRealtime } from '../lib/realtime';
 import { useScrollToTop } from '../lib/scrollToTop';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
@@ -32,35 +33,35 @@ interface Props {
 }
 
 const NAV_ITEMS = [
-  { key: 'index',     route: '/(tabs)',             label: 'Início',     icon: 'home-outline'         as const, iconActive: 'home'         as const },
-  { key: 'search',     route: '/search',              label: 'Buscar',     icon: 'search-outline'       as const, iconActive: 'search'       as const },
-  { key: 'notifications', route: '/(tabs)/notifications', label: 'Novidades',  icon: 'notifications-outline' as const, iconActive: 'notifications' as const },
-  { key: 'map',      route: '/(tabs)/map',        label: 'Mapa',       icon: 'map-outline'          as const, iconActive: 'map'          as const },
-  { key: 'messages', route: '/(tabs)/messages',   label: 'Mensagens',  icon: 'chatbubbles-outline'  as const, iconActive: 'chatbubbles'  as const },
-  { key: 'profile',    route: '/(tabs)/profile',      label: 'Perfil',     icon: 'person-outline'       as const, iconActive: 'person'       as const },
-  { key: 'settings', route: '/settings',  label: 'Configurações', icon: 'settings-outline'  as const, iconActive: 'settings'     as const },
+  { key: 'index',     route: '/(tabs)',             labelKey: 'nav.home',     icon: 'home-outline'         as const, iconActive: 'home'         as const },
+  { key: 'search',     route: '/search',              labelKey: 'nav.search',     icon: 'search-outline'       as const, iconActive: 'search'       as const },
+  { key: 'notifications', route: '/(tabs)/notifications', labelKey: 'nav.notifications',  icon: 'notifications-outline' as const, iconActive: 'notifications' as const },
+  { key: 'map',      route: '/(tabs)/map',        labelKey: 'nav.map',       icon: 'map-outline'          as const, iconActive: 'map'          as const },
+  { key: 'messages', route: '/(tabs)/messages',   labelKey: 'nav.messages',  icon: 'chatbubbles-outline'  as const, iconActive: 'chatbubbles'  as const },
+  { key: 'profile',    route: '/(tabs)/profile',      labelKey: 'nav.profile',     icon: 'person-outline'       as const, iconActive: 'person'       as const },
+  { key: 'settings', route: '/settings',  labelKey: 'nav.settings', icon: 'settings-outline'  as const, iconActive: 'settings'     as const },
 ];
 
 const PEOPLE_ITEMS: {
   key: string;
-  label: string;
+  labelKey: string;
   icon: keyof typeof Ionicons.glyphMap;
   route?: string;
 }[] = [
-  { key: 'neighbors', label: 'Vizinhos', icon: 'people-outline', route: '/neighbors' },
-  { key: 'groups', label: 'Grupos', icon: 'grid-outline', route: '/groups' },
+  { key: 'neighbors', labelKey: 'nav.neighbors', icon: 'people-outline', route: '/neighbors' },
+  { key: 'groups', labelKey: 'nav.groups', icon: 'grid-outline', route: '/groups' },
 ];
 
 const APP_ITEMS: {
   key: string;
-  label: string;
+  labelKey: string;
   icon: keyof typeof Ionicons.glyphMap;
   route?: string;
 }[] = [
-  { key: 'rate', label: 'Avaliar o Daqui', icon: 'star-outline' },
-  { key: 'help',   label: 'Ajuda e suporte', icon: 'help-circle-outline', route: '/help' },
-  { key: 'ads',    label: 'Anuncie conosco', icon: 'megaphone-outline', route: '/advertise' },
-  { key: 'terms',  label: 'Termos de uso',   icon: 'document-text-outline', route: '/legal/terms' },
+  { key: 'rate', labelKey: 'nav.rateApp', icon: 'star-outline' },
+  { key: 'help',   labelKey: 'nav.help', icon: 'help-circle-outline', route: '/help' },
+  { key: 'ads',    labelKey: 'nav.advertise', icon: 'megaphone-outline', route: '/advertise' },
+  { key: 'terms',  labelKey: 'nav.terms',   icon: 'document-text-outline', route: '/legal/terms' },
 ];
 
 export default function LeftSidebar({
@@ -74,6 +75,7 @@ export default function LeftSidebar({
 }: Props) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { t } = useT();
   const { unreadMessages, unreadNotifications } = useRealtime();
   const { trigger } = useScrollToTop();
   const { width } = useWindowDimensions();
@@ -180,7 +182,7 @@ export default function LeftSidebar({
       >
         <LinearGradient colors={Colors.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.publishBtnGrad}>
           <Ionicons name="add" size={17} color="#fff" />
-          <Text style={styles.publishBtnText}>Novo post</Text>
+          <Text style={styles.publishBtnText}>{t('nav.newPost')}</Text>
         </LinearGradient>
       </TouchableOpacity>
 
@@ -206,7 +208,7 @@ export default function LeftSidebar({
                 {showDot && <View style={styles.navDot} />}
               </View>
               <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>
-                {item.label}
+                {t(item.labelKey)}
               </Text>
             </Pressable>
           );
@@ -222,7 +224,7 @@ export default function LeftSidebar({
             style={({ hovered }) => [styles.categoriesHeader, hovered && styles.navItemHover]}
             onPress={toggleCategories}
           >
-            <Text style={styles.groupTitle}>Categorias</Text>
+            <Text style={styles.groupTitle}>{t('nav.categoriesTitle')}</Text>
             <Animated.View style={chevronStyle}>
               <Ionicons name="chevron-down" size={14} color={Colors.textTertiary} />
             </Animated.View>
@@ -244,7 +246,7 @@ export default function LeftSidebar({
                 style={styles.catAllIcon}
               />
               <Text style={[styles.navLabel, activeCategory === 'todos' && { color: Colors.text, fontWeight: '600' }]}>
-                Todas
+                {t('nav.allCategories')}
               </Text>
               {activeCategory === 'todos' && (
                 <View style={[styles.activeIndicator, { backgroundColor: Colors.primary }]} />
@@ -268,13 +270,13 @@ export default function LeftSidebar({
               <View style={[styles.checkbox, importantOnly && styles.checkboxChecked]}>
                 {importantOnly && <Ionicons name="checkmark" size={14} color="#fff" />}
               </View>
-              <Text style={styles.importantLabel}>Somente importantes</Text>
+              <Text style={styles.importantLabel}>{t('nav.importantOnly')}</Text>
             </Pressable>
             {/* Redondezas: aplica à visualização ativa do feed */}
             {onIncludeNearbyChange && (
               <View style={[styles.navItem, styles.nearbyRow]}>
                 <Ionicons name="git-network-outline" size={17} color={Colors.textSecondary} />
-                <Text style={styles.navLabel}>Incluir redondezas</Text>
+                <Text style={styles.navLabel}>{t('nav.includeNearby')}</Text>
                 <Switch
                   value={!!includeNearby}
                   onValueChange={onIncludeNearbyChange}
@@ -290,7 +292,7 @@ export default function LeftSidebar({
       <View style={styles.divider} />
 
       {/* People */}
-      <Text style={styles.groupTitle}>Pessoas</Text>
+      <Text style={styles.groupTitle}>{t('nav.peopleTitle')}</Text>
       <View style={styles.group}>
         {PEOPLE_ITEMS.map((item) => (
           <Pressable
@@ -299,7 +301,7 @@ export default function LeftSidebar({
             onPress={() => (item.route ? navigate(item.route) : onNavigate?.())}
           >
             <Ionicons name={item.icon} size={17} color={Colors.textSecondary} />
-            <Text style={styles.navLabel}>{item.label}</Text>
+            <Text style={styles.navLabel}>{t(item.labelKey)}</Text>
           </Pressable>
         ))}
       </View>
@@ -307,12 +309,12 @@ export default function LeftSidebar({
       <View style={styles.divider} />
 
       {/* App */}
-      <Text style={styles.groupTitle}>Sobre</Text>
+      <Text style={styles.groupTitle}>{t('nav.aboutTitle')}</Text>
       <View style={styles.group}>
         {APP_ITEMS.map((item) => {
           const isAds = item.key === 'ads';
           const isAdvertiseCta = isAds && !hasMyAds;
-          const label = isAds ? (hasMyAds ? 'Meus anúncios' : item.label) : item.label;
+          const label = isAds ? (hasMyAds ? t('nav.myAds') : t(item.labelKey)) : t(item.labelKey);
           const route = isAds ? (hasMyAds ? '/advertise/dashboard' : item.route) : item.route;
           const icon = isAds && hasMyAds ? 'stats-chart-outline' : item.icon;
           return (
@@ -351,10 +353,10 @@ export default function LeftSidebar({
       <View style={styles.divider} />
 
       {/* Appearance */}
-      <Text style={styles.groupTitle}>Aparência</Text>
+      <Text style={styles.groupTitle}>{t('nav.appearanceTitle')}</Text>
       <View style={[styles.navItem, styles.themeRow]}>
         <Ionicons name={mode === 'dark' ? 'moon' : 'moon-outline'} size={17} color={Colors.textSecondary} />
-        <Text style={styles.navLabel}>Modo escuro</Text>
+        <Text style={styles.navLabel}>{t('nav.darkMode')}</Text>
         <Switch
           value={mode === 'dark'}
           onValueChange={toggle}
@@ -371,17 +373,17 @@ export default function LeftSidebar({
         onPress={handleLogout}
       >
         <Ionicons name="log-out-outline" size={17} color={Colors.error} />
-        <Text style={[styles.navLabel, styles.logoutLabel]}>Sair</Text>
+        <Text style={[styles.navLabel, styles.logoutLabel]}>{t('nav.logout')}</Text>
       </Pressable>
 
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          <Text style={styles.footerLink} onPress={() => navigate('/legal/privacy')}>Privacidade</Text>
+          <Text style={styles.footerLink} onPress={() => navigate('/legal/privacy')}>{t('nav.privacy')}</Text>
           {' · '}
-          <Text style={styles.footerLink} onPress={() => navigate('/legal/terms')}>Termos</Text>
+          <Text style={styles.footerLink} onPress={() => navigate('/legal/terms')}>{t('nav.footerTerms')}</Text>
         </Text>
-        <Text style={styles.footerVersion}>Daqui © 2025</Text>
+        <Text style={styles.footerVersion}>{t('nav.footerVersion')}</Text>
       </View>
 
       {isWide && <RateModal visible={rateOpen} onClose={() => setRateOpen(false)} />}

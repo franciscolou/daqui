@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import { ApiError } from './api';
 import { useAuth } from './auth';
+import { useT } from './i18n';
 
 // Lógica do fluxo de login (senha → 2FA ou verificação de e-mail pendente,
 // quando aplicável), compartilhada entre app/(auth)/login.tsx e o painel de
@@ -9,6 +10,7 @@ import { useAuth } from './auth';
 // as duas telas divirjam de novo quando o fluxo mudar.
 export function useLoginFlow() {
   const { login, verifyLogin2fa, verifyEmailCode, resendVerification } = useAuth();
+  const { t: translate } = useT();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +35,7 @@ export function useLoginFlow() {
     if (submitting) return;
     setError(null);
     if (!email.trim() || !password) {
-      setError('Preencha e-mail e senha.');
+      setError(translate('auth.flowErrors.fillEmailPassword'));
       return;
     }
     setSubmitting(true);
@@ -47,7 +49,7 @@ export function useLoginFlow() {
         router.replace('/(tabs)');
       }
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Falha ao entrar.');
+      setError(e instanceof ApiError ? e.message : translate('auth.flowErrors.loginFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -59,8 +61,8 @@ export function useLoginFlow() {
     if (code.trim().length < 6) {
       setError(
         mode === '2fa'
-          ? 'Digite o código de 6 dígitos do seu app autenticador.'
-          : 'Digite o código de 6 dígitos que enviamos por e-mail.',
+          ? translate('auth.flowErrors.codeHintApp')
+          : translate('auth.flowErrors.codeHintEmail'),
       );
       return;
     }
@@ -70,7 +72,7 @@ export function useLoginFlow() {
       else await verifyEmailCode(ticket!, code.trim());
       router.replace('/(tabs)');
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível verificar o código.');
+      setError(e instanceof ApiError ? e.message : translate('auth.flowErrors.verifyFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +88,7 @@ export function useLoginFlow() {
       setCode('');
       setResent(true);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível reenviar o código.');
+      setError(e instanceof ApiError ? e.message : translate('auth.flowErrors.resendFailed'));
     } finally {
       setResending(false);
     }

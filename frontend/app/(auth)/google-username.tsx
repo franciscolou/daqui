@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { useT } from '../../lib/i18n';
 import { submitOnEnter } from '../../lib/keyboard';
 import { useAvailability } from '../../lib/useAvailability';
 
@@ -34,6 +35,7 @@ function AvailabilityIcon({ status }: { status: 'idle' | 'checking' | 'ok' | 'er
 // ?ticket=... (ver lib/auth.tsx::loginWithGoogle, mesmo padrão do link de
 // redefinição de senha em reset-password.tsx).
 export default function GoogleUsernameScreen() {
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
   const { ticket } = useLocalSearchParams<{ ticket?: string }>();
@@ -50,15 +52,15 @@ export default function GoogleUsernameScreen() {
     if (submitting || !ticket) return;
     setError(null);
     if (!username.trim()) {
-      setError('Escolha um nome de usuário.');
+      setError(t('auth.googleUsername.usernameRequired'));
       return;
     }
     if (usernameCheck.status === 'checking') {
-      setError('Aguarde a verificação do nome de usuário.');
+      setError(t('auth.googleUsername.checkingUsername'));
       return;
     }
     if (usernameCheck.status !== 'ok') {
-      setError(usernameCheck.error ?? 'Escolha um nome de usuário válido e disponível.');
+      setError(usernameCheck.error ?? t('auth.googleUsername.invalidUsername'));
       return;
     }
     setSubmitting(true);
@@ -66,7 +68,7 @@ export default function GoogleUsernameScreen() {
       await completeGoogleSignup(ticket, username.trim());
       router.replace('/(tabs)');
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível concluir o cadastro.');
+      setError(e instanceof ApiError ? e.message : t('auth.googleUsername.genericError'));
     } finally {
       setSubmitting(false);
     }
@@ -88,8 +90,8 @@ export default function GoogleUsernameScreen() {
             colors={['#0D2918', '#15803D']}
             style={[styles.header, isWide && styles.headerWide]}
           >
-            <Text style={styles.headerTitle}>Falta pouco!</Text>
-            <Text style={styles.headerSubtitle}>Escolha um nome de usuário para começar</Text>
+            <Text style={styles.headerTitle}>{t('auth.googleUsername.title')}</Text>
+            <Text style={styles.headerSubtitle}>{t('auth.googleUsername.subtitle')}</Text>
           </LinearGradient>
 
           <View style={styles.form}>
@@ -97,16 +99,16 @@ export default function GoogleUsernameScreen() {
               <View style={styles.successArea}>
                 <Ionicons name="alert-circle-outline" size={40} color={Colors.error} />
                 <Text style={[styles.successDesc, { marginTop: 16 }]}>
-                  Sessão de cadastro inválida ou expirada. Entre com o Google novamente.
+                  {t('auth.googleUsername.invalidSession')}
                 </Text>
                 <TouchableOpacity style={styles.altRow} onPress={() => router.replace('/(auth)/login')}>
-                  <Text style={styles.altLink}>Voltar ao login</Text>
+                  <Text style={styles.altLink}>{t('auth.googleUsername.backToLogin')}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Nome de usuário</Text>
+                  <Text style={styles.label}>{t('auth.googleUsername.username')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="at-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
@@ -152,7 +154,7 @@ export default function GoogleUsernameScreen() {
                       <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Text style={styles.btnText}>Começar a usar o Daqui</Text>
+                        <Text style={styles.btnText}>{t('auth.googleUsername.startUsing')}</Text>
                         <Ionicons name="navigate" size={18} color="#fff" />
                       </>
                     )}

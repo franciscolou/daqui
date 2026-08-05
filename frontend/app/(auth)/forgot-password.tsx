@@ -16,10 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
 import { api, ApiError } from '../../lib/api';
+import { useT } from '../../lib/i18n';
 import { submitOnEnter } from '../../lib/keyboard';
 import { goBack } from '../../lib/navigation';
 
 export default function ForgotPasswordScreen() {
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
 
@@ -32,7 +34,7 @@ export default function ForgotPasswordScreen() {
     if (submitting) return;
     setError(null);
     if (!email.trim()) {
-      setError('Informe seu e-mail.');
+      setError(t('auth.forgotPassword.emailRequired'));
       return;
     }
     setSubmitting(true);
@@ -40,7 +42,7 @@ export default function ForgotPasswordScreen() {
       await api.forgotPassword(email.trim());
       setSent(true);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível enviar o e-mail.');
+      setError(e instanceof ApiError ? e.message : t('auth.forgotPassword.genericError'));
     } finally {
       setSubmitting(false);
     }
@@ -66,9 +68,9 @@ export default function ForgotPasswordScreen() {
               <Ionicons name="chevron-back" size={20} color="#fff" />
             </TouchableOpacity>
 
-            <Text style={styles.headerTitle}>Esqueceu a senha?</Text>
+            <Text style={styles.headerTitle}>{t('auth.forgotPassword.title')}</Text>
             <Text style={styles.headerSubtitle}>
-              {sent ? 'Confira seu e-mail' : 'Enviamos um link pra você redefinir'}
+              {sent ? t('auth.forgotPassword.subtitleSent') : t('auth.forgotPassword.subtitleIdle')}
             </Text>
           </LinearGradient>
 
@@ -81,20 +83,19 @@ export default function ForgotPasswordScreen() {
                   </LinearGradient>
                 </View>
                 <Text style={styles.successDesc}>
-                  Se <Text style={{ fontWeight: '700' }}>{email.trim()}</Text> estiver cadastrado,
-                  enviamos um link de redefinição de senha. Ele vale por 20 minutos.
+                  {t('auth.forgotPassword.sentDescPrefix')}<Text style={{ fontWeight: '700' }}>{email.trim()}</Text>{t('auth.forgotPassword.sentDescSuffix')}
                 </Text>
                 <TouchableOpacity style={styles.altRow} onPress={() => router.replace('/(auth)/login')}>
-                  <Text style={styles.altLink}>Voltar ao login</Text>
+                  <Text style={styles.altLink}>{t('auth.forgotPassword.backToLogin')}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
               <>
                 <Text style={styles.intro}>
-                  Digite o e-mail da sua conta — vamos enviar um link para você escolher uma nova senha.
+                  {t('auth.forgotPassword.intro')}
                 </Text>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>E-mail</Text>
+                  <Text style={styles.label}>{t('auth.forgotPassword.email')}</Text>
                   <View style={styles.inputWrapper}>
                     <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
@@ -136,7 +137,7 @@ export default function ForgotPasswordScreen() {
                       <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Text style={styles.btnText}>Enviar link</Text>
+                        <Text style={styles.btnText}>{t('auth.forgotPassword.sendLink')}</Text>
                         <Ionicons name="arrow-forward" size={18} color="#fff" />
                       </>
                     )}
@@ -145,7 +146,7 @@ export default function ForgotPasswordScreen() {
 
                 <View style={styles.altRow}>
                   <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
-                    <Text style={styles.altLink}>Voltar ao login</Text>
+                    <Text style={styles.altLink}>{t('auth.forgotPassword.backToLogin')}</Text>
                   </TouchableOpacity>
                 </View>
               </>

@@ -19,6 +19,7 @@ import { submitOnEnter } from '../../lib/keyboard';
 import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
+import { useT } from '../../lib/i18n';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { AvailabilityState } from '../../lib/useAvailability';
 import { useAuth } from '../../lib/auth';
@@ -29,10 +30,10 @@ import { api, CommunityStats } from '../../lib/api';
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
 // ─── Dados estáticos ────────────────────────────────────────────
-const FEATURES: { icon: IconName; label: string }[] = [
-  { icon: 'people-outline',      label: 'Conecte-se com vizinhos' },
-  { icon: 'megaphone-outline',   label: 'Fique por dentro do bairro' },
-  { icon: 'trending-up-outline', label: 'Amplie seu negócio' },
+const FEATURES: { icon: IconName; labelKey: string }[] = [
+  { icon: 'people-outline',      labelKey: 'auth.features.connect' },
+  { icon: 'megaphone-outline',   labelKey: 'auth.features.stayUpdated' },
+  { icon: 'trending-up-outline', labelKey: 'auth.features.grow' },
 ];
 // Abaixo desse total de contas, expor o número exato faria a rede parecer
 // vazia — troca por uma mensagem de "comunidade em formação" (ver
@@ -41,14 +42,11 @@ const FEATURES: { icon: IconName; label: string }[] = [
 const ESTABLISHED_THRESHOLD = 500;
 // Cada card "acontece" perto de um nó ativo do mapa (ver NeighborhoodScape) —
 // por isso a cor casa com os nós luminosos e o conector tracejado da arte.
-const ACTIVITY_CARDS: { color: string; label: string; text: string; icon: IconName; anchor: 'cardA' | 'cardB' | 'cardC' }[] = [
-  { color: '#F59E0B', label: 'Recomendação', text: 'Padaria nova na Harmonia', icon: 'cafe-outline', anchor: 'cardA' },
-  { color: '#EF4444', label: 'Aviso', text: 'Obra na Rua das Flores', icon: 'construct-outline', anchor: 'cardB' },
-  { color: '#EC4899', label: 'Pets', text: 'Gatinha encontrada aqui', icon: 'paw-outline', anchor: 'cardC' },
+const ACTIVITY_CARDS: { color: string; labelKey: string; textKey: string; icon: IconName; anchor: 'cardA' | 'cardB' | 'cardC' }[] = [
+  { color: '#F59E0B', labelKey: 'auth.activity.recommendation', textKey: 'auth.activity.recommendationText', icon: 'cafe-outline', anchor: 'cardA' },
+  { color: '#EF4444', labelKey: 'auth.activity.notice', textKey: 'auth.activity.noticeText', icon: 'construct-outline', anchor: 'cardB' },
+  { color: '#EC4899', labelKey: 'auth.activity.pets', textKey: 'auth.activity.petsText', icon: 'paw-outline', anchor: 'cardC' },
 ];
-// Espelha STEPS de app/(auth)/signup.tsx — ambos consomem useSignupFlow, que
-// é a única fonte de verdade pro número/ordem dos passos.
-const SIGNUP_STEPS = ['Conta', 'Verificar', 'Pronto'];
 
 // Indicador de status de disponibilidade (dentro do input).
 function AvailabilityIcon({ state }: { state: AvailabilityState }) {
@@ -142,6 +140,11 @@ type Panel = 'welcome' | 'login' | 'signup';
 
 // ════════════════════════════════════════════════════════════════
 export default function WelcomeScreen() {
+  const { t, i18n } = useT();
+  // Intl usa tag de locale completa (BCP 47); i18next guarda só 'pt'/'en' —
+  // mapeamos pro país de referência de cada um (mesmo padrão do resto do app).
+  const numberLocale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
+  const SIGNUP_STEPS = [t('auth.signup.steps.account'), t('auth.signup.steps.verify'), t('auth.signup.steps.done')];
   const { width, height } = useWindowDimensions();
   const isWide = width >= 900;
   // Notebooks costumam ter 720–800px de altura útil depois das barras do
@@ -175,7 +178,7 @@ export default function WelcomeScreen() {
         router.replace('/(tabs)');
       }
     } catch {
-      setGoogleError('Não foi possível entrar com o Google.');
+      setGoogleError(t('auth.login.googleError'));
     }
   };
 
@@ -415,9 +418,9 @@ export default function WelcomeScreen() {
         <Animated.Text style={[styles.logoText, isCompactDesktop && styles.logoTextCompact, heroLogoTextStyle]}>daqui</Animated.Text>
       </View>
 
-      <Animated.Text style={[styles.headline, isCompactDesktop && styles.headlineCompact, heroHeadlineStyle]}>O seu bairro na palma da mão</Animated.Text>
+      <Animated.Text style={[styles.headline, isCompactDesktop && styles.headlineCompact, heroHeadlineStyle]}>{t('auth.headline')}</Animated.Text>
       <Animated.Text style={[styles.subline, isCompactDesktop && styles.sublineCompact, heroSublineStyle]}>
-        Entre numa rede de vizinhos que se ajudam, compartilham e cuidam do bairro juntos.
+        {t('auth.subline')}
       </Animated.Text>
 
       <View style={[styles.featuresList, isCompactDesktop && styles.featuresListCompact]}>
@@ -431,25 +434,25 @@ export default function WelcomeScreen() {
                 <Ionicons name={f.icon} size={18} color={Colors.primaryDark} />
               </Animated.View>
             </Animated.View>
-            <Animated.Text style={[styles.featureText, isCompactDesktop && styles.featureTextCompact, heroFeatureTextStyle]}>{f.label}</Animated.Text>
+            <Animated.Text style={[styles.featureText, isCompactDesktop && styles.featureTextCompact, heroFeatureTextStyle]}>{t(f.labelKey)}</Animated.Text>
           </View>
         ))}
       </View>
 
       <View style={[styles.ctaArea, isCompactDesktop && styles.ctaAreaCompact]}>
-        <CtaButton kind="heroPrimary" label="Começar agora" icon="arrow-forward" extraStyle={isCompactDesktop ? styles.ctaHeroCompact : undefined} onPress={() => isWide ? goTo('signup') : router.push('/(auth)/signup')} />
+        <CtaButton kind="heroPrimary" label={t('auth.getStarted')} icon="arrow-forward" extraStyle={isCompactDesktop ? styles.ctaHeroCompact : undefined} onPress={() => isWide ? goTo('signup') : router.push('/(auth)/signup')} />
         <CtaButton
-          kind="heroSecondary" label="Já tenho conta" icon="arrow-forward" showIcon={false}
+          kind="heroSecondary" label={t('auth.haveAccount')} icon="arrow-forward" showIcon={false}
           onPress={() => isWide ? goTo('login') : router.push('/(auth)/login')}
           extraStyle={[heroSecondaryBtnStyle, isCompactDesktop && styles.ctaHeroCompact]} labelStyle={heroSecondaryBtnTextStyle} hoverStyle={heroSecondaryHoverStyle}
         />
       </View>
 
       <Animated.Text style={[styles.terms, heroTermsStyle]}>
-        Ao continuar, você aceita os{' '}
-        <Animated.Text style={[styles.termsLink, heroTermsLinkStyle]} onPress={() => router.push('/legal/terms')}>Termos de Uso</Animated.Text>
-        {' '}e a{' '}
-        <Animated.Text style={[styles.termsLink, heroTermsLinkStyle]} onPress={() => router.push('/legal/privacy')}>Política de Privacidade</Animated.Text>
+        {t('auth.termsPrefix')}
+        <Animated.Text style={[styles.termsLink, heroTermsLinkStyle]} onPress={() => router.push('/legal/terms')}>{t('auth.termsOfUse')}</Animated.Text>
+        {t('auth.and')}
+        <Animated.Text style={[styles.termsLink, heroTermsLinkStyle]} onPress={() => router.push('/legal/privacy')}>{t('auth.privacyPolicy')}</Animated.Text>
       </Animated.Text>
     </ScrollView>
   );
@@ -468,21 +471,21 @@ export default function WelcomeScreen() {
 
       <View style={styles.formHeader}>
         <Text style={styles.formTitle}>
-          {loginFlow.mode === '2fa' ? 'Verificação em duas etapas'
-            : loginFlow.mode === 'verify' ? 'Confirme seu e-mail'
-            : 'Bem-vindo de volta'}
+          {loginFlow.mode === '2fa' ? t('auth.login.twoFaTitle')
+            : loginFlow.mode === 'verify' ? t('auth.login.verifyTitle')
+            : t('auth.login.title')}
         </Text>
         <Text style={styles.formSubtitle}>
-          {loginFlow.mode === '2fa' ? 'Confirme sua identidade para entrar'
-            : loginFlow.mode === 'verify' ? 'Enviamos um código de 6 dígitos para você'
-            : 'Entre na sua conta daqui'}
+          {loginFlow.mode === '2fa' ? t('auth.login.twoFaSubtitleAlt')
+            : loginFlow.mode === 'verify' ? t('auth.login.verifySubtitle')
+            : t('auth.login.subtitleDaqui')}
         </Text>
       </View>
 
       {loginFlow.mode !== 'login' ? (
         <>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Código de verificação</Text>
+            <Text style={styles.label}>{t('auth.login.verificationCode')}</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="keypad-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput
@@ -503,7 +506,7 @@ export default function WelcomeScreen() {
           {loginFlow.mode === 'verify' && (
             <TouchableOpacity onPress={loginFlow.handleResend} disabled={loginFlow.resending} style={styles.forgotBtn}>
               <Text style={styles.forgotText}>
-                {loginFlow.resending ? 'Reenviando…' : loginFlow.resent ? 'Código reenviado ✓' : 'Reenviar código'}
+                {loginFlow.resending ? t('auth.login.resending') : loginFlow.resent ? t('auth.login.resent') : t('auth.login.resendCode')}
               </Text>
             </TouchableOpacity>
           )}
@@ -525,7 +528,7 @@ export default function WelcomeScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={styles.btnPrimaryText}>Verificar</Text>
+                <Text style={styles.btnPrimaryText}>{t('auth.login.verify')}</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </>
             )}
@@ -534,7 +537,7 @@ export default function WelcomeScreen() {
       ) : (
       <>
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>E-mail</Text>
+        <Text style={styles.label}>{t('auth.login.email')}</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="mail-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
           <TextInput
@@ -552,12 +555,12 @@ export default function WelcomeScreen() {
       </View>
 
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Senha</Text>
+        <Text style={styles.label}>{t('auth.login.password')}</Text>
         <View style={styles.inputWrapper}>
           <Ionicons name="lock-closed-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
           <TextInput
             style={styles.inputFlex}
-            placeholder="Sua senha"
+            placeholder={t('auth.login.passwordPlaceholder')}
             placeholderTextColor={FORM_PLACEHOLDER}
             value={loginFlow.password}
             onChangeText={loginFlow.setPassword}
@@ -572,7 +575,7 @@ export default function WelcomeScreen() {
       </View>
 
       <TouchableOpacity style={styles.forgotBtn} onPress={() => router.push('/(auth)/forgot-password')}>
-        <Text style={styles.forgotText}>Esqueceu a senha?</Text>
+        <Text style={styles.forgotText}>{t('auth.login.forgotPassword')}</Text>
       </TouchableOpacity>
 
       {loginFlow.error && (
@@ -592,7 +595,7 @@ export default function WelcomeScreen() {
           <ActivityIndicator color="#fff" />
         ) : (
           <>
-            <Text style={styles.btnPrimaryText}>Entrar</Text>
+            <Text style={styles.btnPrimaryText}>{t('auth.login.signIn')}</Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </>
         )}
@@ -600,7 +603,7 @@ export default function WelcomeScreen() {
 
       <View style={styles.divider}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>ou continue com</Text>
+        <Text style={styles.dividerText}>{t('auth.login.orContinueWith')}</Text>
         <View style={styles.dividerLine} />
       </View>
 
@@ -621,9 +624,9 @@ export default function WelcomeScreen() {
       </View>
 
       <View style={styles.switchRow}>
-        <Text style={styles.switchText}>Não tem conta? </Text>
+        <Text style={styles.switchText}>{t('auth.login.noAccount')}</Text>
         <TouchableOpacity onPress={() => goTo('signup')}>
-          <Text style={styles.switchLink}>Cadastre-se grátis</Text>
+          <Text style={styles.switchLink}>{t('auth.login.signUpFree')}</Text>
         </TouchableOpacity>
       </View>
       </>
@@ -663,29 +666,29 @@ export default function WelcomeScreen() {
 
       <View style={[styles.formHeader, isCompactDesktop && styles.formHeaderCompact]}>
         <Text style={[styles.formTitle, isCompactDesktop && styles.formTitleCompact]}>
-          {step === 0 ? 'Crie sua conta' : step === 1 ? 'Confirme seu e-mail' : 'Tudo certo!'}
+          {step === 0 ? t('auth.signup.title') : step === 1 ? t('auth.signup.verifyTitle') : t('auth.signup.doneTitle')}
         </Text>
         <Text style={styles.formSubtitle}>
-          {step === 0 ? 'Junte-se a milhares de vizinhos'
-            : step === 1 ? 'Enviamos um código de 6 dígitos para você'
-            : 'Sua conta foi criada com sucesso'}
+          {step === 0 ? t('auth.signup.subtitle')
+            : step === 1 ? t('auth.signup.verifySubtitle')
+            : t('auth.signup.doneSubtitle')}
         </Text>
       </View>
 
       {step === 0 && (
         <>
           <View style={[styles.inputGroup, isCompactDesktop && styles.inputGroupCompact]}>
-            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>Nome completo</Text>
+            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>{t('auth.signup.fullName')}</Text>
             <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="person-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Seu nome" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.name} onChangeText={signupFlow.setName} autoCapitalize="words" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <TextInput style={styles.input} placeholder={t('auth.signup.fullNamePlaceholder')} placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.name} onChangeText={signupFlow.setName} autoCapitalize="words" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
             </View>
           </View>
           <View style={[styles.inputGroup, isCompactDesktop && styles.inputGroupCompact]}>
-            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>Nome de usuário</Text>
+            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>{t('auth.signup.username')}</Text>
             <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="at-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="seu.usuario" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.username} onChangeText={(v) => signupFlow.setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))} autoCapitalize="none" autoCorrect={false} maxLength={18} onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <TextInput style={styles.input} placeholder={t('auth.signup.usernamePlaceholder')} placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.username} onChangeText={(v) => signupFlow.setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))} autoCapitalize="none" autoCorrect={false} maxLength={18} onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
               <AvailabilityIcon state={signupFlow.usernameCheck} />
             </View>
             {signupFlow.usernameCheck.status === 'error' && !!signupFlow.usernameCheck.error && (
@@ -693,7 +696,7 @@ export default function WelcomeScreen() {
             )}
           </View>
           <View style={[styles.inputGroup, isCompactDesktop && styles.inputGroupCompact]}>
-            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>E-mail</Text>
+            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>{t('auth.signup.email')}</Text>
             <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="mail-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.email} onChangeText={signupFlow.setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
@@ -704,10 +707,10 @@ export default function WelcomeScreen() {
             )}
           </View>
           <View style={[styles.inputGroup, isCompactDesktop && styles.inputGroupCompact]}>
-            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>Senha</Text>
+            <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>{t('auth.signup.password')}</Text>
             <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="lock-closed-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Mínimo 8 caracteres" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.password} onChangeText={signupFlow.setPassword} secureTextEntry onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <TextInput style={styles.input} placeholder={t('auth.signup.passwordPlaceholder')} placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.password} onChangeText={signupFlow.setPassword} secureTextEntry onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
             </View>
           </View>
         </>
@@ -718,13 +721,13 @@ export default function WelcomeScreen() {
           <View style={styles.twoFaIntro}>
             <Ionicons name="mail-open-outline" size={22} color={Colors.primary} />
             <Text style={styles.twoFaText}>
-              Enviamos um código de 6 dígitos para <Text style={{ fontWeight: '700' }}>{signupFlow.email.trim()}</Text>.
-              Ele vale por 10 minutos.
+              {t('auth.signup.sentCodeTo')} <Text style={{ fontWeight: '700' }}>{signupFlow.email.trim()}</Text>.
+              {' '}{t('auth.signup.codeValidFor')}
             </Text>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Código de verificação</Text>
+            <Text style={styles.label}>{t('auth.signup.verificationCode')}</Text>
             <View style={styles.inputWrapper}>
               <Ionicons name="keypad-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
               <TextInput
@@ -744,7 +747,7 @@ export default function WelcomeScreen() {
 
           <TouchableOpacity onPress={signupFlow.handleResend} disabled={signupFlow.resending} style={styles.switchRow}>
             <Text style={styles.switchLink}>
-              {signupFlow.resending ? 'Reenviando…' : signupFlow.resent ? 'Código reenviado ✓' : 'Reenviar código'}
+              {signupFlow.resending ? t('auth.login.resending') : signupFlow.resent ? t('auth.login.resent') : t('auth.login.resendCode')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -756,9 +759,7 @@ export default function WelcomeScreen() {
             <Ionicons name="checkmark" size={32} color="#fff" />
           </LinearGradient>
           <Text style={styles.successDesc}>
-            Sua conta foi criada. Você já pode ver o que está rolando perto de você em
-            "Perto de mim" — quando quiser, configure "Meu bairro" para participar da
-            comunidade onde você mora.
+            {t('auth.signup.welcomeDesc')}
           </Text>
         </View>
       )}
@@ -772,7 +773,7 @@ export default function WelcomeScreen() {
 
       {(() => {
         const busy = signupFlow.submitting;
-        const label = step === 0 ? 'Continuar' : step === 1 ? 'Verificar' : 'Começar a usar o Daqui';
+        const label = step === 0 ? t('auth.signup.continueLabel') : step === 1 ? t('auth.signup.verify') : t('auth.signup.startUsing');
         const icon = step === 2 ? 'navigate' : 'arrow-forward';
         const onPress = step === 0 ? signupFlow.createAccount
           : step === 1 ? signupFlow.handleVerify
@@ -798,9 +799,9 @@ export default function WelcomeScreen() {
 
       {step === 0 && (
         <View style={[styles.switchRow, isCompactDesktop && styles.switchRowCompact]}>
-          <Text style={styles.switchText}>Já tem conta? </Text>
+          <Text style={styles.switchText}>{t('auth.signup.haveAccount')}</Text>
           <TouchableOpacity onPress={() => goTo('login')}>
-            <Text style={styles.switchLink}>Entrar</Text>
+            <Text style={styles.switchLink}>{t('auth.signup.signIn')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -833,7 +834,7 @@ export default function WelcomeScreen() {
       ]}>
         <Animated.View entering={reducedMotion ? undefined : FadeInDown.delay(200).duration(700)}>
           <Text style={[styles.artWord, isCompactDesktop && styles.artWordCompact]}>
-            Seu bairro <Text style={styles.artWordAccent}>ganha vida.</Text>
+            {t('auth.artHeadlinePrefix')}<Text style={styles.artWordAccent}>{t('auth.artHeadlineAccent')}</Text>
           </Text>
         </Animated.View>
         <Animated.View
@@ -841,7 +842,7 @@ export default function WelcomeScreen() {
           entering={reducedMotion ? undefined : FadeInDown.delay(320).duration(700)}
         >
           <Text style={[styles.artSubline, isCompactDesktop && styles.artSublineCompact]}>
-            Descubra um novo horizonte para a vivência em comunidade e acompanhe as notícias das redondezas em tempo real.
+            {t('auth.artSubline')}
           </Text>
         </Animated.View>
       </View>
@@ -862,8 +863,8 @@ export default function WelcomeScreen() {
             <View style={[styles.clusterBadge, communityStats.avatarUrls.length === 0 && { marginLeft: 0 }]}>
               <Text style={styles.clusterBadgeText}>
                 {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
-                  ? `${communityStats.totalUsers.toLocaleString('pt-BR')} vizinhos`
-                  : 'Comunidade em crescimento'}
+                  ? t('auth.neighborsCount', { count: communityStats.totalUsers.toLocaleString(numberLocale) })
+                  : t('auth.communityGrowing')}
               </Text>
             </View>
           </Animated.View>
@@ -888,8 +889,8 @@ export default function WelcomeScreen() {
                 <Ionicons name={c.icon} size={15} color={c.color} />
               </View>
               <View style={styles.floatCardBody}>
-                <Text style={styles.floatCardLabel}>{c.label}</Text>
-                <Text style={styles.floatCardText} numberOfLines={1}>{c.text}</Text>
+                <Text style={styles.floatCardLabel}>{t(c.labelKey)}</Text>
+                <Text style={styles.floatCardText} numberOfLines={1}>{t(c.textKey)}</Text>
               </View>
             </BlurView>
           </Animated.View>
@@ -918,10 +919,10 @@ export default function WelcomeScreen() {
           </Animated.View>
 
           <Text style={styles.mobileHeadline}>
-            O seu bairro na palma da mão
+            {t('auth.headline')}
           </Text>
           <Text style={styles.mobileSubline}>
-            Entre numa rede de vizinhos que se ajudam, compartilham e cuidam do bairro juntos.
+            {t('auth.subline')}
           </Text>
 
           {communityStats && (
@@ -933,14 +934,14 @@ export default function WelcomeScreen() {
                 ))}
                 {communityStats.totalUsers >= ESTABLISHED_THRESHOLD && (
                   <View style={styles.mobileBadge}>
-                    <Text style={styles.mobileBadgeText}>{communityStats.totalUsers.toLocaleString('pt-BR')}</Text>
+                    <Text style={styles.mobileBadgeText}>{communityStats.totalUsers.toLocaleString(numberLocale)}</Text>
                   </View>
                 )}
               </View>
               <Text style={styles.mobileAvatarLabel}>
                 {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
-                  ? 'vizinhos perto de você'
-                  : 'Comunidade em crescimento — seja um dos primeiros'}
+                  ? t('auth.neighborsNearYou')
+                  : t('auth.communityGrowingCta')}
               </Text>
             </View>
           )}
@@ -949,21 +950,21 @@ export default function WelcomeScreen() {
             {FEATURES.map((f) => (
               <View key={f.icon} style={styles.mobileFeatureRow}>
                 <View style={styles.mobileFeatureIcon}><Ionicons name={f.icon} size={16} color="#fff" /></View>
-                <Text style={styles.mobileFeatureText}>{f.label}</Text>
+                <Text style={styles.mobileFeatureText}>{t(f.labelKey)}</Text>
               </View>
             ))}
           </View>
 
           <View style={styles.mobileCtaArea}>
-            <CtaButton kind="mobilePrimary" label="Começar agora" icon="arrow-forward" onPress={() => router.push('/(auth)/signup')} />
-            <CtaButton kind="mobileSecondary" label="Já tenho conta" icon="arrow-forward" showIcon={false} onPress={() => router.push('/(auth)/login')} />
+            <CtaButton kind="mobilePrimary" label={t('auth.getStarted')} icon="arrow-forward" onPress={() => router.push('/(auth)/signup')} />
+            <CtaButton kind="mobileSecondary" label={t('auth.haveAccount')} icon="arrow-forward" showIcon={false} onPress={() => router.push('/(auth)/login')} />
           </View>
 
           <Text style={styles.mobileTerms}>
-            Ao continuar, você aceita os{' '}
-            <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/terms')}>Termos de Uso</Text>
-            {' '}e a{' '}
-            <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/privacy')}>Política de Privacidade</Text>
+            {t('auth.termsPrefix')}
+            <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/terms')}>{t('auth.termsOfUse')}</Text>
+            {t('auth.and')}
+            <Text style={styles.mobileTermsLink} onPress={() => router.push('/legal/privacy')}>{t('auth.privacyPolicy')}</Text>
           </Text>
         </ScrollView>
       </LinearGradient>

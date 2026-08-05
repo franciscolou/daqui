@@ -22,6 +22,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { Palette } from '../constants/Colors';
 import { api, ApiError, UserSession } from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { LanguagePreference, SUPPORTED_LANGUAGES, useLanguage, useT } from '../lib/i18n';
 import { registerPushToken, unregisterPushToken } from '../lib/push';
 import { getItem, setItem } from '../lib/storage';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
@@ -50,7 +51,7 @@ const TOPICS: Topic[] = [
   { key: 'privacy',   label: 'Privacidade e segurança', desc: 'Quem vê seu perfil e sua senha', icon: 'lock-closed-outline' },
   { key: 'notifications',  label: 'Notificações',            desc: 'O que chega até você',           icon: 'notifications-outline' },
   { key: 'address',      label: 'Meu endereço',            desc: 'Bairro e localização',           icon: 'location-outline' },
-  { key: 'appearance',     label: 'Aparência',               desc: 'Tema claro ou escuro',           icon: 'color-palette-outline' },
+  { key: 'appearance',     label: 'Aparência',               desc: 'Tema e idioma',                  icon: 'color-palette-outline' },
 ];
 
 export default function SettingsScreen() {
@@ -1028,7 +1029,53 @@ function AppearancePanel() {
         value={mode === 'dark'}
         onValueChange={toggle}
       />
+      <View style={{ height: 20 }} />
+      <LanguagePanel />
     </View>
+  );
+}
+
+/**
+ * Idioma da interface: 'Automático' (padrão) segue o idioma do dispositivo
+ * (ver I18nProvider em lib/i18n.tsx); os outros dois fixam manualmente,
+ * seguindo a recomendação de plataforma (iOS/Android) de sempre deixar o
+ * usuário sobrepor o idioma detectado — útil em dispositivo compartilhado ou
+ * quando a pessoa só prefere usar o app num idioma diferente do sistema.
+ */
+function LanguagePanel() {
+  const styles = useThemedStyles(makeStyles);
+  const Colors = useTheme();
+  const { t } = useT();
+  const { preference, setPreference } = useLanguage();
+
+  const options: { key: LanguagePreference; label: string }[] = [
+    { key: 'auto', label: t('settings.language.auto') },
+    ...SUPPORTED_LANGUAGES.map((code) => ({ key: code, label: t(`settings.language.${code}`) })),
+  ];
+
+  return (
+    <>
+      <SectionTitle>{t('settings.language.sectionTitle')}</SectionTitle>
+      <Text style={[styles.settingDesc, { marginBottom: 10 }]}>{t('settings.language.desc')}</Text>
+      <View style={{ gap: 8 }}>
+        {options.map((opt) => {
+          const active = preference === opt.key;
+          return (
+            <TouchableOpacity
+              key={opt.key}
+              style={[styles.settingRow, active && { backgroundColor: Colors.primaryFaint, borderRadius: 12 }]}
+              activeOpacity={0.7}
+              onPress={() => setPreference(opt.key)}
+            >
+              <View style={styles.settingText}>
+                <Text style={[styles.settingLabel, active && { color: Colors.primary, fontWeight: '700' }]}>{opt.label}</Text>
+              </View>
+              {active && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </>
   );
 }
 
