@@ -311,13 +311,18 @@ export default function LeftSidebar({
       <View style={styles.group}>
         {APP_ITEMS.map((item) => {
           const isAds = item.key === 'ads';
+          const isAdvertiseCta = isAds && !hasMyAds;
           const label = isAds ? (hasMyAds ? 'Meus anúncios' : item.label) : item.label;
           const route = isAds ? (hasMyAds ? '/advertise/dashboard' : item.route) : item.route;
           const icon = isAds && hasMyAds ? 'stats-chart-outline' : item.icon;
           return (
             <Pressable
               key={item.key}
-              style={({ hovered }) => [styles.navItem, hovered && styles.navItemHover]}
+              style={({ hovered }) => [
+                styles.navItem,
+                isAdvertiseCta && styles.advertiseCta,
+                hovered && (isAdvertiseCta ? styles.advertiseCtaHover : styles.navItemHover),
+              ]}
               onPress={() => {
                 if (item.key === 'rate') {
                   // No desktop abre como modal; no mobile, o modal aninhado dentro do
@@ -335,8 +340,9 @@ export default function LeftSidebar({
                 }
               }}
             >
-              <Ionicons name={icon} size={17} color={Colors.textSecondary} />
-              <Text style={styles.navLabel}>{label}</Text>
+              <Ionicons name={icon} size={17} color={isAdvertiseCta ? Colors.warning : Colors.textSecondary} />
+              <Text style={[styles.navLabel, isAdvertiseCta && styles.advertiseCtaLabel]}>{label}</Text>
+              {isAdvertiseCta && <Ionicons name="chevron-forward" size={14} color={Colors.warning} />}
             </Pressable>
           );
         })}
@@ -514,6 +520,19 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   navItemHover: {
     backgroundColor: Colors.borderLight,
+  },
+  advertiseCta: {
+    backgroundColor: 'rgba(245,158,11,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.16)',
+  },
+  advertiseCtaHover: {
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderColor: 'rgba(245,158,11,0.26)',
+  },
+  advertiseCtaLabel: {
+    color: '#B7791F',
+    fontWeight: '500',
   },
   logoutHover: {
     backgroundColor: Colors.dangerSurface,
