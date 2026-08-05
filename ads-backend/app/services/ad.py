@@ -91,7 +91,6 @@ def _quote_breakdown(
     schedule: ScheduleIn,
     objective: AdObjective,
     priority: int,
-    daily_impression_cap: int | None,
     per_user_impression_cap: int | None,
 ) -> dict:
     competing_count = ad_dao.count_competing_campaigns(db, targeting.model_dump())
@@ -102,7 +101,6 @@ def _quote_breakdown(
         schedule=schedule.model_dump(),
         objective=objective,
         priority=priority,
-        daily_impression_cap=daily_impression_cap,
         per_user_impression_cap=per_user_impression_cap,
         competing_count=competing_count,
         market_multiplier=settings_dao.get(db).price_multiplier,
@@ -147,7 +145,6 @@ def quote(db: Session, payload: QuoteRequest) -> QuoteResponse:
         schedule=schedule,
         objective=payload.objective,
         priority=payload.priority,
-        daily_impression_cap=payload.daily_impression_cap,
         per_user_impression_cap=payload.per_user_impression_cap,
     )
     return QuoteResponse(
@@ -223,7 +220,6 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
             schedule=schedule,
             objective=payload.objective,
             priority=payload.priority,
-            daily_impression_cap=payload.daily_impression_cap,
             per_user_impression_cap=payload.per_user_impression_cap,
         )
         price_cents = result["price_cents"]
@@ -246,9 +242,7 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
         objective=payload.objective,
         priority=payload.priority,
         rotation_weight=payload.rotation_weight,
-        daily_impression_cap=payload.daily_impression_cap,
         per_user_impression_cap=payload.per_user_impression_cap,
-        pacing=payload.pacing,
         schedule=schedule.model_dump(),
         payment_provider=PaymentProvider.STRIPE,
         renewed_from_id=renewed_from_id,
@@ -475,7 +469,6 @@ def admin_create_manual_campaign(
             schedule=schedule,
             objective=payload.objective,
             priority=payload.priority,
-            daily_impression_cap=payload.daily_impression_cap,
             per_user_impression_cap=payload.per_user_impression_cap,
         )
         price_cents = result["price_cents"]
@@ -497,9 +490,7 @@ def admin_create_manual_campaign(
         objective=payload.objective,
         priority=payload.priority,
         rotation_weight=payload.rotation_weight,
-        daily_impression_cap=payload.daily_impression_cap,
         per_user_impression_cap=payload.per_user_impression_cap,
-        pacing=payload.pacing,
         schedule=schedule.model_dump(),
         created_by_admin_id=admin.id,
         payment_provider=PaymentProvider.STRIPE,
@@ -598,7 +589,6 @@ def admin_mark_campaign_paid(
 _CAMPAIGN_FIELD_LABELS = {
     "ends_at": "data de término",
     "priority": "prioridade",
-    "daily_impression_cap": "limite diário de impressões",
     "per_user_impression_cap": "limite por usuário",
 }
 
@@ -744,8 +734,6 @@ def get_my_campaign(db: Session, token: str, group_by: str) -> MyCampaignOut:
         objective=campaign.objective,
         priority=campaign.priority,
         rotation_weight=campaign.rotation_weight,
-        pacing=campaign.pacing,
-        daily_impression_cap=campaign.daily_impression_cap,
         per_user_impression_cap=campaign.per_user_impression_cap,
         duration_days=campaign.duration_days,
         starts_at=campaign.starts_at,

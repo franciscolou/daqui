@@ -350,22 +350,6 @@ def _has_pin(campaign: AdCampaign) -> bool:
 
 
 def _within_caps(db: Session, campaign: AdCampaign, viewer_id: str | None) -> bool:
-    if campaign.daily_impression_cap is not None:
-        start_of_day = datetime.now(timezone.utc).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        served_today = (
-            db.query(AdEvent)
-            .filter(
-                AdEvent.campaign_id == campaign.id,
-                AdEvent.event_type == AdEventType.IMPRESSION,
-                AdEvent.occurred_at >= start_of_day,
-            )
-            .count()
-        )
-        if served_today >= campaign.daily_impression_cap:
-            return False
-
     if campaign.per_user_impression_cap is not None and viewer_id:
         served_to_viewer = (
             db.query(AdEvent)
@@ -380,24 +364,6 @@ def _within_caps(db: Session, campaign: AdCampaign, viewer_id: str | None) -> bo
             return False
 
     return True
-
-
-def _pacing_factor(db: Session, campaign: AdCampaign, now: datetime) -> float:
-    if campaign.pacing != "even" or campaign.daily_impression_cap is None:
-        return 1.0
-    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elapsed_fraction = (now - start_of_day).total_seconds() / 86400
-    target_so_far = campaign.daily_impression_cap * elapsed_fraction
-    served_today = (
-        db.query(AdEvent)
-        .filter(
-            AdEvent.campaign_id == campaign.id,
-            AdEvent.event_type == AdEventType.IMPRESSION,
-            AdEvent.occurred_at >= start_of_day,
-        )
-        .count()
-    )
-    return 0.3 if served_today >= target_so_far else 1.0
 
 
 def _eligible_for_format(db: Session, format: AdFormat, ctx: dict, now: datetime) -> list[AdCampaign]:
@@ -418,7 +384,7 @@ def _group_by_advertiser(campaigns: list[AdCampaign]) -> dict[str, list[AdCampai
     return groups
 
 
-def _pick_from_tier(db: Session, top_tier: list[AdCampaign], now: datetime) -> AdCampaign:
+def _pick_from_tier(top_tier: list[AdCampaign]) -> AdCampaign:
     """Sorteio em duas etapas: primeiro um anunciante (`advertiser_email`)
     entre os concorrentes do mesmo nível de prioridade, todos com a mesma
     chance — não importa quantas campanhas ele tenha ali nem o `rotation_weight`
@@ -429,7 +395,7 @@ def _pick_from_tier(db: Session, top_tier: list[AdCampaign], now: datetime) -> A
     (ex: 70/30 entre duas artes), nunca pra disputar contra outro anunciante."""
     groups = _group_by_advertiser(top_tier)
     advertiser_campaigns = random.choice(list(groups.values()))
-    weights = [c.rotation_weight * _pacing_factor(db, c, now) for c in advertiser_campaigns]
+    weights = [c.rotation_weight for c in advertiser_campaigns]
     if sum(weights) <= 0:
         weights = [1.0 for _ in advertiser_campaigns]
     return random.choices(advertiser_campaigns, weights=weights, k=1)[0]
@@ -443,7 +409,7 @@ def get_active_for_format(db: Session, format: AdFormat, ctx: dict) -> AdCampaig
 
     top_priority = max(c.priority for c in eligible)
     top_tier = [c for c in eligible if c.priority == top_priority]
-    return _pick_from_tier(db, top_tier, now)
+    return _pick_from_tier(top_tier)
 
 
 def get_active_list_for_format(
@@ -475,7 +441,7 @@ def get_active_list_for_format(
             break
         advertiser_email = random.choice(list(groups.keys()))
         candidates = groups[advertiser_email]
-        weights = [max(c.rotation_weight * _pacing_factor(db, c, now), 0.0) for c in candidates]
+        weights = [max(c.rotation_weight, 0.0) for c in candidates]
         total = sum(weights) or len(candidates)
         r = random.uniform(0, total)
         upto = 0.0

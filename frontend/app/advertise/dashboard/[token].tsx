@@ -76,8 +76,6 @@ export default function AdvertiserPanelScreen() {
       objective: campaign.objective,
       priority: campaign.priority,
       rotationWeight: campaign.rotationWeight,
-      pacing: campaign.pacing,
-      dailyImpressionCap: campaign.dailyImpressionCap,
       perUserImpressionCap: campaign.perUserImpressionCap,
       advertiserName: campaign.advertiserName,
       advertiserEmail: campaign.advertiserEmail,

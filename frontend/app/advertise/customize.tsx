@@ -260,9 +260,7 @@ const ADVANCED_FIELD_INFO = {
   objective: 'O que você quer que aconteça quando alguém vê seu anúncio. Essa escolha não muda pra quem o anúncio aparece — ela só organiza o relatório de resultados (impressões e cliques) separado por objetivo, pra você ver com mais facilidade se a campanha está indo bem no que importa pra você.',
   priority: 'Quando vários anunciantes disputam o mesmo espaço, quem tem prioridade mais alta é escolhido com mais frequência — como furar uma fila. Prioridade mais alta custa mais caro. Entre anunciantes empatados na mesma prioridade, a chance é sempre igual pra cada um — o peso na rotação (ao lado) não te dá vantagem sobre outros anunciantes, só serve pra dividir entre as suas próprias campanhas.',
   rotationWeight: 'Só importa se você tiver mais de uma campanha sua concorrendo ao mesmo tempo (ex: duas artes diferentes do mesmo anúncio) — decide a proporção entre elas: peso 2 aparece o dobro de vezes que peso 1. Não te dá nenhuma vantagem sobre outros anunciantes: a chance entre anunciantes diferentes na mesma prioridade é sempre igual, não importa o peso escolhido.',
-  dailyCap: 'Uma "impressão" é toda vez que seu anúncio aparece pra alguém, mesmo sem a pessoa interagir com ele. Aqui você define quantas vezes, no máximo, ele pode ser exibido por dia no total — útil pra controlar o ritmo do orçamento. Deixe em branco pra não ter limite.',
-  perUserCap: 'Define quantas vezes, no máximo, a mesma pessoa pode ver o seu anúncio durante toda a campanha, pra não cansar sempre os mesmos usuários com o mesmo anúncio repetidas vezes. Deixe em branco pra não ter limite.',
-  pacing: 'Quando ativado, seu anúncio é espalhado em doses pequenas ao longo do dia inteiro, em vez de ser exibido o quanto antes. Assim ele aparece em horários variados, em vez de esgotar todas as exibições logo cedo, por exemplo.',
+  perUserCap: 'Define quantas vezes, no máximo, a mesma pessoa pode ver o seu anúncio durante toda a campanha, pra não cansar sempre os mesmos usuários com o mesmo anúncio repetidas vezes. Quanto mais baixo o limite, um pouco mais caro fica o preço por dia — é o custo de uma entrega mais exclusiva (o anúncio "gasta" cada pessoa alcançada mais rápido). Deixe em branco pra não ter limite.',
   audience: 'Escolhe quem pode ver o anúncio: todo mundo, só quem mora na região escolhida, ou só quem está passando pela região no momento (mesmo sem morar lá).',
   includeNearby: 'Além dos bairros que você escolheu acima, o anúncio também aparece pra moradores dos bairros vizinhos a eles, ampliando o alcance sem precisar selecionar bairro por bairro.',
   categories: 'Só vale pro formato "Post no feed": marque uma ou mais categorias (como "evento" ou "venda") pra seu anúncio aparecer junto de posts do mesmo assunto, chegando em quem já se interessa por esse tipo de conteúdo.',
@@ -305,6 +303,35 @@ function formatDiscountValue(cents: number) {
   return `-R$${value}`;
 }
 
+// Traduz a segmentação escolhida pra uma frase simples ("moradores de até 3
+// bairros") em vez de deixar o preço sozinho na tela. Não é uma contagem real
+// de pessoas — o ads-backend não tem acesso à base de usuários do Daqui, só
+// ao nome do bairro/cidade escolhido (ver arquitetura em CLAUDE.md) — só uma
+// tradução do escopo geográfico em algo mais concreto que "Alcance ×4.60"
+// pra quem nunca configurou um anúncio.
+function reachSummary(
+  geoScope: GeoScope,
+  neighborhoods: string[],
+  city: string,
+  cities: string[],
+  includeNearby: boolean,
+): string | null {
+  if (geoScope === 'neighborhood') {
+    if (neighborhoods.length === 0) return null;
+    const base = neighborhoods.length === 1
+      ? `moradores do bairro ${neighborhoods[0]}`
+      : `moradores de até ${neighborhoods.length} bairros`;
+    return includeNearby ? `${base} + bairros vizinhos` : base;
+  }
+  if (geoScope === 'citywide') {
+    return city ? `moradores de ${city} (cidade toda)` : null;
+  }
+  if (geoScope === 'cities') {
+    return cities.length > 0 ? `moradores de até ${cities.length} cidades` : null;
+  }
+  return 'qualquer pessoa no Brasil';
+}
+
 interface ReactivatePrefill {
   formats?: AdFormat[];
   durationDays?: number;
@@ -315,8 +342,6 @@ interface ReactivatePrefill {
   objective?: AdObjective;
   priority?: number;
   rotationWeight?: number;
-  pacing?: 'asap' | 'even';
-  dailyImpressionCap?: number;
   perUserImpressionCap?: number;
   includeNearby?: boolean;
   audience?: 'all' | 'residents' | 'visitors';
@@ -378,8 +403,6 @@ export default function CustomizeScreen() {
   const [objective, setObjective] = useState<AdObjective>(prefillData?.objective ?? 'clicks');
   const [priority, setPriority] = useState(String(prefillData?.priority ?? 3));
   const [rotationWeight, setRotationWeight] = useState(String(prefillData?.rotationWeight ?? 1.0));
-  const [pacing, setPacing] = useState<'asap' | 'even'>(prefillData?.pacing ?? 'asap');
-  const [dailyCap, setDailyCap] = useState(prefillData?.dailyImpressionCap != null ? String(prefillData.dailyImpressionCap) : '');
   const [perUserCap, setPerUserCap] = useState(prefillData?.perUserImpressionCap != null ? String(prefillData.perUserImpressionCap) : '');
   const [includeNearby, setIncludeNearby] = useState(prefillData?.includeNearby ?? false);
   const [audience, setAudience] = useState<'all' | 'residents' | 'visitors'>(prefillData?.audience ?? 'all');
@@ -412,7 +435,6 @@ export default function CustomizeScreen() {
 
   const priorityNum = Math.min(5, Math.max(1, parseInt(priority, 10) || 3));
   const rotationWeightNum = parseFloat(rotationWeight) || 1.0;
-  const dailyCapNum = dailyCap.trim() ? parseInt(dailyCap, 10) : undefined;
   const perUserCapNum = perUserCap.trim() ? parseInt(perUserCap, 10) : undefined;
 
   // O que falta preencher varia por escopo: bairros pra "neighborhood",
@@ -441,7 +463,6 @@ export default function CustomizeScreen() {
       cities,
       objective,
       priority: priorityNum,
-      dailyImpressionCap: dailyCapNum,
       perUserImpressionCap: perUserCapNum,
       targeting: {
         includeNearby,
@@ -460,7 +481,7 @@ export default function CustomizeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     formats.join(','), durationDays, geoScope, neighborhoods.join(','), city, cities.join(','), objective, priorityNum,
-    dailyCapNum, perUserCapNum, includeNearby, audience, categoriesText, hoursText, daysOfWeekText, specialDatesText,
+    perUserCapNum, includeNearby, audience, categoriesText, hoursText, daysOfWeekText, specialDatesText,
     plan,
   ]);
 
@@ -511,6 +532,7 @@ export default function CustomizeScreen() {
   // Mesma conta pro combo post+mapa: quanto o anunciante já está economizando
   // por ter escolhido os dois juntos em vez de contratá-los separadamente.
   const comboDiscountCents = savingsFromFactor(COMBO_FACTOR_LABEL);
+  const reach = reachSummary(geoScope, neighborhoods, city, cities, includeNearby);
 
   const goToCheckout = () => {
     router.push({
@@ -526,8 +548,6 @@ export default function CustomizeScreen() {
         objective,
         priority: String(priorityNum),
         rotationWeight: String(rotationWeightNum),
-        pacing,
-        dailyImpressionCap: dailyCapNum != null ? String(dailyCapNum) : '',
         perUserImpressionCap: perUserCapNum != null ? String(perUserCapNum) : '',
         targeting: JSON.stringify({
           includeNearby,
@@ -749,21 +769,8 @@ export default function CustomizeScreen() {
               </View>
             </View>
 
-            <View style={styles.row2}>
-              <View style={styles.flex1}>
-                <LabelWithInfo text="Limite diário de impressões" info={ADVANCED_FIELD_INFO.dailyCap} />
-                <TextInput style={styles.input} value={dailyCap} onChangeText={setDailyCap} keyboardType="numeric" placeholder="sem limite" placeholderTextColor={Colors.textTertiary} />
-              </View>
-              <View style={styles.flex1}>
-                <LabelWithInfo text="Limite por pessoa" info={ADVANCED_FIELD_INFO.perUserCap} />
-                <TextInput style={styles.input} value={perUserCap} onChangeText={setPerUserCap} keyboardType="numeric" placeholder="sem limite" placeholderTextColor={Colors.textTertiary} />
-              </View>
-            </View>
-
-            <View style={styles.citywideRow}>
-              <LabelWithInfo text="Distribuir uniformemente ao longo do dia" info={ADVANCED_FIELD_INFO.pacing} />
-              <Switch value={pacing === 'even'} onValueChange={(v) => setPacing(v ? 'even' : 'asap')} />
-            </View>
+            <LabelWithInfo text="Limite por pessoa" info={ADVANCED_FIELD_INFO.perUserCap} />
+            <TextInput style={styles.input} value={perUserCap} onChangeText={setPerUserCap} keyboardType="numeric" placeholder="sem limite" placeholderTextColor={Colors.textTertiary} />
 
             <LabelWithInfo text="Audiência" info={ADVANCED_FIELD_INFO.audience} />
             <View style={styles.chipsWrap}>
@@ -804,6 +811,12 @@ export default function CustomizeScreen() {
             <Text style={styles.priceLabel}>{plan ? 'Valor do plano' : 'Valor estimado'}</Text>
             <Text style={styles.priceValue}>{priceCents != null ? formatMoney(priceCents) : '—'}</Text>
           </View>
+          {reach && (
+            <View style={styles.reachSummaryRow}>
+              <Ionicons name="people-outline" size={12} color={Colors.primary} />
+              <Text style={styles.reachSummaryText}>Alcance: {reach}</Text>
+            </View>
+          )}
           {priceCents != null && (
             <Text style={styles.priceHint}>
               {plan ? 'Preço não muda com os bairros — escala com a duração e os formatos escolhidos. ' : ''}
@@ -1010,6 +1023,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   priceLabel: { fontSize: 13, fontWeight: '700', color: Colors.primary },
   priceValue: { fontSize: 18, fontWeight: '800', color: Colors.primary },
   priceHint: { fontSize: 11, fontWeight: '600', color: Colors.primary, marginTop: 4 },
+  reachSummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
+  reachSummaryText: { flex: 1, fontSize: 12, fontWeight: '600', color: Colors.primary },
   priceSavingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
   priceSavingText: { flex: 1, fontSize: 11.5, fontWeight: '700', color: Colors.success },
   factorRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },

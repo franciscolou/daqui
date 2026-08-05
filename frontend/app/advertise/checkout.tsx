@@ -32,8 +32,6 @@ export default function CheckoutScreen() {
     objective?: string;
     priority?: string;
     rotationWeight?: string;
-    pacing?: string;
-    dailyImpressionCap?: string;
     perUserImpressionCap?: string;
     targeting?: string;
     schedule?: string;
@@ -109,8 +107,6 @@ export default function CheckoutScreen() {
         objective: (params.objective as AdObjective) || undefined,
         priority: params.priority ? Number(params.priority) : undefined,
         rotationWeight: params.rotationWeight ? Number(params.rotationWeight) : undefined,
-        pacing: (params.pacing as 'asap' | 'even') || undefined,
-        dailyImpressionCap: params.dailyImpressionCap ? Number(params.dailyImpressionCap) : undefined,
         perUserImpressionCap: params.perUserImpressionCap ? Number(params.perUserImpressionCap) : undefined,
         advertiserName: advertiserName.trim(),
         advertiserEmail: advertiserEmail.trim(),

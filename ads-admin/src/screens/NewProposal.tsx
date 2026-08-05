@@ -18,8 +18,6 @@ interface AdvancedState {
   objective: string;
   priority: string;
   rotationWeight: string;
-  pacing: string;
-  dailyCap: string;
   perUserCap: string;
   audience: string;
   recency: string;
@@ -36,8 +34,6 @@ const INITIAL_ADVANCED: AdvancedState = {
   objective: 'clicks',
   priority: '3',
   rotationWeight: '1.0',
-  pacing: 'asap',
-  dailyCap: '',
   perUserCap: '',
   audience: 'all',
   recency: 'all',
@@ -102,8 +98,6 @@ export function NewProposal() {
       objective: advanced.objective,
       priority: parseInt(advanced.priority || '3', 10),
       rotation_weight: parseFloat(advanced.rotationWeight || '1'),
-      pacing: advanced.pacing,
-      daily_impression_cap: advanced.dailyCap ? parseInt(advanced.dailyCap, 10) : null,
       per_user_impression_cap: advanced.perUserCap ? parseInt(advanced.perUserCap, 10) : null,
       targeting: {
         geo_scope: geoScope,
@@ -328,22 +322,6 @@ export function NewProposal() {
                 step="0.1"
                 value={advanced.rotationWeight}
                 onChange={(e) => setAdv('rotationWeight', e.target.value)}
-              />
-            </Field>
-            <Field label="Pacing">
-              <select value={advanced.pacing} onChange={(e) => setAdv('pacing', e.target.value)}>
-                <option value="asap">Entregar assim que possível</option>
-                <option value="even">Distribuir uniformemente (even)</option>
-              </select>
-            </Field>
-          </div>
-          <div className="row-2">
-            <Field label="Limite diário de impressões (opcional)">
-              <input
-                type="number"
-                min={1}
-                value={advanced.dailyCap}
-                onChange={(e) => setAdv('dailyCap', e.target.value)}
               />
             </Field>
             <Field label="Limite por usuário (opcional)">

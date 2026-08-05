@@ -8,7 +8,6 @@ from app.models.ad import (
     AdCampaignStatus,
     AdFormat,
     AdObjective,
-    AdPacing,
     AdPlanCategory,
     Audience,
     EngagementLevel,
@@ -170,7 +169,6 @@ class QuoteRequest(BaseModel):
     schedule: ScheduleIn | None = None
     objective: AdObjective = AdObjective.CLICKS
     priority: int = 3
-    daily_impression_cap: int | None = None
     per_user_impression_cap: int | None = None
 
     _validate_formats = field_validator("formats")(_check_formats)
@@ -238,9 +236,7 @@ class CampaignCreateBase(BaseModel):
     objective: AdObjective = AdObjective.CLICKS
     priority: int = 3
     rotation_weight: float = 1.0
-    daily_impression_cap: int | None = None
     per_user_impression_cap: int | None = None
-    pacing: AdPacing = AdPacing.ASAP
 
     advertiser_name: str
     advertiser_email: str
@@ -385,7 +381,6 @@ class CampaignUpdate(BaseModel):
     status: AdCampaignStatus | None = None
     ends_at: datetime | None = None
     priority: int | None = None
-    daily_impression_cap: int | None = None
     per_user_impression_cap: int | None = None
 
 
@@ -407,9 +402,7 @@ class CampaignAdminOut(BaseModel):
     objective: AdObjective
     priority: int
     rotation_weight: float
-    daily_impression_cap: int | None
     per_user_impression_cap: int | None
-    pacing: AdPacing
     duration_days: int
     starts_at: datetime | None
     ends_at: datetime | None
@@ -529,8 +522,6 @@ class MyCampaignOut(BaseModel):
     objective: AdObjective
     priority: int
     rotation_weight: float
-    pacing: AdPacing
-    daily_impression_cap: int | None
     per_user_impression_cap: int | None
     duration_days: int
     starts_at: datetime | None

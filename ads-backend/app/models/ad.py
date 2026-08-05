@@ -58,11 +58,6 @@ class AdObjective(StrEnum):
 DEFAULT_OBJECTIVE = AdObjective.CLICKS
 
 
-class AdPacing(StrEnum):
-    ASAP = "asap"
-    EVEN = "even"
-
-
 class Audience(StrEnum):
     ALL = "all"
     RESIDENTS = "residents"
@@ -247,9 +242,7 @@ class AdCampaign(Base):
     )
     priority: Mapped[int] = mapped_column(Integer, default=3, nullable=False)
     rotation_weight: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
-    daily_impression_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
     per_user_impression_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    pacing: Mapped[AdPacing] = mapped_column(String(10), default=AdPacing.ASAP, nullable=False)
     schedule: Mapped[dict] = mapped_column(JSON, default=default_schedule)
 
     starts_at: Mapped[datetime | None] = mapped_column(

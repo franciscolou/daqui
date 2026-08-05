@@ -65,22 +65,45 @@ def format_base(formats: list[AdFormat]) -> tuple[int, float]:
     return full_daily, (full_daily - bundle_daily * POST_MAP_BUNDLE_DISCOUNT) / full_daily
 
 
+NEIGHBORHOOD_GROWTH_RATE = 0.15
+CITY_GROWTH_RATE = 0.4
+
+# CITYWIDE/CITIES/COUNTRY costumavam ser multiplicadores soltos (3.0/-/12.0)
+# escolhidos à parte da fórmula de bairro. Isso subprecificava escopo largo:
+# CITYWIDE=3.0 equivalia, na prática, a comprar só ~15 bairros um a um
+# (1 + 0.15*14) — um desconto de volume que ninguém decidiu de propósito,
+# porque nenhuma cidade coberta pelo Daqui tem só ~15 bairros ativos.
+# Agora CITYWIDE ancora numa estimativa de quantos bairros ativos uma cidade
+# coberta costuma ter, e CITIES/COUNTRY continuam crescendo a partir desse
+# mesmo patamar — uma única curva, em vez de 3 números desconexos.
+#
+# São estimativas, não medições: o ads-backend não enxerga a contagem real
+# de bairros ativos por cidade (só recebe o nome via query param — ver
+# arquitetura em CLAUDE.md). Recalibrar com dado real assim que houver
+# telemetria de bairros ativos por cidade coberta.
+CITYWIDE_EQUIVALENT_NEIGHBORHOODS = 25
+CITYWIDE_MULTIPLIER = 1 + NEIGHBORHOOD_GROWTH_RATE * (CITYWIDE_EQUIVALENT_NEIGHBORHOODS - 1)  # 4.6
+
+COUNTRY_EQUIVALENT_CITIES = 20
+COUNTRY_MULTIPLIER = CITYWIDE_MULTIPLIER + CITY_GROWTH_RATE * (COUNTRY_EQUIVALENT_CITIES - 1)  # 12.2
+
+
 def reach_multiplier(targeting: dict) -> float:
     scope = targeting.get("geo_scope", GeoScope.NEIGHBORHOOD)
     if scope == GeoScope.COUNTRY:
         # Brasil todo — maior salto possível, reflete alcançar toda a base de
         # usuários do app de uma vez, não só uma cidade ou um punhado delas.
-        m = 12.0
+        m = COUNTRY_MULTIPLIER
     elif scope == GeoScope.CITIES:
         # Várias cidades específicas (ex.: capitais de vários estados) —
         # cresce por cidade a partir do mesmo patamar de "cidade toda",
         # sem chegar ao alcance de "país todo".
         n = max(1, len(targeting.get("cities", [])))
-        m = 3.0 + 0.4 * (n - 1)
+        m = CITYWIDE_MULTIPLIER + CITY_GROWTH_RATE * (n - 1)
     elif scope == GeoScope.CITYWIDE:
-        m = 3.0
+        m = CITYWIDE_MULTIPLIER
     else:
-        m = 1 + 0.15 * max(0, len(targeting.get("neighborhoods", [])) - 1)
+        m = 1 + NEIGHBORHOOD_GROWTH_RATE * max(0, len(targeting.get("neighborhoods", [])) - 1)
     if targeting.get("include_nearby"):
         m *= 1.1
     if targeting.get("audience", Audience.ALL) != Audience.ALL:
@@ -129,18 +152,20 @@ def priority_multiplier(priority: int) -> float:
     return max(0.7, min(1 + 0.15 * (priority - 3), 1.6))
 
 
-def frequency_multiplier(
-    daily_impression_cap: int | None, per_user_impression_cap: int | None
-) -> float:
-    m = 1.0
+def frequency_multiplier(per_user_impression_cap: int | None) -> float:
+    """Só o limite POR PESSOA pesa no preço: restringir quantas vezes cada
+    indivíduo vê o anúncio força alcançar mais gente distinta pra bater o
+    mesmo volume — e a curva de alcance é convexa (a próxima pessoa nova é
+    sempre mais cara que reimpactar quem já é fácil de alcançar), então isso
+    reflete um custo real. Um teto de volume TOTAL do dia (removido — ver
+    histórico) não tinha essa mesma justificativa: é só controle de ritmo de
+    orçamento, não sinaliza nada mais caro de entregar."""
     if per_user_impression_cap is not None:
         if per_user_impression_cap <= 1:
-            m *= 1.2
+            return 1.2
         elif per_user_impression_cap <= 3:
-            m *= 1.1
-    if daily_impression_cap is not None and daily_impression_cap <= 20:
-        m *= 1.05
-    return m
+            return 1.1
+    return 1.0
 
 
 DURATION_DISCOUNT_ANCHORS = [
@@ -179,7 +204,6 @@ def quote(
     schedule: dict,
     objective: AdObjective = AdObjective.CLICKS,
     priority: int = 3,
-    daily_impression_cap: int | None = None,
     per_user_impression_cap: int | None = None,
     competing_count: int = 0,
     market_multiplier: float = 1.0,
@@ -204,10 +228,7 @@ def quote(
         ("Horário escolhido", daypart_multiplier(schedule)),
         ("Objetivo da campanha", objective_multiplier(objective)),
         ("Prioridade", priority_multiplier(priority)),
-        (
-            "Frequência/exclusividade",
-            frequency_multiplier(daily_impression_cap, per_user_impression_cap),
-        ),
+        ("Frequência/exclusividade", frequency_multiplier(per_user_impression_cap)),
         ("Desconto por duração", duration_discount(duration_days)),
         ("Ajuste de mercado", market_multiplier),
     ]

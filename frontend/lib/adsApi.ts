@@ -261,7 +261,6 @@ export interface QuoteParams {
   schedule?: ScheduleParams;
   objective?: AdObjective;
   priority?: number;
-  dailyImpressionCap?: number;
   perUserImpressionCap?: number;
 }
 
@@ -297,7 +296,6 @@ export interface CheckoutParams extends QuoteParams {
   advertiserType: AdvertiserType;
   advertiserDocument: string;
   rotationWeight?: number;
-  pacing?: 'asap' | 'even';
   // Um bloco fixo por formato (sem teste A/B — ver AdCreativeEditor).
   creatives: CreativeInput[];
   // Se preenchido, esta contratação é uma reativação da campanha desse token.
@@ -381,8 +379,6 @@ export interface MyCampaign {
   objective: AdObjective;
   priority: number;
   rotationWeight: number;
-  pacing: 'asap' | 'even';
-  dailyImpressionCap?: number;
   perUserImpressionCap?: number;
   durationDays: number;
   startsAt?: string;
@@ -415,8 +411,6 @@ interface BackendMyCampaign {
   objective: AdObjective;
   priority: number;
   rotation_weight: number;
-  pacing: 'asap' | 'even';
-  daily_impression_cap: number | null;
   per_user_impression_cap: number | null;
   duration_days: number;
   starts_at: string | null;
@@ -479,8 +473,6 @@ function mapMyCampaign(b: BackendMyCampaign): MyCampaign {
     objective: b.objective,
     priority: b.priority,
     rotationWeight: b.rotation_weight,
-    pacing: b.pacing,
-    dailyImpressionCap: b.daily_impression_cap ?? undefined,
     perUserImpressionCap: b.per_user_impression_cap ?? undefined,
     durationDays: b.duration_days,
     startsAt: b.starts_at ?? undefined,
@@ -724,7 +716,6 @@ export const adsApi = {
         schedule: scheduleBody(params.schedule),
         objective: params.objective ?? 'clicks',
         priority: params.priority ?? 3,
-        daily_impression_cap: params.dailyImpressionCap ?? null,
         per_user_impression_cap: params.perUserImpressionCap ?? null,
       },
     });
@@ -752,8 +743,6 @@ export const adsApi = {
         objective: params.objective ?? 'clicks',
         priority: params.priority ?? 3,
         rotation_weight: params.rotationWeight ?? 1.0,
-        pacing: params.pacing ?? 'asap',
-        daily_impression_cap: params.dailyImpressionCap ?? null,
         per_user_impression_cap: params.perUserImpressionCap ?? null,
         advertiser_name: params.advertiserName,
         advertiser_email: params.advertiserEmail,
