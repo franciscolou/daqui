@@ -22,6 +22,11 @@ class Message(Base):
     shared_comment_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("comments.id"), nullable=True
     )
+    # Anúncio encaminhado dentro da conversa. Id de AdCampaign no ads-backend
+    # — banco separado, zero cross-import, então opaco aqui e nunca validado
+    # (mesmo tratamento que AdCreative.linked_user_id dá a um id de User
+    # deste backend). O frontend resolve a prévia direto no ads-backend.
+    shared_ad_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Mensagem respondida (marcada com duplo clique no app). Opcional.
     reply_to_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("messages.id"), nullable=True

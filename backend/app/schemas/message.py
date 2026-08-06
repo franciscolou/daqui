@@ -40,6 +40,9 @@ class MessageCreate(BaseModel):
     shared_post_id: int | None = None
     shared_comment_id: int | None = None
     reply_to_id: int | None = None
+    # Id de AdCampaign no ads-backend (opaco, sem validação — ver
+    # models/message.py::shared_ad_id).
+    shared_ad_id: int | None = None
 
 
 class TypingPing(BaseModel):
@@ -65,6 +68,7 @@ class MessageOut(BaseModel):
     sender: UserPublic
     shared_post: SharedPostOut | None = None
     shared_comment: SharedCommentOut | None = None
+    shared_ad_id: int | None = None
     reply_to: MessageReplyOut | None = None
 
     model_config = {"from_attributes": True}

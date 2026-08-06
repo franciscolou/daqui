@@ -280,6 +280,12 @@ class AdCampaign(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    # Engajamento estilo post (ver AdLike/AdRepost/AdComment abaixo) —
+    # denormalizado igual likes_count/comments_count/shares_count de Post.
+    likes_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    comments_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    reposts_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -384,5 +390,51 @@ class AdEvent(Base):
     viewer_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     objective_action: Mapped[ObjectiveAction | None] = mapped_column(String(20), nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+# Engajamento estilo post num anúncio (feed "mais parecido com o Twitter"):
+# curtida/repost/comentário são identificados por `user_id`, um id de User
+# em backend/ — banco separado, zero cross-import, então opaco aqui e nunca
+# validado (mesmo tratamento que AdCreative.linked_user_id já dá a esse id).
+# Unicidade de like/repost por (campaign_id, user_id) é só de aplicação
+# (lookup antes de inserir), igual PostLike/PostRepost no backend principal.
+class AdLike(Base):
+    __tablename__ = "ad_likes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("ad_campaigns.id"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class AdRepost(Base):
+    __tablename__ = "ad_reposts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("ad_campaigns.id"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+
+class AdComment(Base):
+    __tablename__ = "ad_comments"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("ad_campaigns.id"), nullable=False, index=True
+    )
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

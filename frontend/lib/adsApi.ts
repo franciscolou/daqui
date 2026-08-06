@@ -107,6 +107,11 @@ interface BackendAd {
   latitude: number | null;
   longitude: number | null;
   linked_user_id: number | null;
+  likes_count: number;
+  comments_count: number;
+  reposts_count: number;
+  liked: boolean;
+  reposted: boolean;
 }
 
 export interface Ad {
@@ -124,6 +129,13 @@ export interface Ad {
   // Conta do Daqui vinculada (só formato "post") — id de User, resolvido
   // pelo frontend via api.getUser(id) pra renderizar como um post real.
   linkedUserId?: number;
+  // Engajamento estilo post (ver app/ad/[id].tsx) — `liked`/`reposted`
+  // refletem o `userId` (real, autenticado no Daqui) passado na requisição.
+  likesCount: number;
+  commentsCount: number;
+  repostsCount: number;
+  liked: boolean;
+  reposted: boolean;
 }
 
 function mapAd(b: BackendAd): Ad {
@@ -140,6 +152,37 @@ function mapAd(b: BackendAd): Ad {
     latitude: b.latitude ?? undefined,
     longitude: b.longitude ?? undefined,
     linkedUserId: b.linked_user_id ?? undefined,
+    likesCount: b.likes_count,
+    commentsCount: b.comments_count,
+    repostsCount: b.reposts_count,
+    liked: b.liked,
+    reposted: b.reposted,
+  };
+}
+
+export interface AdComment {
+  id: number;
+  campaignId: number;
+  userId: number;
+  content: string;
+  createdAt: string;
+}
+
+interface BackendAdComment {
+  id: number;
+  campaign_id: number;
+  user_id: number;
+  content: string;
+  created_at: string;
+}
+
+function mapAdComment(b: BackendAdComment): AdComment {
+  return {
+    id: b.id,
+    campaignId: b.campaign_id,
+    userId: b.user_id,
+    content: b.content,
+    createdAt: b.created_at,
   };
 }
 
@@ -631,6 +674,7 @@ export const adsApi = {
       engagement?: 'any' | 'active';
       recency?: 'new' | 'returning';
       viewerId?: string;
+      userId?: number;
     } = {},
   ): Promise<Ad | null> {
     const qs = new URLSearchParams();
@@ -644,6 +688,7 @@ export const adsApi = {
     if (params.engagement) qs.set('engagement', params.engagement);
     if (params.recency) qs.set('recency', params.recency);
     if (params.viewerId) qs.set('viewer_id', params.viewerId);
+    if (params.userId != null) qs.set('user_id', String(params.userId));
     const query = qs.toString();
     const r = await request<BackendAd | null>(`/ads/active/${format}${query ? `?${query}` : ''}`);
     return r ? mapAd(r) : null;
@@ -848,5 +893,62 @@ export const adsApi = {
     } catch {
       // fire-and-forget: uma falha aqui não deve travar a navegação do usuário
     }
+  },
+
+  // ── Engajamento estilo post (ver app/ad/[id].tsx) ─────────────────────
+  async getAdById(
+    campaignId: number,
+    params: { creativeId?: number; userId?: number } = {},
+  ): Promise<Ad> {
+    const qs = new URLSearchParams();
+    if (params.creativeId != null) qs.set('creative_id', String(params.creativeId));
+    if (params.userId != null) qs.set('user_id', String(params.userId));
+    const query = qs.toString();
+    const r = await request<BackendAd>(`/ads/${campaignId}${query ? `?${query}` : ''}`);
+    return mapAd(r);
+  },
+
+  async toggleAdLike(
+    campaignId: number,
+    params: { userId: number; creativeId?: number },
+  ): Promise<Ad> {
+    const r = await request<BackendAd>(`/ads/${campaignId}/like`, {
+      method: 'POST',
+      body: { user_id: params.userId, creative_id: params.creativeId },
+    });
+    return mapAd(r);
+  },
+
+  async toggleAdRepost(
+    campaignId: number,
+    params: { userId: number; creativeId?: number },
+  ): Promise<Ad> {
+    const r = await request<BackendAd>(`/ads/${campaignId}/repost`, {
+      method: 'POST',
+      body: { user_id: params.userId, creative_id: params.creativeId },
+    });
+    return mapAd(r);
+  },
+
+  async listAdComments(campaignId: number): Promise<AdComment[]> {
+    const r = await request<BackendAdComment[]>(`/ads/${campaignId}/comments`);
+    return r.map(mapAdComment);
+  },
+
+  async addAdComment(
+    campaignId: number,
+    params: { userId: number; content: string },
+  ): Promise<AdComment> {
+    const r = await request<BackendAdComment>(`/ads/${campaignId}/comments`, {
+      method: 'POST',
+      body: { user_id: params.userId, content: params.content },
+    });
+    return mapAdComment(r);
+  },
+
+  async deleteAdComment(campaignId: number, commentId: number, userId: number): Promise<void> {
+    await request<void>(`/ads/${campaignId}/comments/${commentId}?user_id=${userId}`, {
+      method: 'DELETE',
+    });
   },
 };

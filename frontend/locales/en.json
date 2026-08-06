@@ -329,8 +329,10 @@
     "title": "Forward",
     "commentError": "We couldn't forward the comment.",
     "postError": "We couldn't forward the post.",
+    "adError": "We couldn't forward the ad.",
     "commentNotFound": "Comment not found.",
     "postNotFound": "Post not found.",
+    "adNotFound": "Ad not found.",
     "searchPlaceholder": "Search neighbors...",
     "sendTo": "Send to",
     "noNeighbors": "No neighbors found."

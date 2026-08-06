@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.controllers import ad
 from app.schemas.ad import (
+    AdCommentOut,
     AdOut,
     AdPlanOut,
     AnalyticsOut,
@@ -47,6 +48,21 @@ router.get("/my-campaigns", response_model=GlobalAnalyticsOut)(
     ad.get_my_campaigns_analytics
 )
 router.post("/{campaign_id}/click", status_code=204)(ad.track_click)
+# Engajamento estilo post num anúncio (curtir/repostar/comentar) — ver
+# tela app/ad/[id].tsx. Rotas dinâmicas "/{campaign_id}/..." coexistem com
+# as estáticas acima sem conflito (segmentos diferentes).
+router.get("/{campaign_id}", response_model=AdOut)(ad.get_ad_detail)
+router.post("/{campaign_id}/like", response_model=AdOut)(ad.toggle_ad_like)
+router.post("/{campaign_id}/repost", response_model=AdOut)(ad.toggle_ad_repost)
+router.get("/{campaign_id}/comments", response_model=list[AdCommentOut])(
+    ad.list_ad_comments
+)
+router.post(
+    "/{campaign_id}/comments", response_model=AdCommentOut, status_code=201
+)(ad.create_ad_comment)
+router.delete("/{campaign_id}/comments/{comment_id}", status_code=204)(
+    ad.delete_ad_comment
+)
 
 # Painel de anúncios (ads-admin/): gerido pelo time interno, autenticado
 # via /auth/login deste mesmo serviço (get_current_admin), sem relação com

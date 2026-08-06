@@ -104,6 +104,7 @@ def create(
     shared_post_id: int | None = None,
     reply_to_id: int | None = None,
     shared_comment_id: int | None = None,
+    shared_ad_id: int | None = None,
 ) -> Message:
     msg = Message(
         sender_id=sender_id,
@@ -112,6 +113,7 @@ def create(
         shared_post_id=shared_post_id,
         shared_comment_id=shared_comment_id,
         reply_to_id=reply_to_id,
+        shared_ad_id=shared_ad_id,
     )
     db.add(msg)
     db.commit()

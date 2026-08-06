@@ -30,6 +30,8 @@ def _preview_text(msg: Message) -> str:
         return f"📎 {title}" if title else "📎 Post compartilhado"
     if msg.shared_comment_id is not None:
         return "💬 Comentário compartilhado"
+    if msg.shared_ad_id is not None:
+        return "📢 Anúncio compartilhado"
     return ""
 
 
@@ -100,7 +102,12 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         raise HTTPException(status_code=404, detail="Destinatário não encontrado")
 
     content = payload.content.strip()
-    if not content and payload.shared_post_id is None and payload.shared_comment_id is None:
+    if (
+        not content
+        and payload.shared_post_id is None
+        and payload.shared_comment_id is None
+        and payload.shared_ad_id is None
+    ):
         raise HTTPException(status_code=400, detail="Mensagem vazia")
 
     if payload.shared_post_id is not None:
@@ -112,6 +119,10 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         shared_comment = comment_dao.get_by_id(db, payload.shared_comment_id)
         if not shared_comment:
             raise HTTPException(status_code=404, detail="Comentário não encontrado")
+
+    # shared_ad_id não é validado aqui: o anúncio vive no ads-backend, um
+    # serviço separado sem cliente HTTP entre os dois (mesmo tratamento de
+    # confiança que AdCreative.linked_user_id já dá a um id deste backend).
 
     if payload.reply_to_id is not None:
         replied = message_dao.get_by_id(db, payload.reply_to_id)
@@ -127,6 +138,7 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         payload.shared_post_id,
         payload.reply_to_id,
         shared_comment_id=payload.shared_comment_id,
+        shared_ad_id=payload.shared_ad_id,
     )
     if receiver.notify_messages and not mute_service.get_dm_status(db, receiver, user.id).is_muted:
         push_service.notify_user(

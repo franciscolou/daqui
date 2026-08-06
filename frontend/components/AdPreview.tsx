@@ -42,6 +42,11 @@ function draftToAd(draft: CreativeBlockDraft, id: number, t: (key: string) => st
     latitude: draft.latitude ? Number(draft.latitude) : undefined,
     longitude: draft.longitude ? Number(draft.longitude) : undefined,
     linkedUserId: draft.linkedUserId,
+    likesCount: 0,
+    commentsCount: 0,
+    repostsCount: 0,
+    liked: false,
+    reposted: false,
   };
 }
 

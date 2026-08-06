@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { Post, User } from '../../data/mock';
 import { api, ApiError, Comment, SharedComment, SharedPost } from '../../lib/api';
+import { Ad, adsApi } from '../../lib/adsApi';
 import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
 import { goBack } from '../../lib/navigation';
@@ -22,6 +23,7 @@ import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import SharedPostPreview from '../../components/SharedPostPreview';
 import SharedCommentPreview from '../../components/SharedCommentPreview';
+import SharedAdPreview from '../../components/SharedAdPreview';
 
 // Converte o Post completo na prévia compacta usada nas mensagens.
 function toSharedPost(p: Post): SharedPost {
@@ -47,18 +49,24 @@ function toSharedComment(c: Comment): SharedComment {
 }
 
 export default function ForwardScreen() {
-  // Encaminha um post (rota /forward/{postId}) ou um comentário
-  // (/forward/{postId}?commentId=...).
-  const { postId, commentId } = useLocalSearchParams<{ postId: string; commentId?: string }>();
+  // Encaminha um post (rota /forward/{postId}), um comentário
+  // (/forward/{postId}?commentId=...) ou um anúncio (/forward/{adId}?kind=ad).
+  const { postId, commentId, kind } = useLocalSearchParams<{
+    postId: string;
+    commentId?: string;
+    kind?: string;
+  }>();
   const { loading: authLoading } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { t } = useT();
 
   const forwardingComment = !!commentId;
+  const forwardingAd = kind === 'ad';
 
   const [post, setPost] = useState<Post | null>(null);
   const [comment, setComment] = useState<Comment | null>(null);
+  const [ad, setAd] = useState<Ad | null>(null);
   const [people, setPeople] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -74,7 +82,9 @@ export default function ForwardScreen() {
         api.getConversations().catch(() => []),
         api.getNeighbors().catch(() => []),
       ]);
-      if (commentId) {
+      if (forwardingAd) {
+        setAd(await adsApi.getAdById(Number(postId)));
+      } else if (commentId) {
         setComment(await api.getComment(commentId));
       } else {
         setPost(await api.getPost(postId));
@@ -92,10 +102,11 @@ export default function ForwardScreen() {
     } catch {
       setPost(null);
       setComment(null);
+      setAd(null);
     } finally {
       setLoading(false);
     }
-  }, [postId, commentId]);
+  }, [postId, commentId, forwardingAd]);
 
   useEffect(() => {
     // Espera o token carregar (deep-link/refresh direto) antes de buscar.
@@ -122,7 +133,9 @@ export default function ForwardScreen() {
     setPending((p) => withId(p, user.id, true));
     setError(null);
     try {
-      if (forwardingComment) {
+      if (forwardingAd) {
+        await api.sendMessage(user.id, '', undefined, undefined, undefined, Number(postId));
+      } else if (forwardingComment) {
         await api.sendMessage(user.id, '', undefined, undefined, commentId);
       } else {
         await api.sendMessage(user.id, '', postId);
@@ -133,21 +146,25 @@ export default function ForwardScreen() {
       setError(
         e instanceof ApiError
           ? e.message
-          : t(forwardingComment ? 'forward.commentError' : 'forward.postError'),
+          : t(forwardingAd ? 'forward.adError' : forwardingComment ? 'forward.commentError' : 'forward.postError'),
       );
     } finally {
       setPending((p) => withId(p, user.id, false));
     }
   };
 
-  const notFound = forwardingComment ? !comment : !post;
+  const notFound = forwardingAd ? !ad : forwardingComment ? !comment : !post;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <WideLayout>
         <View style={styles.column}>
           <View style={styles.topBar}>
-            <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${postId}` as any)} hitSlop={10}>
+            <TouchableOpacity
+              style={styles.topBarIconBtn}
+              onPress={() => goBack((forwardingAd ? `/ad/${postId}` : `/post/${postId}`) as any)}
+              hitSlop={10}
+            >
               <Ionicons name="chevron-back" size={22} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>{t('forward.title')}</Text>
@@ -162,7 +179,7 @@ export default function ForwardScreen() {
             <View style={styles.center}>
               <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
               <Text style={styles.emptyText}>
-                {t(forwardingComment ? 'forward.commentNotFound' : 'forward.postNotFound')}
+                {t(forwardingAd ? 'forward.adNotFound' : forwardingComment ? 'forward.commentNotFound' : 'forward.postNotFound')}
               </Text>
             </View>
           ) : (
@@ -174,7 +191,9 @@ export default function ForwardScreen() {
               ListHeaderComponent={
                 <View>
                   <View style={styles.previewWrap}>
-                    {forwardingComment && comment ? (
+                    {forwardingAd && ad ? (
+                      <SharedAdPreview ad={ad} static />
+                    ) : forwardingComment && comment ? (
                       <SharedCommentPreview comment={toSharedComment(comment)} static />
                     ) : post ? (
                       <SharedPostPreview post={toSharedPost(post)} static />

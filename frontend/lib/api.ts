@@ -335,6 +335,7 @@ interface BackendMessage {
   sender: BackendUser;
   shared_post: BackendSharedPost | null;
   shared_comment: BackendSharedComment | null;
+  shared_ad_id: number | null;
   reply_to: BackendMessageReply | null;
 }
 
@@ -488,6 +489,9 @@ export interface ChatMessage {
   sender: User;
   sharedPost?: SharedPost;
   sharedComment?: SharedComment;
+  // Id de campanha no ads-backend (serviço separado) — a prévia é resolvida
+  // no client via adsApi.getAdById, não vem embutida na mensagem.
+  sharedAdId?: number;
   replyTo?: MessageReply;
 }
 
@@ -857,6 +861,7 @@ function mapMessage(m: BackendMessage): ChatMessage {
     sender: mapUser(m.sender),
     sharedPost: m.shared_post ? mapSharedPost(m.shared_post) : undefined,
     sharedComment: m.shared_comment ? mapSharedComment(m.shared_comment) : undefined,
+    sharedAdId: m.shared_ad_id ?? undefined,
     replyTo: m.reply_to ? mapMessageReply(m.reply_to) : undefined,
   };
 }
@@ -1531,6 +1536,7 @@ export const api = {
     sharedPostId?: string,
     replyToId?: string,
     sharedCommentId?: string,
+    sharedAdId?: number,
   ): Promise<ChatMessage> {
     return mapMessage(
       await request<BackendMessage>('/messages/', {
@@ -1541,6 +1547,7 @@ export const api = {
           shared_post_id: sharedPostId ? Number(sharedPostId) : undefined,
           shared_comment_id: sharedCommentId ? Number(sharedCommentId) : undefined,
           reply_to_id: replyToId ? Number(replyToId) : undefined,
+          shared_ad_id: sharedAdId,
         },
       }),
     );

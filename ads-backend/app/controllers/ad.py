@@ -7,6 +7,9 @@ from app.core.deps import get_current_admin, get_current_owner, get_db
 from app.models.ad import AdCampaignStatus, AdFormat
 from app.models.admin import AdAdmin
 from app.schemas.ad import (
+    AdCommentIn,
+    AdCommentOut,
+    AdEngagementIn,
     AdOut,
     AdPlanCreate,
     AdPlanOut,
@@ -84,6 +87,7 @@ def get_active_ad(
     engagement: str | None = Query(None),
     recency: str | None = Query(None),
     viewer_id: str | None = Query(None),
+    user_id: int | None = Query(None),
     db: Session = Depends(get_db),
 ) -> AdOut | None:
     ctx = {
@@ -97,6 +101,7 @@ def get_active_ad(
         "engagement": engagement,
         "recency": recency,
         "viewer_id": viewer_id,
+        "user_id": user_id,
     }
     return ad_service.get_active_ad(db, format, ctx)
 
@@ -113,6 +118,7 @@ def get_active_ad_list(
     engagement: str | None = Query(None),
     recency: str | None = Query(None),
     viewer_id: str | None = Query(None),
+    user_id: int | None = Query(None),
     exclude_ids: str | None = Query(None),
     limit: int = Query(3, ge=1, le=10),
     db: Session = Depends(get_db),
@@ -128,6 +134,7 @@ def get_active_ad_list(
         "engagement": engagement,
         "recency": recency,
         "viewer_id": viewer_id,
+        "user_id": user_id,
     }
     return ad_service.get_active_ad_list(db, format, ctx, _parse_ids(exclude_ids), limit)
 
@@ -138,6 +145,55 @@ def track_click(
     db: Session = Depends(get_db),
 ) -> None:
     ad_service.track_click(db, campaign_id, payload)
+
+
+def get_ad_detail(
+    campaign_id: int,
+    creative_id: int | None = Query(None),
+    user_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+) -> AdOut:
+    return ad_service.get_ad_detail(db, campaign_id, creative_id, user_id)
+
+
+def toggle_ad_like(
+    campaign_id: int,
+    payload: AdEngagementIn,
+    db: Session = Depends(get_db),
+) -> AdOut:
+    return ad_service.toggle_ad_like(db, campaign_id, payload)
+
+
+def toggle_ad_repost(
+    campaign_id: int,
+    payload: AdEngagementIn,
+    db: Session = Depends(get_db),
+) -> AdOut:
+    return ad_service.toggle_ad_repost(db, campaign_id, payload)
+
+
+def list_ad_comments(
+    campaign_id: int,
+    db: Session = Depends(get_db),
+) -> list[AdCommentOut]:
+    return ad_service.list_ad_comments(db, campaign_id)
+
+
+def create_ad_comment(
+    campaign_id: int,
+    payload: AdCommentIn,
+    db: Session = Depends(get_db),
+) -> AdCommentOut:
+    return ad_service.create_ad_comment(db, campaign_id, payload)
+
+
+def delete_ad_comment(
+    campaign_id: int,
+    comment_id: int,
+    user_id: int = Query(...),
+    db: Session = Depends(get_db),
+) -> None:
+    ad_service.delete_ad_comment(db, campaign_id, comment_id, user_id)
 
 
 def get_my_campaign(

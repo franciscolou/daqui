@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, Pressable, Image, Linking, GestureResponderEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable, Image, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
@@ -8,21 +9,34 @@ import { api } from '../lib/api';
 import { User } from '../data/mock';
 import VideoPlayer from './VideoPlayer';
 import VerifiedBadge from './VerifiedBadge';
-import ImageViewerModal from './ImageViewerModal';
 import { useT } from '../lib/i18n';
 
 // Card de anúncio no feed — mesmo formato visual de um PostCard, mas com
-// dados de uma campanha (não um Post real) e link externo em vez de rota
-// interna. Quando o criativo está vinculado a uma conta do Daqui
-// (`ad.linkedUserId`), ganha um cabeçalho de post de verdade (avatar/nome/
-// selo de verificado) + aviso "Patrocinado", em vez da tag genérica "Anúncio".
-export default function AdPostCard({ ad, viewerId }: { ad: Ad; viewerId?: string }) {
+// dados de uma campanha (não um Post real). "Twitter-like": tocar no corpo
+// do card abre o detalhe do anúncio (comentários/curtidas/reposts/encaminhar,
+// ver app/ad/[id].tsx); só tocar na mídia abre o link externo do anunciante.
+// Quando o criativo está vinculado a uma conta do Daqui (`ad.linkedUserId`),
+// ganha um cabeçalho de post de verdade (avatar/nome/selo de verificado) +
+// aviso "Patrocinado", em vez da tag genérica "Anúncio".
+export default function AdPostCard({
+  ad,
+  viewerId,
+  viewerUserId,
+}: {
+  ad: Ad;
+  viewerId?: string;
+  // Id real do usuário logado no Daqui (distinto do `viewerId` anônimo acima,
+  // usado só pra impressão/clique) — necessário pra curtir/comentar/repostar.
+  viewerUserId?: string;
+}) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { t } = useT();
   const [linkedUser, setLinkedUser] = useState<User | null>(null);
-  const [viewerOpen, setViewerOpen] = useState(false);
-  const [mediaRange, setMediaRange] = useState<{ top: number; bottom: number } | null>(null);
+  const [liked, setLiked] = useState(ad.liked);
+  const [likesCount, setLikesCount] = useState(ad.likesCount);
+  const [reposted, setReposted] = useState(ad.reposted);
+  const [repostsCount, setRepostsCount] = useState(ad.repostsCount);
 
   useEffect(() => {
     if (!ad.linkedUserId) {
@@ -32,39 +46,62 @@ export default function AdPostCard({ ad, viewerId }: { ad: Ad; viewerId?: string
     api.getUser(String(ad.linkedUserId)).then(setLinkedUser).catch(() => setLinkedUser(null));
   }, [ad.linkedUserId]);
 
-  const open = () => {
+  const openDetail = () => {
+    router.push(`/ad/${ad.id}?creativeId=${ad.creativeId}` as any);
+  };
+
+  const openMedia = () => {
     adsApi.trackAdClick(ad.id, { viewerId, creativeId: ad.creativeId, format: 'post' });
     Linking.openURL(ad.targetUrl);
+  };
+
+  const toggleLike = () => {
+    if (!viewerUserId) return;
+    const prevLiked = liked;
+    const prevCount = likesCount;
+    setLiked(!prevLiked);
+    setLikesCount(prevLiked ? prevCount - 1 : prevCount + 1);
+    adsApi
+      .toggleAdLike(ad.id, { userId: Number(viewerUserId), creativeId: ad.creativeId })
+      .then((updated) => {
+        setLiked(updated.liked);
+        setLikesCount(updated.likesCount);
+      })
+      .catch(() => {
+        setLiked(prevLiked);
+        setLikesCount(prevCount);
+      });
+  };
+
+  const toggleRepost = () => {
+    if (!viewerUserId) return;
+    const prevReposted = reposted;
+    const prevCount = repostsCount;
+    setReposted(!prevReposted);
+    setRepostsCount(prevReposted ? prevCount - 1 : prevCount + 1);
+    adsApi
+      .toggleAdRepost(ad.id, { userId: Number(viewerUserId), creativeId: ad.creativeId })
+      .then((updated) => {
+        setReposted(updated.reposted);
+        setRepostsCount(updated.repostsCount);
+      })
+      .catch(() => {
+        setReposted(prevReposted);
+        setRepostsCount(prevCount);
+      });
   };
 
   const mediaUrl = ad.videoUrl || ad.imageUrl;
   const mediaType: 'image' | 'video' = ad.videoUrl ? 'video' : 'image';
 
-  // Roteia o toque dentro de um único Pressable (o card inteiro) em vez de
-  // aninhar um segundo Pressable só pra mídia: o RNW trata cada Pressable
-  // como uma área de hover isolada (aninhar quebra o "hover de um filho
-  // conta como hover do pai" que a gente esperaria de CSS puro — testado),
-  // então dois Pressables aqui deixariam a mídia sem highlight nenhum. Com
-  // um só, o hover cobre o bloco inteiro de graça; o toque na mídia (faixa
-  // vertical medida via onLayout) abre o visualizador em vez do link.
-  const handlePress = (e: GestureResponderEvent) => {
-    const y = e.nativeEvent.locationY;
-    if (mediaUrl && mediaRange && y >= mediaRange.top && y <= mediaRange.bottom) {
-      setViewerOpen(true);
-    } else {
-      open();
-    }
-  };
-
   return (
     // `tabIndex={-1}` (via cast — RNW aceita a prop, mas o tipo do RN não
     // declara) tira este Pressable da regra de hover global (ver
-    // lib/globalStyles.web.ts: por-elemento, com transição suave, boa pra
-    // botões pequenos mas fragmentada/lenta demais num card grande). O
-    // hover vira 100% local: `styles.rowHovered`, sem `transition`, aplica
-    // de uma vez só no bloco inteiro.
+    // lib/globalStyles.web.ts). Toques em filhos com seu próprio
+    // Touchable/Pressable (mídia, botões da barra de ações) são capturados
+    // por eles, não chegam a disparar este onPress.
     <Pressable
-      onPress={handlePress}
+      onPress={openDetail}
       style={({ hovered }) => [styles.row, hovered && styles.rowHovered]}
       {...({ tabIndex: -1 } as any)}
     >
@@ -93,30 +130,53 @@ export default function AdPostCard({ ad, viewerId }: { ad: Ad; viewerId?: string
       <Text style={styles.body} numberOfLines={4}>{ad.content}</Text>
 
       {!!mediaUrl && (
-        <View onLayout={(e) => {
-          const { y, height } = e.nativeEvent.layout;
-          setMediaRange({ top: y, bottom: y + height });
-        }}>
+        <TouchableOpacity activeOpacity={0.9} onPress={openMedia}>
           {mediaType === 'video' ? (
             <VideoPlayer uri={mediaUrl} style={styles.image} />
           ) : (
             <Image source={{ uri: mediaUrl }} style={styles.image} />
           )}
-        </View>
+        </TouchableOpacity>
       )}
 
-      <View style={styles.ctaRow}>
+      <TouchableOpacity style={styles.ctaRow} onPress={openMedia}>
         <Text style={styles.ctaText}>{ad.ctaLabel || t('ads.learnMore')}</Text>
         <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
-      </View>
+      </TouchableOpacity>
 
-      {!!mediaUrl && (
-        <ImageViewerModal
-          media={[{ url: mediaUrl, type: mediaType }]}
-          visible={viewerOpen}
-          onClose={() => setViewerOpen(false)}
-        />
-      )}
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.actionBtn} onPress={toggleLike}>
+          <Ionicons
+            name={liked ? 'heart' : 'heart-outline'}
+            size={18}
+            color={liked ? Colors.error : Colors.textTertiary}
+          />
+          <Text style={[styles.actionCount, liked && { color: Colors.error }]}>{likesCount}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionBtn} onPress={openDetail}>
+          <Ionicons name="chatbubble-outline" size={17} color={Colors.textTertiary} />
+          <Text style={styles.actionCount}>{ad.commentsCount}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionBtn} onPress={toggleRepost}>
+          <Ionicons
+            name="repeat-outline"
+            size={19}
+            color={reposted ? Colors.primary : Colors.textTertiary}
+          />
+          <Text style={[styles.actionCount, reposted && { color: Colors.primary }]}>
+            {repostsCount}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={() => router.push(`/forward/${ad.id}?kind=ad` as any)}
+        >
+          <Ionicons name="arrow-redo-outline" size={18} color={Colors.textTertiary} />
+        </TouchableOpacity>
+      </View>
     </Pressable>
   );
 }
@@ -126,7 +186,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 14,
+    paddingBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
@@ -156,6 +216,22 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   title: { fontSize: 15, fontWeight: '700', color: Colors.text, marginBottom: 4, letterSpacing: -0.2 },
   body: { fontSize: 14, color: Colors.text, lineHeight: 20, marginBottom: 10 },
   image: { width: '100%', height: 180, borderRadius: 12, marginBottom: 10, backgroundColor: Colors.borderLight },
-  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, alignSelf: 'flex-start' },
   ctaText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: -6,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 4,
+  },
+  actionCount: { fontSize: 13, color: Colors.textTertiary, fontWeight: '600' },
 });

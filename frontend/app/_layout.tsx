@@ -42,6 +42,7 @@ export default function RootLayout() {
                   <Stack.Screen name="(tabs)" />
                   <Stack.Screen name="user/[id]" />
                   <Stack.Screen name="post/[id]" />
+                  <Stack.Screen name="ad/[id]" />
                   <Stack.Screen name="poll/[id]" />
                   <Stack.Screen name="messages/[id]/index" />
                   <Stack.Screen name="messages/[id]/info" />

@@ -484,12 +484,49 @@ class AdOut(BaseModel):
     longitude: float | None
     linked_user_id: int | None
 
+    # Engajamento estilo post (ver AdLike/AdRepost/AdComment em models/ad.py).
+    # `liked`/`reposted` refletem o `user_id` do viewer passado na requisição
+    # (None quando nenhum foi informado, ex.: chamada anônima).
+    likes_count: int = 0
+    comments_count: int = 0
+    reposts_count: int = 0
+    liked: bool = False
+    reposted: bool = False
+
 
 class ClickIn(BaseModel):
     viewer_id: str | None = None
     creative_id: int | None = None
     format: AdFormat | None = None
     objective_action: ObjectiveAction | None = None
+
+
+class AdEngagementIn(BaseModel):
+    user_id: int
+    creative_id: int | None = None
+
+
+class AdCommentIn(BaseModel):
+    user_id: int
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def _content_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Comentário não pode ser vazio")
+        return v
+
+
+class AdCommentOut(BaseModel):
+    id: int
+    campaign_id: int
+    user_id: int
+    content: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # ── Analytics ────────────────────────────────────────────────────────────

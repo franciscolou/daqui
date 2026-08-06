@@ -9,11 +9,14 @@ from sqlalchemy.orm import Session
 from app.models.ad import (
     AdCampaign,
     AdCampaignStatus,
+    AdComment,
     AdCreative,
     AdEvent,
     AdEventType,
     AdFormat,
+    AdLike,
     AdPlan,
+    AdRepost,
     Audience,
     EngagementLevel,
     GeoScope,
@@ -550,3 +553,63 @@ def list_distinct_advertisers(db: Session) -> list[str]:
         .all()
     )
     return [r[0] for r in rows if r[0]]
+
+
+# ── Engajamento (curtida/repost/comentário num anúncio) ───────────────────
+def get_like(db: Session, campaign_id: int, user_id: int) -> AdLike | None:
+    return (
+        db.query(AdLike)
+        .filter(AdLike.campaign_id == campaign_id, AdLike.user_id == user_id)
+        .first()
+    )
+
+
+def add_like(db: Session, campaign_id: int, user_id: int) -> AdLike:
+    like = AdLike(campaign_id=campaign_id, user_id=user_id)
+    db.add(like)
+    return like
+
+
+def remove_like(db: Session, like: AdLike) -> None:
+    db.delete(like)
+
+
+def get_repost(db: Session, campaign_id: int, user_id: int) -> AdRepost | None:
+    return (
+        db.query(AdRepost)
+        .filter(AdRepost.campaign_id == campaign_id, AdRepost.user_id == user_id)
+        .first()
+    )
+
+
+def add_repost(db: Session, campaign_id: int, user_id: int) -> AdRepost:
+    repost = AdRepost(campaign_id=campaign_id, user_id=user_id)
+    db.add(repost)
+    return repost
+
+
+def remove_repost(db: Session, repost: AdRepost) -> None:
+    db.delete(repost)
+
+
+def add_comment(db: Session, campaign_id: int, user_id: int, content: str) -> AdComment:
+    comment = AdComment(campaign_id=campaign_id, user_id=user_id, content=content)
+    db.add(comment)
+    return comment
+
+
+def get_comment(db: Session, comment_id: int) -> AdComment | None:
+    return db.get(AdComment, comment_id)
+
+
+def list_comments(db: Session, campaign_id: int) -> list[AdComment]:
+    return (
+        db.query(AdComment)
+        .filter(AdComment.campaign_id == campaign_id)
+        .order_by(AdComment.created_at.asc())
+        .all()
+    )
+
+
+def delete_comment(db: Session, comment: AdComment) -> None:
+    db.delete(comment)

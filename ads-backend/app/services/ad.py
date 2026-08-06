@@ -22,6 +22,9 @@ from app.models.ad import (
 from app.models.admin import AdAdmin
 from app.models.audit_log import AdAuditLogAction
 from app.schemas.ad import (
+    AdCommentIn,
+    AdCommentOut,
+    AdEngagementIn,
     AdOut,
     AdPlanCreate,
     AdPlanOut,
@@ -416,6 +419,16 @@ def _campaign_to_ad_out(
         neighborhood=ctx.get("neighborhood"),
         viewer_id=ctx.get("viewer_id"),
     )
+    return _to_ad_out(db, campaign, creative, ctx.get("user_id"))
+
+
+def _to_ad_out(
+    db: Session, campaign: AdCampaign, creative, user_id: int | None
+) -> AdOut:
+    liked = user_id is not None and ad_dao.get_like(db, campaign.id, user_id) is not None
+    reposted = (
+        user_id is not None and ad_dao.get_repost(db, campaign.id, user_id) is not None
+    )
     return AdOut(
         id=campaign.id,
         creative_id=creative.id,
@@ -429,7 +442,93 @@ def _campaign_to_ad_out(
         latitude=creative.latitude,
         longitude=creative.longitude,
         linked_user_id=creative.linked_user_id,
+        likes_count=campaign.likes_count,
+        comments_count=campaign.comments_count,
+        reposts_count=campaign.reposts_count,
+        liked=liked,
+        reposted=reposted,
     )
+
+
+def get_ad_detail(
+    db: Session, campaign_id: int, creative_id: int | None, user_id: int | None
+) -> AdOut:
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
+    creative = (
+        ad_dao.get_creative(db, creative_id) if creative_id is not None else None
+    )
+    if not creative:
+        creative = ad_dao.pick_creative(campaign, AdFormat.POST)
+    if not creative:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
+    return _to_ad_out(db, campaign, creative, user_id)
+
+
+def toggle_ad_like(db: Session, campaign_id: int, payload: AdEngagementIn) -> AdOut:
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
+    existing = ad_dao.get_like(db, campaign_id, payload.user_id)
+    if existing:
+        ad_dao.remove_like(db, existing)
+        campaign.likes_count = max(0, campaign.likes_count - 1)
+    else:
+        ad_dao.add_like(db, campaign_id, payload.user_id)
+        campaign.likes_count += 1
+    db.commit()
+    db.refresh(campaign)
+    return get_ad_detail(db, campaign_id, payload.creative_id, payload.user_id)
+
+
+def toggle_ad_repost(db: Session, campaign_id: int, payload: AdEngagementIn) -> AdOut:
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
+    existing = ad_dao.get_repost(db, campaign_id, payload.user_id)
+    if existing:
+        ad_dao.remove_repost(db, existing)
+        campaign.reposts_count = max(0, campaign.reposts_count - 1)
+    else:
+        ad_dao.add_repost(db, campaign_id, payload.user_id)
+        campaign.reposts_count += 1
+    db.commit()
+    db.refresh(campaign)
+    return get_ad_detail(db, campaign_id, payload.creative_id, payload.user_id)
+
+
+def list_ad_comments(db: Session, campaign_id: int) -> list[AdCommentOut]:
+    comments = ad_dao.list_comments(db, campaign_id)
+    return [AdCommentOut.model_validate(c) for c in comments]
+
+
+def create_ad_comment(
+    db: Session, campaign_id: int, payload: AdCommentIn
+) -> AdCommentOut:
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
+    comment = ad_dao.add_comment(db, campaign_id, payload.user_id, payload.content)
+    campaign.comments_count += 1
+    db.commit()
+    db.refresh(comment)
+    return AdCommentOut.model_validate(comment)
+
+
+def delete_ad_comment(
+    db: Session, campaign_id: int, comment_id: int, user_id: int
+) -> None:
+    comment = ad_dao.get_comment(db, comment_id)
+    if not comment or comment.campaign_id != campaign_id:
+        raise HTTPException(status_code=404, detail="Comentário não encontrado")
+    if comment.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Sem permissão para apagar este comentário")
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    ad_dao.delete_comment(db, comment)
+    if campaign:
+        campaign.comments_count = max(0, campaign.comments_count - 1)
+    db.commit()
 
 
 def get_active_ad_list(

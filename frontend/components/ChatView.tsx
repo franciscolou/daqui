@@ -29,9 +29,11 @@ import { useTheme, useThemedStyles } from '../lib/theme';
 import { submitOnEnter } from '../lib/keyboard';
 import SharedPostPreview from './SharedPostPreview';
 import SharedCommentPreview from './SharedCommentPreview';
+import SharedAdPreview from './SharedAdPreview';
 import MentionInput from './MentionInput';
 import MentionText from './MentionText';
 import { useT } from '../lib/i18n';
+import { Ad, adsApi } from '../lib/adsApi';
 
 export type ChatTarget = { kind: 'dm' | 'group'; id: string };
 
@@ -82,8 +84,18 @@ function MessageBubble({
   // fica sempre visível — senão a ação ficaria sem nenhuma forma descoberta.
   const [hovered, setHovered] = useState(false);
   const showReplyIcon = Platform.OS !== 'web' || hovered;
-  // Post ou comentário encaminhado: recebem o mesmo tratamento de balão "shared".
-  const hasShared = !!msg.sharedPost || !!msg.sharedComment;
+  // Post, comentário ou anúncio encaminhado: recebem o mesmo tratamento de balão "shared".
+  const hasShared = !!msg.sharedPost || !!msg.sharedComment || !!msg.sharedAdId;
+  // Anúncio encaminhado só traz o id (ver lib/api.ts::ChatMessage.sharedAdId)
+  // — o próprio ads-backend é quem tem os dados, então resolve no client.
+  const [sharedAd, setSharedAd] = useState<Ad | null>(null);
+  useEffect(() => {
+    if (msg.sharedAdId == null) {
+      setSharedAd(null);
+      return;
+    }
+    adsApi.getAdById(msg.sharedAdId).then(setSharedAd).catch(() => setSharedAd(null));
+  }, [msg.sharedAdId]);
 
   // Duplo toque na mensagem (ou na altura dela, na área ao redor do balão)
   // marca ela como a que está sendo respondida.
@@ -176,6 +188,11 @@ function MessageBubble({
           {!!msg.sharedComment && (
             <View style={styles.sharedWrap}>
               <SharedCommentPreview comment={msg.sharedComment} />
+            </View>
+          )}
+          {!!sharedAd && (
+            <View style={styles.sharedWrap}>
+              <SharedAdPreview ad={sharedAd} />
             </View>
           )}
           {!!msg.content && (

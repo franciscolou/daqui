@@ -329,8 +329,10 @@
     "title": "Encaminhar",
     "commentError": "Não foi possível encaminhar o comentário.",
     "postError": "Não foi possível encaminhar o post.",
+    "adError": "Não foi possível encaminhar o anúncio.",
     "commentNotFound": "Comentário não encontrado.",
     "postNotFound": "Post não encontrado.",
+    "adNotFound": "Anúncio não encontrado.",
     "searchPlaceholder": "Buscar vizinho...",
     "sendTo": "Enviar para",
     "noNeighbors": "Nenhum vizinho encontrado."

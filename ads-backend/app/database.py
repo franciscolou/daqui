@@ -141,6 +141,15 @@ def _ensure_columns():
                         "ON ad_campaigns (root_campaign_id)"
                     )
                 )
+        with engine.begin() as conn:
+            for column in ("likes_count", "comments_count", "reposts_count"):
+                if column not in columns:
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE ad_campaigns ADD COLUMN {column} "  # noqa: S608
+                            "INTEGER DEFAULT 0 NOT NULL"
+                        )
+                    )
 
     if "ad_admins" in tables:
         columns = {c["name"] for c in inspector.get_columns("ad_admins")}

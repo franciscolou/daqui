@@ -130,6 +130,8 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE messages ADD COLUMN shared_comment_id INTEGER REFERENCES comments(id)"))
             if "reply_to_id" not in columns:
                 conn.execute(text("ALTER TABLE messages ADD COLUMN reply_to_id INTEGER REFERENCES messages(id)"))
+            if "shared_ad_id" not in columns:
+                conn.execute(text("ALTER TABLE messages ADD COLUMN shared_ad_id INTEGER"))
 
     if "comments" in tables:
         columns = {c["name"] for c in inspector.get_columns("comments")}
