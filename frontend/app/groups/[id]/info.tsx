@@ -20,6 +20,7 @@ import { api, GroupDetail, GroupMember, GroupPrivacy, MuteStatus } from '../../.
 import { User } from '../../../data/mock';
 import { useAuth } from '../../../lib/auth';
 import { goBack } from '../../../lib/navigation';
+import { useT } from '../../../lib/i18n';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import FeedLayout from '../../../components/FeedLayout';
 import ImageViewerModal from '../../../components/ImageViewerModal';
@@ -32,6 +33,7 @@ export default function GroupInfoScreen() {
   const { user: me } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -247,7 +249,7 @@ export default function GroupInfoScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => goBack(`/groups/${id}` as any)}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Informações do grupo</Text>
+        <Text style={styles.headerTitle}>{t('groupInfo.title')}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -257,7 +259,7 @@ export default function GroupInfoScreen() {
         </View>
       ) : !group ? (
         <View style={styles.center}>
-          <Text style={styles.emptyDesc}>Grupo não encontrado ou indisponível.</Text>
+          <Text style={styles.emptyDesc}>{t('groupInfo.notFound')}</Text>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
@@ -270,7 +272,7 @@ export default function GroupInfoScreen() {
                   activeOpacity={0.85}
                   onPress={() => setAvatarVisible(true)}
                   accessibilityRole="button"
-                  accessibilityLabel="Ver foto do grupo"
+                  accessibilityLabel={t('groupInfo.viewPhoto')}
                 >
                   <Image source={{ uri: group.avatar }} style={styles.heroAvatar} />
                 </TouchableOpacity>
@@ -305,11 +307,11 @@ export default function GroupInfoScreen() {
               <Text
                 style={[styles.privacyPillText, group.privacy !== 'closed' && styles.privacyPillTextOpen]}
               >
-                {GROUP_PRIVACY_INFO[group.privacy].shortLabel}
+                {t(`groups.privacy.${group.privacy}.short`)}
               </Text>
             </View>
             <Text style={styles.membersCount}>
-              {group.membersCount} {group.membersCount === 1 ? 'membro' : 'membros'}
+              {t('groups.memberCount', { count: group.membersCount })}
               {group.neighborhood ? ` · ${group.neighborhood}` : ''}
             </Text>
           </View>
@@ -324,18 +326,18 @@ export default function GroupInfoScreen() {
           {/* Nome/descrição — editável para administradores */}
           {canManage ? (
             <View style={styles.section}>
-              <Text style={styles.label}>Nome</Text>
+              <Text style={styles.label}>{t('groupInfo.name')}</Text>
               <TextInput style={styles.input} value={name} onChangeText={setName} maxLength={120} />
-              <Text style={styles.label}>Descrição</Text>
+              <Text style={styles.label}>{t('groupInfo.description')}</Text>
               <TextInput
                 style={[styles.input, styles.inputMultiline]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Sobre o que é este grupo?"
+                placeholder={t('groups.descriptionPlaceholder')}
                 placeholderTextColor={Colors.textTertiary}
                 multiline
               />
-              <Text style={styles.label}>Privacidade</Text>
+              <Text style={styles.label}>{t('groups.privacyTitle')}</Text>
               <View style={styles.privacyGroup}>
                 {PRIVACY_OPTIONS.map((option) => {
                   const info = GROUP_PRIVACY_INFO[option];
@@ -354,8 +356,8 @@ export default function GroupInfoScreen() {
                         color={optSelected ? Colors.primary : Colors.textTertiary}
                       />
                       <View style={styles.flex}>
-                        <Text style={styles.privacyTitle}>{info.label}</Text>
-                        <Text style={styles.privacyDesc}>{info.description}</Text>
+                        <Text style={styles.privacyTitle}>{t(`groups.privacy.${option}.label`)}</Text>
+                        <Text style={styles.privacyDesc}>{t(`groups.privacy.${option}.description`)}</Text>
                       </View>
                       <Ionicons
                         name={optSelected ? 'radio-button-on' : 'radio-button-off'}
@@ -376,7 +378,7 @@ export default function GroupInfoScreen() {
                   {saving ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
-                    <Text style={styles.saveBtnText}>Salvar alterações</Text>
+                    <Text style={styles.saveBtnText}>{t('groupInfo.saveChanges')}</Text>
                   )}
                 </TouchableOpacity>
               )}
@@ -393,7 +395,7 @@ export default function GroupInfoScreen() {
             <>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionTitle}>
-                  Solicitações pendentes ({group.joinRequests.length})
+                  {t('groupInfo.pendingRequests', { count: group.joinRequests.length })}
                 </Text>
               </View>
               <View style={styles.addPanel}>
@@ -408,7 +410,7 @@ export default function GroupInfoScreen() {
                       style={styles.iconBtn}
                       onPress={() => rejectRequest(r.user.id)}
                       disabled={busyId === r.user.id}
-                      accessibilityLabel={`Recusar ${r.user.name}`}
+                      accessibilityLabel={t('groupInfo.rejectUser', { name: r.user.name })}
                     >
                       <Ionicons name="close-circle-outline" size={22} color={Colors.error} />
                     </TouchableOpacity>
@@ -417,7 +419,7 @@ export default function GroupInfoScreen() {
                       onPress={() => approveRequest(r.user.id)}
                       disabled={busyId === r.user.id}
                       activeOpacity={0.85}
-                      accessibilityLabel={`Aprovar ${r.user.name}`}
+                      accessibilityLabel={t('groupInfo.approveUser', { name: r.user.name })}
                     >
                       {busyId === r.user.id ? (
                         <ActivityIndicator color="#fff" size="small" />
@@ -433,11 +435,11 @@ export default function GroupInfoScreen() {
 
           {/* Membros */}
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Membros</Text>
+            <Text style={styles.sectionTitle}>{t('groupInfo.members')}</Text>
             {canManage && addable.length > 0 && (
               <TouchableOpacity style={styles.addToggle} onPress={() => setAdding((a) => !a)}>
                 <Ionicons name={adding ? 'close' : 'person-add'} size={16} color={Colors.primary} />
-                <Text style={styles.addToggleText}>{adding ? 'Fechar' : 'Adicionar'}</Text>
+                <Text style={styles.addToggleText}>{t(adding ? 'groupInfo.close' : 'groupInfo.add')}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -446,7 +448,7 @@ export default function GroupInfoScreen() {
           {canManage && adding && (
             <View style={styles.addPanel}>
               {addable.length === 0 ? (
-                <Text style={styles.emptyDesc}>Todos os seus vizinhos já estão no grupo.</Text>
+                <Text style={styles.emptyDesc}>{t('groupInfo.allNeighborsAdded')}</Text>
               ) : (
                 addable.map((u) => (
                   <View key={u.id} style={styles.memberRow}>
@@ -490,14 +492,14 @@ export default function GroupInfoScreen() {
                 <Image source={{ uri: m.user.avatar }} style={styles.memberAvatar} />
                 <View style={styles.flex}>
                   <Text style={styles.memberName} numberOfLines={1}>
-                    {m.user.name}{mine ? ' (você)' : ''}
+                    {m.user.name}{mine ? t('groupInfo.youSuffix') : ''}
                   </Text>
                   <Text style={styles.memberSub} numberOfLines={1}>@{m.user.username}</Text>
                 </View>
                 {(isOwnerRow || isAdminRow) && (
                   <View style={[styles.roleBadge, isOwnerRow && styles.roleBadgeOwner]}>
                     <Text style={[styles.roleBadgeText, isOwnerRow && styles.roleBadgeTextOwner]}>
-                      {isOwnerRow ? 'Dono' : 'Admin'}
+                      {t(isOwnerRow ? 'groupInfo.owner' : 'groupInfo.admin')}
                     </Text>
                   </View>
                 )}
@@ -520,7 +522,7 @@ export default function GroupInfoScreen() {
                     style={styles.iconBtn}
                     onPress={() => setPendingRemove(m)}
                     disabled={busyId === m.user.id}
-                    accessibilityLabel={`Remover ${m.user.name}`}
+                    accessibilityLabel={t('groupInfo.removeUser', { name: m.user.name })}
                   >
                     {busyId === m.user.id ? (
                       <ActivityIndicator color={Colors.error} size="small" />
@@ -542,7 +544,7 @@ export default function GroupInfoScreen() {
                 ) : (
                   <>
                     <Ionicons name="enter-outline" size={18} color="#fff" />
-                    <Text style={styles.primaryActionText}>Entrar no grupo</Text>
+                    <Text style={styles.primaryActionText}>{t('groupInfo.join')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -555,7 +557,7 @@ export default function GroupInfoScreen() {
                 ) : (
                   <>
                     <Ionicons name="paper-plane-outline" size={18} color="#fff" />
-                    <Text style={styles.primaryActionText}>Solicitar entrada</Text>
+                    <Text style={styles.primaryActionText}>{t('groupInfo.requestJoin')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -573,7 +575,7 @@ export default function GroupInfoScreen() {
                 ) : (
                   <>
                     <Ionicons name="time-outline" size={18} color={Colors.primaryDark} />
-                    <Text style={styles.pendingActionText}>Solicitação enviada · toque para cancelar</Text>
+                    <Text style={styles.pendingActionText}>{t('groupInfo.requestSentCancel')}</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -587,7 +589,7 @@ export default function GroupInfoScreen() {
               >
                 <Ionicons name="exit-outline" size={18} color={Colors.error} />
                 <Text style={styles.dangerActionText}>
-                  {confirmLeave ? 'Toque de novo para sair' : 'Sair do grupo'}
+                  {t(confirmLeave ? 'groupInfo.confirmLeave' : 'groupInfo.leave')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -600,7 +602,7 @@ export default function GroupInfoScreen() {
               >
                 <Ionicons name="trash-outline" size={18} color={Colors.error} />
                 <Text style={styles.dangerActionText}>
-                  {confirmDelete ? 'Toque de novo para excluir' : 'Excluir grupo'}
+                  {t(confirmDelete ? 'groupInfo.confirmDelete' : 'groupInfo.delete')}
                 </Text>
               </TouchableOpacity>
             )}
@@ -628,11 +630,9 @@ export default function GroupInfoScreen() {
             <View style={styles.modalIcon}>
               <Ionicons name="person-remove" size={26} color={Colors.error} />
             </View>
-            <Text style={styles.modalTitle}>Remover membro</Text>
+            <Text style={styles.modalTitle}>{t('groupInfo.removeMember')}</Text>
             <Text style={styles.modalMessage}>
-              Tem certeza que deseja remover{' '}
-              <Text style={styles.modalName}>{pendingRemove?.user.name}</Text> do grupo?
-              Essa pessoa perderá o acesso à conversa.
+              {t('groupInfo.removeConfirmBefore')} <Text style={styles.modalName}>{pendingRemove?.user.name}</Text>{t('groupInfo.removeConfirmAfter')}
             </Text>
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -641,7 +641,7 @@ export default function GroupInfoScreen() {
                 activeOpacity={0.85}
                 disabled={!!busyId}
               >
-                <Text style={styles.modalBtnCancelText}>Cancelar</Text>
+                <Text style={styles.modalBtnCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBtn, styles.modalBtnRemove]}
@@ -652,7 +652,7 @@ export default function GroupInfoScreen() {
                 {busyId ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.modalBtnRemoveText}>Remover</Text>
+                  <Text style={styles.modalBtnRemoveText}>{t('groupInfo.remove')}</Text>
                 )}
               </TouchableOpacity>
             </View>

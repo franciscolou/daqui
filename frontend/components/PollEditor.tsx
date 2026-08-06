@@ -1,9 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 
 // Locale pt-br do calendário (idempotente — também definido na tela de publicar).
 LocaleConfig.locales['pt-br'] = LocaleConfig.locales['pt-br'] ?? {
@@ -77,6 +78,10 @@ export default function PollEditor({
   value: PollDraft;
   onChange: (draft: PollDraft) => void;
 }) {
+  const { t, i18n } = useT();
+  useEffect(() => {
+    LocaleConfig.defaultLocale = i18n.language.startsWith('en') ? 'en' : 'pt-br';
+  }, [i18n.language]);
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const accent = Colors.category.enquete ?? Colors.primary;
@@ -104,7 +109,7 @@ export default function PollEditor({
       {/* Opções */}
       <View>
         <Text style={styles.label}>
-          Opções <Text style={styles.req}>*</Text>
+          {t('pollEditor.options')} <Text style={styles.req}>*</Text>
         </Text>
         <View style={{ gap: 8 }}>
           {value.options.map((o, i) => (
@@ -114,7 +119,7 @@ export default function PollEditor({
               </View>
               <TextInput
                 style={styles.optInput}
-                placeholder={`Opção ${i + 1}`}
+                placeholder={t('pollEditor.optionPlaceholder', { number: i + 1 })}
                 placeholderTextColor={Colors.textTertiary}
                 value={o.text}
                 onChangeText={(t) => setOption(i, t)}
@@ -138,7 +143,7 @@ export default function PollEditor({
         {value.options.length < MAX_OPTIONS && (
           <TouchableOpacity style={styles.addOpt} onPress={addOption} activeOpacity={0.8}>
             <Ionicons name="add-circle-outline" size={18} color={accent} />
-            <Text style={[styles.addOptText, { color: accent }]}>Adicionar opção</Text>
+            <Text style={[styles.addOptText, { color: accent }]}>{t('pollEditor.addOption')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -156,8 +161,8 @@ export default function PollEditor({
             <Ionicons name="checkmark-done" size={18} color={accent} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.multiTitle}>Permitir múltiplos votos</Text>
-            <Text style={styles.multiDesc}>Cada vizinho pode escolher mais de uma opção</Text>
+            <Text style={styles.multiTitle}>{t('pollEditor.multiple')}</Text>
+            <Text style={styles.multiDesc}>{t('pollEditor.multipleDesc')}</Text>
           </View>
         </View>
         <View style={[styles.toggle, value.multiple && { backgroundColor: accent }]}>
@@ -168,7 +173,7 @@ export default function PollEditor({
       {/* Prazo de encerramento */}
       <View>
         <Text style={styles.label}>
-          Encerra em <Text style={styles.req}>*</Text>
+          {t('pollEditor.closesAt')} <Text style={styles.req}>*</Text>
         </Text>
         <View style={styles.calendarWrap}>
           <Calendar
@@ -193,7 +198,7 @@ export default function PollEditor({
         </View>
         <View style={styles.timeRow}>
           <Ionicons name="time-outline" size={18} color={Colors.textTertiary} />
-          <Text style={styles.timeLabel}>Horário</Text>
+          <Text style={styles.timeLabel}>{t('pollEditor.time')}</Text>
           <TextInput
             style={styles.timeInput}
             placeholder="18:00"

@@ -110,8 +110,6 @@ def reach_multiplier(targeting: dict) -> float:
         m *= 0.9
     if targeting.get("categories"):
         m *= 0.95
-    if targeting.get("group_ids"):
-        m *= 0.95
     if targeting.get("user_recency", UserRecency.ALL) != UserRecency.ALL:
         m *= 0.95
     if targeting.get("engagement", EngagementLevel.ANY) == EngagementLevel.ACTIVE:

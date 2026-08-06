@@ -2,21 +2,11 @@ import { View, Text, StyleSheet, Image, Modal, Pressable, TouchableOpacity } fro
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
-import { CATEGORY_ICONS, CATEGORY_LABELS, PostCategory } from '../data/mock';
+import { CATEGORY_ICONS, PostCategory } from '../data/mock';
 import { AppNotification } from '../lib/api';
 import { useTheme, useThemedStyles } from '../lib/theme';
-
-function formatFullDate(iso: string): string {
-  const hasTz = /[zZ]|[+-]\d{2}:?\d{2}$/.test(iso);
-  const date = new Date(hasTz ? iso : `${iso}Z`);
-  return date.toLocaleString('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import { useT } from '../lib/i18n';
+import { formatExactDateTime } from '../lib/time';
 
 /** Mostra o que era um post/comentário removido pela moderação (não existe mais no app). */
 export default function RemovedContentModal({
@@ -26,6 +16,7 @@ export default function RemovedContentModal({
   notification: AppNotification | null;
   onClose: () => void;
 }) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const snapshot = notification?.snapshot;
@@ -37,7 +28,7 @@ export default function RemovedContentModal({
       <Pressable style={styles.overlay} onPress={onClose} tabIndex={-1}>
         <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{isPost ? 'Post removido' : 'Comentário removido'}</Text>
+            <Text style={styles.headerTitle}>{isPost ? t('removed.post') : t('removed.comment')}</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
@@ -54,11 +45,11 @@ export default function RemovedContentModal({
                       color={catColor ?? Colors.primary}
                     />
                     <Text style={[styles.catText, { color: catColor ?? Colors.primary }]}>
-                      {CATEGORY_LABELS[snapshot.category as PostCategory] ?? snapshot.category}
+                      {t(`categories.${snapshot.category}`, { defaultValue: snapshot.category })}
                     </Text>
                   </View>
                 )}
-                <Text style={styles.date}>{formatFullDate(snapshot.createdAt)}</Text>
+                <Text style={styles.date}>{formatExactDateTime(snapshot.createdAt)}</Text>
               </View>
 
               {!!snapshot.title && <Text style={styles.title}>{snapshot.title}</Text>}
@@ -78,8 +69,8 @@ export default function RemovedContentModal({
               <View style={styles.noticeBox}>
                 <Ionicons name="information-circle-outline" size={15} color={Colors.textTertiary} />
                 <Text style={styles.noticeText}>
-                  Este conteúdo foi removido pela moderação e não está mais disponível no app. Consulte a seção 5 dos{' '}
-                  <Text style={styles.noticeLink} onPress={() => { onClose(); router.push('/legal/terms'); }}>Termos de Uso</Text>.
+                  {t('removed.noticeBefore')}{' '}
+                  <Text style={styles.noticeLink} onPress={() => { onClose(); router.push('/legal/terms'); }}>{t('auth.termsOfUse')}</Text>.
                 </Text>
               </View>
             </View>

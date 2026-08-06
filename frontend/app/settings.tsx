@@ -46,17 +46,18 @@ interface Topic {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
-const TOPICS: Topic[] = [
-  { key: 'edit-profile', label: 'Editar perfil',           desc: 'Nome, usuário e bio',            icon: 'person-outline' },
-  { key: 'privacy',   label: 'Privacidade e segurança', desc: 'Quem vê seu perfil e sua senha', icon: 'lock-closed-outline' },
-  { key: 'notifications',  label: 'Notificações',            desc: 'O que chega até você',           icon: 'notifications-outline' },
-  { key: 'address',      label: 'Meu endereço',            desc: 'Bairro e localização',           icon: 'location-outline' },
-  { key: 'appearance',     label: 'Aparência',               desc: 'Tema e idioma',                  icon: 'color-palette-outline' },
-];
 
 export default function SettingsScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
+  const { t } = useT();
+  const TOPICS: Topic[] = [
+    { key: 'edit-profile', label: t('settings.sections.editProfile.title'),           desc: t('settings.sections.editProfile.description'),            icon: 'person-outline' },
+    { key: 'privacy',   label: t('settings.sections.privacy.title'), desc: t('settings.sections.privacy.description'), icon: 'lock-closed-outline' },
+    { key: 'notifications',  label: t('settings.sections.notifications.title'),            desc: t('settings.sections.notifications.description'),           icon: 'notifications-outline' },
+    { key: 'address',      label: t('settings.sections.addresses.title'),            desc: t('settings.sections.addresses.description'),           icon: 'location-outline' },
+    { key: 'appearance',     label: t('settings.sections.appearance.title'),               desc: t('settings.sections.appearance.description'),                  icon: 'color-palette-outline' },
+  ];
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const [selected, setSelected] = useState<TopicKey>('edit-profile');
@@ -94,7 +95,7 @@ export default function SettingsScreen() {
   const topicList = (
     <>
       <View style={styles.topicHeader}>
-        <Text style={styles.topicHeaderTitle}>Configurações</Text>
+        <Text style={styles.topicHeaderTitle}>{t('settings.title')}</Text>
       </View>
       {topicItems}
     </>
@@ -173,6 +174,7 @@ const USERNAME_RE = /^[a-z0-9._]{3,18}$/;
 type UsernameStatus = 'idle' | 'checking' | 'invalid' | 'taken' | 'available';
 
 function EditProfilePanel() {
+  const { t } = useT();
   const { user, refresh } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const [username, setUsername] = useState(user?.username ?? '');
@@ -183,7 +185,6 @@ function EditProfilePanel() {
   const [coverBusy, setCoverBusy] = useState(false);
   const [uStatus, setUStatus] = useState<UsernameStatus>('idle');
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
-  const [changeNeighborhoodOpen, setChangeNeighborhoodOpen] = useState(false);
 
   // Validação dinâmica do nome de usuário (formato local + disponibilidade no servidor, com debounce).
   useEffect(() => {
@@ -213,7 +214,7 @@ function EditProfilePanel() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        setFeedback({ ok: false, text: 'Permita o acesso às fotos para trocar o avatar.' });
+        setFeedback({ ok: false, text: t('settings.profile.avatarPermission') });
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -228,9 +229,9 @@ function EditProfilePanel() {
       setAvatarBusy(true);
       await api.updateAvatar(`data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`);
       await refresh();
-      setFeedback({ ok: true, text: 'Foto de perfil atualizada!' });
+      setFeedback({ ok: true, text: t('settings.profile.avatarUpdated') });
     } catch (e) {
-      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível atualizar a foto.' });
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : t('settings.profile.avatarError') });
     } finally {
       setAvatarBusy(false);
     }
@@ -241,7 +242,7 @@ function EditProfilePanel() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        setFeedback({ ok: false, text: 'Permita o acesso às fotos para trocar a capa.' });
+        setFeedback({ ok: false, text: t('settings.profile.coverPermission') });
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -256,9 +257,9 @@ function EditProfilePanel() {
       setCoverBusy(true);
       await api.updateCover(`data:${asset.mimeType ?? 'image/jpeg'};base64,${asset.base64}`);
       await refresh();
-      setFeedback({ ok: true, text: 'Foto de capa atualizada!' });
+      setFeedback({ ok: true, text: t('settings.profile.coverUpdated') });
     } catch (e) {
-      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível atualizar a capa.' });
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : t('settings.profile.coverError') });
     } finally {
       setCoverBusy(false);
     }
@@ -268,15 +269,15 @@ function EditProfilePanel() {
     setFeedback(null);
     const uname = username.trim().toLowerCase();
     if (!USERNAME_RE.test(uname)) {
-      setFeedback({ ok: false, text: 'Nome de usuário: 3–18 caracteres, use apenas letras minúsculas, números, ponto ou _.' });
+      setFeedback({ ok: false, text: t('settings.profile.usernameInvalidLong') });
       return;
     }
     if (uStatus === 'taken') {
-      setFeedback({ ok: false, text: 'Este nome de usuário já está em uso.' });
+      setFeedback({ ok: false, text: t('settings.profile.usernameTaken') });
       return;
     }
     if (!name.trim()) {
-      setFeedback({ ok: false, text: 'O nome de exibição não pode ficar vazio.' });
+      setFeedback({ ok: false, text: t('settings.profile.nameRequired') });
       return;
     }
     setSaving(true);
@@ -288,9 +289,9 @@ function EditProfilePanel() {
       });
       await refresh();
       setUsername(uname);
-      setFeedback({ ok: true, text: 'Perfil atualizado com sucesso!' });
+      setFeedback({ ok: true, text: t('settings.profile.updated') });
     } catch (e) {
-      const text = e instanceof ApiError ? e.message : 'Não foi possível salvar. Tente novamente.';
+      const text = e instanceof ApiError ? e.message : t('settings.profile.saveError');
       setFeedback({ ok: false, text });
     } finally {
       setSaving(false);
@@ -298,10 +299,10 @@ function EditProfilePanel() {
   };
 
   const USERNAME_STATUS: Record<Exclude<UsernameStatus, 'idle'>, { text: string; tone: 'ok' | 'err' | 'muted' }> = {
-    checking:  { text: 'Verificando disponibilidade…', tone: 'muted' },
-    invalid:   { text: '3–18 caracteres: apenas letras minúsculas, números, ponto ou _.', tone: 'err' },
-    taken:     { text: 'Este nome de usuário já está em uso.', tone: 'err' },
-    available: { text: 'Nome de usuário disponível!', tone: 'ok' },
+    checking:  { text: t('settings.profile.usernameChecking'), tone: 'muted' },
+    invalid:   { text: t('settings.profile.usernameInvalid'), tone: 'err' },
+    taken:     { text: t('settings.profile.usernameTaken'), tone: 'err' },
+    available: { text: t('settings.profile.usernameAvailable'), tone: 'ok' },
   };
   const status = uStatus === 'idle' ? null : USERNAME_STATUS[uStatus];
 
@@ -320,7 +321,7 @@ function EditProfilePanel() {
             ) : (
               <>
                 <Ionicons name="camera-outline" size={14} color="#fff" />
-                <Text style={styles.coverEditBtnText}>Alterar capa</Text>
+                <Text style={styles.coverEditBtnText}>{t('settings.profile.changeCover')}</Text>
               </>
             )}
           </TouchableOpacity>
@@ -342,10 +343,10 @@ function EditProfilePanel() {
       <View style={styles.coverEditSpacer} />
 
       <Field
-        label="Nome de usuário"
+        label={t('settings.profile.username')}
         value={username}
         onChangeText={setUsername}
-        placeholder="seunome"
+        placeholder={t('settings.profile.usernamePlaceholder')}
         autoCapitalize="none"
         autoCorrect={false}
         maxLength={18}
@@ -362,29 +363,17 @@ function EditProfilePanel() {
           {status.text}
         </Text>
       ) : (
-        <Text style={styles.fieldHint}>Seu identificador único. Sem espaços, apenas letras minúsculas, números, ponto ou _.</Text>
+        <Text style={styles.fieldHint}>{t('settings.profile.usernameHint')}</Text>
       )}
 
       <Field
-        label="Nome de exibição"
+        label={t('settings.profile.displayName')}
         value={name}
         onChangeText={setName}
-        placeholder="Como você quer aparecer"
-        hint="Pode ter espaços, acentos e emojis. Não precisa ser único."
+        placeholder={t('settings.profile.displayNamePlaceholder')}
+        hint={t('settings.profile.displayNameHint')}
       />
-      <Field label="Bio" value={bio} onChangeText={setBio} placeholder="Fale um pouco sobre você" multiline />
-      <View style={styles.bairroRow}>
-        <View style={styles.bairroFieldWrap}>
-          <Field label="Bairro" value={user?.neighborhood ?? ''} onChangeText={() => {}} placeholder="Seu bairro" editable={false} />
-        </View>
-        <TouchableOpacity
-          style={styles.changeNeighborhoodBtn}
-          activeOpacity={0.8}
-          onPress={() => setChangeNeighborhoodOpen(true)}
-        >
-          <Text style={styles.changeNeighborhoodBtnText}>Alterar</Text>
-        </TouchableOpacity>
-      </View>
+      <Field label={t('settings.profile.bio')} value={bio} onChangeText={setBio} placeholder={t('settings.profile.bioPlaceholder')} multiline />
 
       {feedback && (
         <Text style={[styles.feedback, feedback.ok ? styles.feedbackOk : styles.feedbackErr]}>
@@ -398,18 +387,15 @@ function EditProfilePanel() {
         onPress={save}
         disabled={saving || usernameBlocked}
       >
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Salvar alterações</Text>}
+        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('settings.profile.save')}</Text>}
       </TouchableOpacity>
 
-      <ChangeNeighborhoodModal
-        visible={changeNeighborhoodOpen}
-        onClose={() => setChangeNeighborhoodOpen(false)}
-      />
     </View>
   );
 }
 
 function PrivacyPanel() {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const { user, refresh } = useAuth();
   const [showLocation, setShowLocation] = useState(user?.showLocation ?? true);
@@ -425,10 +411,10 @@ function PrivacyPanel() {
 
   return (
     <View style={styles.panelGroup}>
-      <SectionTitle>Visibilidade</SectionTitle>
+      <SectionTitle>{t('settings.privacy.visibility')}</SectionTitle>
       <ToggleRow
-        label="Mostrar localização aproximada"
-        desc="Exibe seu bairro no perfil"
+        label={t('settings.privacy.showLocation')}
+        desc={t('settings.privacy.showLocationDesc')}
         value={showLocation}
         onValueChange={(v) => {
           setShowLocation(v);
@@ -436,8 +422,8 @@ function PrivacyPanel() {
         }}
       />
       <ToggleRow
-        label="Aparecer em buscas"
-        desc="Permite que vizinhos encontrem seu perfil"
+        label={t('settings.privacy.searchable')}
+        desc={t('settings.privacy.searchableDesc')}
         value={searchable}
         onValueChange={(v) => {
           setSearchable(v);
@@ -445,8 +431,8 @@ function PrivacyPanel() {
         }}
       />
       <ToggleRow
-        label="Ocultar selo de morador"
-        desc="Não mostra o selo de Morador nos seus posts e comentários"
+        label={t('settings.privacy.hideBadge')}
+        desc={t('settings.privacy.hideBadgeDesc')}
         value={hideResidentBadge}
         onValueChange={(v) => {
           setHideResidentBadge(v);
@@ -454,7 +440,7 @@ function PrivacyPanel() {
         }}
       />
 
-      <SectionTitle>Segurança</SectionTitle>
+      <SectionTitle>{t('settings.privacy.security')}</SectionTitle>
       <TwoFactorSection />
       <ChangePasswordSection />
       <ConnectedDevicesSection />
@@ -467,6 +453,7 @@ function PrivacyPanel() {
  * inline a partir de uma linha de link, no mesmo padrão da seção de A2F.
  */
 function ChangePasswordSection() {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const [expanded, setExpanded] = useState(false);
@@ -496,20 +483,20 @@ function ChangePasswordSection() {
   const submit = async () => {
     setFeedback(null);
     if (newPassword.length < 6) {
-      setFeedback({ ok: false, text: 'A nova senha deve ter ao menos 6 caracteres.' });
+      setFeedback({ ok: false, text: t('settings.password.tooShort') });
       return;
     }
     if (newPassword !== confirmPassword) {
-      setFeedback({ ok: false, text: 'A confirmação não confere com a nova senha.' });
+      setFeedback({ ok: false, text: t('settings.password.mismatch') });
       return;
     }
     setBusy(true);
     try {
       await api.changePassword(currentPassword, newPassword);
       reset();
-      setFeedback({ ok: true, text: 'Senha alterada com sucesso!' });
+      setFeedback({ ok: true, text: t('settings.password.updated') });
     } catch (e) {
-      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível alterar a senha.' });
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : t('settings.password.error') });
     } finally {
       setBusy(false);
     }
@@ -525,31 +512,31 @@ function ChangePasswordSection() {
         <View style={styles.linkIcon}>
           <Ionicons name="key-outline" size={18} color={Colors.textSecondary} />
         </View>
-        <Text style={[styles.settingLabel, styles.linkLabel]}>Alterar senha</Text>
+        <Text style={[styles.settingLabel, styles.linkLabel]}>{t('settings.password.change')}</Text>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-forward'} size={18} color={Colors.textTertiary} />
       </TouchableOpacity>
 
       {expanded && (
         <View style={styles.twoFaCard}>
           <Field
-            label="Senha atual"
+            label={t('settings.password.current')}
             value={currentPassword}
             onChangeText={setCurrentPassword}
-            placeholder="Sua senha atual"
+            placeholder={t('settings.password.currentPlaceholder')}
             secureToggle
           />
           <Field
-            label="Nova senha"
+            label={t('settings.password.new')}
             value={newPassword}
             onChangeText={setNewPassword}
-            placeholder="Ao menos 6 caracteres"
+            placeholder={t('settings.password.newPlaceholder')}
             secureToggle
           />
           <Field
-            label="Confirmar nova senha"
+            label={t('settings.password.confirm')}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            placeholder="Repita a nova senha"
+            placeholder={t('settings.password.confirmPlaceholder')}
             secureToggle
           />
           {feedback && (
@@ -557,7 +544,7 @@ function ChangePasswordSection() {
           )}
           <View style={styles.twoFaBtnRow}>
             <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8} onPress={reset} disabled={busy}>
-              <Text style={styles.secondaryBtnText}>Cancelar</Text>
+              <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.twoFaPrimaryBtn, (busy || !currentPassword || !newPassword || !confirmPassword) && styles.saveBtnDisabled]}
@@ -565,7 +552,7 @@ function ChangePasswordSection() {
               onPress={submit}
               disabled={busy || !currentPassword || !newPassword || !confirmPassword}
             >
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Salvar nova senha</Text>}
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('settings.password.save')}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -580,6 +567,7 @@ function ChangePasswordSection() {
  * atual não pode ser desconectada por aqui — só as demais.
  */
 function ConnectedDevicesSection() {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const [expanded, setExpanded] = useState(false);
@@ -595,7 +583,7 @@ function ConnectedDevicesSection() {
       const list = await api.getSessions();
       setSessions(list);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível carregar os dispositivos.');
+      setError(e instanceof ApiError ? e.message : t('settings.devices.loadError'));
     } finally {
       setLoading(false);
     }
@@ -613,7 +601,7 @@ function ConnectedDevicesSection() {
       await api.revokeSession(session.id);
       setSessions((prev) => (prev ? prev.filter((s) => s.id !== session.id) : prev));
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível desconectar esse dispositivo.');
+      setError(e instanceof ApiError ? e.message : t('settings.devices.disconnectError'));
     } finally {
       setRevokingId(null);
     }
@@ -625,7 +613,7 @@ function ConnectedDevicesSection() {
         <View style={styles.linkIcon}>
           <Ionicons name="phone-portrait-outline" size={18} color={Colors.textSecondary} />
         </View>
-        <Text style={[styles.settingLabel, styles.linkLabel]}>Dispositivos conectados</Text>
+        <Text style={[styles.settingLabel, styles.linkLabel]}>{t('settings.devices.title')}</Text>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-forward'} size={18} color={Colors.textTertiary} />
       </TouchableOpacity>
 
@@ -636,7 +624,7 @@ function ConnectedDevicesSection() {
           ) : error ? (
             <Text style={styles.feedbackErr}>{error}</Text>
           ) : !sessions?.length ? (
-            <Text style={styles.fieldHint}>Nenhuma sessão ativa encontrada.</Text>
+            <Text style={styles.fieldHint}>{t('settings.devices.empty')}</Text>
           ) : (
             sessions.map((session) => (
               <View key={session.id} style={styles.deviceRow}>
@@ -648,11 +636,11 @@ function ConnectedDevicesSection() {
                     <Text style={styles.settingLabel}>{session.deviceName}</Text>
                     {session.isCurrent && (
                       <View style={styles.devicePill}>
-                        <Text style={styles.devicePillText}>Este dispositivo</Text>
+                        <Text style={styles.devicePillText}>{t('settings.devices.current')}</Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.settingDesc}>Sessão iniciada em {formatExactDateTime(session.createdAt)}</Text>
+                  <Text style={styles.settingDesc}>{t('settings.devices.startedAt', { date: formatExactDateTime(session.createdAt) })}</Text>
                 </View>
                 {!session.isCurrent && (
                   <TouchableOpacity
@@ -664,7 +652,7 @@ function ConnectedDevicesSection() {
                     {revokingId === session.id ? (
                       <ActivityIndicator size="small" color={Colors.error} />
                     ) : (
-                      <Text style={styles.deviceDisconnectText}>Desconectar</Text>
+                      <Text style={styles.deviceDisconnectText}>{t('settings.devices.disconnect')}</Text>
                     )}
                   </TouchableOpacity>
                 )}
@@ -684,6 +672,7 @@ function ConnectedDevicesSection() {
  * - ativada → "Desativar" pede um código válido (/auth/2fa/disable).
  */
 function TwoFactorSection() {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const { user, refresh } = useAuth();
@@ -715,7 +704,7 @@ function TwoFactorSection() {
       setCode('');
       setMode('setup');
     } catch (e) {
-      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível iniciar a configuração.' });
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : t('settings.twoFactor.setupError') });
     } finally {
       setBusy(false);
     }
@@ -723,7 +712,7 @@ function TwoFactorSection() {
 
   const confirmEnable = async () => {
     if (code.length < 6) {
-      setFeedback({ ok: false, text: 'Digite o código de 6 dígitos do app autenticador.' });
+      setFeedback({ ok: false, text: t('settings.twoFactor.codeRequired') });
       return;
     }
     setFeedback(null);
@@ -732,9 +721,9 @@ function TwoFactorSection() {
       await api.enable2fa(code);
       await refresh();
       reset();
-      setFeedback({ ok: true, text: 'Autenticação de dois fatores ativada!' });
+      setFeedback({ ok: true, text: t('settings.twoFactor.enabledSuccess') });
     } catch (e) {
-      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Código inválido. Tente novamente.' });
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : t('settings.twoFactor.invalidCode') });
     } finally {
       setBusy(false);
     }
@@ -742,7 +731,7 @@ function TwoFactorSection() {
 
   const confirmDisable = async () => {
     if (code.length < 6) {
-      setFeedback({ ok: false, text: 'Digite o código de 6 dígitos do app autenticador.' });
+      setFeedback({ ok: false, text: t('settings.twoFactor.codeRequired') });
       return;
     }
     setFeedback(null);
@@ -751,9 +740,9 @@ function TwoFactorSection() {
       await api.disable2fa(code);
       await refresh();
       reset();
-      setFeedback({ ok: true, text: 'Autenticação de dois fatores desativada.' });
+      setFeedback({ ok: true, text: t('settings.twoFactor.disabledSuccess') });
     } catch (e) {
-      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Código inválido. Tente novamente.' });
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : t('settings.twoFactor.invalidCode') });
     } finally {
       setBusy(false);
     }
@@ -772,7 +761,7 @@ function TwoFactorSection() {
 
   const codeField = (onSubmit: () => void) => (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>Código de verificação</Text>
+      <Text style={styles.fieldLabel}>{t('settings.twoFactor.verificationCode')}</Text>
       <View style={styles.inputWrap}>
         <TextInput
           style={[styles.input, styles.codeInput]}
@@ -795,12 +784,12 @@ function TwoFactorSection() {
           <Ionicons name="shield-checkmark-outline" size={18} color={Colors.textSecondary} />
         </View>
         <View style={styles.settingText}>
-          <Text style={styles.settingLabel}>Autenticação de dois fatores</Text>
-          <Text style={styles.settingDesc}>Um código do app autenticador a cada login</Text>
+          <Text style={styles.settingLabel}>{t('settings.twoFactor.title')}</Text>
+          <Text style={styles.settingDesc}>{t('settings.twoFactor.description')}</Text>
         </View>
         <View style={[styles.twoFaBadge, enabled ? styles.twoFaBadgeOn : styles.twoFaBadgeOff]}>
           <Text style={[styles.twoFaBadgeText, enabled ? styles.twoFaBadgeTextOn : styles.twoFaBadgeTextOff]}>
-            {enabled ? 'Ativada' : 'Desativada'}
+            {enabled ? t('settings.twoFactor.enabled') : t('settings.twoFactor.disabled')}
           </Text>
         </View>
       </View>
@@ -808,35 +797,35 @@ function TwoFactorSection() {
       {/* Passo a passo de ativação */}
       {mode === 'setup' && setup && (
         <View style={styles.twoFaCard}>
-          <Text style={styles.twoFaStep}>1. Escaneie o QR code com seu app autenticador (Google Authenticator, Authy…).</Text>
+          <Text style={styles.twoFaStep}>{t('settings.twoFactor.scanStep')}</Text>
           <View style={styles.qrBox}>
             <QRCode value={setup.otpauthUrl} size={180} backgroundColor="#fff" color="#000" />
           </View>
 
           <View style={styles.manualKey}>
-            <Text style={styles.manualKeyLabel}>Não consegue escanear? Use a chave manual:</Text>
+            <Text style={styles.manualKeyLabel}>{t('settings.twoFactor.manualKey')}</Text>
             <View style={styles.secretRow}>
               <Text selectable style={styles.secretText}>{setup.secret.replace(/(.{4})/g, '$1 ').trim()}</Text>
               {canCopy && (
                 <TouchableOpacity style={styles.copyBtn} onPress={copySecret} activeOpacity={0.7}>
                   <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={14} color={Colors.primary} />
-                  <Text style={styles.copyBtnText}>{copied ? 'Copiado' : 'Copiar'}</Text>
+                  <Text style={styles.copyBtnText}>{copied ? t('settings.twoFactor.copied') : t('settings.twoFactor.copy')}</Text>
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          <Text style={styles.twoFaStep}>2. Digite o código de 6 dígitos que o app mostrar para confirmar.</Text>
+          <Text style={styles.twoFaStep}>{t('settings.twoFactor.confirmStep')}</Text>
           {codeField(confirmEnable)}
           {feedback && (
             <Text style={[styles.feedback, feedback.ok ? styles.feedbackOk : styles.feedbackErr]}>{feedback.text}</Text>
           )}
           <View style={styles.twoFaBtnRow}>
             <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8} onPress={reset} disabled={busy}>
-              <Text style={styles.secondaryBtnText}>Cancelar</Text>
+              <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.twoFaPrimaryBtn, busy && styles.saveBtnDisabled]} activeOpacity={0.85} onPress={confirmEnable} disabled={busy}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Confirmar e ativar</Text>}
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('settings.twoFactor.confirmEnable')}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -845,17 +834,17 @@ function TwoFactorSection() {
       {/* Confirmação de desativação */}
       {mode === 'disable' && (
         <View style={styles.twoFaCard}>
-          <Text style={styles.twoFaStep}>Digite um código atual do seu app autenticador para desativar a A2F.</Text>
+          <Text style={styles.twoFaStep}>{t('settings.twoFactor.disablePrompt')}</Text>
           {codeField(confirmDisable)}
           {feedback && (
             <Text style={[styles.feedback, feedback.ok ? styles.feedbackOk : styles.feedbackErr]}>{feedback.text}</Text>
           )}
           <View style={styles.twoFaBtnRow}>
             <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8} onPress={reset} disabled={busy}>
-              <Text style={styles.secondaryBtnText}>Cancelar</Text>
+              <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.twoFaDangerBtn, busy && styles.saveBtnDisabled]} activeOpacity={0.85} onPress={confirmDisable} disabled={busy}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Desativar</Text>}
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('settings.twoFactor.disable')}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -870,7 +859,7 @@ function TwoFactorSection() {
           {enabled ? (
             <TouchableOpacity style={styles.twoFaOutlineDanger} activeOpacity={0.8} onPress={() => { setFeedback(null); setCode(''); setMode('disable'); }}>
               <Ionicons name="lock-open-outline" size={16} color={Colors.error} />
-              <Text style={styles.twoFaOutlineDangerText}>Desativar autenticação de dois fatores</Text>
+              <Text style={styles.twoFaOutlineDangerText}>{t('settings.twoFactor.disableAction')}</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.twoFaOutline} activeOpacity={0.8} onPress={startSetup} disabled={busy}>
@@ -879,7 +868,7 @@ function TwoFactorSection() {
               ) : (
                 <>
                   <Ionicons name="shield-checkmark" size={16} color={Colors.primary} />
-                  <Text style={styles.twoFaOutlineText}>Ativar autenticação de dois fatores</Text>
+                  <Text style={styles.twoFaOutlineText}>{t('settings.twoFactor.enableAction')}</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -893,6 +882,7 @@ function TwoFactorSection() {
 const PUSH_ENABLED_KEY = 'daqui.pushEnabled';
 
 function NotificationsPanel() {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const { user, refresh } = useAuth();
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -925,18 +915,18 @@ function NotificationsPanel() {
 
   return (
     <View style={styles.panelGroup}>
-      <SectionTitle>Push</SectionTitle>
+      <SectionTitle>{t('settings.notifications.push')}</SectionTitle>
       <ToggleRow
-        label="Notificações push"
-        desc="Avisos no celular quando o app está fechado"
+        label={t('settings.notifications.pushLabel')}
+        desc={t('settings.notifications.pushDesc')}
         value={pushEnabled}
         onValueChange={handlePushToggle}
       />
 
-      <SectionTitle>No aplicativo</SectionTitle>
+      <SectionTitle>{t('settings.notifications.inApp')}</SectionTitle>
       <ToggleRow
-        label="Curtidas"
-        desc="Quando curtirem seus posts"
+        label={t('settings.notifications.likes')}
+        desc={t('settings.notifications.likesDesc')}
         value={notifyLikes}
         onValueChange={(v) => {
           setNotifyLikes(v);
@@ -944,8 +934,8 @@ function NotificationsPanel() {
         }}
       />
       <ToggleRow
-        label="Comentários"
-        desc="Quando comentarem no seu post"
+        label={t('settings.notifications.comments')}
+        desc={t('settings.notifications.commentsDesc')}
         value={notifyComments}
         onValueChange={(v) => {
           setNotifyComments(v);
@@ -953,8 +943,8 @@ function NotificationsPanel() {
         }}
       />
       <ToggleRow
-        label="Mensagens"
-        desc="Novas conversas e respostas"
+        label={t('settings.notifications.messages')}
+        desc={t('settings.notifications.messagesDesc')}
         value={notifyMessages}
         onValueChange={(v) => {
           setNotifyMessages(v);
@@ -962,8 +952,8 @@ function NotificationsPanel() {
         }}
       />
       <ToggleRow
-        label="Avisos do bairro"
-        desc="Alertas de segurança e eventos"
+        label={t('settings.notifications.neighborhood')}
+        desc={t('settings.notifications.neighborhoodDesc')}
         value={notifyNeighborhoodAlerts}
         onValueChange={(v) => {
           setNotifyNeighborhoodAlerts(v);
@@ -975,57 +965,67 @@ function NotificationsPanel() {
 }
 
 function AddressPanel() {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const { user } = useAuth();
-  const [cep, setCep] = useState('');
-  const [rua, setRua] = useState('');
-  const [numero, setNumero] = useState('');
-  const [complemento, setComplemento] = useState('');
-  const [bairro, setBairro] = useState(user?.neighborhood ?? '');
+  const [changeNeighborhoodOpen, setChangeNeighborhoodOpen] = useState(false);
+  const neighborhood = user?.neighborhood?.trim();
 
   return (
     <View style={styles.panelGroup}>
-      <View style={styles.addressLockedWrap}>
-        <View style={styles.infoBox}>
-          <Ionicons name="shield-checkmark-outline" size={18} color={Colors.primary} />
-          <Text style={styles.infoBoxText}>Seu endereço exato nunca é exibido — usamos só o bairro para montar seu feed.</Text>
+      <View style={styles.addressIntro}>
+        <Text style={styles.addressEyebrow}>{t('settings.address.eyebrow')}</Text>
+        <Text style={styles.addressIntroText}>
+          {t('settings.address.intro')}
+        </Text>
+      </View>
+
+      <View style={styles.neighborhoodHero}>
+        <View style={styles.neighborhoodPin}>
+          <Ionicons name="location" size={30} color="#fff" />
         </View>
-
-        <Field label="CEP" value={cep} onChangeText={setCep} placeholder="00000-000" keyboardType="numeric" editable={false} />
-        <Field label="Rua" value={rua} onChangeText={setRua} placeholder="Nome da rua" editable={false} />
-        <View style={styles.rowFields}>
-          <View style={styles.rowFieldSmall}>
-            <Field label="Número" value={numero} onChangeText={setNumero} placeholder="123" keyboardType="numeric" editable={false} />
-          </View>
-          <View style={styles.rowFieldFlex}>
-            <Field label="Complemento" value={complemento} onChangeText={setComplemento} placeholder="Apto, bloco…" editable={false} />
-          </View>
-        </View>
-        <Field label="Bairro" value={bairro} onChangeText={setBairro} placeholder="Seu bairro" editable={false} />
-
-        <VisualSaveButton disabled />
-
-        <View style={styles.lockOverlay} pointerEvents="none">
-          <Ionicons name="lock-closed" size={22} color={Colors.textSecondary} style={styles.lockIcon} />
-          <Text style={styles.lockText}>
-            Em breve, apenas moradores comprovados poderão pertencer às comunidades com o selo de Morador.
+        <Text style={styles.neighborhoodHeroLabel}>{t('settings.address.current')}</Text>
+        <Text style={styles.neighborhoodHeroName} numberOfLines={2}>
+          {neighborhood || t('settings.address.notConfigured')}
+        </Text>
+        <View style={styles.neighborhoodPrivacy}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={Colors.primary} />
+          <Text style={styles.neighborhoodPrivacyText}>
+            {t('settings.address.privacy')}
           </Text>
         </View>
       </View>
+
+      <TouchableOpacity
+        style={styles.changeNeighborhoodAction}
+        activeOpacity={0.82}
+        onPress={() => setChangeNeighborhoodOpen(true)}
+      >
+        <Ionicons name={neighborhood ? 'swap-horizontal-outline' : 'add-circle-outline'} size={20} color="#fff" />
+        <Text style={styles.changeNeighborhoodActionText}>
+          {neighborhood ? t('settings.address.change') : t('settings.address.configure')}
+        </Text>
+      </TouchableOpacity>
+
+      <ChangeNeighborhoodModal
+        visible={changeNeighborhoodOpen}
+        onClose={() => setChangeNeighborhoodOpen(false)}
+      />
     </View>
   );
 }
 
 function AppearancePanel() {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const { mode, toggle } = useThemeMode();
   return (
     <View style={styles.panelGroup}>
-      <SectionTitle>Tema</SectionTitle>
+      <SectionTitle>{t('settings.appearance.theme')}</SectionTitle>
       <ToggleRow
-        label="Modo escuro"
-        desc="Reduz o brilho em ambientes com pouca luz"
+        label={t('settings.appearance.darkMode')}
+        desc={t('settings.appearance.darkModeDesc')}
         value={mode === 'dark'}
         onValueChange={toggle}
       />
@@ -1163,19 +1163,6 @@ function ToggleRow({
   );
 }
 
-function VisualSaveButton({ disabled = false }: { disabled?: boolean }) {
-  const styles = useThemedStyles(makeStyles);
-  return (
-    <TouchableOpacity
-      style={[styles.saveBtn, disabled && styles.saveBtnDisabled]}
-      activeOpacity={0.85}
-      disabled={disabled}
-    >
-      <Text style={styles.saveBtnText}>Salvar alterações</Text>
-    </TouchableOpacity>
-  );
-}
-
 /**
  * Confirmação de "Alterar bairro de moradia": avisa que atestar morar num
  * bairro que não é o seu pode suspender a conta (ver Termos de Uso, seção 4)
@@ -1183,6 +1170,7 @@ function VisualSaveButton({ disabled = false }: { disabled?: boolean }) {
  * de configuração de bairro (feed > "Meu bairro", que detecta de novo por GPS).
  */
 function ChangeNeighborhoodModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const { refresh } = useAuth();
@@ -1198,7 +1186,7 @@ function ChangeNeighborhoodModal({ visible, onClose }: { visible: boolean; onClo
       onClose();
       router.replace({ pathname: '/(tabs)', params: { view: 'meu' } } as any);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível iniciar a troca de bairro.');
+      setError(e instanceof ApiError ? e.message : t('settings.changeNeighborhood.error'));
     } finally {
       setBusy(false);
     }
@@ -1211,16 +1199,14 @@ function ChangeNeighborhoodModal({ visible, onClose }: { visible: boolean; onClo
           <View style={styles.confirmIconWrap}>
             <Ionicons name="alert-circle-outline" size={24} color={Colors.error} />
           </View>
-          <Text style={styles.confirmTitle}>Alterar bairro de moradia</Text>
+          <Text style={styles.confirmTitle}>{t('settings.changeNeighborhood.title')}</Text>
           <Text style={styles.confirmText}>
-            Você será levado de volta à configuração de bairro, que detecta sua localização
-            atual por GPS.
+            {t('settings.changeNeighborhood.description')}
           </Text>
           <View style={styles.confirmWarningBox}>
             <Ionicons name="warning-outline" size={16} color={Colors.error} />
             <Text style={styles.confirmWarningText}>
-              Configurar seu bairro de moradia onde você não mora é uma violação dos Termos de Uso e 
-              implica na suspensão da sua conta.
+              {t('settings.changeNeighborhood.warning')}
             </Text>
           </View>
           {error && (
@@ -1228,7 +1214,7 @@ function ChangeNeighborhoodModal({ visible, onClose }: { visible: boolean; onClo
           )}
           <View style={styles.confirmBtnRow}>
             <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8} onPress={onClose} disabled={busy}>
-              <Text style={styles.secondaryBtnText}>Cancelar</Text>
+              <Text style={styles.secondaryBtnText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.twoFaPrimaryBtn, busy && styles.saveBtnDisabled]}
@@ -1236,7 +1222,7 @@ function ChangeNeighborhoodModal({ visible, onClose }: { visible: boolean; onClo
               onPress={confirm}
               disabled={busy}
             >
-              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Entendi, continuar</Text>}
+              {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('settings.changeNeighborhood.continue')}</Text>}
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -1342,10 +1328,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   input: { flex: 1, paddingVertical: 12, fontSize: 15, color: Colors.text },
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
   eyeBtn: { padding: 4, borderRadius: 8 },
-  rowFields: { flexDirection: 'row', gap: 12 },
-  rowFieldSmall: { width: 110 },
-  rowFieldFlex: { flex: 1, minWidth: 0 },
-
   coverEditWrap: {
     height: 120,
     borderRadius: 16,
@@ -1405,18 +1387,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderColor: Colors.surface,
   },
   coverEditSpacer: { height: 40 },
-  bairroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
-  bairroFieldWrap: { flex: 1, minWidth: 0 },
-  changeNeighborhoodBtn: {
-    marginBottom: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: Colors.error,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  changeNeighborhoodBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   // Modal de confirmação de "Alterar bairro de moradia"
   confirmOverlay: {
@@ -1503,21 +1473,48 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   infoBoxText: { flex: 1, fontSize: 13, color: Colors.primary, lineHeight: 18 },
 
-  // Interdição temporária da tela de endereço
-  addressLockedWrap: { position: 'relative' },
-  lockOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  addressIntro: { alignItems: 'center', marginTop: 8, marginBottom: 12, paddingHorizontal: 16 },
+  addressEyebrow: { fontSize: 11, fontWeight: '800', color: Colors.primary, letterSpacing: 1.2 },
+  addressIntroText: { marginTop: 6, maxWidth: 380, fontSize: 14, lineHeight: 20, color: Colors.textSecondary, textAlign: 'center' },
+  neighborhoodHero: {
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 30,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: Colors.primary + '32',
+    backgroundColor: Colors.primaryFaint,
+  },
+  neighborhoodPin: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    backgroundColor: Colors.background + 'E6',
+    backgroundColor: Colors.primary,
+    marginBottom: 18,
+    ...Colors.shadow.md,
   },
-  lockIcon: { marginBottom: 10 },
-  lockText: { fontSize: 14, fontWeight: '700', color: Colors.text, textAlign: 'center', lineHeight: 20, maxWidth: 280 },
+  neighborhoodHeroLabel: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
+  neighborhoodHeroName: { marginTop: 5, fontSize: 30, lineHeight: 36, fontWeight: '800', color: Colors.text, textAlign: 'center', letterSpacing: -0.7 },
+  neighborhoodPrivacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: 20, maxWidth: 340 },
+  neighborhoodPrivacyText: { flex: 1, fontSize: 12, lineHeight: 17, color: Colors.textSecondary, textAlign: 'left' },
+  changeNeighborhoodAction: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
+    borderRadius: 13,
+    backgroundColor: Colors.primary,
+  },
+  changeNeighborhoodActionText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
   feedback: { fontSize: 13, fontWeight: '600', marginTop: 4 },
   feedbackOk: { color: Colors.success },

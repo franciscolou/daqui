@@ -5,6 +5,7 @@ import { Palette } from '../constants/Colors';
 import { SharedComment } from '../lib/api';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import HoverTime from './HoverTime';
+import { useT } from '../lib/i18n';
 
 interface Props {
   comment: SharedComment;
@@ -14,6 +15,7 @@ interface Props {
 
 // Prévia de um comentário compartilhado numa conversa (leva ao post de origem).
 export default function SharedCommentPreview({ comment, static: isStatic }: Props) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -21,7 +23,7 @@ export default function SharedCommentPreview({ comment, static: isStatic }: Prop
     <>
       <View style={styles.tagRow}>
         <Ionicons name="chatbubble-ellipses-outline" size={12} color={Colors.textTertiary} />
-        <Text style={styles.tagText}>Comentário</Text>
+        <Text style={styles.tagText}>{t('shared.comment')}</Text>
       </View>
       <View style={styles.authorRow}>
         <Image source={{ uri: comment.author.avatar }} style={styles.avatar} />
@@ -38,7 +40,7 @@ export default function SharedCommentPreview({ comment, static: isStatic }: Prop
       {!isStatic && (
         <View style={styles.footer}>
           <Ionicons name="open-outline" size={12} color={Colors.textTertiary} />
-          <Text style={styles.footerText}>Ver no post</Text>
+          <Text style={styles.footerText}>{t('shared.viewInPost')}</Text>
         </View>
       )}
     </>

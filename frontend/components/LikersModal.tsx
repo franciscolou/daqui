@@ -17,6 +17,7 @@ import { Palette } from '../constants/Colors';
 import { User } from '../data/mock';
 import { api } from '../lib/api';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 
 /** Modal "Curtidas": lista quem curtiu um post, com busca por nome/@username.
  * Tocar num curtidor fecha o modal e vai pro perfil dele. */
@@ -29,6 +30,7 @@ export default function LikersModal({
   postId: string;
   onClose: () => void;
 }) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [likers, setLikers] = useState<User[]>([]);
@@ -64,7 +66,7 @@ export default function LikersModal({
       <Pressable style={styles.overlay} onPress={onClose} tabIndex={-1}>
         <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Curtidas</Text>
+            <Text style={styles.headerTitle}>{t('likers.title')}</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
@@ -74,7 +76,7 @@ export default function LikersModal({
             <Ionicons name="search-outline" size={16} color={Colors.textTertiary} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Buscar..."
+              placeholder={t('common.search')}
               placeholderTextColor={Colors.textTertiary}
               value={search}
               onChangeText={setSearch}
@@ -91,7 +93,7 @@ export default function LikersModal({
               style={styles.list}
               ListEmptyComponent={
                 <Text style={styles.empty}>
-                  {search ? 'Ninguém encontrado.' : 'Ninguém curtiu ainda.'}
+                  {search ? t('likers.notFound') : t('likers.empty')}
                 </Text>
               }
               renderItem={({ item }) => (

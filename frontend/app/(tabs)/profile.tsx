@@ -17,10 +17,12 @@ import FeedLayout from '../../components/FeedLayout';
 import PostCard from '../../components/PostCard';
 import ProfileHeader from '../../components/ProfileHeader';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
+import { useT } from '../../lib/i18n';
 
 const WIDE = 900;
 
 export default function ProfileScreen() {
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
   const { user } = useAuth();
@@ -52,11 +54,11 @@ export default function ProfileScreen() {
 
       {/* My posts — timeline */}
       <View style={styles.timelineSection}>
-        <Text style={styles.timelineTitle}>Meus posts</Text>
+        <Text style={styles.timelineTitle}>{t('profile.myPosts')}</Text>
         {myPosts.length === 0 ? (
           <View style={styles.noPosts}>
             <Ionicons name="document-text-outline" size={32} color={Colors.textTertiary} />
-            <Text style={styles.noPostsText}>Você ainda não publicou nada.</Text>
+            <Text style={styles.noPostsText}>{t('profile.noOwnPosts')}</Text>
           </View>
         ) : (
           myPosts.map((post) => <PostCard key={post.id} post={post} onDeleted={handlePostDeleted} />)

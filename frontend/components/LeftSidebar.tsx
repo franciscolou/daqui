@@ -128,7 +128,7 @@ export default function LeftSidebar({
       >
         <View style={[styles.catDot, { backgroundColor: isActive ? color : color + '40' }]} />
         <Text style={[styles.navLabel, isActive && { color: Colors.text, fontWeight: '600' }]}>
-          {cat.label}
+          {t(`categories.${cat.key}`)}
         </Text>
         {isActive && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
       </Pressable>

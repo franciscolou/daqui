@@ -1,4 +1,6 @@
-// Formatação de datas/horas do app (pt-BR).
+import i18next from 'i18next';
+
+// Formatação de datas/horas do app no idioma ativo.
 // Posts/comentários usam contagem compacta; mensagens usam hora exata + divisores de dia.
 
 // Os timestamps do backend são UTC, mas podem chegar sem sufixo de fuso.
@@ -28,6 +30,16 @@ function capitalize(s: string): string {
 
 const HHMM: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
 
+function locale(): string {
+  return i18next.language?.startsWith('en') ? 'en-US' : 'pt-BR';
+}
+
+export const activeLocale = locale;
+
+function word(pt: string, en: string): string {
+  return locale().startsWith('en') ? en : pt;
+}
+
 /** Posts e comentários: "40s", "40m", "10h", "2d". */
 export function formatPostTime(iso: string): string {
   const s = secondsSince(parseDate(iso));
@@ -42,51 +54,58 @@ export function formatPostTime(iso: string): string {
 /** Horário exato mostrado no detalhe do post/comentário. Ex.: "1 de ago. de 2025 às 14:32". */
 export function formatExactDateTime(iso: string): string {
   const d = parseDate(iso);
-  const date = d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
-  return `${date} às ${d.toLocaleTimeString('pt-BR', HHMM)}`;
+  return new Intl.DateTimeFormat(locale(), {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(d);
 }
 
-const MONTHS_ABBR = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+/** Data curta no idioma ativo, sem horário. */
+export function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat(locale(), { day: '2-digit', month: 'short', year: 'numeric' })
+    .format(parseDate(iso));
+}
 
 /** Horário exato pro tooltip de hover das contagens compactas (`formatPostTime`).
  * Mesmo dia: "23:59". Dias anteriores: "29 Jan 2026, 23:59". */
 export function formatHoverTime(iso: string): string {
   const d = parseDate(iso);
-  const time = d.toLocaleTimeString('pt-BR', HHMM);
+  const time = d.toLocaleTimeString(locale(), HHMM);
   if (calendarDaysAgo(d) <= 0) return time;
-  return `${d.getDate()} ${MONTHS_ABBR[d.getMonth()]} ${d.getFullYear()}, ${time}`;
+  return new Intl.DateTimeFormat(locale(), {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(d);
 }
 
 /** Mensagens: "agora" (<1min) ou hora exata "12:43". */
 export function formatMessageTime(iso: string): string {
   const d = parseDate(iso);
-  if (secondsSince(d) < 60) return 'agora';
-  return d.toLocaleTimeString('pt-BR', HHMM);
+  if (secondsSince(d) < 60) return word('agora', 'now');
+  return d.toLocaleTimeString(locale(), HHMM);
 }
 
 /** Divisor de dia dentro de uma conversa. */
 export function formatDayDivider(iso: string): string {
   const d = parseDate(iso);
   const days = calendarDaysAgo(d);
-  if (days <= 0) return 'Hoje';
-  if (days === 1) return 'Ontem';
-  if (days < 7) return capitalize(d.toLocaleDateString('pt-BR', { weekday: 'long' })); // "Quarta-feira"
+  if (days <= 0) return word('Hoje', 'Today');
+  if (days === 1) return word('Ontem', 'Yesterday');
+  if (days < 7) return capitalize(d.toLocaleDateString(locale(), { weekday: 'long' }));
   if (d.getFullYear() === new Date().getFullYear()) {
-    return d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }); // "qua., 1 de ago."
+    return d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
   }
-  return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }); // "1 de ago. de 2025"
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 /** Horário na lista de conversas (estilo WhatsApp). */
 export function formatConversationTime(iso: string): string {
   const d = parseDate(iso);
-  if (secondsSince(d) < 60) return 'agora';
+  if (secondsSince(d) < 60) return word('agora', 'now');
   const days = calendarDaysAgo(d);
-  if (days <= 0) return d.toLocaleTimeString('pt-BR', HHMM);
-  if (days === 1) return 'Ontem';
-  if (days < 7) return capitalize(d.toLocaleDateString('pt-BR', { weekday: 'short' })); // "Qua."
+  if (days <= 0) return d.toLocaleTimeString(locale(), HHMM);
+  if (days === 1) return word('Ontem', 'Yesterday');
+  if (days < 7) return capitalize(d.toLocaleDateString(locale(), { weekday: 'short' }));
   if (d.getFullYear() === new Date().getFullYear()) {
-    return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }); // "1 de ago."
+    return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' });
   }
-  return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 }

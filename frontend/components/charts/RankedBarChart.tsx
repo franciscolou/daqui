@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming, Easing } from 'react-native-reanimated';
 import { useTheme } from '../../lib/theme';
 import { formatCompactNumber } from './chartUtils';
+import { useT } from '../../lib/i18n';
 
 export interface RankedBarDatum {
   key: string;
@@ -45,8 +46,9 @@ function Bar({ pct, color, delay, trackColor }: { pct: number; color: string; de
 // Barras horizontais ranqueadas por magnitude (não identidade) — por isso um
 // hue só, comprimento carrega o valor; o rótulo de texto ao lado já garante
 // a identidade de cada linha, sem depender de cor.
-export default function RankedBarChart({ data, color, valueFormatter, emptyLabel = 'Sem dados.' }: RankedBarChartProps) {
+export default function RankedBarChart({ data, color, valueFormatter, emptyLabel }: RankedBarChartProps) {
   const Colors = useTheme();
+  const { t } = useT();
   const barColor = color ?? Colors.primary;
   const fmt = valueFormatter ?? formatCompactNumber;
   const max = Math.max(1, ...data.map((d) => d.value));
@@ -54,7 +56,7 @@ export default function RankedBarChart({ data, color, valueFormatter, emptyLabel
   if (!data.length) {
     return (
       <Text style={{ fontSize: 13, color: Colors.textTertiary, textAlign: 'center', paddingVertical: 16 }}>
-        {emptyLabel}
+        {emptyLabel ?? t('ads.charts.noData')}
       </Text>
     );
   }

@@ -113,7 +113,7 @@ export default function GoogleUsernameScreen() {
                     <Ionicons name="at-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="seu.usuario"
+                      placeholder={t('auth.googleUsername.usernamePlaceholder')}
                       placeholderTextColor={Colors.textTertiary}
                       value={username}
                       onChangeText={(v) => setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))}

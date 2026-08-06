@@ -23,6 +23,7 @@ import WideLayout from '../../components/WideLayout';
 import SharedPostPreview from '../../components/SharedPostPreview';
 import SharedCommentPreview from '../../components/SharedCommentPreview';
 import MentionInput from '../../components/MentionInput';
+import { useT } from '../../lib/i18n';
 
 // Converte o Post/Comment completo na prévia compacta usada no card citado
 // (mesmos conversores de app/forward/[postId].tsx).
@@ -49,6 +50,7 @@ function toSharedComment(c: Comment): SharedComment {
 }
 
 export default function QuoteScreen() {
+  const { t } = useT();
   // Cita um post (rota /quote/{postId}) ou um comentário
   // (/quote/{postId}?commentId=...) — mesma convenção de /forward/[postId].
   const { postId, commentId } = useLocalSearchParams<{ postId: string; commentId?: string }>();
@@ -100,7 +102,7 @@ export default function QuoteScreen() {
       });
       router.replace(`/post/${created.id}` as any);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível publicar a citação.');
+      setError(e instanceof ApiError ? e.message : t('quote.error'));
       setPosting(false);
     }
   };
@@ -116,7 +118,7 @@ export default function QuoteScreen() {
             <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${postId}` as any)} hitSlop={10}>
               <Ionicons name="close" size={22} color={Colors.text} />
             </TouchableOpacity>
-            <Text style={styles.topBarTitle}>Citar</Text>
+            <Text style={styles.topBarTitle}>{t('post.quote')}</Text>
             <TouchableOpacity
               style={[styles.postBtn, (posting || notFound) && styles.postBtnDisabled]}
               onPress={publish}
@@ -126,7 +128,7 @@ export default function QuoteScreen() {
               {posting ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.postBtnText}>Postar</Text>
+                <Text style={styles.postBtnText}>{t('quote.publish')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -139,7 +141,7 @@ export default function QuoteScreen() {
             <View style={styles.center}>
               <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
               <Text style={styles.emptyText}>
-                {quotingComment ? 'Comentário não encontrado.' : 'Post não encontrado.'}
+                {quotingComment ? t('quote.commentNotFound') : t('postDetail.notFound')}
               </Text>
             </View>
           ) : (
@@ -155,7 +157,7 @@ export default function QuoteScreen() {
                 <MentionInput
                   containerStyle={styles.inputWrap}
                   style={[styles.input, styles.inputInner]}
-                  placeholder="Acrescente sua ideia... use @ para mencionar"
+                  placeholder={t('quote.placeholder')}
                   placeholderTextColor={Colors.textTertiary}
                   value={text}
                   onChangeText={setText}

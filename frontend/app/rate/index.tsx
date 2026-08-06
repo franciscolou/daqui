@@ -8,9 +8,11 @@ import { useTheme, useThemedStyles } from '../../lib/theme';
 import { useRateForm } from '../../lib/useRateForm';
 import FeedLayout from '../../components/FeedLayout';
 import RateForm from '../../components/RateForm';
+import { useT } from '../../lib/i18n';
 
 /** Tela cheia só usada no mobile — no desktop, "Avaliar o Daqui" abre como modal (ver RateModal). */
 export default function RateScreen() {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const form = useRateForm();
@@ -24,7 +26,7 @@ export default function RateScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Avaliar o Daqui</Text>
+        <Text style={styles.headerTitle}>{t('nav.rateApp')}</Text>
         <View style={styles.iconBtn} />
       </View>
 

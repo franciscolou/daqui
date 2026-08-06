@@ -5,6 +5,7 @@ import {
   LeafletHtmlOptions,
   MAP_MESSAGE_TYPE,
 } from './leafletHtml';
+import { useT } from '../lib/i18n';
 
 export interface LeafletMapProps extends LeafletHtmlOptions {
   onSelectMarker?: (id: string) => void;
@@ -19,6 +20,7 @@ export default function LeafletMap({
   style,
   ...options
 }: LeafletMapProps) {
+  const { t } = useT();
   const html = useMemo(() => buildLeafletHtml(options), [
     options.center.latitude,
     options.center.longitude,
@@ -54,7 +56,7 @@ export default function LeafletMap({
     <View style={style}>
       <iframe
         srcDoc={html}
-        title="mapa"
+        title={t('map.title')}
         style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
       />
     </View>

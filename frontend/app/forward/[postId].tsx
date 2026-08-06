@@ -16,6 +16,7 @@ import { Palette } from '../../constants/Colors';
 import { Post, User } from '../../data/mock';
 import { api, ApiError, Comment, SharedComment, SharedPost } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { useT } from '../../lib/i18n';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
@@ -52,6 +53,7 @@ export default function ForwardScreen() {
   const { loading: authLoading } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const forwardingComment = !!commentId;
 
@@ -131,7 +133,7 @@ export default function ForwardScreen() {
       setError(
         e instanceof ApiError
           ? e.message
-          : `Não foi possível encaminhar o ${forwardingComment ? 'comentário' : 'post'}.`,
+          : t(forwardingComment ? 'forward.commentError' : 'forward.postError'),
       );
     } finally {
       setPending((p) => withId(p, user.id, false));
@@ -148,7 +150,7 @@ export default function ForwardScreen() {
             <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${postId}` as any)} hitSlop={10}>
               <Ionicons name="chevron-back" size={22} color={Colors.text} />
             </TouchableOpacity>
-            <Text style={styles.topBarTitle}>Encaminhar</Text>
+            <Text style={styles.topBarTitle}>{t('forward.title')}</Text>
             <View style={styles.topBarIconBtn} />
           </View>
 
@@ -160,7 +162,7 @@ export default function ForwardScreen() {
             <View style={styles.center}>
               <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
               <Text style={styles.emptyText}>
-                {forwardingComment ? 'Comentário não encontrado.' : 'Post não encontrado.'}
+                {t(forwardingComment ? 'forward.commentNotFound' : 'forward.postNotFound')}
               </Text>
             </View>
           ) : (
@@ -183,17 +185,17 @@ export default function ForwardScreen() {
                     <Ionicons name="search-outline" size={17} color={Colors.textTertiary} />
                     <TextInput
                       style={styles.searchInput}
-                      placeholder="Buscar vizinho..."
+                      placeholder={t('forward.searchPlaceholder')}
                       placeholderTextColor={Colors.textTertiary}
                       value={search}
                       onChangeText={setSearch}
                     />
                   </View>
-                  <Text style={styles.sectionTitle}>Enviar para</Text>
+                  <Text style={styles.sectionTitle}>{t('forward.sendTo')}</Text>
                 </View>
               }
               ListEmptyComponent={
-                <Text style={styles.noResults}>Nenhum vizinho encontrado.</Text>
+                <Text style={styles.noResults}>{t('forward.noNeighbors')}</Text>
               }
               renderItem={({ item }) => (
                 <TouchableOpacity

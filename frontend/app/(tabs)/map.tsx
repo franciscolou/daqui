@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
-import { CATEGORY_LABELS, CATEGORY_ICONS, CATEGORY_LIFESPAN_DAYS, PostCategory, Post } from '../../data/mock';
+import { CATEGORY_ICONS, CATEGORY_LIFESPAN_DAYS, PostCategory, Post } from '../../data/mock';
 import { api, NeighborhoodStats } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
 import { getOrCreateAdViewerId } from '../../lib/storage';
@@ -206,7 +206,7 @@ export default function MapScreen() {
             {(Object.entries(Colors.category) as [PostCategory, string][]).map(([key, color]) => (
               <View key={key} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: color }]} />
-                <Text style={styles.legendText}>{CATEGORY_LABELS[key]}</Text>
+                <Text style={styles.legendText}>{t(`categories.${key}`)}</Text>
               </View>
             ))}
           </ScrollView>
@@ -252,7 +252,7 @@ export default function MapScreen() {
                     </View>
                     <View style={[styles.nearbyCategory, { backgroundColor: catColor + '15' }]}>
                       <Text style={[styles.nearbyCategoryText, { color: catColor }]}>
-                        {CATEGORY_LABELS[post.category]}
+                        {t(`categories.${post.category}`)}
                       </Text>
                     </View>
                   </TouchableOpacity>

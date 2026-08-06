@@ -17,6 +17,8 @@ import CityPicker from '../../components/CityPicker';
 import InfoTooltip from '../../components/InfoTooltip';
 import AdAdvancedSelectors from '../../components/AdAdvancedSelectors';
 import StartDatePicker from '../../components/StartDatePicker';
+import { useT } from '../../lib/i18n';
+import { activeLocale } from '../../lib/time';
 
 const FORMATS: { key: AdFormat; label: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'post', label: 'Post no feed', desc: 'Card no meio do feed do bairro, como um post comum.', icon: 'newspaper-outline' },
@@ -34,6 +36,12 @@ const FORMATS: { key: AdFormat; label: string; desc: string; icon: keyof typeof 
 const COMBO_FORMATS: AdFormat[] = ['post', 'map'];
 const COMBO_DISCOUNT_PCT = 15;
 const COMBO_FACTOR_LABEL = 'Combo post + mapa';
+const FACTOR_KEYS: Record<string, string> = {
+  'Combo post + mapa': 'bundle', 'Alcance': 'reach', 'Concorrência no período/bairros': 'competition',
+  'Sazonalidade': 'seasonality', 'Horário escolhido': 'schedule', 'Objetivo da campanha': 'objective',
+  'Prioridade': 'priority', 'Frequência/exclusividade': 'frequency', 'Desconto por duração': 'durationDiscount',
+  'Ajuste de mercado': 'market', 'Formatos escolhidos': 'formats',
+};
 
 const GEO_SCOPE_OPTIONS: { key: GeoScope; label: string }[] = [
   { key: 'neighborhood', label: 'Bairros' },
@@ -139,6 +147,7 @@ const MouseTrackingView = View as unknown as ComponentType<WebViewProps>;
 function DiscountChart() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const fg = Colors.surface;
   const [hover, setHover] = useState<{ days: number; pct: number; x: number; y: number } | null>(null);
 
@@ -215,9 +224,9 @@ function DiscountChart() {
       </Svg>
       {hover && (
         <View style={[styles.chartHoverBadge, { left: badgeLeft, top: badgeTop }]} pointerEvents="none">
-          <Text style={styles.chartHoverBadgeDays}>{hover.days} dias</Text>
+          <Text style={styles.chartHoverBadgeDays}>{t('ads.checkout.days', { count: hover.days })}</Text>
           <Text style={styles.chartHoverBadgePct}>
-            {hover.pct <= 0 ? 'sem desconto' : `-${Math.round(hover.pct)}%`}
+            {hover.pct <= 0 ? t('ads.customize.noDiscount') : `-${Math.round(hover.pct)}%`}
           </Text>
         </View>
       )}
@@ -232,6 +241,7 @@ function DiscountChart() {
 function DiscountInfo() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { width: winW, height: winH } = useWindowDimensions();
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -263,7 +273,7 @@ function DiscountInfo() {
           {anchor && (
             <View style={[styles.discountPopover, { top, left, width: POPOVER_WIDTH }]}>
               <Pressable onPress={() => {}} tabIndex={-1}>
-                <Text style={styles.discountTooltipTitle}>Desconto por duração</Text>
+                <Text style={styles.discountTooltipTitle}>{t('ads.customize.durationDiscount')}</Text>
                 <DiscountChart />
               </Pressable>
             </View>
@@ -273,21 +283,6 @@ function DiscountInfo() {
     </>
   );
 }
-
-// Textos das explicações "i" das configurações avançadas — linguagem leiga,
-// sem jargão de ads, pra quem nunca configurou um anúncio na vida.
-const ADVANCED_FIELD_INFO = {
-  objective: 'O que você quer que aconteça quando alguém vê seu anúncio. Essa escolha não muda pra quem o anúncio aparece — ela só organiza o relatório de resultados (impressões e cliques) separado por objetivo, pra você ver com mais facilidade se a campanha está indo bem no que importa pra você.',
-  priority: 'Quando vários anunciantes disputam o mesmo espaço, quem tem prioridade mais alta é escolhido com mais frequência — como furar uma fila. Prioridade mais alta custa mais caro. Entre anunciantes empatados na mesma prioridade, a chance é sempre igual pra cada um — o peso na rotação (ao lado) não te dá vantagem sobre outros anunciantes, só serve pra dividir entre as suas próprias campanhas.',
-  rotationWeight: 'Só importa se você tiver mais de uma campanha sua concorrendo ao mesmo tempo (ex: duas artes diferentes do mesmo anúncio) — decide a proporção entre elas: peso 2 aparece o dobro de vezes que peso 1. Não te dá nenhuma vantagem sobre outros anunciantes: a chance entre anunciantes diferentes na mesma prioridade é sempre igual, não importa o peso escolhido.',
-  perUserCap: 'Define quantas vezes, no máximo, a mesma pessoa pode ver o seu anúncio durante toda a campanha, pra não cansar sempre os mesmos usuários com o mesmo anúncio repetidas vezes. Quanto mais baixo o limite, um pouco mais caro fica o preço por dia — é o custo de uma entrega mais exclusiva (o anúncio "gasta" cada pessoa alcançada mais rápido). Deixe em branco pra não ter limite.',
-  audience: 'Escolhe quem pode ver o anúncio: todo mundo, só quem mora na região escolhida, ou só quem está passando pela região no momento (mesmo sem morar lá).',
-  includeNearby: 'Além dos bairros que você escolheu acima, o anúncio também aparece pra moradores dos bairros vizinhos a eles, ampliando o alcance sem precisar selecionar bairro por bairro.',
-  categories: 'Só vale pro formato "Post no feed": marque uma ou mais categorias (como "evento" ou "venda") pra seu anúncio aparecer junto de posts do mesmo assunto, chegando em quem já se interessa por esse tipo de conteúdo.',
-  hours: 'Em quais horas do dia (de 0 a 23, sendo 0 a meia-noite) seu anúncio pode ser exibido. Por exemplo, "18, 19, 20" faz ele aparecer só entre 18h e a 20h59. Deixe em branco pra exibir em qualquer horário do dia.',
-  daysOfWeek: 'Em quais dias da semana o anúncio pode aparecer, numerando de 0 (segunda-feira) a 6 (domingo). Por exemplo, "5, 6" mostra o anúncio só no sábado e no domingo. Deixe em branco pra exibir todos os dias.',
-  specialDates: 'Ao escolher datas aqui, o anúncio passa a aparecer SÓ nelas — os horários e dias da semana acima deixam de valer. Útil pra concentrar a verba num feriado ou evento específico, como o Natal. Só é possível escolher datas dentro do período da campanha (duração/data de início escolhidos acima); escolher menos datas dentro desse período custa mais caro por dia exibido.',
-} as const;
 
 // Linha "Rótulo + i" reaproveitada em todo campo das configurações
 // avançadas — evita repetir a mesma View+Text+InfoTooltip 12 vezes.
@@ -312,14 +307,14 @@ const OBJECTIVES: { key: AdObjective; label: string }[] = [
 ];
 
 function formatMoney(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return (cents / 100).toLocaleString(activeLocale(), { style: 'currency', currency: 'BRL' });
 }
 
 // Formato compacto "-R$XX,XX" (sem espaço entre o R$ e o valor) pro selo
 // verde ao lado do "i" — `formatMoney` usa o formato de moeda padrão do
 // Intl (com espaço), que não bate com o pedido aqui.
 function formatDiscountValue(cents: number) {
-  const value = (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const value = (cents / 100).toLocaleString(activeLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return `-R$${value}`;
 }
 
@@ -335,21 +330,22 @@ function reachSummary(
   city: string,
   cities: string[],
   includeNearby: boolean,
+  t: (key: string, options?: any) => string,
 ): string | null {
   if (geoScope === 'neighborhood') {
     if (neighborhoods.length === 0) return null;
     const base = neighborhoods.length === 1
-      ? `moradores do bairro ${neighborhoods[0]}`
-      : `moradores de até ${neighborhoods.length} bairros`;
-    return includeNearby ? `${base} + bairros vizinhos` : base;
+      ? t('ads.customize.reachNeighborhood', { neighborhood: neighborhoods[0] })
+      : t('ads.customize.reachNeighborhoods', { count: neighborhoods.length });
+    return includeNearby ? t('ads.customize.reachNearby', { base }) : base;
   }
   if (geoScope === 'citywide') {
-    return city ? `moradores de ${city} (cidade toda)` : null;
+    return city ? t('ads.customize.reachCity', { city }) : null;
   }
   if (geoScope === 'cities') {
-    return cities.length > 0 ? `moradores de até ${cities.length} cidades` : null;
+    return cities.length > 0 ? t('ads.customize.reachCities', { count: cities.length }) : null;
   }
-  return 'qualquer pessoa no Brasil';
+  return t('ads.customize.reachCountry');
 }
 
 interface ReactivatePrefill {
@@ -374,6 +370,7 @@ interface ReactivatePrefill {
 export default function CustomizeScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const params = useLocalSearchParams<{ planId?: string; prefill?: string; renewedFromToken?: string }>();
   // Vem do botão "Reativar campanha" (dashboard/[token].tsx) — pré-preenche o
   // ponto de partida a partir da campanha anterior; tudo continua editável.
@@ -554,8 +551,8 @@ export default function CustomizeScreen() {
         />
         <Ionicons name={f.icon} size={18} color={active ? Colors.primary : Colors.textTertiary} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.formatCardTitle}>{f.label}</Text>
-          <Text style={styles.formatCardDesc}>{f.desc}</Text>
+          <Text style={styles.formatCardTitle}>{t(`ads.customize.formats.${f.key}.label`)}</Text>
+          <Text style={styles.formatCardDesc}>{t(`ads.customize.formats.${f.key}.desc`)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -586,7 +583,7 @@ export default function CustomizeScreen() {
   // Mesma conta pro combo post+mapa: quanto o anunciante já está economizando
   // por ter escolhido os dois juntos em vez de contratá-los separadamente.
   const comboDiscountCents = savingsFromFactor(COMBO_FACTOR_LABEL);
-  const reach = reachSummary(geoScope, neighborhoods, city, cities, includeNearby);
+  const reach = reachSummary(geoScope, neighborhoods, city, cities, includeNearby, t);
 
   const goToCheckout = () => {
     router.push({
@@ -626,12 +623,12 @@ export default function CustomizeScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/advertise')}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Personalize seu anúncio</Text>
+        <Text style={styles.headerTitle}>{t('ads.customize.title')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <Text style={styles.label}>Onde seu anúncio aparece</Text>
+        <Text style={styles.label}>{t('ads.customize.placements')}</Text>
         {/* Post e mapa vêm agrupados numa moldura com a faixa do combo entre
             os dois: separados na escolha (dá pra levar só um), mas com o
             desconto visível no exato momento de decidir. */}
@@ -647,8 +644,8 @@ export default function CustomizeScreen() {
               />
               <Text style={[styles.comboPillText, comboActive && styles.comboPillTextActive]}>
                 {comboActive
-                  ? `Combo aplicado${comboDiscountCents > 0 ? ` · ${formatDiscountValue(comboDiscountCents)}` : ''}`
-                  : `Leve os dois e economize ${COMBO_DISCOUNT_PCT}%`}
+                  ? t('ads.customize.comboApplied', { discount: comboDiscountCents > 0 ? ` · ${formatDiscountValue(comboDiscountCents)}` : '' })
+                  : t('ads.customize.comboOffer', { percent: COMBO_DISCOUNT_PCT })}
               </Text>
             </View>
             <View style={styles.comboBannerLine} />
@@ -658,11 +655,11 @@ export default function CustomizeScreen() {
         {FORMATS.slice(2).map(renderFormatCard)}
         {needsPin && (
           <Text style={styles.helperText}>
-            No próximo passo você marca o endereço que vira o pin no mapa.
+            {t('ads.customize.pinNext')}
           </Text>
         )}
 
-        <Text style={styles.label}>Duração (dias)</Text>
+        <Text style={styles.label}>{t('ads.customize.duration')}</Text>
         <View style={styles.durationRow}>
           <View style={styles.durationSliderWrap}>
             <Slider
@@ -733,7 +730,7 @@ export default function CustomizeScreen() {
           </View>
         </View>
         <View style={styles.discountInfoRow}>
-          <Text style={styles.discountLabel}>Desconto progressivo</Text>
+          <Text style={styles.discountLabel}>{t('ads.customize.progressiveDiscount')}</Text>
           <DiscountInfo />
           {durationDiscountCents > 0 && (
             <Text style={styles.discountValue}>{formatDiscountValue(durationDiscountCents)}</Text>
@@ -742,7 +739,7 @@ export default function CustomizeScreen() {
 
         <StartDatePicker value={startsAt} onChange={setStartsAt} />
 
-        <Text style={styles.label}>Onde anunciar</Text>
+        <Text style={styles.label}>{t('ads.customize.where')}</Text>
         <View style={styles.chipsWrap}>
           {GEO_SCOPE_OPTIONS.map((o) => (
             <TouchableOpacity
@@ -750,14 +747,14 @@ export default function CustomizeScreen() {
               style={[styles.chip, geoScope === o.key && styles.chipActive]}
               onPress={() => setGeoScope(o.key)}
             >
-              <Text style={[styles.chipText, geoScope === o.key && styles.chipTextActive]}>{o.label}</Text>
+              <Text style={[styles.chipText, geoScope === o.key && styles.chipTextActive]}>{t(`ads.customize.scopes.${o.key}`)}</Text>
             </TouchableOpacity>
           ))}
         </View>
         {geoScope === 'neighborhood' && (
           <>
             <Text style={styles.label}>
-              Bairros{plan?.maxNeighborhoods ? ` (até ${plan.maxNeighborhoods})` : ''}
+              {t('ads.customize.neighborhoods')}{plan?.maxNeighborhoods ? ` (${t('ads.customize.upTo', { count: plan.maxNeighborhoods })})` : ''}
             </Text>
             <NeighborhoodPicker
               value={neighborhoods}
@@ -768,26 +765,26 @@ export default function CustomizeScreen() {
         )}
         {geoScope === 'citywide' && (
           <>
-            <Text style={styles.label}>Cidade</Text>
+            <Text style={styles.label}>{t('ads.customize.city')}</Text>
             <CityPicker
               value={city ? [city] : []}
               onChange={(v) => setCity(v[0] ?? '')}
               max={1}
-              placeholder="Digite o nome da cidade..."
+              placeholder={t('ads.customize.cityPlaceholder')}
             />
           </>
         )}
         {geoScope === 'cities' && (
           <>
             <Text style={styles.label}>
-              Cidades{plan?.maxCities ? ` (até ${plan.maxCities})` : ''}
+              {t('ads.customize.cities')}{plan?.maxCities ? ` (${t('ads.customize.upTo', { count: plan.maxCities })})` : ''}
             </Text>
             <CityPicker value={cities} onChange={setCities} max={plan?.maxCities ?? null} />
           </>
         )}
         {geoScope === 'country' && (
           <Text style={styles.helperText}>
-            Seu anúncio aparece pra qualquer pessoa usando o Daqui, em qualquer cidade do Brasil.
+            {t('ads.customize.countryHint')}
           </Text>
         )}
 
@@ -797,12 +794,12 @@ export default function CustomizeScreen() {
           tabIndex={-1}
         >
           <Ionicons name={showAdvanced ? 'chevron-down' : 'chevron-forward'} size={16} color={Colors.textSecondary} />
-          <Text style={styles.advancedToggleText}>Configurações avançadas</Text>
+          <Text style={styles.advancedToggleText}>{t('ads.customize.advanced')}</Text>
         </Pressable>
 
         {showAdvanced && (
           <View style={styles.advancedBox}>
-            <LabelWithInfo text="Objetivo da campanha" info={ADVANCED_FIELD_INFO.objective} />
+            <LabelWithInfo text={t('ads.customize.objective')} info={t('ads.customize.info.objective')} />
             <View style={styles.chipsWrap}>
               {OBJECTIVES.map((o) => (
                 <TouchableOpacity
@@ -810,36 +807,36 @@ export default function CustomizeScreen() {
                   style={[styles.chip, objective === o.key && styles.chipActive]}
                   onPress={() => setObjective(o.key)}
                 >
-                  <Text style={[styles.chipText, objective === o.key && styles.chipTextActive]}>{o.label}</Text>
+                  <Text style={[styles.chipText, objective === o.key && styles.chipTextActive]}>{t(`ads.customize.objectives.${o.key}`)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.row2}>
               <View style={styles.flex1}>
-                <LabelWithInfo text="Prioridade (1-5)" info={ADVANCED_FIELD_INFO.priority} />
+                <LabelWithInfo text={t('ads.customize.priority')} info={t('ads.customize.info.priority')} />
                 <TextInput style={styles.input} value={priority} onChangeText={setPriority} keyboardType="numeric" />
               </View>
               <View style={styles.flex1}>
-                <LabelWithInfo text="Peso na rotação" info={ADVANCED_FIELD_INFO.rotationWeight} />
+                <LabelWithInfo text={t('ads.customize.rotationWeight')} info={t('ads.customize.info.rotationWeight')} />
                 <TextInput style={styles.input} value={rotationWeight} onChangeText={setRotationWeight} keyboardType="numeric" />
               </View>
             </View>
 
-            <LabelWithInfo text="Limite por pessoa" info={ADVANCED_FIELD_INFO.perUserCap} />
-            <TextInput style={styles.input} value={perUserCap} onChangeText={setPerUserCap} keyboardType="numeric" placeholder="sem limite" placeholderTextColor={Colors.textTertiary} />
+            <LabelWithInfo text={t('ads.customize.perUserCap')} info={t('ads.customize.info.perUserCap')} />
+            <TextInput style={styles.input} value={perUserCap} onChangeText={setPerUserCap} keyboardType="numeric" placeholder={t('ads.customize.noLimit')} placeholderTextColor={Colors.textTertiary} />
 
-            <LabelWithInfo text="Audiência" info={ADVANCED_FIELD_INFO.audience} />
+            <LabelWithInfo text={t('ads.customize.audience')} info={t('ads.customize.info.audience')} />
             <View style={styles.chipsWrap}>
               {([['all', 'Todos'], ['residents', 'Só moradores'], ['visitors', 'Só visitantes atuais']] as const).map(([key, label]) => (
                 <TouchableOpacity key={key} style={[styles.chip, audience === key && styles.chipActive]} onPress={() => setAudience(key)}>
-                  <Text style={[styles.chipText, audience === key && styles.chipTextActive]}>{label}</Text>
+                  <Text style={[styles.chipText, audience === key && styles.chipTextActive]}>{t(`ads.customize.audiences.${key}`)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.citywideRow}>
-              <LabelWithInfo text="Incluir bairros próximos" info={ADVANCED_FIELD_INFO.includeNearby} />
+              <LabelWithInfo text={t('ads.customize.includeNearby')} info={t('ads.customize.info.includeNearby')} />
               <Switch value={includeNearby} onValueChange={setIncludeNearby} />
             </View>
 
@@ -860,34 +857,34 @@ export default function CustomizeScreen() {
           onPress={() => setShowBreakdown((v) => !v)}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={styles.priceLabel}>{planPriceLocked ? 'Valor do plano' : 'Valor estimado'}</Text>
+            <Text style={styles.priceLabel}>{t(planPriceLocked ? 'ads.customize.planValue' : 'ads.customize.estimatedValue')}</Text>
             <Text style={styles.priceValue}>{priceCents != null ? formatMoney(priceCents) : '—'}</Text>
           </View>
           {reach && (
             <View style={styles.reachSummaryRow}>
               <Ionicons name="people-outline" size={12} color={Colors.primary} />
-              <Text style={styles.reachSummaryText}>Alcance: {reach}</Text>
+              <Text style={styles.reachSummaryText}>{t('ads.customize.reach', { reach })}</Text>
             </View>
           )}
           {priceCents != null && (
             <Text style={styles.priceHint}>
               {planPriceLocked
-                ? 'Preço não muda com os bairros — escala com a duração e os formatos escolhidos. '
-                : (plan ? 'Essa configuração saiu do que o plano cobre — o preço passou a ser calculado dinamicamente, igual à personalização avulsa. ' : '')}
-              {showBreakdown ? '▾ ver menos' : '▸ ver como calculamos'}
+                ? t('ads.customize.lockedPriceHint')
+                : (plan ? t('ads.customize.dynamicPriceHint') : '')}
+              {showBreakdown ? t('ads.customize.showLess') : t('ads.customize.showCalculation')}
             </Text>
           )}
           {comboDiscountCents > 0 && (
             <View style={styles.priceSavingRow}>
               <Ionicons name="pricetag" size={12} color={Colors.success} />
               <Text style={styles.priceSavingText}>
-                Combo post + mapa: {formatDiscountValue(comboDiscountCents)} em relação a contratar os dois separados
+                {t('ads.customize.comboSaving', { value: formatDiscountValue(comboDiscountCents) })}
               </Text>
             </View>
           )}
           {showBreakdown && factors.map((f) => (
             <View key={f.label} style={styles.factorRow}>
-              <Text style={styles.factorLabel}>{f.label}</Text>
+              <Text style={styles.factorLabel}>{t(`ads.customize.factors.${FACTOR_KEYS[f.label] ?? f.label}`, { defaultValue: f.label })}</Text>
               <Text style={styles.factorValue}>×{f.multiplier.toFixed(2)}</Text>
             </View>
           ))}
@@ -899,7 +896,7 @@ export default function CustomizeScreen() {
           disabled={!canContinue}
           onPress={goToCheckout}
         >
-          <Text style={styles.continueBtnText}>Continuar</Text>
+          <Text style={styles.continueBtnText}>{t('ads.customize.continue')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

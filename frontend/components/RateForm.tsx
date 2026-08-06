@@ -12,12 +12,14 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { MAX_COMMENT, RateForm as RateFormState } from '../lib/useRateForm';
 import StarRating from './StarRating';
+import { useT } from '../lib/i18n';
 
 /**
  * Corpo do formulário de avaliação (estrelas, comentário, envio). `compact`
  * reduz tamanhos/paddings para caber num modal; sem ele, ocupa uma tela cheia.
  */
 export default function RateForm({ form, compact = false }: { form: RateFormState; compact?: boolean }) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { rating, setRating, comment, setComment, hasReview, loading, saving, feedback, submit, label } = form;
@@ -38,9 +40,9 @@ export default function RateForm({ form, compact = false }: { form: RateFormStat
       <View style={[styles.heroIcon, compact && styles.heroIconCompact]}>
         <Ionicons name="heart" size={compact ? 26 : 30} color={Colors.primary} />
       </View>
-      <Text style={styles.title}>Como está sendo sua experiência?</Text>
+      <Text style={styles.title}>{t('rate.title')}</Text>
       <Text style={styles.subtitle}>
-        Sua opinião ajuda a melhorar o Daqui para todo mundo.
+        {t('rate.subtitle')}
       </Text>
 
       <View style={styles.starsWrap}>
@@ -50,10 +52,10 @@ export default function RateForm({ form, compact = false }: { form: RateFormStat
         </Text>
       </View>
 
-      <Text style={styles.label}>Comentário (opcional)</Text>
+      <Text style={styles.label}>{t('rate.comment')}</Text>
       <TextInput
         style={styles.input}
-        placeholder="Conte o que você achou, o que funciona bem e o que poderia melhorar…"
+        placeholder={t('rate.placeholder')}
         placeholderTextColor={Colors.textTertiary}
         value={comment}
         onChangeText={(t) => setComment(t.slice(0, MAX_COMMENT))}
@@ -84,7 +86,7 @@ export default function RateForm({ form, compact = false }: { form: RateFormStat
         {saving ? (
           <ActivityIndicator color="#fff" size="small" />
         ) : (
-          <Text style={styles.submitBtnText}>{hasReview ? 'Atualizar avaliação' : 'Enviar avaliação'}</Text>
+          <Text style={styles.submitBtnText}>{hasReview ? t('rate.update') : t('rate.submit')}</Text>
         )}
       </TouchableOpacity>
     </ScrollView>

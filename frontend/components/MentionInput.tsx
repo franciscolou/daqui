@@ -8,6 +8,7 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { api } from '../lib/api';
 import { User } from '../data/mock';
+import { useT } from '../lib/i18n';
 
 // Campo de texto com menção de usuários (@handle) — mesmo comportamento das
 // redes sociais: ao digitar "@", aparece um sugeridor que é refinado conforme
@@ -44,6 +45,7 @@ export default function MentionInput({
   value, onChangeText, style, containerStyle, dropdownDirection = 'down', inputRef,
   candidates, onSelectionChange, onKeyPress, onLayout, multiline, ...rest
 }: MentionInputProps) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -183,7 +185,7 @@ export default function MentionInput({
           {loading && results.length === 0 ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={Colors.primary} />
-              <Text style={styles.loadingText}>Buscando…</Text>
+              <Text style={styles.loadingText}>{t('common.searching')}</Text>
             </View>
           ) : (
             <ScrollView

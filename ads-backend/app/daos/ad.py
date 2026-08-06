@@ -284,12 +284,6 @@ def _matches_targeting(targeting: dict, ctx: dict) -> bool:
         if category is not None and category not in categories:
             return False
 
-    group_ids = targeting.get("group_ids") or []
-    if group_ids:
-        ctx_groups = ctx.get("group_ids") or []
-        if ctx_groups and not (set(ctx_groups) & set(group_ids)):
-            return False
-
     user_recency = targeting.get("user_recency", UserRecency.ALL)
     if user_recency != UserRecency.ALL:
         recency = ctx.get("recency")

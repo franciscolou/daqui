@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable, ActivityIndicator } from 'react-native';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 
 /**
  * Modal de confirmação sim/não do próprio app (nunca `window.confirm`, que não
@@ -10,8 +11,8 @@ export default function ConfirmModal({
   visible,
   title,
   message,
-  confirmLabel = 'Confirmar',
-  cancelLabel = 'Cancelar',
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   loading = false,
   onConfirm,
@@ -29,6 +30,7 @@ export default function ConfirmModal({
 }) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -43,7 +45,7 @@ export default function ConfirmModal({
               disabled={loading}
               activeOpacity={0.7}
             >
-              <Text style={styles.cancelText}>{cancelLabel}</Text>
+              <Text style={styles.cancelText}>{cancelLabel ?? t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, destructive ? styles.dangerBtn : styles.confirmBtn]}
@@ -54,7 +56,7 @@ export default function ConfirmModal({
               {loading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.confirmText}>{confirmLabel}</Text>
+                <Text style={styles.confirmText}>{confirmLabel ?? t('common.confirm')}</Text>
               )}
             </TouchableOpacity>
           </View>

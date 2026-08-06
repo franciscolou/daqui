@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { useT } from '../../lib/i18n';
 import { CATEGORIES, PostCategory, Post } from '../../data/mock';
 import { api } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
@@ -48,6 +49,7 @@ const normalizeNeighborhood = (value?: string | null) =>
     .toLocaleLowerCase('pt-BR') ?? '';
 
 export default function FeedScreen() {
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
   const { user } = useAuth();
@@ -110,12 +112,12 @@ export default function FeedScreen() {
       setLocError(
         e instanceof LocationError
           ? e.message
-          : 'Não foi possível descobrir seu bairro agora.',
+          : t('feed.errors.location'),
       );
     } finally {
       setLocLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const PAGE_SIZE = 20;
 
@@ -178,11 +180,11 @@ export default function FeedScreen() {
       setPage(1);
     } catch {
       if (seq !== feedSeq.current) return;
-      setError('Não foi possível carregar o feed.');
+      setError(t('feed.errors.load'));
     } finally {
       if (seq === feedSeq.current) setLoading(false);
     }
-  }, [feedParams, initialViewLoading]);
+  }, [feedParams, initialViewLoading, t]);
 
   const loadMorePosts = useCallback(() => {
     if (loadingMorePostsRef.current || posts.length >= totalPosts) return;
@@ -255,7 +257,7 @@ export default function FeedScreen() {
         setLocError(
           e instanceof LocationError
             ? e.message
-            : 'Não foi possível descobrir seu bairro agora.',
+            : t('feed.errors.location'),
         );
       } finally {
         if (!cancelled) {
@@ -333,8 +335,8 @@ export default function FeedScreen() {
     if (mode === 'perto') fetchPertoLocation();
   }, [viewMode, fetchPertoLocation, contentX, contentOpacity, indicator]);
 
-  // Redirecionamento de "Alterar bairro de moradia" (Configurações > Editar
-  // perfil): chega aqui com ?view=meu pra cair direto na aba "Meu bairro",
+  // Redirecionamento de "Alterar bairro de moradia" (Configurações > Meu
+  // endereço): chega aqui com ?view=meu pra cair direto na aba "Meu bairro",
   // que mostra o HomeNeighborhoodSetup assim que o bairro estiver vazio.
   useFocusEffect(
     useCallback(() => {
@@ -410,7 +412,7 @@ export default function FeedScreen() {
               color={isActive ? Colors.primary : Colors.textTertiary}
             />
             <Text style={[styles.viewTabText, isActive && styles.viewTabTextActive]}>
-              {mode === 'meu' ? 'Meu bairro' : 'Perto de mim'}
+              {mode === 'meu' ? t('feed.myNeighborhood') : t('feed.nearMe')}
             </Text>
           </TouchableOpacity>
         );
@@ -438,7 +440,7 @@ export default function FeedScreen() {
           onPress={() => router.push('/(tabs)/publish')}
         >
           <Text style={styles.composePlaceholder}>
-            Postar uma mensagem, evento, enquete ou aviso importante
+            {t('feed.compose')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -462,7 +464,7 @@ export default function FeedScreen() {
                 >
                   <Ionicons name={cat.icon as any} size={12} color={isActive ? color : Colors.textTertiary} />
                   <Text style={[styles.mobileTabText, isActive && { color, fontWeight: '700' }]}>
-                    {cat.label}
+                    {t(`categories.${cat.key}`)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -482,7 +484,7 @@ export default function FeedScreen() {
       return (
         <View style={styles.feedState}>
           <ActivityIndicator color={Colors.primary} />
-          <Text style={styles.feedStateText}>Descobrindo seu bairro…</Text>
+          <Text style={styles.feedStateText}>{t('feed.findingNeighborhood')}</Text>
         </View>
       );
     }
@@ -492,7 +494,7 @@ export default function FeedScreen() {
           <Ionicons name="location-outline" size={32} color={Colors.textTertiary} />
           <Text style={styles.feedStateText}>{locError}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={fetchPertoLocation}>
-            <Text style={styles.retryText}>Tentar novamente</Text>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -512,11 +514,11 @@ export default function FeedScreen() {
           color={Colors.textTertiary}
         />
         <Text style={styles.feedStateText}>
-          {error ?? 'Nenhum post por aqui ainda.'}
+          {error ?? t('feed.empty')}
         </Text>
         {error && (
           <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
-            <Text style={styles.retryText}>Tentar novamente</Text>
+            <Text style={styles.retryText}>{t('common.retry')}</Text>
           </TouchableOpacity>
         )}
       </View>

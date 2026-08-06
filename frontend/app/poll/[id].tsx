@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { api, ApiError } from '../../lib/api';
 import { goBack } from '../../lib/navigation';
+import { useT } from '../../lib/i18n';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import PollEditor, {
@@ -37,6 +38,7 @@ export default function EditPollScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const [loading, setLoading] = useState(true);
   const [notAllowed, setNotAllowed] = useState(false);
@@ -89,7 +91,7 @@ export default function EditPollScreen() {
       });
       goBack(`/post/${id}` as any);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível salvar.');
+      setError(e instanceof ApiError ? e.message : t('pollEdit.saveError'));
       setSaving(false);
     }
   };
@@ -101,7 +103,7 @@ export default function EditPollScreen() {
           <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${id}` as any)} hitSlop={10}>
             <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.topBarTitle}>Editar enquete</Text>
+          <Text style={styles.topBarTitle}>{t('pollEdit.title')}</Text>
           <TouchableOpacity
             style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
             onPress={save}
@@ -111,7 +113,7 @@ export default function EditPollScreen() {
             {saving ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.saveBtnText}>Salvar</Text>
+              <Text style={styles.saveBtnText}>{t('common.save')}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -123,23 +125,23 @@ export default function EditPollScreen() {
         ) : notAllowed || !draft ? (
           <View style={styles.center}>
             <Ionicons name="lock-closed-outline" size={32} color={Colors.textTertiary} />
-            <Text style={styles.emptyText}>Enquete indisponível para edição.</Text>
+            <Text style={styles.emptyText}>{t('pollEdit.unavailable')}</Text>
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
             <View style={styles.infoNote}>
               <Ionicons name="information-circle-outline" size={16} color={Colors.textTertiary} />
               <Text style={styles.infoNoteText}>
-                Você pode editar a enquete a qualquer momento. O prazo é sempre para o futuro.
+                {t('pollEdit.info')}
               </Text>
             </View>
 
             <Text style={styles.label}>
-              Pergunta <Text style={styles.req}>*</Text>
+              {t('pollEdit.question')} <Text style={styles.req}>*</Text>
             </Text>
             <TextInput
               style={styles.questionInput}
-              placeholder="O que você quer perguntar ao bairro?"
+              placeholder={t('pollEdit.questionPlaceholder')}
               placeholderTextColor={Colors.textTertiary}
               value={question}
               onChangeText={setQuestion}

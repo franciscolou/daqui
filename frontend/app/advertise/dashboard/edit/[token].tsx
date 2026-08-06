@@ -16,6 +16,8 @@ import AdCreativeEditor, {
 } from '../../../../components/AdCreativeEditor';
 import AdPreview from '../../../../components/AdPreview';
 import AdvertiserIdentityFields from '../../../../components/AdvertiserIdentityFields';
+import { useT } from '../../../../lib/i18n';
+import { activeLocale } from '../../../../lib/time';
 
 const FORMAT_LABEL: Record<string, string> = {
   post: 'Post no feed',
@@ -27,12 +29,13 @@ const FORMAT_LABEL: Record<string, string> = {
 
 function formatDate(iso?: string) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(activeLocale(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function EditCampaignScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { token } = useLocalSearchParams<{ token: string }>();
   const { width } = useWindowDimensions();
   const wide = width >= 900;
@@ -103,7 +106,7 @@ export default function EditCampaignScreen() {
         router.replace(`/advertise/dashboard/${token}` as any);
       }
     } catch (e) {
-      setError(e instanceof AdsApiError ? e.message : 'Não foi possível salvar as alterações.');
+      setError(e instanceof AdsApiError ? e.message : t('ads.edit.saveError'));
     } finally {
       setSaving(false);
     }
@@ -115,7 +118,7 @@ export default function EditCampaignScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack(`/advertise/dashboard/${token}` as any)}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{awaitingContent ? 'Preencher anúncio' : 'Editar anúncio'}</Text>
+        <Text style={styles.headerTitle}>{t(awaitingContent ? 'ads.edit.fill' : 'ads.edit.title')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -126,7 +129,7 @@ export default function EditCampaignScreen() {
       ) : notFound || !campaign ? (
         <View style={styles.centerFill}>
           <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
-          <Text style={styles.notFoundText}>Não encontramos nenhum anúncio com esse link.</Text>
+          <Text style={styles.notFoundText}>{t('ads.edit.notFound')}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -134,21 +137,21 @@ export default function EditCampaignScreen() {
             <View style={[styles.formCol, wide && styles.formColWide]}>
               <Text style={styles.summary}>
                 {formatDate(campaign.startsAt)} – {formatDate(campaign.endsAt)} ·{' '}
-                {campaign.formats.map((f) => FORMAT_LABEL[f] ?? f).join(', ')} ·{' '}
-                {campaign.geoScope === 'country' ? 'Brasil todo'
-                  : campaign.geoScope === 'citywide' ? (campaign.city || 'Cidade toda')
+                {campaign.formats.map((f) => t(`ads.formats.${f}`, { defaultValue: FORMAT_LABEL[f] ?? f })).join(', ')} ·{' '}
+                {campaign.geoScope === 'country' ? t('ads.scope.country')
+                  : campaign.geoScope === 'citywide' ? (campaign.city || t('ads.scope.citywide'))
                   : campaign.geoScope === 'cities' ? (campaign.cities.join(', ') || '—')
                   : campaign.neighborhoods.join(', ') || '—'}
               </Text>
               <Text style={styles.summaryHint}>
                 {awaitingContent
-                  ? 'Preço, duração, segmentação e formatos já foram combinados com o time de anúncios — preencha só o conteúdo do seu anúncio abaixo.'
-                  : 'Período, segmentação e formatos não são editáveis por aqui — fale com o time de anúncios pra mudar isso.'}
+                  ? t('ads.edit.awaitingHint')
+                  : t('ads.edit.lockedHint')}
               </Text>
 
               {!awaitingContent && (
                 <>
-                  <Text style={styles.sectionTitle}>Seus dados</Text>
+                  <Text style={styles.sectionTitle}>{t('ads.checkout.yourDetails')}</Text>
                   <AdvertiserIdentityFields
                     type={advertiserType}
                     name={advertiserName}
@@ -157,15 +160,15 @@ export default function EditCampaignScreen() {
                     onChangeName={setAdvertiserName}
                     onChangeDocument={setAdvertiserDocument}
                   />
-                  <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
-                  <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
+                  <TextInput style={styles.input} placeholder={t('ads.checkout.email')} placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
+                  <TextInput style={styles.input} placeholder={t('ads.checkout.phoneOptional')} placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
                 </>
               )}
 
               <AdCreativeEditor formats={campaign.formats} value={blocks} onChange={setBlocks} />
 
               {missingPin && (
-                <Text style={styles.hintText}>Marque o local do pin acima para anunciar no mapa.</Text>
+                <Text style={styles.hintText}>{t('ads.checkout.pinRequired')}</Text>
               )}
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -179,7 +182,7 @@ export default function EditCampaignScreen() {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Text style={styles.submitBtnText}>
-                    {awaitingContent ? 'Ir para o pagamento' : 'Salvar alterações'}
+                    {t(awaitingContent ? 'ads.checkout.goToPayment' : 'ads.edit.saveChanges')}
                   </Text>
                 )}
               </TouchableOpacity>

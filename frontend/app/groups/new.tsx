@@ -15,6 +15,7 @@ import { Palette } from '../../constants/Colors';
 import { GROUP_PRIVACY_INFO } from '../../constants/groups';
 import { api, GroupPrivacy } from '../../lib/api';
 import { User } from '../../data/mock';
+import { useT } from '../../lib/i18n';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
@@ -24,6 +25,7 @@ const PRIVACY_OPTIONS: GroupPrivacy[] = ['public', 'request', 'closed'];
 export default function NewGroupScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -64,7 +66,7 @@ export default function NewGroupScreen() {
       });
       router.replace(`/groups/${group.id}` as any);
     } catch (e: any) {
-      setError(e?.message ?? 'Não foi possível criar o grupo');
+      setError(e?.message ?? t('groups.createError'));
       setCreating(false);
     }
   };
@@ -75,7 +77,7 @@ export default function NewGroupScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => goBack('/groups')}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Novo grupo</Text>
+        <Text style={styles.headerTitle}>{t('groups.newTitle')}</Text>
         <TouchableOpacity
           style={[styles.createBtn, !canCreate && styles.createBtnDisabled]}
           onPress={create}
@@ -85,33 +87,33 @@ export default function NewGroupScreen() {
           {creating ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.createBtnText}>Criar</Text>
+            <Text style={styles.createBtnText}>{t('groups.create')}</Text>
           )}
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
-        <Text style={styles.label}>Nome do grupo</Text>
+        <Text style={styles.label}>{t('groups.name')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Ex.: Vizinhos da Rua das Flores"
+          placeholder={t('groups.namePlaceholder')}
           placeholderTextColor={Colors.textTertiary}
           value={name}
           onChangeText={setName}
           maxLength={120}
         />
 
-        <Text style={styles.label}>Descrição (opcional)</Text>
+        <Text style={styles.label}>{t('groups.descriptionOptional')}</Text>
         <TextInput
           style={[styles.input, styles.inputMultiline]}
-          placeholder="Sobre o que é este grupo?"
+          placeholder={t('groups.descriptionPlaceholder')}
           placeholderTextColor={Colors.textTertiary}
           value={description}
           onChangeText={setDescription}
           multiline
         />
 
-        <Text style={styles.label}>Privacidade</Text>
+        <Text style={styles.label}>{t('groups.privacyTitle')}</Text>
         <View style={styles.privacyGroup}>
           {PRIVACY_OPTIONS.map((option) => {
             const info = GROUP_PRIVACY_INFO[option];
@@ -131,8 +133,8 @@ export default function NewGroupScreen() {
                   />
                 </View>
                 <View style={styles.flex}>
-                  <Text style={styles.privacyTitle}>{info.label}</Text>
-                  <Text style={styles.privacyDesc}>{info.description}</Text>
+                  <Text style={styles.privacyTitle}>{t(`groups.privacy.${option}.label`)}</Text>
+                  <Text style={styles.privacyDesc}>{t(`groups.privacy.${option}.description`)}</Text>
                 </View>
                 <Ionicons
                   name={selected ? 'radio-button-on' : 'radio-button-off'}
@@ -145,10 +147,10 @@ export default function NewGroupScreen() {
         </View>
 
         <Text style={styles.label}>
-          Adicionar membros {selected.size > 0 ? `(${selected.size})` : ''}
+          {t('groups.addMembers')}{selected.size > 0 ? ` (${selected.size})` : ''}
         </Text>
         {neighbors.length === 0 ? (
-          <Text style={styles.emptyNeighbors}>Nenhum vizinho para adicionar por enquanto.</Text>
+          <Text style={styles.emptyNeighbors}>{t('groups.noNeighbors')}</Text>
         ) : (
           neighbors.map((u) => {
             const on = selected.has(u.id);

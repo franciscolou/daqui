@@ -16,13 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { Palette } from '../../constants/Colors';
-import { CATEGORY_ICONS, CATEGORY_LABELS, Post } from '../../data/mock';
+import { CATEGORY_ICONS, Post } from '../../data/mock';
 import { api, Comment } from '../../lib/api';
 import { formatExactDateTime } from '../../lib/time';
 import { useAuth } from '../../lib/auth';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { submitOnEnter } from '../../lib/keyboard';
+import { useT } from '../../lib/i18n';
 
 const MAX_INDENT_DEPTH = 4; // além disso, não indenta mais (evita "escada" infinita)
 import WideLayout from '../../components/WideLayout';
@@ -45,6 +46,7 @@ type WebViewProps = ViewProps & { onMouseEnter?: () => void; onMouseLeave?: () =
 const HoverableView = View as unknown as ComponentType<WebViewProps>;
 
 export default function PostDetailScreen() {
+  const { t } = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const Colors = useTheme();
@@ -410,7 +412,7 @@ export default function PostDetailScreen() {
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <Ionicons name="chatbubble-outline" size={14} color={Colors.textTertiary} />
-                <Text style={styles.commentActionText}>Responder</Text>
+                <Text style={styles.commentActionText}>{t('postDetail.reply')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.commentAction}
@@ -454,8 +456,8 @@ export default function PostDetailScreen() {
                     />
                     <Text style={styles.repliesToggleText}>
                       {isExpanded
-                        ? 'Ocultar respostas'
-                        : `Ver ${comment.repliesCount} ${comment.repliesCount === 1 ? 'resposta' : 'respostas'}`}
+                        ? t('postDetail.hideReplies')
+                        : t('postDetail.viewReplies', { count: comment.repliesCount })}
                     </Text>
                   </>
                 )}
@@ -489,13 +491,12 @@ export default function PostDetailScreen() {
                 )}
                 {post.authorIsResident && <ResidentBadge />}
               </View>
-              <HoverTime iso={post.createdAt} style={styles.time} />
             </View>
           </TouchableOpacity>
           <View style={[styles.catTag, { backgroundColor: catColor + '18' }]}>
             <Ionicons name={CATEGORY_ICONS[post.category] as any} size={10} color={catColor} />
             <Text style={[styles.catText, { color: catColor }]}>
-              {CATEGORY_LABELS[post.category]}
+              {t(`categories.${post.category}`)}
             </Text>
           </View>
           <TouchableOpacity
@@ -615,7 +616,7 @@ export default function PostDetailScreen() {
       </View>
 
       <Text style={styles.commentsTitle}>
-        {commentCount} {commentCount === 1 ? 'comentário' : 'comentários'}
+        {t('postDetail.commentCount', { count: commentCount })}
       </Text>
     </View>
   );
@@ -628,7 +629,7 @@ export default function PostDetailScreen() {
         <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack('/')} hitSlop={10}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>{post?.poll ? 'Enquete' : 'Post'}</Text>
+        <Text style={styles.topBarTitle}>{post?.poll ? t('postDetail.poll') : t('postDetail.post')}</Text>
         {post?.poll && post.author.id === user?.id ? (
           <TouchableOpacity style={styles.topBarIconBtn} onPress={() => router.push(`/poll/${post.id}` as any)} hitSlop={10}>
             <Ionicons name="create-outline" size={22} color={Colors.primary} />
@@ -645,7 +646,7 @@ export default function PostDetailScreen() {
       ) : !post ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
-          <Text style={styles.emptyText}>Post não encontrado.</Text>
+          <Text style={styles.emptyText}>{t('postDetail.notFound')}</Text>
         </View>
       ) : (
         <KeyboardAvoidingView
@@ -659,7 +660,7 @@ export default function PostDetailScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 16 }}
             ListEmptyComponent={
-              <Text style={styles.noComments}>Nenhum comentário ainda.</Text>
+              <Text style={styles.noComments}>{t('postDetail.noComments')}</Text>
             }
             renderItem={({ item }) => renderComment(item, 0)}
           />
@@ -668,7 +669,7 @@ export default function PostDetailScreen() {
             <View style={styles.replyBanner}>
               <Ionicons name="arrow-undo" size={14} color={Colors.primary} />
               <Text style={styles.replyBannerText} numberOfLines={1}>
-                Respondendo a {replyingTo.author.name}
+                {t('postDetail.replyingTo', { name: replyingTo.author.name })}
               </Text>
               <TouchableOpacity onPress={() => setReplyingTo(null)} hitSlop={10}>
                 <Ionicons name="close" size={16} color={Colors.textTertiary} />
@@ -683,7 +684,7 @@ export default function PostDetailScreen() {
               containerStyle={styles.composerInputWrap}
               style={[styles.composerInput, styles.composerInputInner]}
               dropdownDirection="up"
-              placeholder={replyingTo ? `Responder a ${replyingTo.author.name}...` : 'Escreva um comentário...'}
+              placeholder={replyingTo ? t('postDetail.replyPlaceholder', { name: replyingTo.author.name }) : t('postDetail.commentPlaceholder')}
               placeholderTextColor={Colors.textTertiary}
               value={text}
               onChangeText={setText}
@@ -714,7 +715,7 @@ export default function PostDetailScreen() {
           ...(commentMenu && canDeleteComment(commentMenu)
             ? [{
                 key: 'delete',
-                label: 'Excluir comentário',
+                label: t('postDetail.deleteComment'),
                 icon: 'trash-outline' as const,
                 destructive: true,
                 onPress: () => setConfirmDeleteComment(commentMenu),
@@ -723,7 +724,7 @@ export default function PostDetailScreen() {
           ...(commentMenu && commentMenu.author.id !== user?.id
             ? [{
                 key: 'report',
-                label: 'Denunciar comentário',
+                label: t('report.titles.comment'),
                 icon: 'flag-outline' as const,
                 destructive: true,
                 onPress: () => setReportComment(commentMenu),
@@ -739,9 +740,9 @@ export default function PostDetailScreen() {
       />
       <ConfirmModal
         visible={!!confirmDeleteComment}
-        title="Excluir comentário?"
-        message="Esta ação não pode ser desfeita. As respostas a ele também serão removidas."
-        confirmLabel="Excluir"
+        title={t('postDetail.deleteCommentTitle')}
+        message={t('postDetail.deleteCommentMessage')}
+        confirmLabel={t('post.deleteConfirm')}
         destructive
         loading={deleting}
         onConfirm={doDeleteComment}
@@ -754,7 +755,7 @@ export default function PostDetailScreen() {
         options={[
           {
             key: 'repost',
-            label: repostMenuComment?.reposted ? 'Desfazer repost' : 'Repostar',
+            label: repostMenuComment?.reposted ? t('post.undoRepost') : t('post.repost'),
             icon: 'repeat-outline',
             onPress: () => repostMenuComment && toggleCommentRepost(repostMenuComment),
           },
@@ -793,14 +794,14 @@ export default function PostDetailScreen() {
           isPostAuthor
             ? [{
                 key: 'delete',
-                label: 'Excluir post',
+                label: t('post.delete'),
                 icon: 'trash-outline' as const,
                 destructive: true,
                 onPress: () => setConfirmDeletePost(true),
               }]
             : [{
                 key: 'report',
-                label: 'Denunciar post',
+                label: t('report.titles.post'),
                 icon: 'flag-outline' as const,
                 destructive: true,
                 onPress: () => setReportPostVisible(true),
@@ -815,9 +816,9 @@ export default function PostDetailScreen() {
       />
       <ConfirmModal
         visible={confirmDeletePost}
-        title="Excluir publicação?"
-        message="Esta ação não pode ser desfeita. O post e seus comentários serão removidos."
-        confirmLabel="Excluir"
+        title={t('post.deleteTitle')}
+        message={t('post.deleteMessage')}
+        confirmLabel={t('post.deleteConfirm')}
         destructive
         loading={deleting}
         onConfirm={doDeletePost}

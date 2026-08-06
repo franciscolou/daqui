@@ -204,7 +204,6 @@ export interface TargetingParams {
   centerLng?: number;
   audience?: 'all' | 'residents' | 'visitors';
   categories?: string[];
-  groupIds?: number[];
   userRecency?: 'all' | 'new' | 'returning';
   engagement?: 'any' | 'active';
 }
@@ -233,7 +232,6 @@ function targetingBody(
     center_lng: t?.centerLng ?? null,
     audience: t?.audience ?? 'all',
     categories: t?.categories ?? [],
-    group_ids: t?.groupIds ?? [],
     user_recency: t?.userRecency ?? 'all',
     engagement: t?.engagement ?? 'any',
   };
@@ -630,7 +628,6 @@ export const adsApi = {
       lng?: number;
       viewMode?: 'home' | 'nearby';
       category?: string;
-      groupIds?: number[];
       engagement?: 'any' | 'active';
       recency?: 'new' | 'returning';
       viewerId?: string;
@@ -644,7 +641,6 @@ export const adsApi = {
     if (params.lng != null) qs.set('lng', String(params.lng));
     if (params.viewMode) qs.set('view_mode', params.viewMode);
     if (params.category) qs.set('category', params.category);
-    if (params.groupIds?.length) qs.set('group_ids', params.groupIds.join(','));
     if (params.engagement) qs.set('engagement', params.engagement);
     if (params.recency) qs.set('recency', params.recency);
     if (params.viewerId) qs.set('viewer_id', params.viewerId);
@@ -667,7 +663,6 @@ export const adsApi = {
       lng?: number;
       viewMode?: 'home' | 'nearby';
       category?: string;
-      groupIds?: number[];
       engagement?: 'any' | 'active';
       recency?: 'new' | 'returning';
       viewerId?: string;
@@ -683,7 +678,6 @@ export const adsApi = {
     if (params.lng != null) qs.set('lng', String(params.lng));
     if (params.viewMode) qs.set('view_mode', params.viewMode);
     if (params.category) qs.set('category', params.category);
-    if (params.groupIds?.length) qs.set('group_ids', params.groupIds.join(','));
     if (params.engagement) qs.set('engagement', params.engagement);
     if (params.recency) qs.set('recency', params.recency);
     if (params.viewerId) qs.set('viewer_id', params.viewerId);

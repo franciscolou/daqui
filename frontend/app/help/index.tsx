@@ -15,21 +15,22 @@ import { Palette } from '../../constants/Colors';
 import { api, ApiError, SupportTicket } from '../../lib/api';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
+import { useT } from '../../lib/i18n';
+import { formatDate } from '../../lib/time';
 import FeedLayout from '../../components/FeedLayout';
 import AttachmentPicker, { AttachmentDraft } from '../../components/AttachmentPicker';
 import ImageViewerModal, { MediaItem } from '../../components/ImageViewerModal';
 
 type SectionKey = 'how' | 'faq' | 'tickets';
 
-const SECTIONS: { key: SectionKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'how', label: 'Como usar', icon: 'compass-outline' },
-  { key: 'faq', label: 'FAQ', icon: 'help-circle-outline' },
-  { key: 'tickets', label: 'Meus chamados', icon: 'mail-outline' },
+const SECTIONS: { key: SectionKey; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'how', icon: 'compass-outline' }, { key: 'faq', icon: 'help-circle-outline' }, { key: 'tickets', icon: 'mail-outline' },
 ];
 
 export default function HelpScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const [section, setSection] = useState<SectionKey>('how');
 
   return (
@@ -38,7 +39,7 @@ export default function HelpScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Ajuda e suporte</Text>
+        <Text style={styles.headerTitle}>{t('help.title')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -54,7 +55,7 @@ export default function HelpScreen() {
             >
               <Ionicons name={s.icon} size={15} color={active ? '#fff' : Colors.textSecondary} />
               <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]} numberOfLines={1}>
-                {s.label}
+                {t(`help.tabs.${s.key}`)}
               </Text>
             </TouchableOpacity>
           );
@@ -72,68 +73,53 @@ export default function HelpScreen() {
 /* Como usar o Daqui                                                   */
 /* ------------------------------------------------------------------ */
 
-const HOW_TO_STEPS: { icon: keyof typeof Ionicons.glyphMap; title: string; desc: string }[] = [
+const HOW_TO_STEPS: { icon: keyof typeof Ionicons.glyphMap }[] = [
   {
     icon: 'home-outline',
-    title: '"Meu bairro" e "Perto de mim"',
-    desc: 'No topo do Início você escolhe entre "Meu bairro" (o bairro do seu cadastro) e "Perto de mim" (o bairro mais próximo da sua localização atual). Em qualquer um dos dois dá para ligar "Incluir redondezas" para ver também os bairros vizinhos. Some ao filtro por categoria (Aviso, Evento, Venda, Pets…) e à priorização do que estiver marcado como importante.',
   },
   {
     icon: 'home',
-    title: 'O selo "Morador"',
-    desc: 'Os posts e comentários de quem realmente mora naquele bairro ganham o selo "Morador" ao lado do nome — assim fica claro quem é vizinho de fato e quem só está de passagem pelo bairro.',
   },
   {
     icon: 'add-circle-outline',
-    title: 'Publique em segundos',
-    desc: 'Toque em "Novo post", escolha uma categoria, adicione uma foto ou crie uma enquete. Marque como importante só o que for realmente urgente para os vizinhos.',
   },
   {
     icon: 'heart-outline',
-    title: 'Curta, comente e compartilhe',
-    desc: 'Interaja com os posts do bairro e encaminhe os que valem a pena para uma conversa ou grupo.',
   },
   {
     icon: 'chatbubbles-outline',
-    title: 'Mensagens diretas e grupos',
-    desc: 'Fale com um vizinho no privado ou participe de grupos temáticos (rua, condomínio, interesses) nas abas Mensagens e Grupos.',
   },
   {
     icon: 'map-outline',
-    title: 'Mapa do bairro',
-    desc: 'Veja no mapa os avisos e eventos publicados perto de você.',
   },
   {
     icon: 'flag-outline',
-    title: 'Denuncie o que for indevido',
-    desc: 'Em qualquer post, comentário ou perfil, use "Denunciar" para avisar a moderação — não é preciso abrir um chamado para isso.',
   },
   {
     icon: 'star-outline',
-    title: 'Avalie o Daqui',
-    desc: 'Conte pra gente como está sendo sua experiência em "Avaliar o Daqui", na barra lateral.',
   },
 ];
 
 function HowToSection() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   return (
     <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
       <Text style={styles.introText}>
-        Um passo a passo rápido pelas funcionalidades que mais importam no dia a dia do Daqui.
+        {t('help.how.intro')}
       </Text>
       {HOW_TO_STEPS.map((step, i) => (
-        <View key={step.title} style={styles.stepCard}>
+        <View key={i} style={styles.stepCard}>
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText}>{i + 1}</Text>
           </View>
           <View style={styles.stepText}>
             <View style={styles.stepTitleRow}>
               <Ionicons name={step.icon} size={16} color={Colors.primary} />
-              <Text style={styles.stepTitle}>{step.title}</Text>
+              <Text style={styles.stepTitle}>{t(`help.how.steps.${i}.title`)}</Text>
             </View>
-            <Text style={styles.stepDesc}>{step.desc}</Text>
+            <Text style={styles.stepDesc}>{t(`help.how.steps.${i}.desc`)}</Text>
           </View>
         </View>
       ))}
@@ -145,14 +131,14 @@ function HowToSection() {
 /* FAQ                                                                  */
 /* ------------------------------------------------------------------ */
 
-const FAQ_ITEMS: { q: string; a: string }[] = [
+const FAQ_ITEMS = [
   {
     q: 'O que é o Daqui?',
     a: 'O Daqui é uma rede social de bairro: um espaço para vizinhos trocarem avisos, recomendações, achados e perdidos, organizarem eventos e se ajudarem no dia a dia — tudo organizado pelo seu bairro.',
   },
   {
     q: 'Como o app sabe qual é o meu bairro? Posso trocar de bairro?',
-    a: 'O bairro do seu cadastro é o que aparece em "Meu bairro" e é usado no mapa. Se você se mudou, dá para atualizá-lo a qualquer momento em Configurações > Editar perfil, no campo "Bairro". Para só dar uma olhada em outro bairro sem mudar seu cadastro, use a aba "Perto de mim" no Início — ela usa a localização atual do aparelho, sem alterar o que está salvo no seu perfil.',
+    a: 'O bairro do seu cadastro é o que aparece em "Meu bairro" e é usado no mapa. Se você se mudou, dá para atualizá-lo a qualquer momento em Configurações > Meu endereço. Para só dar uma olhada em outro bairro sem mudar seu cadastro, use a aba "Perto de mim" no Início — ela usa a localização atual do aparelho, sem alterar o que está salvo no seu perfil.',
   },
   {
     q: 'Qual a diferença entre "Meu bairro", "Perto de mim" e "Incluir redondezas"?',
@@ -208,6 +194,7 @@ function FaqSection() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const { t } = useT();
 
   return (
     <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -215,16 +202,16 @@ function FaqSection() {
         const open = openIndex === i;
         return (
           <TouchableOpacity
-            key={item.q}
+            key={i}
             style={styles.faqCard}
             activeOpacity={0.8}
             onPress={() => setOpenIndex(open ? null : i)}
           >
             <View style={styles.faqQuestionRow}>
-              <Text style={styles.faqQuestion}>{item.q}</Text>
+              <Text style={styles.faqQuestion}>{t(`help.faq.${i}.q`)}</Text>
               <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textTertiary} />
             </View>
-            {open && <Text style={styles.faqAnswer}>{item.a}</Text>}
+            {open && <Text style={styles.faqAnswer}>{t(`help.faq.${i}.a`)}</Text>}
           </TouchableOpacity>
         );
       })}
@@ -242,6 +229,7 @@ const MAX_TICKET_MESSAGE = 2000;
 function TicketsSection() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t: tr } = useT();
 
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -276,7 +264,7 @@ function TicketsSection() {
 
   const submit = async () => {
     if (!subject.trim() || !message.trim()) {
-      setFeedback({ ok: false, text: 'Preencha o assunto e a mensagem.' });
+      setFeedback({ ok: false, text: tr('help.tickets.required') });
       return;
     }
     if (uploading) return;
@@ -291,10 +279,10 @@ function TicketsSection() {
       setComposing(false);
       setFeedback({
         ok: true,
-        text: `#${created.id} enviado! A resposta do suporte vai aparecer aqui.`,
+        text: tr('help.tickets.sent', { id: created.id }),
       });
     } catch (e) {
-      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : 'Não foi possível enviar. Tente novamente.' });
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : tr('help.tickets.sendError') });
     } finally {
       setSending(false);
     }
@@ -313,30 +301,30 @@ function TicketsSection() {
       {!composing && (
         <TouchableOpacity style={styles.newTicketBtn} activeOpacity={0.85} onPress={openForm}>
           <Ionicons name="add-circle" size={18} color="#fff" />
-          <Text style={styles.newTicketBtnText}>Novo chamado</Text>
+          <Text style={styles.newTicketBtnText}>{tr('help.tickets.new')}</Text>
         </TouchableOpacity>
       )}
 
       {composing && (
         <View style={styles.composeCard}>
-          <Text style={styles.composeTitle}>Novo chamado</Text>
+          <Text style={styles.composeTitle}>{tr('help.tickets.new')}</Text>
 
-          <Text style={styles.fieldLabel}>Assunto <Text style={styles.required}>*</Text></Text>
+          <Text style={styles.fieldLabel}>{tr('help.tickets.subject')} <Text style={styles.required}>*</Text></Text>
           <TextInput
             style={styles.input}
             value={subject}
             onChangeText={setSubject}
-            placeholder="Resuma o que está acontecendo"
+            placeholder={tr('help.tickets.subjectPlaceholder')}
             placeholderTextColor={Colors.textTertiary}
             maxLength={MAX_TICKET_SUBJECT}
           />
 
-          <Text style={styles.fieldLabel}>Mensagem <Text style={styles.required}>*</Text></Text>
+          <Text style={styles.fieldLabel}>{tr('help.tickets.message')} <Text style={styles.required}>*</Text></Text>
           <TextInput
             style={[styles.input, styles.inputMultiline]}
             value={message}
             onChangeText={setMessage}
-            placeholder="Descreva com detalhes o que você precisa"
+            placeholder={tr('help.tickets.messagePlaceholder')}
             placeholderTextColor={Colors.textTertiary}
             multiline
             maxLength={MAX_TICKET_MESSAGE}
@@ -347,14 +335,14 @@ function TicketsSection() {
             setAttachments={setAttachments}
             upload={api.uploadTicketAttachment}
             max={3}
-            label="Anexos"
+            label={tr('help.tickets.attachments')}
           />
 
           {feedback && !feedback.ok && <Text style={styles.feedbackErrText}>{feedback.text}</Text>}
 
           <View style={styles.composeActions}>
             <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.8} onPress={() => setComposing(false)} disabled={sending}>
-              <Text style={styles.secondaryBtnText}>Cancelar</Text>
+              <Text style={styles.secondaryBtnText}>{tr('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.submitBtn, (sending || uploading) && styles.submitBtnDisabled]}
@@ -362,7 +350,7 @@ function TicketsSection() {
               onPress={submit}
               disabled={sending || uploading}
             >
-              {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Enviar chamado</Text>}
+              {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>{tr('help.tickets.send')}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -378,7 +366,7 @@ function TicketsSection() {
       {tickets.length === 0 && !composing ? (
         <View style={styles.emptyState}>
           <Ionicons name="mail-outline" size={32} color={Colors.textTertiary} />
-          <Text style={styles.emptyStateText}>Você ainda não abriu nenhum chamado.</Text>
+          <Text style={styles.emptyStateText}>{tr('help.tickets.empty')}</Text>
         </View>
       ) : (
         tickets.map((t) => {
@@ -394,14 +382,14 @@ function TicketsSection() {
                 <Text style={styles.ticketSubject} numberOfLines={expanded ? undefined : 1}>{t.subject}</Text>
                 <View style={[styles.statusBadge, t.status === 'answered' ? styles.statusAnswered : styles.statusPending]}>
                   <Text style={[styles.statusBadgeText, t.status === 'answered' ? styles.statusAnsweredText : styles.statusPendingText]}>
-                    {t.status === 'answered' ? 'Respondido' : 'Pendente'}
+                    {tr(t.status === 'answered' ? 'help.tickets.answered' : 'help.tickets.pending')}
                   </Text>
                 </View>
               </View>
               <View style={styles.ticketMetaRow}>
                 <Text style={styles.ticketNumber}>#{t.id}</Text>
                 <Text style={styles.ticketDate}>
-                  {new Date(t.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {formatDate(t.createdAt)}
                 </Text>
               </View>
               {expanded && (
@@ -435,13 +423,13 @@ function TicketsSection() {
                     <View style={styles.responseBox}>
                       <View style={styles.responseHeader}>
                         <Ionicons name="chatbubble-ellipses" size={14} color={Colors.primary} />
-                        <Text style={styles.responseLabel}>Resposta do suporte</Text>
+                        <Text style={styles.responseLabel}>{tr('help.tickets.supportResponse')}</Text>
                       </View>
                       <Text style={styles.responseText}>{t.response}</Text>
                     </View>
                   ) : (
                     <Text style={styles.pendingHint}>
-                      Ainda sem resposta — o suporte foi avisado e vai te responder por aqui.
+                      {tr('help.tickets.awaitingResponse')}
                     </Text>
                   )}
                 </>

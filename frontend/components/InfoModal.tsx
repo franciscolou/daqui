@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 
 type Variant = 'info' | 'danger';
 
@@ -20,7 +21,7 @@ export default function InfoModal({
   variant = 'info',
   title,
   message,
-  buttonLabel = 'Entendi',
+  buttonLabel,
   onClose,
 }: {
   visible: boolean;
@@ -32,6 +33,7 @@ export default function InfoModal({
 }) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const color = variant === 'danger' ? Colors.error : Colors.primary;
 
   return (
@@ -44,7 +46,7 @@ export default function InfoModal({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <TouchableOpacity style={[styles.button, { backgroundColor: color }]} onPress={onClose} activeOpacity={0.85}>
-            <Text style={styles.buttonText}>{buttonLabel}</Text>
+            <Text style={styles.buttonText}>{buttonLabel ?? t('common.understood')}</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -5,10 +5,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Palette } from '../../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
+import { useT } from '../../../lib/i18n';
 
 export default function CheckoutSuccessScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { token } = useLocalSearchParams<{ token?: string }>();
   const [copied, setCopied] = useState(false);
 
@@ -35,12 +37,8 @@ export default function CheckoutSuccessScreen() {
         <View style={styles.iconCircle}>
           <Ionicons name="checkmark" size={36} color="#fff" />
         </View>
-        <Text style={styles.title}>Anúncio recebido!</Text>
-        <Text style={styles.subtitle}>
-          Assim que o pagamento for confirmado, seu anúncio entra no ar. Guarde o link
-          abaixo — é por ele que você acompanha o status e os resultados do seu anúncio,
-          sem precisar de login.
-        </Text>
+        <Text style={styles.title}>{t('ads.success.title')}</Text>
+        <Text style={styles.subtitle}>{t('ads.success.description')}</Text>
 
         {panelUrl ? (
           <>
@@ -49,20 +47,20 @@ export default function CheckoutSuccessScreen() {
               <Text style={styles.linkText} numberOfLines={1}>{panelUrl}</Text>
               <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color={Colors.primary} />
             </TouchableOpacity>
-            {copied && <Text style={styles.copiedText}>Link copiado!</Text>}
+            {copied && <Text style={styles.copiedText}>{t('ads.success.copied')}</Text>}
 
             <TouchableOpacity
               style={styles.primaryBtn}
               activeOpacity={0.85}
               onPress={() => router.replace(`/advertise/dashboard/${token}` as any)}
             >
-              <Text style={styles.primaryBtnText}>Ver meu anúncio</Text>
+              <Text style={styles.primaryBtnText}>{t('ads.success.view')}</Text>
             </TouchableOpacity>
           </>
         ) : null}
 
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.replace('/')}>
-          <Text style={styles.secondaryBtnText}>Voltar para o Daqui</Text>
+          <Text style={styles.secondaryBtnText}>{t('ads.success.back')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

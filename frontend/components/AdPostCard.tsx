@@ -9,6 +9,7 @@ import { User } from '../data/mock';
 import VideoPlayer from './VideoPlayer';
 import VerifiedBadge from './VerifiedBadge';
 import ImageViewerModal from './ImageViewerModal';
+import { useT } from '../lib/i18n';
 
 // Card de anúncio no feed — mesmo formato visual de um PostCard, mas com
 // dados de uma campanha (não um Post real) e link externo em vez de rota
@@ -18,6 +19,7 @@ import ImageViewerModal from './ImageViewerModal';
 export default function AdPostCard({ ad, viewerId }: { ad: Ad; viewerId?: string }) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const [linkedUser, setLinkedUser] = useState<User | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [mediaRange, setMediaRange] = useState<{ top: number; bottom: number } | null>(null);
@@ -76,14 +78,14 @@ export default function AdPostCard({ ad, viewerId }: { ad: Ad; viewerId?: string
             )}
             {linkedUser.verified && <VerifiedBadge size={13} />}
             <Text style={styles.dot}>·</Text>
-            <Text style={styles.sponsoredText}>Patrocinado</Text>
+            <Text style={styles.sponsoredText}>{t('ads.sponsored')}</Text>
           </View>
         </View>
       ) : (
         <View style={styles.tagRow}>
           <View style={styles.adTag}>
             <Ionicons name="megaphone-outline" size={11} color={Colors.accent} />
-            <Text style={styles.adTagText}>Anúncio</Text>
+            <Text style={styles.adTagText}>{t('ads.ad')}</Text>
           </View>
         </View>
       )}
@@ -104,7 +106,7 @@ export default function AdPostCard({ ad, viewerId }: { ad: Ad; viewerId?: string
       )}
 
       <View style={styles.ctaRow}>
-        <Text style={styles.ctaText}>{ad.ctaLabel || 'Saiba mais'}</Text>
+        <Text style={styles.ctaText}>{ad.ctaLabel || t('ads.learnMore')}</Text>
         <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
       </View>
 

@@ -138,7 +138,6 @@ def default_targeting() -> dict:
         "center_lng": None,
         "audience": Audience.ALL,
         "categories": [],
-        "group_ids": [],
         "user_recency": UserRecency.ALL,
         "engagement": EngagementLevel.ANY,
     }

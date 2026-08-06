@@ -2,11 +2,13 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Palette } from '../constants/Colors';
-import { Post, CATEGORY_LABELS, CATEGORY_ICONS } from '../data/mock';
+import { Post, CATEGORY_ICONS } from '../data/mock';
 import { api } from '../lib/api';
 import { useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
+import { activeLocale } from '../lib/time';
 import ActionMenu from './ActionMenu';
 import ConfirmModal from './ConfirmModal';
 import HoverTime from './HoverTime';
@@ -27,6 +29,7 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { user } = useAuth();
@@ -150,19 +153,19 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
           <View style={[styles.catTag, { backgroundColor: catColor + '18' }]}>
             <Ionicons name={CATEGORY_ICONS[post.category] as any} size={10} color={catColor} />
             <Text style={[styles.catText, { color: catColor }]}>
-              {CATEGORY_LABELS[post.category]}
+              {t(`categories.${post.category}`)}
             </Text>
           </View>
           {post.important && (
             <View style={styles.importantTag}>
               <Ionicons name="alert-circle" size={10} color={Colors.error} />
-              <Text style={styles.importantTagText}>Importante</Text>
+              <Text style={styles.importantTagText}>{t('post.important')}</Text>
             </View>
           )}
           {post.pinned && (
             <View style={styles.pinnedTag}>
               <Ionicons name="pin" size={10} color={Colors.textTertiary} />
-              <Text style={styles.pinnedTagText}>Fixado</Text>
+              <Text style={styles.pinnedTagText}>{t('post.pinned')}</Text>
             </View>
           )}
         </View>
@@ -244,7 +247,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
           ? [
               {
                 key: 'delete',
-                label: 'Excluir post',
+                label: t('post.delete'),
                 icon: 'trash-outline',
                 destructive: true,
                 onPress: () => setConfirmDeleteVisible(true),
@@ -253,7 +256,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
           : [
               {
                 key: 'report',
-                label: 'Denunciar publicação',
+                label: t('report.titles.post'),
                 icon: 'flag-outline',
                 destructive: true,
                 onPress: () => setReportVisible(true),
@@ -267,13 +270,13 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
       options={[
         {
           key: 'repost',
-          label: reposted ? 'Desfazer repost' : 'Repostar',
+          label: reposted ? t('post.undoRepost') : t('post.repost'),
           icon: 'repeat-outline',
           onPress: toggleRepost,
         },
         {
           key: 'quote',
-          label: 'Citar',
+          label: t('post.quote'),
           icon: 'create-outline',
           onPress: quote,
         },
@@ -287,9 +290,9 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
     />
     <ConfirmModal
       visible={confirmDeleteVisible}
-      title="Excluir publicação?"
-      message="Esta ação não pode ser desfeita. O post e seus comentários serão removidos."
-      confirmLabel="Excluir"
+      title={t('post.deleteTitle')}
+      message={t('post.deleteMessage')}
+      confirmLabel={t('post.deleteConfirm')}
       destructive
       loading={deleting}
       onConfirm={doDelete}
@@ -300,19 +303,16 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
 }
 
 function formatEventDates(dates: string[]): string {
-  const fmt = (iso: string) => {
-    const [, m, d] = iso.split('-');
-    return `${d}/${m}`;
-  };
+  const fmt = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString(activeLocale(), { day: '2-digit', month: '2-digit' });
   if (dates.length <= 2) return dates.map(fmt).join(', ');
   return `${dates.slice(0, 2).map(fmt).join(', ')} +${dates.length - 2}`;
 }
 
 function formatPrice(price: number): string {
-  return `R$ ${price.toLocaleString('pt-BR', {
+  return price.toLocaleString(activeLocale(), { style: 'currency', currency: 'BRL',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  });
 }
 
 function PostDetails({
@@ -324,12 +324,13 @@ function PostDetails({
   styles: ReturnType<typeof makeStyles>;
   Colors: Palette;
 }) {
+  const { t } = useT();
   const chips: ReactNode[] = [];
 
   if (post.category === 'evento' && post.eventDates?.length) {
     const label =
       formatEventDates(post.eventDates) +
-      (post.allDay ? ' · Dia inteiro' : post.eventTime ? ` · ${post.eventTime}` : '');
+      (post.allDay ? ` · ${t('post.allDay')}` : post.eventTime ? ` · ${post.eventTime}` : '');
     chips.push(
       <View key="date" style={styles.detailChip}>
         <Ionicons name="calendar-outline" size={12} color={Colors.primary} />
@@ -340,7 +341,7 @@ function PostDetails({
 
   if (post.category === 'venda') {
     const priceLabel = post.priceNegotiable
-      ? 'Negociável'
+      ? t('publish.sale.negotiable')
       : typeof post.price === 'number'
       ? formatPrice(post.price)
       : null;

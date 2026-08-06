@@ -4,6 +4,8 @@ import Svg, { Circle, Defs, ClipPath, G, Line, Path, Rect, Text as SvgText } fro
 import Animated, { useAnimatedProps, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import { useTheme } from '../../lib/theme';
 import { formatCompactNumber, niceTicks, pickLabelIndices } from './chartUtils';
+import { useT } from '../../lib/i18n';
+import { activeLocale } from '../../lib/time';
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
@@ -43,6 +45,7 @@ export default function TimeseriesChart({
   height = 200,
 }: TimeseriesChartProps) {
   const Colors = useTheme();
+  const { t } = useT();
   const colorA = seriesAColor ?? Colors.primary;
   const colorB = seriesBColor ?? Colors.accent;
   const [width, setWidth] = useState(0);
@@ -83,7 +86,7 @@ export default function TimeseriesChart({
   if (!data.length) {
     return (
       <View onLayout={onLayout} style={{ height, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 13, color: Colors.textTertiary }}>Sem eventos no período.</Text>
+        <Text style={{ fontSize: 13, color: Colors.textTertiary }}>{t('ads.charts.noEvents')}</Text>
       </View>
     );
   }
@@ -209,8 +212,8 @@ export default function TimeseriesChart({
             }}
           >
             <Text style={{ fontSize: 11, fontWeight: '700', color: Colors.text }}>{active.label}</Text>
-            <Text style={{ fontSize: 11, color: Colors.textSecondary }}>{seriesALabel}: {active.a.toLocaleString('pt-BR')}</Text>
-            <Text style={{ fontSize: 11, color: Colors.textSecondary }}>{seriesBLabel}: {active.b.toLocaleString('pt-BR')}</Text>
+            <Text style={{ fontSize: 11, color: Colors.textSecondary }}>{seriesALabel}: {active.a.toLocaleString(activeLocale())}</Text>
+            <Text style={{ fontSize: 11, color: Colors.textSecondary }}>{seriesBLabel}: {active.b.toLocaleString(activeLocale())}</Text>
           </View>
         )}
       </View>

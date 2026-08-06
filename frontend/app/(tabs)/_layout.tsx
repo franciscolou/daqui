@@ -8,7 +8,9 @@ import { useT } from '../../lib/i18n';
 import { useRealtime } from '../../lib/realtime';
 import { useScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { ComponentProps } from 'react';
+
+type BottomTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 
 // Ordem da barra inferior (mobile), da esquerda para a direita.
 // 'perfil' fica de fora de propósito — é acessível pelo avatar/menu.

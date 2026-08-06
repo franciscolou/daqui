@@ -6,7 +6,7 @@ import AdAdvancedSelectors from '@daqui/components/AdAdvancedSelectors';
 import StartDatePicker from '@daqui/components/StartDatePicker';
 import { api, errorMessage } from '../lib/api';
 import { APP_URL } from '../lib/config';
-import { fmtMoney, maskDocument, parseCsvNumbers } from '../lib/format';
+import { fmtMoney, maskDocument } from '../lib/format';
 import { ALL_FORMATS, FORMAT_LABEL, GEO_SCOPES, GeoScope, OBJECTIVE_LABEL } from '../lib/labels';
 import { CheckPill, CollapseSection, CopyButton, Field } from '../ui/primitives';
 
@@ -26,7 +26,6 @@ interface AdvancedState {
   includeNearby: boolean;
   engagementActive: boolean;
   categories: string[];
-  groupIds: string;
   hours: number[] | null;
   daysOfWeek: number[] | null;
   specialDates: string[];
@@ -42,11 +41,29 @@ const INITIAL_ADVANCED: AdvancedState = {
   includeNearby: false,
   engagementActive: false,
   categories: [],
-  groupIds: '',
   hours: null,
   daysOfWeek: null,
   specialDates: [],
 };
+
+function todayDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToDateString(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number);
+  const next = new Date(year, month - 1, day);
+  next.setDate(next.getDate() + days);
+  return [
+    next.getFullYear(),
+    String(next.getMonth() + 1).padStart(2, '0'),
+    String(next.getDate()).padStart(2, '0'),
+  ].join('-');
+}
 
 export function NewProposal() {
   const [advertiserType, setAdvertiserType] = useState<'individual' | 'company'>('individual');
@@ -72,6 +89,23 @@ export function NewProposal() {
   const [advertiserLink, setAdvertiserLink] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const campaignStart = useMemo(() => startsAt ?? todayDateString(), [startsAt]);
+  const campaignEnd = useMemo(() => {
+    const durationDays = Math.max(1, parseInt(duration, 10) || 1);
+    return addDaysToDateString(campaignStart, durationDays - 1);
+  }, [campaignStart, duration]);
+
+  // Uma mudança no início ou na duração pode invalidar datas especiais já
+  // escolhidas. Mantemos somente as que ainda pertencem à janela da campanha.
+  useEffect(() => {
+    setAdvanced((prev) => {
+      const specialDates = prev.specialDates.filter(
+        (date) => date >= campaignStart && date <= campaignEnd,
+      );
+      return specialDates.length === prev.specialDates.length ? prev : { ...prev, specialDates };
+    });
+  }, [campaignStart, campaignEnd]);
 
   const setAdv = <K extends keyof AdvancedState>(key: K, value: AdvancedState[K]) =>
     setAdvanced((prev) => ({ ...prev, [key]: value }));
@@ -112,7 +146,6 @@ export function NewProposal() {
         include_nearby: advanced.includeNearby,
         audience: advanced.audience,
         categories: advanced.categories,
-        group_ids: parseCsvNumbers(advanced.groupIds),
         user_recency: advanced.recency,
         engagement: advanced.engagementActive ? 'active' : 'any',
       },
@@ -386,16 +419,11 @@ export function NewProposal() {
                   specialDates: advanced.specialDates,
                 }}
                 onChange={(next) => setAdvanced((prev) => ({ ...prev, ...next }))}
+                minDate={campaignStart}
+                maxDate={campaignEnd}
               />
             </View>
           </div>
-          <Field label="Grupos alvo (IDs separados por vírgula, opcional)">
-            <input
-              placeholder="1, 4"
-              value={advanced.groupIds}
-              onChange={(e) => setAdv('groupIds', e.target.value)}
-            />
-          </Field>
         </CollapseSection>
 
         <button

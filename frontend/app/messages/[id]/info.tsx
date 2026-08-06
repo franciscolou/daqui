@@ -14,6 +14,7 @@ import { Palette } from '../../../constants/Colors';
 import { api } from '../../../lib/api';
 import { User } from '../../../data/mock';
 import { goBack } from '../../../lib/navigation';
+import { useT } from '../../../lib/i18n';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import FeedLayout from '../../../components/FeedLayout';
 import ImageViewerModal from '../../../components/ImageViewerModal';
@@ -29,6 +30,7 @@ export default function DmInfoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const [other, setOther] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +58,7 @@ export default function DmInfoScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => goBack(`/messages/${id}` as any)}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Informações da conversa</Text>
+        <Text style={styles.headerTitle}>{t('conversationInfo.title')}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -66,7 +68,7 @@ export default function DmInfoScreen() {
         </View>
       ) : !other || !id ? (
         <View style={styles.center}>
-          <Text style={styles.emptyDesc}>Conversa não encontrada ou indisponível.</Text>
+          <Text style={styles.emptyDesc}>{t('conversationInfo.notFound')}</Text>
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
@@ -77,7 +79,7 @@ export default function DmInfoScreen() {
               activeOpacity={0.85}
               onPress={() => setAvatarVisible(true)}
               accessibilityRole="button"
-              accessibilityLabel={`Ver foto de ${other.name}`}
+              accessibilityLabel={t('conversationInfo.viewPhoto', { name: other.name })}
             >
               <Image source={{ uri: other.avatar }} style={styles.heroAvatar} />
             </TouchableOpacity>
@@ -104,7 +106,7 @@ export default function DmInfoScreen() {
             <View style={styles.iconWrap}>
               <Ionicons name="person-outline" size={18} color={Colors.primary} />
             </View>
-            <Text style={styles.label}>Ver perfil completo</Text>
+            <Text style={styles.label}>{t('conversationInfo.viewProfile')}</Text>
             <View style={styles.flex} />
             <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
           </TouchableOpacity>

@@ -8,6 +8,8 @@ import { useTheme, useThemedStyles } from '../../../lib/theme';
 import { adsApi, AdsApiError, MyCampaign, CampaignStatus } from '../../../lib/adsApi';
 import VideoPlayer from '../../../components/VideoPlayer';
 import RankedBarChart from '../../../components/charts/RankedBarChart';
+import { useT } from '../../../lib/i18n';
+import { activeLocale } from '../../../lib/time';
 
 const FORMAT_LABEL: Record<string, string> = {
   post: 'Post no feed',
@@ -34,17 +36,18 @@ const GROUP_TABS: { key: GroupBy; label: string }[] = [
 ];
 
 function formatMoney(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return (cents / 100).toLocaleString(activeLocale(), { style: 'currency', currency: 'BRL' });
 }
 
 function formatDate(iso?: string) {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString(activeLocale(), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function AdvertiserPanelScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { token } = useLocalSearchParams<{ token: string }>();
 
   const [campaign, setCampaign] = useState<MyCampaign | null>(null);
@@ -105,7 +108,7 @@ export default function AdvertiserPanelScreen() {
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.replace('/advertise/dashboard')}>
             <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Meu anúncio</Text>
+          <Text style={styles.headerTitle}>{t('ads.panel.title')}</Text>
           {campaign && campaign.status !== 'awaiting_content' && (
             <View style={styles.headerActions}>
               <TouchableOpacity
@@ -113,11 +116,11 @@ export default function AdvertiserPanelScreen() {
                 onPress={() => router.push(`/advertise/dashboard/edit/${token}` as any)}
               >
                 <Ionicons name="pencil-outline" size={14} color={Colors.primary} />
-                <Text style={styles.actionPillText}>Editar</Text>
+                <Text style={styles.actionPillText}>{t('ads.panel.edit')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.actionPill} onPress={reactivate}>
                 <Ionicons name="refresh-outline" size={14} color={Colors.primary} />
-                <Text style={styles.actionPillText}>Reativar</Text>
+                <Text style={styles.actionPillText}>{t('ads.panel.reactivate')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -131,17 +134,14 @@ export default function AdvertiserPanelScreen() {
       ) : notFound || !campaign ? (
         <View style={styles.centerFill}>
           <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
-          <Text style={styles.notFoundText}>
-            Não encontramos nenhum anúncio com esse link. Confira se o endereço está
-            completo, ou fale com quem contratou o anúncio.
-          </Text>
+          <Text style={styles.notFoundText}>{t('ads.panel.notFound')}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: Colors[STATUS_META[campaign.status].color] as string }]} />
             <Text style={[styles.statusText, { color: Colors[STATUS_META[campaign.status].color] as string }]}>
-              {STATUS_META[campaign.status].label}
+              {t(`ads.status.${campaign.status}`)}
             </Text>
           </View>
 
@@ -161,28 +161,28 @@ export default function AdvertiserPanelScreen() {
 
           <View style={styles.infoGrid}>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Duração</Text>
+              <Text style={styles.infoLabel}>{t('ads.panel.duration')}</Text>
               <Text style={styles.infoValue}>
                 {campaign.status === 'awaiting_content'
-                  ? `${campaign.durationDays} dias`
+                  ? t('ads.checkout.days', { count: campaign.durationDays })
                   : `${formatDate(campaign.startsAt)} – ${formatDate(campaign.endsAt)}`}
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Formatos</Text>
-              <Text style={styles.infoValue}>{campaign.formats.map((f) => FORMAT_LABEL[f] ?? f).join(', ')}</Text>
+              <Text style={styles.infoLabel}>{t('ads.panel.formats')}</Text>
+              <Text style={styles.infoValue}>{campaign.formats.map((f) => t(`ads.formats.${f}`, { defaultValue: FORMAT_LABEL[f] ?? f })).join(', ')}</Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Segmentação</Text>
+              <Text style={styles.infoLabel}>{t('ads.panel.targeting')}</Text>
               <Text style={styles.infoValue}>
-                {campaign.geoScope === 'country' ? 'Brasil todo'
-                  : campaign.geoScope === 'citywide' ? (campaign.city || 'Cidade toda')
+                {campaign.geoScope === 'country' ? t('ads.scope.country')
+                  : campaign.geoScope === 'citywide' ? (campaign.city || t('ads.scope.citywide'))
                   : campaign.geoScope === 'cities' ? (campaign.cities.join(', ') || '—')
                   : campaign.neighborhoods.join(', ') || '—'}
               </Text>
             </View>
             <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Investimento</Text>
+              <Text style={styles.infoLabel}>{t('ads.panel.investment')}</Text>
               <Text style={styles.infoValue}>{formatMoney(campaign.priceCents)}</Text>
             </View>
           </View>
@@ -190,24 +190,21 @@ export default function AdvertiserPanelScreen() {
           {campaign.status === 'awaiting_content' ? (
             <View style={styles.awaitingCard}>
               <Ionicons name="create-outline" size={22} color={Colors.primary} />
-              <Text style={styles.awaitingTitle}>Falta preencher o conteúdo do seu anúncio</Text>
-              <Text style={styles.awaitingText}>
-                As condições acima já foram combinadas. Preencha o conteúdo criativo do seu
-                anúncio pra seguir pro pagamento.
-              </Text>
+              <Text style={styles.awaitingTitle}>{t('ads.panel.contentMissing')}</Text>
+              <Text style={styles.awaitingText}>{t('ads.panel.contentHint')}</Text>
               <TouchableOpacity
                 style={styles.awaitingBtn}
                 activeOpacity={0.85}
                 onPress={() => router.push(`/advertise/dashboard/edit/${token}` as any)}
               >
-                <Text style={styles.awaitingBtnText}>Preencher conteúdo do anúncio</Text>
+                <Text style={styles.awaitingBtnText}>{t('ads.panel.fillContent')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <>
               {campaign.history.length > 1 && (
                 <>
-                  <Text style={styles.sectionTitle}>Histórico</Text>
+                  <Text style={styles.sectionTitle}>{t('ads.panel.history')}</Text>
                   <View style={{ gap: 8 }}>
                     {campaign.history.map((p) => {
                       const isCurrent = p.accessToken === token;
@@ -222,10 +219,10 @@ export default function AdvertiserPanelScreen() {
                           <View style={[styles.statusDot, { backgroundColor: Colors[STATUS_META[p.status].color] as string }]} />
                           <View style={{ flex: 1 }}>
                             <Text style={styles.historyDates}>
-                              {formatDate(p.startsAt)} – {formatDate(p.endsAt)}{isCurrent ? ' · atual' : ''}
+                              {formatDate(p.startsAt)} – {formatDate(p.endsAt)}{isCurrent ? ` · ${t('ads.panel.current')}` : ''}
                             </Text>
                             <Text style={styles.historyStats}>
-                              {p.impressionsCount} imp · {p.clicksCount} cliques · {formatMoney(p.priceCents)}
+                              {t('ads.panel.historyStats', { impressions: p.impressionsCount, clicks: p.clicksCount, price: formatMoney(p.priceCents) })}
                             </Text>
                           </View>
                           {!isCurrent && <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />}
@@ -236,15 +233,15 @@ export default function AdvertiserPanelScreen() {
                 </>
               )}
 
-              <Text style={styles.sectionTitle}>Resultados</Text>
+              <Text style={styles.sectionTitle}>{t('ads.panel.results')}</Text>
               <View style={styles.metricsRow}>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{campaign.analytics.impressions}</Text>
-                  <Text style={styles.metricLabel}>Impressões</Text>
+                  <Text style={styles.metricLabel}>{t('ads.metrics.impressions')}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{campaign.analytics.clicks}</Text>
-                  <Text style={styles.metricLabel}>Cliques</Text>
+                  <Text style={styles.metricLabel}>{t('ads.metrics.clicks')}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{(campaign.analytics.ctr * 100).toFixed(1)}%</Text>
@@ -254,22 +251,22 @@ export default function AdvertiserPanelScreen() {
               <View style={styles.metricsRow}>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{campaign.analytics.cpcCents != null ? formatMoney(campaign.analytics.cpcCents) : '—'}</Text>
-                  <Text style={styles.metricLabel}>Custo por clique</Text>
+                  <Text style={styles.metricLabel}>{t('ads.metrics.cpc')}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{campaign.analytics.cpmCents != null ? formatMoney(campaign.analytics.cpmCents) : '—'}</Text>
-                  <Text style={styles.metricLabel}>Custo por mil impressões</Text>
+                  <Text style={styles.metricLabel}>{t('ads.metrics.cpm')}</Text>
                 </View>
               </View>
 
               <View style={styles.tabsRow}>
-                {GROUP_TABS.map((t) => (
+                {GROUP_TABS.map((tab) => (
                   <TouchableOpacity
-                    key={t.key}
-                    style={[styles.tab, groupBy === t.key && styles.tabActive]}
-                    onPress={() => setGroupBy(t.key)}
+                    key={tab.key}
+                    style={[styles.tab, groupBy === tab.key && styles.tabActive]}
+                    onPress={() => setGroupBy(tab.key)}
                   >
-                    <Text style={[styles.tabText, groupBy === t.key && styles.tabTextActive]}>{t.label}</Text>
+                    <Text style={[styles.tabText, groupBy === tab.key && styles.tabTextActive]}>{t(`ads.panel.groupBy.${tab.key}`)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -279,12 +276,12 @@ export default function AdvertiserPanelScreen() {
               ) : (
                 <View style={styles.chartCard}>
                   <RankedBarChart
-                    emptyLabel="Sem dados suficientes ainda."
+                    emptyLabel={t('ads.panel.noData')}
                     data={campaign.analytics.buckets.map((b) => ({
                       key: b.key,
                       label: b.key,
                       value: b.impressions,
-                      sublabel: `${b.clicks} cliques`,
+                      sublabel: t('ads.panel.clickCount', { count: b.clicks }),
                     }))}
                   />
                 </View>

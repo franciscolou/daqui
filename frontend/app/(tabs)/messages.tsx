@@ -38,6 +38,7 @@ import LeftSidebar from '../../components/LeftSidebar';
 import MobileMenu from '../../components/MobileMenu';
 import ChatView, { ChatTarget } from '../../components/ChatView';
 import { CONTENT_MAX_W } from '../../components/WideLayout';
+import { useT } from '../../lib/i18n';
 
 const WIDE = 900;
 const LEFT_W = 220;
@@ -55,6 +56,7 @@ type InboxItem = ConvInboxItem | { kind: 'ad'; key: string; ad: Ad };
 type SearchTab = 'yours' | 'discover';
 
 export default function MessagesScreen() {
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
   const Colors = useTheme();
@@ -225,11 +227,11 @@ export default function MessagesScreen() {
   const listHeader = (
     <View style={styles.listHeader}>
       <View style={styles.listHeaderTop}>
-        <Text style={styles.listTitle}>Mensagens</Text>
+        <Text style={styles.listTitle}>{t('messages.title')}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.composeBtn} activeOpacity={0.85} onPress={() => setNewConvOpen(true)}>
             <Ionicons name="create-outline" size={18} color="#fff" />
-            <Text style={styles.composeBtnText}>Nova</Text>
+            <Text style={styles.composeBtnText}>{t('messages.new')}</Text>
           </TouchableOpacity>
           {!isWide && <MobileMenu inline />}
         </View>
@@ -238,7 +240,7 @@ export default function MessagesScreen() {
         <Ionicons name="search-outline" size={17} color={Colors.textTertiary} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar conversa, mensagem ou grupo..."
+          placeholder={t('messages.searchPlaceholder')}
           placeholderTextColor={Colors.textTertiary}
           value={search}
           onChangeText={onChangeSearch}
@@ -246,8 +248,8 @@ export default function MessagesScreen() {
       </View>
       {searching && (
         <View style={styles.tabs}>
-          <TabButton label="Suas conversas" active={tab === 'yours'} onPress={() => setTab('yours')} />
-          <TabButton label="Descobrir" active={tab === 'discover'} onPress={() => setTab('discover')} />
+          <TabButton label={t('messages.yourConversations')} active={tab === 'yours'} onPress={() => setTab('yours')} />
+          <TabButton label={t('messages.discover')} active={tab === 'discover'} onPress={() => setTab('discover')} />
         </View>
       )}
     </View>
@@ -309,8 +311,8 @@ export default function MessagesScreen() {
             ) : searching ? null : (
               <View style={styles.empty}>
                 <Ionicons name="chatbubbles-outline" size={48} color={Colors.textTertiary} />
-                <Text style={styles.emptyTitle}>Nenhuma conversa</Text>
-                <Text style={styles.emptyDesc}>Toque em “Nova” para falar com um vizinho ou criar um grupo</Text>
+                <Text style={styles.emptyTitle}>{t('messages.emptyTitle')}</Text>
+                <Text style={styles.emptyDesc}>{t('messages.emptyDesc')}</Text>
               </View>
             )
           }
@@ -332,13 +334,13 @@ export default function MessagesScreen() {
       <View style={styles.detailEmptyIcon}>
         <Ionicons name="chatbubbles-outline" size={40} color={Colors.primary} />
       </View>
-      <Text style={styles.detailEmptyTitle}>Suas mensagens</Text>
+      <Text style={styles.detailEmptyTitle}>{t('messages.yourMessages')}</Text>
       <Text style={styles.detailEmptyDesc}>
-        Selecione uma conversa à esquerda ou comece uma nova para conversar com seus vizinhos.
+        {t('messages.selectConversation')}
       </Text>
       <TouchableOpacity style={styles.startBtn} activeOpacity={0.85} onPress={() => setNewConvOpen(true)}>
         <Ionicons name="create-outline" size={18} color="#fff" />
-        <Text style={styles.startBtnText}>Começar nova conversa</Text>
+        <Text style={styles.startBtnText}>{t('messages.startConversation')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -383,6 +385,7 @@ function TabButton({ label, active, onPress }: { label: string; active: boolean;
 }
 
 function InboxRow({ item, active, onPress }: { item: ConvInboxItem; active: boolean; onPress: () => void }) {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const { typingDmUserIds, typingGroupUserIds } = useRealtime();
@@ -420,7 +423,7 @@ function InboxRow({ item, active, onPress }: { item: ConvInboxItem; active: bool
             style={[styles.msgPreview, unread > 0 && styles.msgPreviewBold, isTyping && styles.msgPreviewTyping]}
             numberOfLines={1}
           >
-            {isTyping ? 'digitando…' : lastMessage}
+            {isTyping ? t('messages.typing') : lastMessage}
           </Text>
           {unread > 0 && (
             <View style={styles.unreadBadge}>
@@ -434,6 +437,7 @@ function InboxRow({ item, active, onPress }: { item: ConvInboxItem; active: bool
 }
 
 function AdInboxRow({ ad, viewerId }: { ad: Ad; viewerId?: string }) {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
 
@@ -456,7 +460,7 @@ function AdInboxRow({ ad, viewerId }: { ad: Ad; viewerId?: string }) {
           <View style={styles.nameRow}>
             <Text style={styles.msgName} numberOfLines={1}>{ad.title}</Text>
           </View>
-          <Text style={styles.msgTime}>Anúncio</Text>
+          <Text style={styles.msgTime}>{t('messages.ad')}</Text>
         </View>
         <Text style={styles.msgPreview} numberOfLines={1}>{ad.content}</Text>
       </View>
@@ -473,6 +477,7 @@ function DiscoverList({
   loading: boolean;
   onEnter: (g: Group) => void;
 }) {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   const [joining, setJoining] = useState<string | null>(null);
@@ -488,7 +493,7 @@ function DiscoverList({
     return (
       <View style={styles.empty}>
         <Ionicons name="compass-outline" size={44} color={Colors.textTertiary} />
-        <Text style={styles.emptyDesc}>Nenhum grupo aberto encontrado.</Text>
+        <Text style={styles.emptyDesc}>{t('messages.noGroups')}</Text>
       </View>
     );
   }
@@ -510,12 +515,12 @@ function DiscoverList({
           <View style={styles.msgContent}>
             <Text style={styles.msgName} numberOfLines={1}>{item.name}</Text>
             <Text style={styles.msgPreview} numberOfLines={1}>
-              {item.membersCount} {item.membersCount === 1 ? 'membro' : 'membros'}
+              {t('messages.memberCount', { count: item.membersCount })}
               {item.neighborhood ? ` · ${item.neighborhood}` : ''}
             </Text>
           </View>
           <TouchableOpacity style={styles.joinBtn} activeOpacity={0.85} disabled={joining === item.id} onPress={() => enter(item)}>
-            {joining === item.id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.joinBtnText}>Entrar</Text>}
+            {joining === item.id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.joinBtnText}>{t('messages.join')}</Text>}
           </TouchableOpacity>
         </View>
       )}
@@ -534,6 +539,7 @@ function MessageSearchResults({
   nothingElse: boolean;
   onOpen: (m: MessageResult) => void;
 }) {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   if (loading) return <ActivityIndicator color={Colors.primary} style={styles.loader} />;
@@ -541,13 +547,13 @@ function MessageSearchResults({
     return nothingElse ? (
       <View style={styles.empty}>
         <Ionicons name="search-outline" size={44} color={Colors.textTertiary} />
-        <Text style={styles.emptyDesc}>Nenhuma conversa ou mensagem encontrada.</Text>
+        <Text style={styles.emptyDesc}>{t('messages.noResults')}</Text>
       </View>
     ) : null;
   }
   return (
     <View>
-      <Text style={styles.sectionTitle}>Mensagens</Text>
+      <Text style={styles.sectionTitle}>{t('messages.title')}</Text>
       {results.map((m) => (
         <TouchableOpacity key={m.id} style={styles.msgRow} activeOpacity={0.85} onPress={() => onOpen(m)}>
           <Image source={{ uri: m.user.avatar }} style={styles.msgAvatar} />
@@ -556,7 +562,7 @@ function MessageSearchResults({
               <Text style={styles.msgName} numberOfLines={1}>{m.user.name}</Text>
               <Text style={styles.msgTime}>{formatPostTime(m.createdAt)}</Text>
             </View>
-            <Text style={styles.msgPreview} numberOfLines={1}>{m.fromMe ? 'Você: ' : ''}{m.content}</Text>
+            <Text style={styles.msgPreview} numberOfLines={1}>{m.fromMe ? t('messages.youPrefix') : ''}{m.content}</Text>
           </View>
         </TouchableOpacity>
       ))}
@@ -577,6 +583,7 @@ function NewConversationModal({
   onPickNeighbor: (u: User) => void;
   onCreateGroup: () => void;
 }) {
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
   return (
@@ -584,7 +591,7 @@ function NewConversationModal({
       <Pressable style={styles.modalOverlay} onPress={onClose} tabIndex={-1}>
         <Pressable style={styles.modalCard} onPress={() => {}} tabIndex={-1}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Nova conversa</Text>
+            <Text style={styles.modalTitle}>{t('messages.newConversation')}</Text>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
@@ -595,16 +602,16 @@ function NewConversationModal({
               <Ionicons name="people" size={20} color="#fff" />
             </View>
             <View style={styles.flex}>
-              <Text style={styles.newGroupTitle}>Criar novo grupo</Text>
-              <Text style={styles.newGroupDesc}>Converse com vários vizinhos ao mesmo tempo</Text>
+              <Text style={styles.newGroupTitle}>{t('messages.createGroup')}</Text>
+              <Text style={styles.newGroupDesc}>{t('messages.createGroupDesc')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
 
-          <Text style={styles.modalSection}>Vizinhos</Text>
+          <Text style={styles.modalSection}>{t('messages.neighbors')}</Text>
           <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
             {neighbors.length === 0 ? (
-              <Text style={styles.modalEmpty}>Nenhum vizinho para conversar por enquanto.</Text>
+              <Text style={styles.modalEmpty}>{t('messages.noNeighbors')}</Text>
             ) : (
               neighbors.map((u) => (
                 <TouchableOpacity key={u.id} style={styles.neighborRow} activeOpacity={0.8} onPress={() => onPickNeighbor(u)}>

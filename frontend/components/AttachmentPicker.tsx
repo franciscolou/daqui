@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { PickedMediaAsset } from '../lib/api';
+import { useT } from '../lib/i18n';
 
 export interface AttachmentDraft {
   localUri: string;
@@ -29,8 +30,10 @@ export default function AttachmentPicker({
   setAttachments,
   upload,
   max = 3,
-  label = 'Anexos',
+  label,
 }: AttachmentPickerProps) {
+  const { t } = useT();
+  const resolvedLabel = label ?? t('attachments.label');
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +45,7 @@ export default function AttachmentPicker({
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        setError('Permita o acesso às fotos para adicionar anexos.');
+        setError(t('attachments.permission'));
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -77,12 +80,12 @@ export default function AttachmentPicker({
             );
           } catch {
             setAttachments((prev) => prev.filter((a) => a.localUri !== localUri));
-            setError('Não foi possível enviar um dos arquivos.');
+            setError(t('attachments.uploadError'));
           }
         }),
       );
     } catch {
-      setError('Não foi possível carregar as imagens ou vídeos.');
+      setError(t('attachments.loadError'));
     }
   };
 
@@ -92,13 +95,13 @@ export default function AttachmentPicker({
 
   return (
     <View>
-      <Text style={styles.label}>{`${label} (${attachments.length}/${max})`}</Text>
+      <Text style={styles.label}>{`${resolvedLabel} (${attachments.length}/${max})`}</Text>
       {error && <Text style={styles.error}>{error}</Text>}
 
       {attachments.length === 0 ? (
         <TouchableOpacity style={styles.picker} onPress={pick} activeOpacity={0.8}>
           <Ionicons name="attach-outline" size={20} color={Colors.primary} />
-          <Text style={styles.pickerText}>Adicionar fotos ou vídeos</Text>
+          <Text style={styles.pickerText}>{t('attachments.add')}</Text>
         </TouchableOpacity>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>

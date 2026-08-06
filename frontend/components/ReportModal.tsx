@@ -15,31 +15,19 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { api, ReportTargetType } from '../lib/api';
 import AttachmentPicker, { AttachmentDraft } from './AttachmentPicker';
+import { useT } from '../lib/i18n';
 
 const MAX_COMMENT = 3000;
 
-const TITLES: Record<ReportTargetType, string> = {
-  post: 'Denunciar publicação',
-  comment: 'Denunciar comentário',
-  user: 'Denunciar perfil',
-};
-
-const REASONS: Record<ReportTargetType, { value: string; label: string }[]> = {
+const REASONS: Record<ReportTargetType, string[]> = {
   post: [
-    { value: 'offensive', label: 'Ofensivo e/ou propaga ódio' },
-    { value: 'wrong_category', label: 'Está na categoria errada' },
-    { value: 'spam', label: 'É spam' },
-    { value: 'harmful', label: 'É nocivo para a comunidade' },
+    'offensive', 'wrong_category', 'spam', 'harmful',
   ],
   comment: [
-    { value: 'offensive', label: 'Ofensivo e/ou propaga ódio' },
-    { value: 'spam', label: 'É spam' },
-    { value: 'harmful', label: 'É nocivo para a comunidade' },
+    'offensive', 'spam', 'harmful',
   ],
   user: [
-    { value: 'fake', label: 'É uma conta falsa/fake' },
-    { value: 'not_neighbor', label: 'Essa pessoa não é moradora desse bairro' },
-    { value: 'harmful_person', label: 'Essa pessoa é nociva para a comunidade' },
+    'fake', 'not_neighbor', 'harmful_person',
   ],
 };
 
@@ -51,6 +39,7 @@ interface ReportModalProps {
 }
 
 export default function ReportModal({ visible, onClose, targetType, targetId }: ReportModalProps) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [reason, setReason] = useState<string | null>(null);
@@ -81,11 +70,11 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
       await api.submitReport(targetType, targetId, reason, comment.trim(), attachmentPayload);
       setFeedback({
         ok: true,
-        text: 'Denúncia enviada. Obrigado por ajudar a manter a comunidade segura.',
+        text: t('report.success'),
       });
       setTimeout(close, 1400);
     } catch {
-      setFeedback({ ok: false, text: 'Não foi possível enviar a denúncia. Tente novamente.' });
+      setFeedback({ ok: false, text: t('report.error') });
       setSaving(false);
     }
   };
@@ -95,21 +84,21 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
       <Pressable style={styles.overlay} onPress={close} tabIndex={-1}>
         <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{TITLES[targetType]}</Text>
+            <Text style={styles.headerTitle}>{t(`report.titles.${targetType}`)}</Text>
             <TouchableOpacity onPress={close} hitSlop={8}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.label}>Motivo <Text style={styles.required}>*</Text></Text>
-            {REASONS[targetType].map((r) => {
-              const active = reason === r.value;
+            <Text style={styles.label}>{t('report.reason')} <Text style={styles.required}>*</Text></Text>
+            {REASONS[targetType].map((reasonKey) => {
+              const active = reason === reasonKey;
               return (
                 <TouchableOpacity
-                  key={r.value}
+                  key={reasonKey}
                   style={styles.reasonRow}
-                  onPress={() => setReason(r.value)}
+                  onPress={() => setReason(reasonKey)}
                   activeOpacity={0.7}
                   focusable={false}
                 >
@@ -119,16 +108,16 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
                     color={active ? Colors.primary : Colors.textTertiary}
                   />
                   <Text style={[styles.reasonText, active && styles.reasonTextActive]}>
-                    {r.label}
+                    {t(`report.reasons.${reasonKey}`)}
                   </Text>
                 </TouchableOpacity>
               );
             })}
 
-            <Text style={styles.label}>Comentário</Text>
+            <Text style={styles.label}>{t('report.comment')}</Text>
             <TextInput
               style={styles.input}
-              placeholder="Conte mais detalhes, se quiser…"
+              placeholder={t('report.commentPlaceholder')}
               placeholderTextColor={Colors.textTertiary}
               value={comment}
               onChangeText={(t) => setComment(t.slice(0, MAX_COMMENT))}
@@ -143,7 +132,7 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
                 setAttachments={setAttachments}
                 upload={api.uploadReportAttachment}
                 max={3}
-                label="Anexos"
+                label={t('report.attachments')}
               />
             </View>
 
@@ -173,7 +162,7 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
               {saving ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.submitBtnText}>Enviar denúncia</Text>
+                <Text style={styles.submitBtnText}>{t('report.submit')}</Text>
               )}
             </TouchableOpacity>
           </ScrollView>

@@ -4,6 +4,7 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { AdvertiserType } from '../lib/adsApi';
 import { maskDocument, isValidDocument, onlyDigits } from '../lib/brDocuments';
+import { useT } from '../lib/i18n';
 
 // Bloco "quem está anunciando": alterna entre Pessoa Física (CPF) e Pessoa
 // Jurídica (CNPJ). O rótulo do nome e a máscara/validação do documento mudam
@@ -18,9 +19,8 @@ interface Props {
   onChangeDocument: (v: string) => void;
 }
 
-const OPTIONS: { key: AdvertiserType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'individual', label: 'Pessoa Física', icon: 'person-outline' },
-  { key: 'company', label: 'Pessoa Jurídica', icon: 'business-outline' },
+const OPTIONS: { key: AdvertiserType; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'individual', icon: 'person-outline' }, { key: 'company', icon: 'business-outline' },
 ];
 
 export default function AdvertiserIdentityFields({
@@ -28,6 +28,7 @@ export default function AdvertiserIdentityFields({
 }: Props) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const isCompany = type === 'company';
   const docFilled = onlyDigits(document).length > 0;
@@ -53,7 +54,7 @@ export default function AdvertiserIdentityFields({
               onPress={() => switchType(o.key)}
             >
               <Ionicons name={o.icon} size={16} color={active ? '#fff' : Colors.textSecondary} />
-              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{o.label}</Text>
+              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{t(`ads.identity.${o.key}`)}</Text>
             </TouchableOpacity>
           );
         })}
@@ -61,7 +62,7 @@ export default function AdvertiserIdentityFields({
 
       <TextInput
         style={styles.input}
-        placeholder={isCompany ? 'Razão social / nome da empresa' : 'Nome completo'}
+        placeholder={t(isCompany ? 'ads.identity.companyName' : 'ads.identity.fullName')}
         placeholderTextColor={Colors.textTertiary}
         value={name}
         onChangeText={onChangeName}
@@ -76,7 +77,7 @@ export default function AdvertiserIdentityFields({
         keyboardType="numeric"
       />
       {docFilled && !docValid && (
-        <Text style={styles.errorText}>{isCompany ? 'CNPJ inválido' : 'CPF inválido'}</Text>
+        <Text style={styles.errorText}>{t(isCompany ? 'ads.identity.invalidCnpj' : 'ads.identity.invalidCpf')}</Text>
       )}
     </View>
   );

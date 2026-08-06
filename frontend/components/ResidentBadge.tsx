@@ -2,16 +2,18 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 
 // Selo exibido junto ao nome do autor em posts/comentários quando ele mora no
 // bairro daquela publicação (bairro atual == bairro do post/comentário).
 export default function ResidentBadge() {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.badge}>
       <Ionicons name="home" size={10} color={Colors.success} />
-      <Text style={styles.badgeText}>Morador</Text>
+      <Text style={styles.badgeText}>{t('common.resident')}</Text>
     </View>
   );
 }

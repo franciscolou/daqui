@@ -30,15 +30,6 @@ export function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function parseCsvNumbers(raw: string): number[] {
-  return raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map(Number)
-    .filter((n) => !Number.isNaN(n));
-}
-
 export function parseCsvStrings(raw: string): string[] {
   return raw
     .split(',')

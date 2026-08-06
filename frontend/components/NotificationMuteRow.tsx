@@ -7,6 +7,7 @@ import { api, MuteDuration, MuteStatus } from '../lib/api';
 import { formatExactDateTime } from '../lib/time';
 import { useRealtime } from '../lib/realtime';
 import MuteMenu from './MuteMenu';
+import { useT } from '../lib/i18n';
 
 // Linha de configuração "Notificações" — usada nas telas de informações da
 // conversa (DM) e do grupo. Mostra o estado atual (Ativadas / Silenciadas até
@@ -21,16 +22,17 @@ interface NotificationMuteRowProps {
   onChange?: (status: MuteStatus) => void;
 }
 
-function statusLabel(status: MuteStatus | null): string {
+function statusLabel(status: MuteStatus | null, t: (key: string, options?: any) => string): string {
   if (!status) return '…';
-  if (!status.isMuted) return 'Ativadas';
-  if (!status.mutedUntil) return 'Silenciadas até reativar';
-  return `Silenciadas até ${formatExactDateTime(status.mutedUntil)}`;
+  if (!status.isMuted) return t('mute.active');
+  if (!status.mutedUntil) return t('mute.mutedUntilReactivated');
+  return t('mute.mutedUntil', { date: formatExactDateTime(status.mutedUntil) });
 }
 
 export default function NotificationMuteRow({ kind, id, initialStatus, onChange }: NotificationMuteRowProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { refreshUnreadCounts } = useRealtime();
   const [status, setStatus] = useState<MuteStatus | null>(initialStatus ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -67,8 +69,8 @@ export default function NotificationMuteRow({ kind, id, initialStatus, onChange 
             color={Colors.primary}
           />
         </View>
-        <Text style={styles.label}>Notificações</Text>
-        <Text style={styles.value} numberOfLines={1}>{statusLabel(status)}</Text>
+        <Text style={styles.label}>{t('mute.notifications')}</Text>
+        <Text style={styles.value} numberOfLines={1}>{statusLabel(status, t)}</Text>
         <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
       </TouchableOpacity>
 

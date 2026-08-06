@@ -28,6 +28,17 @@ export default defineConfig({
     // exatamente como o Metro faz no `expo start --web`.
     extensions: ['.web.tsx', '.web.ts', '.web.jsx', '.web.js', '.tsx', '.ts', '.jsx', '.js', '.json'],
     alias: [
+      // O scanner de dependências do Vite/esbuild não usa necessariamente a
+      // mesma prioridade de extensões do resolver principal. Sem este alias,
+      // imports relativos feitos pelos componentes compartilhados podem cair
+      // em `location.ts` (expo-location) em vez de `location.web.ts`, trazendo
+      // expo-modules-core para um bundle que roda apenas com react-native-web.
+      { find: /^\.\.\/lib\/location$/, replacement: path.resolve(frontend, 'lib/location.web.ts') },
+      { find: /^\.\/location$/, replacement: path.resolve(frontend, 'lib/location.web.ts') },
+      // A implementação web do Expo 56 ainda importa expo-modules-core apenas
+      // para consultar a plataforma. O painel não tem runtime nativo, então
+      // fornecemos somente a API de locale que os componentes usam.
+      { find: /^expo-localization$/, replacement: path.resolve(here, 'src/daqui/expoLocalization.web.ts') },
       // Os componentes de local vêm do app Daqui, escritos em React Native —
       // react-native-web os renderiza como DOM comum aqui.
       { find: /^react-native$/, replacement: 'react-native-web' },

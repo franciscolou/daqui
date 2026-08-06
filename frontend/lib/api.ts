@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { getItem, removeItem, setItem } from './storage';
 import { Poll, Post, PostCategory, PostMedia, User } from '../data/mock';
+import { activeLocale } from './time';
 
 // ─────────────────────────────────────────────────────────────
 // Configuração
@@ -676,13 +677,14 @@ export function relativeTime(iso: string): string {
   const then = new Date(iso).getTime();
   const diff = Math.max(0, Date.now() - then);
   const min = Math.floor(diff / 60000);
-  if (min < 1) return 'agora';
-  if (min < 60) return `${min}m atrás`;
+  const english = activeLocale().startsWith('en');
+  if (min < 1) return english ? 'now' : 'agora';
+  if (min < 60) return english ? `${min}m ago` : `${min}m atrás`;
   const h = Math.floor(min / 60);
-  if (h < 24) return `${h}h atrás`;
+  if (h < 24) return english ? `${h}h ago` : `${h}h atrás`;
   const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d atrás`;
-  return new Date(iso).toLocaleDateString('pt-BR');
+  if (d < 7) return english ? `${d}d ago` : `${d}d atrás`;
+  return new Date(iso).toLocaleDateString(activeLocale());
 }
 
 export function mapUser(u: BackendUser): User {
@@ -698,7 +700,7 @@ export function mapUser(u: BackendUser): User {
     state: u.state ?? undefined,
     badge: (u.badge as User['badge']) ?? undefined,
     verified: u.verified,
-    joinedAt: new Date(u.created_at).toLocaleDateString('pt-BR', {
+    joinedAt: new Date(u.created_at).toLocaleDateString(activeLocale(), {
       month: 'short',
       year: 'numeric',
     }),

@@ -6,6 +6,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useEffect } from 'react';
 import { lightColors } from '../constants/Colors';
+import { useT } from '../lib/i18n';
 
 // Peça de assinatura do hero de anúncios: uma composição abstrata mostrando
 // a marca do anunciante "circulando" pelas superfícies do Daqui (feed, mapa,
@@ -94,6 +95,7 @@ function Lines({ lines }: { lines: string[] }) {
 }
 
 export default function AdCirculationArt({ reducedMotion }: { reducedMotion: boolean }) {
+  const { t } = useT();
   const feedFloat = useFloatStyle({ amplitude: 5, duration: 3900, delay: 0, rotateDeg: -3, rotateWobble: 0.8 }, reducedMotion);
   const mapFloat = useFloatStyle({ amplitude: 4, duration: 3200, delay: 500, rotateDeg: 2, rotateWobble: 0.6 }, reducedMotion);
   const notifFloat = useFloatStyle({ amplitude: 4.6, duration: 4500, delay: 900, rotateDeg: 2, rotateWobble: 0.9 }, reducedMotion);
@@ -109,9 +111,9 @@ export default function AdCirculationArt({ reducedMotion }: { reducedMotion: boo
       <Animated.View style={[styles.chip, styles.chipFeed, feedFloat]}>
         <View style={styles.chipRow}>
           <Badge icon="storefront-outline" />
-          <Lines lines={['Padaria Nova', 'Patrocinado']} />
+          <Lines lines={[t('ads.art.business'), t('ads.sponsored')]} />
         </View>
-        <Text numberOfLines={1} style={styles.captionText}>Pão fresquinho todo dia ☀️</Text>
+        <Text numberOfLines={1} style={styles.captionText}>{t('ads.art.caption')}</Text>
         <View style={styles.chipFooterRow}>
           <Ionicons name="heart-outline" size={12} color={lightColors.textTertiary} />
           <Text style={styles.footerCount}>24</Text>
@@ -124,17 +126,17 @@ export default function AdCirculationArt({ reducedMotion }: { reducedMotion: boo
         <View style={styles.mapPin}>
           <Ionicons name="location" size={16} color="#fff" />
         </View>
-        <Text style={styles.chipLabel} numberOfLines={1}>Patrocinado</Text>
+        <Text style={styles.chipLabel} numberOfLines={1}>{t('ads.sponsored')}</Text>
       </Animated.View>
 
       <Animated.View style={[styles.chip, styles.chipNotif, notifFloat]}>
         <Badge icon="megaphone-outline" />
-        <Lines lines={['Novidade por perto', 'Confira a promoção']} />
+        <Lines lines={[t('ads.art.nearby'), t('ads.art.promotion')]} />
       </Animated.View>
 
       <Animated.View style={[styles.chip, styles.chipConv, convFloat]}>
         <Badge icon="chatbubbles-outline" />
-        <Lines lines={['Recomendo esse salão!', 'Combinar horário']} />
+        <Lines lines={[t('ads.art.recommendation'), t('ads.art.schedule')]} />
       </Animated.View>
     </View>
   );

@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 import { adsApi, AdFormat, CreativeInput } from '../lib/adsApi';
-import { api, GeocodeResult } from '../lib/api';
+import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { User } from '../data/mock';
 import VideoPlayer from './VideoPlayer';
@@ -151,6 +152,7 @@ interface AdCreativeEditorProps {
 export default function AdCreativeEditor({ formats, value, onChange }: AdCreativeEditorProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { user } = useAuth();
 
   const updateBlock = (key: AdFormat, next: CreativeBlockDraft | undefined) =>
@@ -171,7 +173,7 @@ export default function AdCreativeEditor({ formats, value, onChange }: AdCreativ
   return (
     <View style={styles.wrap}>
       <CreativeBlockFields
-        label="O anúncio"
+        label={t('ads.creative.base')}
         draft={value.default}
         onChange={(next) => onChange({ ...value, default: next })}
         allowVideo
@@ -186,8 +188,7 @@ export default function AdCreativeEditor({ formats, value, onChange }: AdCreativ
 
       {overrides.length > 0 && (
         <Text style={styles.overridesHint}>
-          O conteúdo acima aparece em todos os lugares. Quer título, texto ou imagem
-          diferentes em algum? Personalize abaixo — o resto continua usando o de cima.
+          {t('ads.creative.overrideHint')}
         </Text>
       )}
 
@@ -205,11 +206,11 @@ export default function AdCreativeEditor({ formats, value, onChange }: AdCreativ
                 size={18}
                 color={block ? Colors.primary : Colors.textTertiary}
               />
-              <Text style={styles.toggleText}>Personalizar para {f.label}</Text>
+              <Text style={styles.toggleText}>{t('ads.creative.customizeFor', { format: t(`ads.formats.${f.key}`) })}</Text>
             </TouchableOpacity>
             {block && (
               <CreativeBlockFields
-                label={`Em ${f.label}`}
+                label={t('ads.creative.inFormat', { format: t(`ads.formats.${f.key}`) })}
                 draft={block}
                 onChange={(next) => updateBlock(f.key, next)}
                 allowVideo={f.allowVideo}
@@ -251,6 +252,7 @@ function CreativeBlockFields({
   Colors: Palette;
   styles: ReturnType<typeof makeStyles>;
 }) {
+  const { t } = useT();
   const [mediaUploading, setMediaUploading] = useState(false);
   const [mediaError, setMediaError] = useState('');
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
@@ -276,7 +278,7 @@ function CreativeBlockFields({
     api
       .resolveNeighborhood(Number(draft.latitude), Number(draft.longitude))
       .then((r) => { if (!cancelled) setResolvedLabel(r.displayName); })
-      .catch(() => { if (!cancelled) setResolvedLabel('Local marcado no mapa'); });
+      .catch(() => { if (!cancelled) setResolvedLabel(t('ads.creative.mapLocation')); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -305,7 +307,7 @@ function CreativeBlockFields({
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        setMediaError('Permita o acesso às fotos para adicionar mídia.');
+        setMediaError(t('ads.creative.photoPermission'));
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -322,7 +324,7 @@ function CreativeBlockFields({
       });
       onChange({ ...draft, mediaUrl: uploaded.url, mediaType: uploaded.type });
     } catch {
-      setMediaError('Não foi possível enviar o arquivo.');
+      setMediaError(t('ads.creative.uploadError'));
     } finally {
       setMediaUploading(false);
     }
@@ -332,10 +334,10 @@ function CreativeBlockFields({
   return (
     <View style={styles.creativeBlock}>
       <Text style={styles.sectionTitle}>{label}</Text>
-      <TextInput style={styles.input} placeholder="Título" placeholderTextColor={Colors.textTertiary} value={draft.title} onChangeText={(v) => onChange({ ...draft, title: v })} />
-      <TextInput style={[styles.input, styles.inputMultiline]} placeholder="Texto" placeholderTextColor={Colors.textTertiary} value={draft.content} onChangeText={(v) => onChange({ ...draft, content: v })} multiline />
+      <TextInput style={styles.input} placeholder={t('ads.creative.titlePlaceholder')} placeholderTextColor={Colors.textTertiary} value={draft.title} onChangeText={(v) => onChange({ ...draft, title: v })} />
+      <TextInput style={[styles.input, styles.inputMultiline]} placeholder={t('ads.creative.textPlaceholder')} placeholderTextColor={Colors.textTertiary} value={draft.content} onChangeText={(v) => onChange({ ...draft, content: v })} multiline />
       {showTargetUrl && (
-        <TextInput style={styles.input} placeholder="Link de destino (ao tocar no anúncio)" placeholderTextColor={Colors.textTertiary} value={draft.targetUrl} onChangeText={(v) => onChange({ ...draft, targetUrl: v })} autoCapitalize="none" />
+        <TextInput style={styles.input} placeholder={t('ads.creative.targetPlaceholder')} placeholderTextColor={Colors.textTertiary} value={draft.targetUrl} onChangeText={(v) => onChange({ ...draft, targetUrl: v })} autoCapitalize="none" />
       )}
 
       {draft.mediaUrl ? (
@@ -358,18 +360,18 @@ function CreativeBlockFields({
           ) : (
             <>
               <Ionicons name="image-outline" size={18} color={Colors.primary} />
-              <Text style={styles.mediaPickerText}>{allowVideo ? 'Adicionar foto ou vídeo' : 'Adicionar ícone (foto)'}</Text>
+              <Text style={styles.mediaPickerText}>{t(allowVideo ? 'ads.creative.addMedia' : 'ads.creative.addIcon')}</Text>
             </>
           )}
         </TouchableOpacity>
       )}
       {!!mediaError && <Text style={styles.errorText}>{mediaError}</Text>}
 
-      <TextInput style={styles.input} placeholder="Texto do botão (opcional)" placeholderTextColor={Colors.textTertiary} value={draft.ctaLabel} onChangeText={(v) => onChange({ ...draft, ctaLabel: v })} />
+      <TextInput style={styles.input} placeholder={t('ads.creative.ctaPlaceholder')} placeholderTextColor={Colors.textTertiary} value={draft.ctaLabel} onChangeText={(v) => onChange({ ...draft, ctaLabel: v })} />
 
       {showLocation && (
         <View style={styles.locationField}>
-          <Text style={styles.fieldHint}>Local do pin no mapa (obrigatório)</Text>
+          <Text style={styles.fieldHint}>{t('ads.creative.pinLocation')}</Text>
           <LocationAutocompleteInput
             value={draft.locationLabel || resolvedLabel}
             onChangeText={onChangeLocationText}
@@ -377,7 +379,7 @@ function CreativeBlockFields({
             onSelectResult={(r) => confirmLocation(r.label, { latitude: r.latitude, longitude: r.longitude })}
             onPickOnMap={() => setLocationPickerOpen(true)}
             status={draft.locationStatus}
-            placeholder="Ex.: Rua das Flores 123, Praça..."
+            placeholder={t('location.autocomplete.placeholder')}
           />
         </View>
       )}
@@ -393,7 +395,7 @@ function CreativeBlockFields({
             size={18}
             color={isSelfLinked ? Colors.primary : Colors.textTertiary}
           />
-          <Text style={styles.toggleText} numberOfLines={1}>Vincular à conta @{user.username}</Text>
+          <Text style={styles.toggleText} numberOfLines={1}>{t('ads.creative.linkAccount', { username: user.username })}</Text>
         </TouchableOpacity>
       )}
 

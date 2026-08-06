@@ -7,6 +7,7 @@ import { AdFormat, Ad } from '../lib/adsApi';
 import { CreativeBlocks, CreativeBlockDraft } from './AdCreativeEditor';
 import AdPostCard from './AdPostCard';
 import AdSearchPoster from './AdSearchPoster';
+import { useT } from '../lib/i18n';
 
 // Preview ao vivo do anúncio — mostra, lado a lado com o editor, um "recorte"
 // de como o conteúdo vai aparecer em cada superfície escolhida (Feed, mapa,
@@ -27,13 +28,13 @@ function effectiveDraft(blocks: CreativeBlocks, format: AdFormat): CreativeBlock
 
 // Monta um `Ad` (formato que os componentes reais consomem) a partir do draft.
 // Campos vazios viram texto de exemplo pra prévia nunca ficar em branco.
-function draftToAd(draft: CreativeBlockDraft, id: number): Ad {
+function draftToAd(draft: CreativeBlockDraft, id: number, t: (key: string) => string): Ad {
   return {
     id,
     creativeId: id,
     objective: 'clicks',
-    title: draft.title || 'Título do anúncio',
-    content: draft.content || 'O texto do seu anúncio aparece aqui.',
+    title: draft.title || t('ads.preview.adTitle'),
+    content: draft.content || t('ads.preview.adText'),
     imageUrl: draft.mediaType === 'image' && draft.mediaUrl ? draft.mediaUrl : undefined,
     videoUrl: draft.mediaType === 'video' && draft.mediaUrl ? draft.mediaUrl : undefined,
     ctaLabel: draft.ctaLabel || undefined,
@@ -65,6 +66,7 @@ const SEARCH_CHIPS = ['Eventos', 'Vendas', 'Serviços', 'Segurança'];
 export default function AdPreview({ formats, blocks }: { formats: AdFormat[]; blocks: CreativeBlocks }) {
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
+  const { t } = useT();
 
   const hasPost = formats.includes('post');
   const hasMap = formats.includes('map');
@@ -76,57 +78,57 @@ export default function AdPreview({ formats, blocks }: { formats: AdFormat[]; bl
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.previewHeading}>Prévia ao vivo</Text>
-      <Text style={styles.previewSub}>Assim seu anúncio aparece em cada lugar.</Text>
+      <Text style={styles.previewHeading}>{t('ads.preview.title')}</Text>
+      <Text style={styles.previewSub}>{t('ads.preview.subtitle')}</Text>
 
       {hasPost && (
-        <Frame label="No feed" icon="newspaper-outline" flush styles={styles}>
-          <FakePost post={FAKE_POSTS[0]} styles={styles} />
+        <Frame label={t('ads.preview.feed')} icon="newspaper-outline" flush styles={styles}>
+          <FakePost post={FAKE_POSTS[0]} index={0} styles={styles} />
           <View pointerEvents="none">
-            <AdPostCard ad={draftToAd(effectiveDraft(blocks, 'post'), 1)} />
+            <AdPostCard ad={draftToAd(effectiveDraft(blocks, 'post'), 1, t)} />
           </View>
-          <FakePost post={FAKE_POSTS[1]} styles={styles} />
+          <FakePost post={FAKE_POSTS[1]} index={1} styles={styles} />
         </Frame>
       )}
       {hasMap && (
-        <Frame label="No mapa" icon="location-outline" styles={styles}>
+        <Frame label={t('ads.preview.map')} icon="location-outline" styles={styles}>
           <MapPreview draft={effectiveDraft(blocks, 'map')} styles={styles} />
         </Frame>
       )}
       {hasSearch && (
-        <Frame label="Na Busca" icon="search-outline" styles={styles}>
+        <Frame label={t('ads.preview.search')} icon="search-outline" styles={styles}>
           <View style={styles.searchBar}>
             <Ionicons name="search" size={16} color={Colors.textTertiary} />
-            <Text style={styles.searchPlaceholder}>Buscar no bairro…</Text>
+            <Text style={styles.searchPlaceholder}>{t('ads.preview.searchPlaceholder')}</Text>
           </View>
           <View style={styles.chipsRow}>
             {SEARCH_CHIPS.map((c) => (
-              <View key={c} style={styles.catChip}><Text style={styles.catChipText}>{c}</Text></View>
+              <View key={c} style={styles.catChip}><Text style={styles.catChipText}>{t(`ads.preview.chips.${c}`)}</Text></View>
             ))}
           </View>
           <View pointerEvents="none">
-            <AdSearchPoster ad={draftToAd(effectiveDraft(blocks, 'search_poster'), 2)} />
+            <AdSearchPoster ad={draftToAd(effectiveDraft(blocks, 'search_poster'), 2, t)} />
           </View>
         </Frame>
       )}
       {hasConversation && (
-        <Frame label="Em Mensagens" icon="chatbubbles-outline" flush styles={styles}>
+        <Frame label={t('ads.preview.messages')} icon="chatbubbles-outline" flush styles={styles}>
           <ConversationAdRow draft={effectiveDraft(blocks, 'conversation')} styles={styles} />
-          {FAKE_CHATS.map((c) => (
+          {FAKE_CHATS.map((c, i) => (
             <View key={c.name}>
               <View style={styles.divider} />
-              <FakeChatRow chat={c} styles={styles} />
+              <FakeChatRow chat={c} index={i} styles={styles} />
             </View>
           ))}
         </Frame>
       )}
       {hasNotification && (
-        <Frame label="Nas Novidades" icon="notifications-outline" flush styles={styles}>
+        <Frame label={t('ads.preview.notifications')} icon="notifications-outline" flush styles={styles}>
           <NotificationAdRow draft={effectiveDraft(blocks, 'notification')} styles={styles} />
-          {FAKE_NOTIFS.map((n) => (
+          {FAKE_NOTIFS.map((n, i) => (
             <View key={n.name}>
               <View style={styles.divider} />
-              <FakeNotifRow notif={n} styles={styles} />
+              <FakeNotifRow notif={n} index={i} styles={styles} />
             </View>
           ))}
         </Frame>
@@ -211,6 +213,7 @@ function MapArt({ c }: { c: MapColors }) {
 function MapPreview({ draft, styles }: { draft: CreativeBlockDraft; styles: ReturnType<typeof makeStyles> }) {
   const Colors = useTheme();
   const { mode } = useThemeMode();
+  const { t } = useT();
   return (
     <View style={styles.mapCanvas}>
       <View style={StyleSheet.absoluteFill}>
@@ -219,7 +222,7 @@ function MapPreview({ draft, styles }: { draft: CreativeBlockDraft; styles: Retu
       <View style={styles.mapPinCenter}>
         <View style={styles.mapPinBubble}>
           <View style={styles.mapPinIcon}><Ionicons name="megaphone" size={14} color="#fff" /></View>
-          <Text style={styles.mapPinText} numberOfLines={1}>{draft.title || 'Seu anúncio'}</Text>
+          <Text style={styles.mapPinText} numberOfLines={1}>{draft.title || t('ads.preview.yourAd')}</Text>
         </View>
         <Ionicons name="location" size={26} color={Colors.primary} style={styles.mapPinDrop} />
       </View>
@@ -230,6 +233,7 @@ function MapPreview({ draft, styles }: { draft: CreativeBlockDraft; styles: Retu
 // ── Mensagens (mesma marcação da AdInboxRow real) ────────────────────────
 function ConversationAdRow({ draft, styles }: { draft: CreativeBlockDraft; styles: ReturnType<typeof makeStyles> }) {
   const Colors = useTheme();
+  const { t } = useT();
   const img = draft.mediaType === 'image' ? draft.mediaUrl : '';
   return (
     <View style={styles.msgRow}>
@@ -243,11 +247,11 @@ function ConversationAdRow({ draft, styles }: { draft: CreativeBlockDraft; style
       <View style={styles.msgContent}>
         <View style={styles.msgHeader}>
           <View style={styles.nameRow}>
-            <Text style={styles.msgName} numberOfLines={1}>{draft.title || 'Título do anúncio'}</Text>
+            <Text style={styles.msgName} numberOfLines={1}>{draft.title || t('ads.preview.adTitle')}</Text>
           </View>
-          <Text style={styles.msgTime}>Anúncio</Text>
+          <Text style={styles.msgTime}>{t('ads.ad')}</Text>
         </View>
-        <Text style={styles.msgPreview} numberOfLines={1}>{draft.content || 'Texto do anúncio'}</Text>
+        <Text style={styles.msgPreview} numberOfLines={1}>{draft.content || t('ads.preview.adTextShort')}</Text>
       </View>
     </View>
   );
@@ -256,6 +260,7 @@ function ConversationAdRow({ draft, styles }: { draft: CreativeBlockDraft; style
 // ── Novidades (mesma marcação da notificação sintética real) ─────────────
 function NotificationAdRow({ draft, styles }: { draft: CreativeBlockDraft; styles: ReturnType<typeof makeStyles> }) {
   const Colors = useTheme();
+  const { t } = useT();
   const img = draft.mediaType === 'image' ? draft.mediaUrl : '';
   return (
     <View style={styles.notifRow}>
@@ -272,16 +277,17 @@ function NotificationAdRow({ draft, styles }: { draft: CreativeBlockDraft; style
         </View>
       )}
       <View style={styles.notifContent}>
-        <Text style={styles.notifText} numberOfLines={2}>{draft.title || 'Título do anúncio'}</Text>
-        <Text style={styles.notifTime}>Publicidade</Text>
+        <Text style={styles.notifText} numberOfLines={2}>{draft.title || t('ads.preview.adTitle')}</Text>
+        <Text style={styles.notifTime}>{t('ads.preview.advertising')}</Text>
       </View>
     </View>
   );
 }
 
 // ── Itens de exemplo (fake, sem imagem) ──────────────────────────────────
-function FakePost({ post, styles }: { post: typeof FAKE_POSTS[number]; styles: ReturnType<typeof makeStyles> }) {
+function FakePost({ post, index, styles }: { post: typeof FAKE_POSTS[number]; index: number; styles: ReturnType<typeof makeStyles> }) {
   const Colors = useTheme();
+  const { t } = useT();
   return (
     <View style={styles.realCard}>
       <View style={styles.realHeader}>
@@ -292,7 +298,7 @@ function FakePost({ post, styles }: { post: typeof FAKE_POSTS[number]; styles: R
         </View>
         <Ionicons name="ellipsis-horizontal" size={16} color={Colors.textTertiary} />
       </View>
-      <Text style={styles.realBody} numberOfLines={3}>{post.text}</Text>
+      <Text style={styles.realBody} numberOfLines={3}>{t(`ads.preview.fakePosts.${index}`)}</Text>
       <View style={styles.realFooter}>
         <View style={styles.realStat}>
           <Ionicons name="heart-outline" size={15} color={Colors.textTertiary} />
@@ -308,7 +314,8 @@ function FakePost({ post, styles }: { post: typeof FAKE_POSTS[number]; styles: R
   );
 }
 
-function FakeChatRow({ chat, styles }: { chat: typeof FAKE_CHATS[number]; styles: ReturnType<typeof makeStyles> }) {
+function FakeChatRow({ chat, index, styles }: { chat: typeof FAKE_CHATS[number]; index: number; styles: ReturnType<typeof makeStyles> }) {
+  const { t } = useT();
   return (
     <View style={styles.msgRow}>
       <InitialAvatar name={chat.name} size={52} styles={styles} />
@@ -317,21 +324,22 @@ function FakeChatRow({ chat, styles }: { chat: typeof FAKE_CHATS[number]; styles
           <View style={styles.nameRow}>
             <Text style={styles.msgName} numberOfLines={1}>{chat.name}</Text>
           </View>
-          <Text style={styles.msgTime}>{chat.time}</Text>
+          <Text style={styles.msgTime}>{index === 1 ? t('time.yesterday') : chat.time}</Text>
         </View>
-        <Text style={styles.msgPreview} numberOfLines={1}>{chat.last}</Text>
+        <Text style={styles.msgPreview} numberOfLines={1}>{t(`ads.preview.fakeChats.${index}`)}</Text>
       </View>
     </View>
   );
 }
 
-function FakeNotifRow({ notif, styles }: { notif: typeof FAKE_NOTIFS[number]; styles: ReturnType<typeof makeStyles> }) {
+function FakeNotifRow({ notif, index, styles }: { notif: typeof FAKE_NOTIFS[number]; index: number; styles: ReturnType<typeof makeStyles> }) {
+  const { t } = useT();
   return (
     <View style={styles.notifRow}>
       <InitialAvatar name={notif.name} size={48} styles={styles} />
       <View style={styles.notifContent}>
         <Text style={styles.notifText} numberOfLines={2}>
-          <Text style={styles.notifBold}>{notif.name}</Text> {notif.action}
+          <Text style={styles.notifBold}>{notif.name}</Text> {t(`ads.preview.fakeNotifs.${index}`)}
         </Text>
         <Text style={styles.notifTime}>{notif.time}</Text>
       </View>

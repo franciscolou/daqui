@@ -10,23 +10,23 @@ import {
 } from '../constants/legal';
 import { goBack } from '../lib/navigation';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
+import { formatDate } from '../lib/time';
 
 export type LegalDoc = 'terms' | 'privacy';
 
-const DOCS: { key: LegalDoc; label: string }[] = [
-  { key: 'terms', label: 'Termos de Uso' },
-  { key: 'privacy', label: 'Política de Privacidade' },
-];
+const DOCS: LegalDoc[] = ['terms', 'privacy'];
 
 export default function LegalPage({ doc }: { doc: LegalDoc }) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= 700;
 
   const intro = doc === 'terms' ? TERMS_INTRO : PRIVACY_INTRO;
   const sections = doc === 'terms' ? TERMS_SECTIONS : PRIVACY_SECTIONS;
-  const title = doc === 'terms' ? 'Termos de Uso' : 'Política de Privacidade';
+  const title = t(`legal.docs.${doc}`);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -34,18 +34,18 @@ export default function LegalPage({ doc }: { doc: LegalDoc }) {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
           <Ionicons name="chevron-back" size={20} color={Colors.textSecondary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Documentos legais</Text>
+        <Text style={styles.headerTitle}>{t('legal.title')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
       <View style={styles.switcher}>
         {DOCS.map((d, i) => {
-          const active = d.key === doc;
+          const active = d === doc;
           return (
-            <View key={d.key} style={styles.switcherItemRow}>
-              <TouchableOpacity focusable={false} onPress={() => !active && router.replace(`/legal/${d.key}` as any)}>
+            <View key={d} style={styles.switcherItemRow}>
+              <TouchableOpacity focusable={false} onPress={() => !active && router.replace(`/legal/${d}` as any)}>
                 <Text style={[styles.switcherText, active && styles.switcherTextActive]}>
-                  {d.label}
+                  {t(`legal.docs.${d}`)}
                 </Text>
               </TouchableOpacity>
               {i < DOCS.length - 1 && <Text style={styles.switcherSep}>·</Text>}
@@ -56,26 +56,26 @@ export default function LegalPage({ doc }: { doc: LegalDoc }) {
 
       <ScrollView contentContainerStyle={styles.scrollBody} showsVerticalScrollIndicator={false}>
         <View style={[styles.page, isWide && styles.pageWide]}>
-          <Text style={styles.kicker}>DAQUI — REDE SOCIAL DE BAIRRO</Text>
+          <Text style={styles.kicker}>{t('legal.kicker')}</Text>
           <Text style={styles.docTitle}>{title}</Text>
-          <Text style={styles.updatedAt}>Última atualização em {LEGAL_UPDATED_AT}</Text>
+          <Text style={styles.updatedAt}>{t('legal.updatedAt', { date: formatDate(LEGAL_UPDATED_AT) })}</Text>
 
           <View style={styles.hr} />
 
-          <Text style={styles.intro}>{intro}</Text>
+          <Text style={styles.intro}>{t(`legal.content.${doc}.intro`, { defaultValue: intro })}</Text>
 
-          {sections.map((section: LegalSection) => (
+          {sections.map((section: LegalSection, sectionIndex) => (
             <View key={section.title} style={styles.section}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
+              <Text style={styles.sectionTitle}>{t(`legal.content.${doc}.sections.${sectionIndex}.title`, { defaultValue: section.title })}</Text>
               {section.blocks.map((block, i) =>
                 block.type === 'p' ? (
-                  <Text key={i} style={styles.paragraph}>{block.text}</Text>
+                  <Text key={i} style={styles.paragraph}>{t(`legal.content.${doc}.sections.${sectionIndex}.blocks.${i}.text`, { defaultValue: block.text })}</Text>
                 ) : (
                   <View key={i} style={styles.bulletList}>
                     {block.items.map((item, j) => (
                       <View key={j} style={styles.bulletRow}>
                         <Text style={styles.bulletDash}>–</Text>
-                        <Text style={styles.bulletText}>{item}</Text>
+                        <Text style={styles.bulletText}>{t(`legal.content.${doc}.sections.${sectionIndex}.blocks.${i}.items.${j}`, { defaultValue: item })}</Text>
                       </View>
                     ))}
                   </View>

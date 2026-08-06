@@ -11,6 +11,8 @@ import { goBack } from '../../../lib/navigation';
 import { adsApi, CampaignSummary, MyCampaignsAnalytics } from '../../../lib/adsApi';
 import TimeseriesChart from '../../../components/charts/TimeseriesChart';
 import RankedBarChart from '../../../components/charts/RankedBarChart';
+import { useT } from '../../../lib/i18n';
+import { activeLocale } from '../../../lib/time';
 
 const FORMAT_LABEL: Record<string, string> = {
   post: 'Post no feed',
@@ -29,18 +31,19 @@ const STATUS_META: Record<string, { label: string; color: keyof Palette }> = {
 };
 
 function formatMoney(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return (cents / 100).toLocaleString(activeLocale(), { style: 'currency', currency: 'BRL' });
 }
 
 function formatDayLabel(iso: string) {
   const d = new Date(`${iso}T00:00:00`);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  return d.toLocaleDateString(activeLocale(), { day: '2-digit', month: '2-digit' });
 }
 
 export default function MyCampaignsDashboard() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const { user } = useAuth();
   const email = user?.email;
 
@@ -75,7 +78,7 @@ export default function MyCampaignsDashboard() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Meus anúncios</Text>
+        <Text style={styles.headerTitle}>{t('ads.dashboard.title')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -86,16 +89,16 @@ export default function MyCampaignsDashboard() {
       ) : error ? (
         <View style={styles.centerFill}>
           <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
-          <Text style={styles.emptyText}>Não foi possível carregar seus anúncios agora.</Text>
+          <Text style={styles.emptyText}>{t('ads.dashboard.loadError')}</Text>
         </View>
       ) : allCampaigns.length === 0 ? (
         <View style={styles.centerFill}>
           <Ionicons name="megaphone-outline" size={32} color={Colors.textTertiary} />
-          <Text style={styles.emptyText}>Você ainda não tem campanhas.</Text>
+          <Text style={styles.emptyText}>{t('ads.dashboard.empty')}</Text>
           <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.85} onPress={() => router.push('/advertise')}>
             <LinearGradient colors={Colors.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBtnGrad}>
               <Ionicons name="add-circle-outline" size={18} color="#fff" />
-              <Text style={styles.ctaBtnText}>Criar minha primeira campanha</Text>
+              <Text style={styles.ctaBtnText}>{t('ads.dashboard.createFirst')}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -104,17 +107,17 @@ export default function MyCampaignsDashboard() {
           <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.85} onPress={() => router.push('/advertise')}>
             <LinearGradient colors={Colors.gradient.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.ctaBtnGrad}>
               <Ionicons name="add-circle-outline" size={20} color="#fff" />
-              <Text style={styles.ctaBtnText}>Criar nova campanha</Text>
+              <Text style={styles.ctaBtnText}>{t('ads.dashboard.createNew')}</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          <Text style={styles.sectionTitle}>Comparar campanhas</Text>
+          <Text style={styles.sectionTitle}>{t('ads.dashboard.compare')}</Text>
           <View style={styles.chipsRow}>
             <TouchableOpacity
               style={[styles.chip, selectedIds.length === 0 && styles.chipActive]}
               onPress={() => setSelectedIds([])}
             >
-              <Text style={[styles.chipText, selectedIds.length === 0 && styles.chipTextActive]}>Todas</Text>
+              <Text style={[styles.chipText, selectedIds.length === 0 && styles.chipTextActive]}>{t('ads.dashboard.all')}</Text>
             </TouchableOpacity>
             {allCampaigns.map((c) => {
               const active = selectedIds.includes(c.id);
@@ -137,19 +140,19 @@ export default function MyCampaignsDashboard() {
               <View style={styles.metricsGrid}>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{analytics.summary.campaignsCount}</Text>
-                  <Text style={styles.metricLabel}>Campanhas</Text>
+                  <Text style={styles.metricLabel}>{t('ads.dashboard.campaigns')}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{analytics.summary.activeCampaigns}</Text>
-                  <Text style={styles.metricLabel}>Ativas</Text>
+                  <Text style={styles.metricLabel}>{t('ads.dashboard.active')}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{analytics.summary.impressions}</Text>
-                  <Text style={styles.metricLabel}>Impressões</Text>
+                  <Text style={styles.metricLabel}>{t('ads.metrics.impressions')}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{analytics.summary.clicks}</Text>
-                  <Text style={styles.metricLabel}>Cliques</Text>
+                  <Text style={styles.metricLabel}>{t('ads.metrics.clicks')}</Text>
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{(analytics.summary.ctr * 100).toFixed(1)}%</Text>
@@ -157,7 +160,7 @@ export default function MyCampaignsDashboard() {
                 </View>
                 <View style={styles.metricCard}>
                   <Text style={styles.metricValue}>{formatMoney(analytics.summary.revenueCents)}</Text>
-                  <Text style={styles.metricLabel}>Investido</Text>
+                  <Text style={styles.metricLabel}>{t('ads.dashboard.invested')}</Text>
                 </View>
               </View>
 
@@ -174,12 +177,12 @@ export default function MyCampaignsDashboard() {
 
               {analytics.timeseries.length > 0 && (
                 <>
-                  <Text style={styles.sectionTitle}>Ao longo do tempo</Text>
+                  <Text style={styles.sectionTitle}>{t('ads.dashboard.overTime')}</Text>
                   <View style={styles.chartCard}>
                     <TimeseriesChart
                       data={analytics.timeseries.map((b) => ({ key: b.key, label: formatDayLabel(b.key), a: b.impressions, b: b.clicks }))}
-                      seriesALabel="Impressões"
-                      seriesBLabel="Cliques"
+                      seriesALabel={t('ads.metrics.impressions')}
+                      seriesBLabel={t('ads.metrics.clicks')}
                     />
                   </View>
                 </>
@@ -187,12 +190,12 @@ export default function MyCampaignsDashboard() {
 
               {analytics.byFormat.length > 0 && (
                 <>
-                  <Text style={styles.sectionTitle}>Por formato</Text>
+                  <Text style={styles.sectionTitle}>{t('ads.dashboard.byFormat')}</Text>
                   <View style={styles.chartCard}>
                     <RankedBarChart
                       data={analytics.byFormat.map((b) => ({
                         key: b.key,
-                        label: FORMAT_LABEL[b.key] ?? b.key,
+                        label: t(`ads.formats.${b.key}`, { defaultValue: FORMAT_LABEL[b.key] ?? b.key }),
                         value: b.impressions,
                         sublabel: `${(b.ctr * 100).toFixed(1)}% CTR`,
                       }))}
@@ -201,7 +204,7 @@ export default function MyCampaignsDashboard() {
                 </>
               )}
 
-              <Text style={styles.sectionTitle}>Campanhas</Text>
+              <Text style={styles.sectionTitle}>{t('ads.dashboard.campaigns')}</Text>
               <View style={{ gap: 8 }}>
                 {analytics.campaigns.map((c) => {
                   const meta = STATUS_META[c.status] ?? { label: c.status, color: 'textTertiary' as const };
@@ -216,17 +219,17 @@ export default function MyCampaignsDashboard() {
                         <Text style={styles.campaignTitle} numberOfLines={1}>{c.title}</Text>
                         <View style={styles.statusRow}>
                           <View style={[styles.statusDot, { backgroundColor: Colors[meta.color] as string }]} />
-                          <Text style={[styles.statusText, { color: Colors[meta.color] as string }]}>{meta.label}</Text>
+                          <Text style={[styles.statusText, { color: Colors[meta.color] as string }]}>{t(`ads.status.${c.status}`, { defaultValue: meta.label })}</Text>
                         </View>
                       </View>
                       <Text style={styles.campaignMeta}>
-                        {c.formats.map((f) => FORMAT_LABEL[f] ?? f).join(', ')} · {formatMoney(c.priceCents)}
+                        {c.formats.map((f) => t(`ads.formats.${f}`, { defaultValue: FORMAT_LABEL[f] ?? f })).join(', ')} · {formatMoney(c.priceCents)}
                       </Text>
                       <Text style={styles.campaignStats}>
-                        {c.impressions} impressões · {c.clicks} cliques · {(c.ctr * 100).toFixed(1)}% CTR
+                        {t('ads.dashboard.stats', { impressions: c.impressions, clicks: c.clicks, ctr: (c.ctr * 100).toFixed(1) })}
                       </Text>
                       <View style={styles.campaignLink}>
-                        <Text style={styles.campaignLinkText}>Ver painel da campanha</Text>
+                        <Text style={styles.campaignLinkText}>{t('ads.dashboard.viewPanel')}</Text>
                         <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
                       </View>
                     </TouchableOpacity>

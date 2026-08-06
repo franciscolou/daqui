@@ -4,12 +4,14 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { Ad, adsApi } from '../lib/adsApi';
 import VideoPlayer from './VideoPlayer';
+import { useT } from '../lib/i18n';
 
 // Poster mostrado só no estado vazio da aba Busca (antes do usuário digitar
 // algo) — desaparece completamente quando não há campanha ativa para o formato.
 export default function AdSearchPoster({ ad, viewerId }: { ad: Ad; viewerId?: string }) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const open = () => {
     adsApi.trackAdClick(ad.id, { viewerId, creativeId: ad.creativeId, format: 'search_poster' });
@@ -26,12 +28,12 @@ export default function AdSearchPoster({ ad, viewerId }: { ad: Ad; viewerId?: st
       <View style={styles.body}>
         <View style={styles.tag}>
           <Ionicons name="megaphone-outline" size={11} color={Colors.accent} />
-          <Text style={styles.tagText}>Anúncio</Text>
+          <Text style={styles.tagText}>{t('ads.ad')}</Text>
         </View>
         <Text style={styles.title}>{ad.title}</Text>
         <Text style={styles.desc} numberOfLines={3}>{ad.content}</Text>
         <View style={styles.ctaRow}>
-          <Text style={styles.ctaText}>{ad.ctaLabel || 'Saiba mais'}</Text>
+          <Text style={styles.ctaText}>{ad.ctaLabel || t('ads.learnMore')}</Text>
           <Ionicons name="arrow-forward" size={14} color={Colors.primary} />
         </View>
       </View>

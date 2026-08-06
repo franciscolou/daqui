@@ -6,6 +6,7 @@ import { Palette } from '../constants/Colors';
 import { User } from '../data/mock';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import ImageViewerModal from './ImageViewerModal';
+import { useT } from '../lib/i18n';
 
 interface ProfileHeaderProps {
   user: User;
@@ -23,12 +24,13 @@ const AVATAR_SIZE = 84;
  * importância (nome, @usuário, bio, localização, estatísticas). Compartilhado
  * entre a aba "Perfil" e a tela de perfil de outro usuário. */
 export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }: ProfileHeaderProps) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [avatarVisible, setAvatarVisible] = useState(false);
 
   const location = user.locked
-    ? 'Vizinho de outro bairro'
+    ? t('profile.otherNeighborhoodNeighbor')
     : [user.neighborhood, [user.city, user.state].filter(Boolean).join(' - ')]
         .filter(Boolean)
         .join(', ');
@@ -99,18 +101,18 @@ export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }:
           {!user.locked && !!user.joinedAt && (
             <View style={styles.metaItem}>
               <Ionicons name="calendar-outline" size={13} color={Colors.textSecondary} />
-              <Text style={styles.metaText}>Desde {user.joinedAt}</Text>
+              <Text style={styles.metaText}>{t('profile.since', { date: user.joinedAt })}</Text>
             </View>
           )}
         </View>
 
         <View style={styles.statsRow}>
           <Text style={styles.statText}>
-            <Text style={styles.statNum}>{user.postsCount}</Text> Posts
+            {t('profile.postCount', { count: user.postsCount })}
           </Text>
           {!user.locked && (
             <Text style={styles.statText}>
-              <Text style={styles.statNum}>{user.interactionsCount}</Text> Interações
+              {t('profile.interactionCount', { count: user.interactionsCount })}
             </Text>
           )}
         </View>

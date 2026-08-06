@@ -1,11 +1,14 @@
+import { activeLocale } from '../../lib/time';
+
 // Compacta números grandes pra rótulo (1234 -> "1,2 mil"), mesmo padrão dos
 // stat tiles do resto do app.
 export function formatCompactNumber(n: number): string {
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
-  if (abs < 1000) return sign + abs.toLocaleString('pt-BR');
-  if (abs < 1_000_000) return sign + (abs / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil';
-  return sign + (abs / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi';
+  const locale = activeLocale();
+  if (abs < 1000) return sign + abs.toLocaleString(locale);
+  if (abs < 1_000_000) return sign + (abs / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + (locale.startsWith('en') ? 'K' : ' mil');
+  return sign + (abs / 1_000_000).toLocaleString(locale, { maximumFractionDigits: 1 }) + (locale.startsWith('en') ? 'M' : ' mi');
 }
 
 // Teto "redondo" pra escala de eixo (137 -> 200, 1340 -> 1500, 3 -> 4).

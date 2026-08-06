@@ -6,6 +6,8 @@ import { CATEGORIES } from '../data/mock';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import InfoTooltip from './InfoTooltip';
+import { useT } from '../lib/i18n';
+import { activeLocale } from '../lib/time';
 
 export interface AdAdvancedSelectorValue {
   categories: string[];
@@ -25,15 +27,8 @@ interface Props {
 }
 
 const POST_CATEGORIES = CATEGORIES.filter((category) => category.key !== 'todos');
-const WEEK_DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+const WEEK_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
-
-const INFO = {
-  categories: 'Só vale para o formato "Post no feed". Selecione os assuntos junto dos quais o anúncio pode aparecer.',
-  hours: 'Selecione as horas em que o anúncio pode aparecer. Sem seleção, ele pode ser exibido o dia inteiro.',
-  days: 'Selecione os dias em que o anúncio pode aparecer. Sem seleção, ele pode ser exibido todos os dias.',
-  dates: 'Ao escolher datas aqui, o anúncio passa a aparecer SÓ nelas — os horários e dias da semana acima deixam de valer. Útil pra concentrar a verba num feriado ou evento específico. Só é possível escolher datas dentro do período da campanha (duração/data de início definidos acima).',
-};
 
 function FieldLabel({
   children,
@@ -45,6 +40,7 @@ function FieldLabel({
   onClear?: () => void;
 }) {
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   return (
     <View style={styles.labelRow}>
       <View style={styles.labelAndInfo}>
@@ -53,7 +49,7 @@ function FieldLabel({
       </View>
       {onClear && (
         <TouchableOpacity style={styles.clearButton} onPress={onClear}>
-          <Text style={styles.clearButtonText}>Limpar tudo</Text>
+          <Text style={styles.clearButtonText}>{t('ads.advanced.clear')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -65,7 +61,7 @@ function toggle<T>(items: T[], item: T): T[] {
 }
 
 function formatBrDate(date: string): string {
-  return date.split('-').reverse().join('/');
+  return new Date(`${date}T12:00:00`).toLocaleDateString(activeLocale());
 }
 
 function CalendarDay({
@@ -118,6 +114,7 @@ function CalendarDay({
 export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate }: Props) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const [calendarOpen, setCalendarOpen] = useState(false);
   const today = useMemo(() => {
     const now = new Date();
@@ -156,10 +153,10 @@ export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate 
   return (
     <View style={styles.container}>
       <FieldLabel
-        info={INFO.categories}
+        info={t('ads.advanced.info.categories')}
         onClear={value.categories.length ? () => set('categories', []) : undefined}
       >
-        Categorias de post (opcional)
+        {t('ads.advanced.categories')}
       </FieldLabel>
       <View style={styles.chips}>
         {POST_CATEGORIES.map((category) => {
@@ -172,17 +169,17 @@ export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate 
               style={[styles.chip, active && styles.chipActive]}
               onPress={() => set('categories', toggle(value.categories, category.key))}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{category.label}</Text>
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{t(`categories.${category.key}`)}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
 
       <FieldLabel
-        info={INFO.hours}
+        info={t('ads.advanced.info.hours')}
         onClear={value.hours?.length ? () => set('hours', null) : undefined}
       >
-        Horários (opcional)
+        {t('ads.advanced.hours')}
       </FieldLabel>
       <View style={styles.hoursGrid}>
         {HOURS.map((hour) => {
@@ -202,13 +199,13 @@ export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate 
           );
         })}
       </View>
-      <Text style={styles.helper}>{value.hours?.length ? `${value.hours.length} horário(s) selecionado(s)` : 'Qualquer horário'}</Text>
+      <Text style={styles.helper}>{value.hours?.length ? t('ads.advanced.hoursSelected', { count: value.hours.length }) : t('ads.advanced.anyTime')}</Text>
 
       <FieldLabel
-        info={INFO.days}
+        info={t('ads.advanced.info.days')}
         onClear={value.daysOfWeek?.length ? () => set('daysOfWeek', null) : undefined}
       >
-        Dias da semana (opcional)
+        {t('ads.advanced.days')}
       </FieldLabel>
       <View style={styles.chips}>
         {WEEK_DAYS.map((label, day) => {
@@ -221,27 +218,27 @@ export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate 
               style={[styles.dayChip, active && styles.chipActive]}
               onPress={() => toggleDay(day)}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>{t(`ads.advanced.weekdays.${label}`)}</Text>
             </TouchableOpacity>
           );
         })}
       </View>
-      {!value.daysOfWeek?.length && <Text style={styles.helper}>Todos os dias</Text>}
+      {!value.daysOfWeek?.length && <Text style={styles.helper}>{t('ads.advanced.everyDay')}</Text>}
 
       <FieldLabel
-        info={INFO.dates}
+        info={t('ads.advanced.info.dates')}
         onClear={value.specialDates.length ? () => set('specialDates', []) : undefined}
       >
-        Datas especiais (opcional)
+        {t('ads.advanced.specialDatesOptional')}
       </FieldLabel>
       <TouchableOpacity style={styles.calendarButton} onPress={() => setCalendarOpen(true)}>
         <Ionicons name="calendar-outline" size={17} color={Colors.primary} />
-        <Text style={styles.calendarButtonText}>Escolher no calendário</Text>
+        <Text style={styles.calendarButtonText}>{t('ads.advanced.chooseCalendar')}</Text>
       </TouchableOpacity>
       <Text style={styles.helper}>
         {value.specialDates.length
-          ? `O anúncio vai aparecer só nessas datas, dentro do período da campanha (${formatBrDate(minDate)} a ${formatBrDate(maxDate)}).`
-          : `Sem datas escolhidas, o anúncio segue os horários/dias acima durante todo o período da campanha (${formatBrDate(minDate)} a ${formatBrDate(maxDate)}).`}
+          ? t('ads.advanced.datesSelectedHint', { start: formatBrDate(minDate), end: formatBrDate(maxDate) })
+          : t('ads.advanced.noDatesHint', { start: formatBrDate(minDate), end: formatBrDate(maxDate) })}
       </Text>
       {!!value.specialDates.length && (
         <View style={styles.chips}>
@@ -259,8 +256,8 @@ export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate 
           <Pressable style={styles.modalCard} onPress={() => {}}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Datas especiais</Text>
-                <Text style={styles.modalSubtitle}>Toque em uma ou mais datas</Text>
+                <Text style={styles.modalTitle}>{t('ads.advanced.specialDates')}</Text>
+                <Text style={styles.modalSubtitle}>{t('ads.advanced.tapDates')}</Text>
               </View>
               <TouchableOpacity style={styles.closeButton} onPress={() => setCalendarOpen(false)}>
                 <Ionicons name="close" size={20} color={Colors.text} />
@@ -300,7 +297,7 @@ export default function AdAdvancedSelectors({ value, onChange, minDate, maxDate 
               />
             </ScrollView>
             <TouchableOpacity style={styles.doneButton} onPress={() => setCalendarOpen(false)}>
-              <Text style={styles.doneButtonText}>Concluir</Text>
+              <Text style={styles.doneButtonText}>{t('common.done')}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>

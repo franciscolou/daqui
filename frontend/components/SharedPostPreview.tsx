@@ -5,6 +5,7 @@ import { Palette } from '../constants/Colors';
 import { SharedPost } from '../lib/api';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import HoverTime from './HoverTime';
+import { useT } from '../lib/i18n';
 
 interface Props {
   post: SharedPost;
@@ -14,6 +15,7 @@ interface Props {
 
 // Prévia de um post compartilhado numa conversa (estilo "quote tweet").
 export default function SharedPostPreview({ post, static: isStatic }: Props) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -39,7 +41,7 @@ export default function SharedPostPreview({ post, static: isStatic }: Props) {
       {!isStatic && (
         <View style={styles.footer}>
           <Ionicons name="open-outline" size={12} color={Colors.textTertiary} />
-          <Text style={styles.footerText}>Ver post</Text>
+          <Text style={styles.footerText}>{t('shared.viewPost')}</Text>
         </View>
       )}
     </>

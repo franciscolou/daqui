@@ -11,9 +11,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Palette } from '../../constants/Colors';
-import { GROUP_PRIVACY_INFO } from '../../constants/groups';
 import { api, Group } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { useT } from '../../lib/i18n';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
@@ -22,6 +22,7 @@ export default function GroupsDiscoverScreen() {
   const { user } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +65,7 @@ export default function GroupsDiscoverScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Grupos</Text>
+        <Text style={styles.headerTitle}>{t('groups.title')}</Text>
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/groups/new' as any)}>
           <Ionicons name="add" size={24} color={Colors.primary} />
         </TouchableOpacity>
@@ -79,11 +80,8 @@ export default function GroupsDiscoverScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.intro}>
-            <Text style={styles.introTitle}>Descubra grupos em {user?.neighborhood ?? 'seu bairro'}</Text>
-            <Text style={styles.introDesc}>
-              Grupos abertos que você ainda não participa. Ao entrar, a conversa vai para a
-              aba Mensagens.
-            </Text>
+            <Text style={styles.introTitle}>{t('groups.discoverIn', { neighborhood: user?.neighborhood ?? t('groups.yourNeighborhood') })}</Text>
+            <Text style={styles.introDesc}>{t('groups.discoverDesc')}</Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -101,8 +99,8 @@ export default function GroupsDiscoverScreen() {
                 <View style={styles.cardInfo}>
                   <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
                   <Text style={styles.cardMeta} numberOfLines={1}>
-                    {item.membersCount} {item.membersCount === 1 ? 'membro' : 'membros'}
-                    {item.privacy === 'request' ? ` · ${GROUP_PRIVACY_INFO.request.shortLabel}` : ''}
+                    {t('groups.memberCount', { count: item.membersCount })}
+                    {item.privacy === 'request' ? ` · ${t('groups.privacy.request.short')}` : ''}
                   </Text>
                 </View>
               </View>
@@ -120,7 +118,7 @@ export default function GroupsDiscoverScreen() {
                 ) : pending ? (
                   <>
                     <Ionicons name="time-outline" size={17} color={Colors.primaryDark} />
-                    <Text style={styles.enterBtnPendingText}>Solicitação enviada</Text>
+                    <Text style={styles.enterBtnPendingText}>{t('groups.requestSent')}</Text>
                   </>
                 ) : (
                   <>
@@ -130,7 +128,7 @@ export default function GroupsDiscoverScreen() {
                       color="#fff"
                     />
                     <Text style={styles.enterBtnText}>
-                      {item.privacy === 'request' ? 'Solicitar' : 'Entrar'}
+                      {item.privacy === 'request' ? t('groups.request') : t('groups.join')}
                     </Text>
                   </>
                 )}
@@ -144,17 +142,15 @@ export default function GroupsDiscoverScreen() {
           ) : (
             <View style={styles.empty}>
               <Ionicons name="compass-outline" size={48} color={Colors.textTertiary} />
-              <Text style={styles.emptyTitle}>Você já explorou tudo!</Text>
-              <Text style={styles.emptyDesc}>
-                Não há grupos abertos novos no seu bairro. Que tal criar um?
-              </Text>
+              <Text style={styles.emptyTitle}>{t('groups.emptyTitle')}</Text>
+              <Text style={styles.emptyDesc}>{t('groups.emptyDesc')}</Text>
               <TouchableOpacity
                 style={styles.createBtn}
                 activeOpacity={0.85}
                 onPress={() => router.push('/groups/new' as any)}
               >
                 <Ionicons name="people" size={16} color="#fff" />
-                <Text style={styles.createBtnText}>Criar grupo</Text>
+                <Text style={styles.createBtnText}>{t('groups.createGroup')}</Text>
               </TouchableOpacity>
             </View>
           )

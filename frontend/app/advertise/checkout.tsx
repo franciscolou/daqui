@@ -17,10 +17,12 @@ import AdCreativeEditor, {
 } from '../../components/AdCreativeEditor';
 import AdPreview from '../../components/AdPreview';
 import AdvertiserIdentityFields from '../../components/AdvertiserIdentityFields';
+import { useT } from '../../lib/i18n';
 
 export default function CheckoutScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const params = useLocalSearchParams<{
     formats: string;
     durationDays: string;
@@ -131,7 +133,7 @@ export default function CheckoutScreen() {
       }
       await Linking.openURL(checkoutUrl);
     } catch (e) {
-      setError(e instanceof AdsApiError ? e.message : 'Não foi possível iniciar o pagamento. Tente novamente.');
+      setError(e instanceof AdsApiError ? e.message : t('ads.checkout.paymentError'));
     } finally {
       setSubmitting(false);
     }
@@ -143,7 +145,7 @@ export default function CheckoutScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/advertise')}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{params.renewedFromToken ? 'Reativar campanha' : 'Dados do anúncio'}</Text>
+        <Text style={styles.headerTitle}>{t(params.renewedFromToken ? 'ads.checkout.reactivate' : 'ads.checkout.adDetails')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -151,14 +153,14 @@ export default function CheckoutScreen() {
         <View style={[styles.columns, wide && styles.columnsWide]}>
           <View style={[styles.formCol, wide && styles.formColWide]}>
             <Text style={styles.summary}>
-              {durationDays} dias ·{' '}
-              {geoScope === 'country' ? 'Brasil todo'
-                : geoScope === 'citywide' ? (city || 'cidade toda')
+              {t('ads.checkout.days', { count: durationDays })} ·{' '}
+              {geoScope === 'country' ? t('ads.scope.country')
+                : geoScope === 'citywide' ? (city || t('ads.scope.citywide'))
                 : geoScope === 'cities' ? cities.join(', ')
                 : neighborhoods.join(', ')}
             </Text>
 
-            <Text style={styles.sectionTitle}>Seus dados</Text>
+            <Text style={styles.sectionTitle}>{t('ads.checkout.yourDetails')}</Text>
             <AdvertiserIdentityFields
               type={advertiserType}
               name={advertiserName}
@@ -167,8 +169,8 @@ export default function CheckoutScreen() {
               onChangeName={setAdvertiserName}
               onChangeDocument={setAdvertiserDocument}
             />
-            <TextInput style={styles.input} placeholder="E-mail" placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
-            <TextInput style={styles.input} placeholder="Telefone (opcional)" placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
+            <TextInput style={styles.input} placeholder={t('ads.checkout.email')} placeholderTextColor={Colors.textTertiary} value={advertiserEmail} onChangeText={setAdvertiserEmail} keyboardType="email-address" autoCapitalize="none" />
+            <TextInput style={styles.input} placeholder={t('ads.checkout.phoneOptional')} placeholderTextColor={Colors.textTertiary} value={advertiserPhone} onChangeText={setAdvertiserPhone} />
 
             <TouchableOpacity
               style={styles.rememberRow}
@@ -180,14 +182,14 @@ export default function CheckoutScreen() {
                 size={20}
                 color={rememberInfo ? Colors.primary : Colors.textTertiary}
               />
-              <Text style={styles.rememberText}>Lembrar meus dados para campanhas futuras</Text>
+              <Text style={styles.rememberText}>{t('ads.checkout.remember')}</Text>
             </TouchableOpacity>
 
             <AdCreativeEditor formats={formats} value={blocks} onChange={setBlocks} />
 
             {missingPin && (
               <Text style={styles.hintText}>
-                Marque o local do pin acima para anunciar no mapa.
+                {t('ads.checkout.pinRequired')}
               </Text>
             )}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -198,7 +200,7 @@ export default function CheckoutScreen() {
               disabled={!canSubmit}
               onPress={submit}
             >
-              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Ir para o pagamento</Text>}
+              {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>{t('ads.checkout.goToPayment')}</Text>}
             </TouchableOpacity>
           </View>
 

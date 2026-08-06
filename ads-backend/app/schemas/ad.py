@@ -39,7 +39,6 @@ class TargetingIn(BaseModel):
     center_lng: float | None = None
     audience: Audience = Audience.ALL
     categories: list[str] = []
-    group_ids: list[int] = []
     user_recency: UserRecency = UserRecency.ALL
     engagement: EngagementLevel = EngagementLevel.ANY
 

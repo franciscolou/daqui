@@ -176,7 +176,7 @@ export default function LoginScreen() {
                 <Ionicons name="mail-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="seu@email.com"
+                  placeholder={t('auth.emailPlaceholder')}
                   placeholderTextColor={Colors.textTertiary}
                   value={email}
                   onChangeText={setEmail}

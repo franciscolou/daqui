@@ -5,13 +5,14 @@ import { Palette } from '../constants/Colors';
 import { Poll } from '../data/mock';
 import { api } from '../lib/api';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 
 // "Encerra 12/07 às 18:00" / "Encerrada" — prazo exato da enquete.
-function formatCloses(iso: string, closed: boolean): string {
+function formatCloses(iso: string, closed: boolean, locale: string, closedLabel: string, openLabel: (date: string, time: string) => string): string {
   const d = new Date(iso);
-  const date = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return closed ? 'Enquete encerrada' : `Encerra ${date} às ${time}`;
+  const date = d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
+  const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
+  return closed ? closedLabel : openLabel(date, time);
 }
 
 export default function PollBlock({
@@ -23,6 +24,7 @@ export default function PollBlock({
   postId: string;
   onChange?: (poll: Poll) => void;
 }) {
+  const { t, i18n } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const accent = Colors.category.enquete ?? Colors.primary;
@@ -133,7 +135,7 @@ export default function PollBlock({
               {busy ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.voteBtnText}>Votar</Text>
+                <Text style={styles.voteBtnText}>{t('poll.vote')}</Text>
               )}
             </TouchableOpacity>
           )}
@@ -161,20 +163,20 @@ export default function PollBlock({
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          {poll.totalVotes} {poll.totalVotes === 1 ? 'voto' : 'votos'}
+          {t('poll.voteCount', { count: poll.totalVotes })}
           {'  ·  '}
-          {formatCloses(poll.closesAt, poll.closed)}
+          {formatCloses(poll.closesAt, poll.closed, i18n.language, t('poll.closed'), (date, time) => t('poll.closes', { date, time }))}
         </Text>
         {mode === 'results' && !poll.closed && (
           <View style={styles.footerActions}>
             {poll.myVotes.length > 0 && (
               <TouchableOpacity onPress={unvote} hitSlop={8} disabled={busy}>
-                <Text style={[styles.changeVote, { color: Colors.textTertiary }]}>Remover voto</Text>
+                <Text style={[styles.changeVote, { color: Colors.textTertiary }]}>{t('poll.removeVote')}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={startEdit} hitSlop={8}>
               <Text style={[styles.changeVote, { color: accent }]}>
-                {poll.myVotes.length > 0 ? 'Alterar voto' : 'Votar'}
+                {poll.myVotes.length > 0 ? t('poll.changeVote') : t('poll.vote')}
               </Text>
             </TouchableOpacity>
           </View>

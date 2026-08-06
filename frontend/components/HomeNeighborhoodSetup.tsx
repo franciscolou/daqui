@@ -14,11 +14,12 @@ import { useT } from '../lib/i18n';
 import { api, ApiError, NearbyNeighborhood } from '../lib/api';
 import { getDeviceCoords, LocationError } from '../lib/location';
 import { useAuth } from '../lib/auth';
+import { activeLocale } from '../lib/time';
 
 type GeoStatus = 'locating' | 'resolved' | 'error';
 
 const formatDistance = (meters: number) =>
-  meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} km`;
+  meters < 1000 ? `${Math.round(meters)} m` : `${(meters / 1000).toLocaleString(activeLocale(), { maximumFractionDigits: 1 })} km`;
 
 /**
  * Configuração do "Meu bairro": descobre o bairro atual por GPS e deixa o

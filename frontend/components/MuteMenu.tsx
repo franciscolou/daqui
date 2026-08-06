@@ -5,16 +5,12 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { MuteDuration, MuteStatus } from '../lib/api';
 import { formatExactDateTime } from '../lib/time';
+import { useT } from '../lib/i18n';
 
 // Silenciamento de notificações de uma conversa (DM) ou grupo — mesmo menu
 // pros dois casos. Silenciado: some do selo agregado de "Mensagens" (ver
 // services/message.py::unread_count no backend) até expirar ou ser reativado.
-const DURATIONS: { key: MuteDuration; label: string }[] = [
-  { key: '8h', label: '8 horas' },
-  { key: '1d', label: '1 dia' },
-  { key: '1w', label: '1 semana' },
-  { key: 'forever', label: 'Até eu reativar' },
-];
+const DURATIONS: MuteDuration[] = ['8h', '1d', '1w', 'forever'];
 
 interface MuteMenuProps {
   visible: boolean;
@@ -29,6 +25,7 @@ interface MuteMenuProps {
 export default function MuteMenu({ visible, onClose, status, subject, onMute, onUnmute }: MuteMenuProps) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const [busy, setBusy] = useState<string | null>(null);
 
   const run = async (key: string, action: () => Promise<void>) => {
@@ -52,14 +49,14 @@ export default function MuteMenu({ visible, onClose, status, subject, onMute, on
               size={20}
               color={status.isMuted ? Colors.textSecondary : Colors.primary}
             />
-            <Text style={styles.title}>Notificações d{subject === 'grupo' ? 'o' : 'a'} {subject}</Text>
+            <Text style={styles.title}>{t(`mute.title.${subject}`)}</Text>
           </View>
           <Text style={styles.subtitle}>
             {status.isMuted
               ? status.mutedUntil
-                ? `Silenciado até ${formatExactDateTime(status.mutedUntil)}`
-                : 'Silenciado até você reativar'
-              : 'Ativadas — você recebe o selo de não lidas normalmente.'}
+                ? t('mute.mutedUntil', { date: formatExactDateTime(status.mutedUntil) })
+                : t('mute.mutedForever')
+              : t('mute.activeDescription')}
           </Text>
 
           {status.isMuted && (
@@ -74,32 +71,32 @@ export default function MuteMenu({ visible, onClose, status, subject, onMute, on
               ) : (
                 <Ionicons name="notifications" size={18} color={Colors.primary} />
               )}
-              <Text style={[styles.optionText, { color: Colors.primary }]}>Reativar notificações</Text>
+              <Text style={[styles.optionText, { color: Colors.primary }]}>{t('mute.reactivate')}</Text>
             </TouchableOpacity>
           )}
 
           <Text style={styles.sectionLabel}>
-            {status.isMuted ? 'Trocar duração' : 'Silenciar por'}
+            {t(status.isMuted ? 'mute.changeDuration' : 'mute.muteFor')}
           </Text>
-          {DURATIONS.map((d, i) => (
+          {DURATIONS.map((duration, i) => (
             <TouchableOpacity
-              key={d.key}
+              key={duration}
               style={[styles.option, i > 0 && styles.optionBorder]}
               activeOpacity={0.7}
-              onPress={() => run(d.key, () => onMute(d.key))}
+              onPress={() => run(duration, () => onMute(duration))}
               disabled={!!busy}
             >
-              {busy === d.key ? (
+              {busy === duration ? (
                 <ActivityIndicator size="small" color={Colors.text} />
               ) : (
                 <Ionicons name="moon-outline" size={18} color={Colors.text} />
               )}
-              <Text style={styles.optionText}>{d.label}</Text>
+              <Text style={styles.optionText}>{t(`mute.duration.${duration}`)}</Text>
             </TouchableOpacity>
           ))}
 
           <TouchableOpacity style={styles.cancel} onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.cancelText}>Cancelar</Text>
+            <Text style={styles.cancelText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

@@ -22,8 +22,10 @@ import FeedLayout from '../../components/FeedLayout';
 import ProfileHeader from '../../components/ProfileHeader';
 import ActionMenu from '../../components/ActionMenu';
 import ReportModal from '../../components/ReportModal';
+import { useT } from '../../lib/i18n';
 
 export default function UserScreen() {
+  const { t } = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
   const isWide = width >= 900;
@@ -79,9 +81,9 @@ export default function UserScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.notFound}>
           <Ionicons name="person-outline" size={48} color={Colors.textTertiary} />
-          <Text style={styles.notFoundText}>Usuário não encontrado</Text>
+          <Text style={styles.notFoundText}>{t('profile.userNotFound')}</Text>
           <TouchableOpacity onPress={() => goBack('/')} style={styles.backBtnCenter}>
-            <Text style={styles.backBtnCenterText}>Voltar</Text>
+            <Text style={styles.backBtnCenterText}>{t('common.back')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -104,7 +106,7 @@ export default function UserScreen() {
                 activeOpacity={0.85}
               >
                 <Ionicons name="settings-outline" size={16} color="#fff" />
-                <Text style={styles.actionBtnPrimaryText}>Editar perfil</Text>
+                <Text style={styles.actionBtnPrimaryText}>{t('profile.edit')}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -113,7 +115,7 @@ export default function UserScreen() {
                 onPress={() => router.push(`/messages/${user.id}` as any)}
               >
                 <Ionicons name="chatbubble-outline" size={16} color="#fff" />
-                <Text style={styles.actionBtnPrimaryText}>Enviar mensagem</Text>
+                <Text style={styles.actionBtnPrimaryText}>{t('profile.sendMessage')}</Text>
               </TouchableOpacity>
             )
           ) : undefined
@@ -127,11 +129,9 @@ export default function UserScreen() {
           <View style={styles.lockedIcon}>
             <Ionicons name="lock-closed" size={24} color={Colors.textSecondary} />
           </View>
-          <Text style={styles.lockedTitle}>Perfil de outro bairro</Text>
+          <Text style={styles.lockedTitle}>{t('profile.lockedTitle')}</Text>
           <Text style={styles.lockedDesc}>
-            No Daqui você se conecta com o seu bairro. O perfil completo e os posts deste
-            vizinho só ficam visíveis para a comunidade dele, mas você ainda pode enviar
-            uma mensagem.
+            {t('profile.lockedDesc')}
           </Text>
           <br/>
           {!isMe && (
@@ -141,7 +141,7 @@ export default function UserScreen() {
               onPress={() => router.push(`/messages/${user.id}` as any)}
             >
               <Ionicons name="chatbubble-outline" size={16} color="#fff" />
-              <Text style={styles.lockedMessageBtnText}>Enviar mensagem</Text>
+              <Text style={styles.lockedMessageBtnText}>{t('profile.sendMessage')}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -150,12 +150,12 @@ export default function UserScreen() {
           {/* Posts — timeline */}
           <View style={styles.timelineSection}>
             <Text style={styles.timelineTitle}>
-              {isMe ? 'Meus posts' : 'Posts'}
+              {isMe ? t('profile.myPosts') : t('profile.posts')}
             </Text>
             {userPosts.length === 0 ? (
               <View style={styles.noPosts}>
                 <Ionicons name="document-text-outline" size={32} color={Colors.textTertiary} />
-                <Text style={styles.noPostsText}>Nenhum post ainda</Text>
+                <Text style={styles.noPostsText}>{t('profile.noPosts')}</Text>
               </View>
             ) : (
               userPosts.map((post) => <PostCard key={post.id} post={post} onDeleted={handlePostDeleted} />)
@@ -185,7 +185,7 @@ export default function UserScreen() {
         options={[
           {
             key: 'report',
-            label: 'Denunciar perfil',
+            label: t('report.titles.user'),
             icon: 'flag-outline',
             destructive: true,
             onPress: () => setReportVisible(true),

@@ -1,16 +1,7 @@
 import { useCallback, useState } from 'react';
 import { api, ApiError } from './api';
-
+import { useT } from './i18n';
 export const MAX_COMMENT = 1000;
-
-export const RATING_LABELS: Record<number, string> = {
-  0: 'Toque nas estrelas para avaliar',
-  1: 'Péssimo',
-  2: 'Ruim',
-  3: 'Regular',
-  4: 'Bom',
-  5: 'Ótimo',
-};
 
 /** Estado e ações do formulário de avaliação do app, compartilhados entre o modal (desktop) e a tela cheia (mobile). */
 export function useRateForm() {
@@ -20,6 +11,15 @@ export function useRateForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+  const { t } = useT();
+  const RATING_LABELS: Record<number, string> = {
+    0: t('Toque nas estrelas para avaliar'),
+    1: t('Péssimo'),
+    2: t('Ruim'),
+    3: t('rate.labels.regular'),
+    4: t('rate.labels.good'),
+    5: t('rate.labels.great'),
+  };
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -542,7 +542,7 @@ export default function WelcomeScreen() {
           <Ionicons name="mail-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="seu@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             placeholderTextColor={FORM_PLACEHOLDER}
             value={loginFlow.email}
             onChangeText={loginFlow.setEmail}
@@ -699,7 +699,7 @@ export default function WelcomeScreen() {
             <Text style={[styles.label, isCompactDesktop && styles.labelCompact]}>{t('auth.signup.email')}</Text>
             <View style={[styles.inputWrapper, isCompactDesktop && styles.inputWrapperCompact]}>
               <Ionicons name="mail-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="seu@email.com" placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.email} onChangeText={signupFlow.setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
+              <TextInput style={styles.input} placeholder={t('auth.emailPlaceholder')} placeholderTextColor={FORM_PLACEHOLDER} value={signupFlow.email} onChangeText={signupFlow.setEmail} keyboardType="email-address" autoCapitalize="none" onKeyPress={submitOnEnter(signupFlow.createAccount)} onSubmitEditing={signupFlow.createAccount} />
               <AvailabilityIcon state={signupFlow.emailCheck} />
             </View>
             {signupFlow.emailCheck.status === 'error' && !!signupFlow.emailCheck.error && (

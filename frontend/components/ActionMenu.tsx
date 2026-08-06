@@ -1,7 +1,8 @@
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
+import { useT } from '../lib/i18n';
 
 export interface ActionMenuOption {
   key: string;
@@ -22,6 +23,7 @@ export default function ActionMenu({
   options: ActionMenuOption[];
 }) {
   const Colors = useTheme();
+  const { t } = useT();
   const styles = useThemedStyles(makeStyles);
 
   return (
@@ -49,7 +51,7 @@ export default function ActionMenu({
             </TouchableOpacity>
           ))}
           <TouchableOpacity style={styles.cancel} onPress={onClose} activeOpacity={0.7}>
-            <Text style={styles.cancelText}>Cancelar</Text>
+            <Text style={styles.cancelText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

@@ -9,11 +9,11 @@ import {
   Platform,
   Image,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { ActivityIndicator } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
@@ -35,6 +35,8 @@ import PollEditor, {
 } from '../../components/PollEditor';
 import { router } from 'expo-router';
 import { goBack } from '../../lib/navigation';
+import { useT } from '../../lib/i18n';
+import { activeLocale } from '../../lib/time';
 
 // Calendário em português
 LocaleConfig.locales['pt-br'] = {
@@ -53,6 +55,13 @@ LocaleConfig.locales['pt-br'] = {
   dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
   today: 'Hoje',
 };
+LocaleConfig.locales.en = {
+  monthNames: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  monthNamesShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  dayNames: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  dayNamesShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  today: 'Today',
+};
 LocaleConfig.defaultLocale = 'pt-br';
 
 const CREATE_CATEGORIES = CATEGORIES.filter((c) => c.key !== 'todos');
@@ -70,21 +79,25 @@ function maskPrice(input: string): string {
   const digits = input.replace(/\D/g, '').slice(0, 11);
   if (!digits) return '';
   const cents = parseInt(digits, 10);
-  return (cents / 100).toLocaleString('pt-BR', {
+  return (cents / 100).toLocaleString(activeLocale(), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 }
 
 // "X dias (12 de setembro)" até a cota mensal de posts importantes renovar.
-function formatQuotaReset(resetsAtIso: string): string {
+function formatQuotaReset(resetsAtIso: string, locale: string, dayLabel: (count: number) => string): string {
   const resetDate = new Date(resetsAtIso);
   const days = Math.max(1, Math.ceil((resetDate.getTime() - Date.now()) / 86400000));
-  const label = resetDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
-  return `${days === 1 ? '1 dia' : `${days} dias`} (${label})`;
+  const label = resetDate.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
+  return `${dayLabel(days)} (${label})`;
 }
 
 export default function PublishScreen() {
+  const { t, i18n } = useT();
+  useEffect(() => {
+    LocaleConfig.defaultLocale = i18n.language.startsWith('en') ? 'en' : 'pt-br';
+  }, [i18n.language]);
   const { user } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -154,7 +167,7 @@ export default function PublishScreen() {
       user?.latitude != null && user?.longitude != null
         ? { latitude: user.latitude, longitude: user.longitude }
         : { latitude: -23.5505, longitude: -46.6333 },
-    [user?.latitude, user?.longitude],
+    [user],
   );
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -174,7 +187,9 @@ export default function PublishScreen() {
   };
 
   // Converte a string mascarada ("1.234,56") em número.
-  const priceNumber = () => parseFloat(price.replace(/\./g, '').replace(',', '.'));
+  const priceNumber = () => activeLocale().startsWith('en')
+    ? parseFloat(price.replace(/,/g, ''))
+    : parseFloat(price.replace(/\./g, '').replace(',', '.'));
   const priceValid = priceNegotiable || priceNumber() > 0;
 
   // Requisitos extras por categoria
@@ -202,17 +217,17 @@ export default function PublishScreen() {
 
   // Mensagem explicando por que o botão está desabilitado (ajuda o usuário).
   const disabledReason = (() => {
-    if (!selectedCategory) return 'Selecione uma categoria';
-    if (!titleValid) return 'Informe o nome do evento';
-    if (media.some((m) => m.uploading)) return 'Aguarde o envio das fotos/vídeos terminar';
+    if (!selectedCategory) return t('publish.validation.category');
+    if (!titleValid) return t('publish.validation.eventName');
+    if (media.some((m) => m.uploading)) return t('publish.validation.uploading');
     if (selectedCategory === 'evento' && eventDates.length === 0)
-      return 'Selecione ao menos uma data para o evento';
+      return t('publish.validation.eventDate');
     if (selectedCategory === 'venda' && !priceValid)
-      return 'Informe o preço ou marque "Negociável"';
+      return t('publish.validation.price');
     if (selectedCategory === 'enquete' && !pollDraftValid(pollDraft))
-      return 'Preencha ao menos 2 opções e um prazo futuro';
-    if (!contentValid) return 'Escreva uma mensagem';
-    if (!locationOk) return 'Escolha um endereço da lista de sugestões (ou marque no mapa)';
+      return t('publish.validation.poll');
+    if (!contentValid) return t('publish.validation.message');
+    if (!locationOk) return t('publish.validation.location');
     return null;
   })();
 
@@ -223,7 +238,7 @@ export default function PublishScreen() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        setError('Permita o acesso às fotos para adicionar imagens ou vídeos.');
+        setError(t('publish.errors.mediaPermission'));
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
@@ -258,12 +273,12 @@ export default function PublishScreen() {
             );
           } catch {
             setMedia((prev) => prev.filter((m) => m.localUri !== localUri));
-            setError('Não foi possível enviar um dos arquivos.');
+            setError(t('publish.errors.upload'));
           }
         }),
       );
     } catch {
-      setError('Não foi possível carregar as imagens ou vídeos.');
+      setError(t('publish.errors.mediaLoad'));
     }
   };
 
@@ -325,7 +340,7 @@ export default function PublishScreen() {
       });
       router.replace('/(tabs)');
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Falha ao publicar.');
+      setError(e instanceof ApiError ? e.message : t('publish.errors.publish'));
       setPublishing(false);
     }
   };
@@ -343,7 +358,7 @@ export default function PublishScreen() {
             <TouchableOpacity style={styles.closeBtn} onPress={() => goBack('/(tabs)' as any)}>
               <Ionicons name="close" size={22} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Novo post</Text>
+            <Text style={styles.headerTitle}>{t('publish.title')}</Text>
             {isWide ? (
               // No desktop o botão fica no rodapé, após os campos.
               <View style={styles.headerSpacer} />
@@ -358,7 +373,7 @@ export default function PublishScreen() {
                   <ActivityIndicator color={Colors.primaryDark} size="small" />
                 ) : (
                   <Text style={[styles.publishBtnText, !canPublish && styles.publishBtnTextDisabled]}>
-                    Publicar
+                    {t('publish.publish')}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -388,7 +403,7 @@ export default function PublishScreen() {
 
           {/* Category selector */}
           <View style={styles.section}>
-            <FieldLabel styles={styles}>Categoria</FieldLabel>
+            <FieldLabel styles={styles}>{t('publish.category')}</FieldLabel>
             <View style={styles.categoryRow}>
               {CREATE_CATEGORIES.map((cat) => {
                 const isActive = selectedCategory === cat.key;
@@ -406,7 +421,7 @@ export default function PublishScreen() {
                   >
                     <Ionicons name={cat.icon as any} size={15} color={isActive ? '#fff' : color} />
                     <Text style={[styles.categoryChipText, isActive && { color: '#fff' }, !isActive && { color }]}>
-                      {cat.label}
+                      {t(`categories.${cat.key}`)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -421,11 +436,18 @@ export default function PublishScreen() {
                 <Ionicons name="alert-circle" size={18} color={isImportant ? '#fff' : Colors.error} />
               </View>
               <View>
-                <Text style={styles.importantLabel}>Marcar como importante</Text>
+                <Text style={styles.importantLabel}>{t('publish.important.label')}</Text>
                 <Text style={styles.importantDesc}>
                   {importantQuotaExhausted && importantQuota
-                    ? `Limite de ${importantQuota.limit} posts importantes usado este mês. Renova em ${formatQuotaReset(importantQuota.resetsAt)}.`
-                    : 'Notifica os vizinhos do bairro (e as redondezas para quem está com "Incluir redondezas" ligado)'}
+                    ? t('publish.important.exhausted', {
+                        limit: importantQuota.limit,
+                        reset: formatQuotaReset(
+                          importantQuota.resetsAt,
+                          i18n.language,
+                          (count) => t('publish.important.days', { count }),
+                        ),
+                      })
+                    : t('publish.important.description')}
                 </Text>
               </View>
             </View>
@@ -445,10 +467,10 @@ export default function PublishScreen() {
                 {/* Nome do evento (maior) + Horário (menor) na mesma linha */}
                 <View style={styles.fieldRow}>
                   <View style={styles.fieldColWide}>
-                    <FieldLabel styles={styles}>Nome do evento</FieldLabel>
+                    <FieldLabel styles={styles}>{t('publish.event.name')}</FieldLabel>
                     <TextInput
                       style={styles.fieldInput}
-                      placeholder="Ex.: Feira de trocas do bairro"
+                      placeholder={t('publish.event.namePlaceholder')}
                       placeholderTextColor={Colors.textTertiary}
                       value={title}
                       onChangeText={setTitle}
@@ -456,7 +478,7 @@ export default function PublishScreen() {
                     />
                   </View>
                   <View style={styles.fieldCol}>
-                    <FieldLabel styles={styles}>Horário</FieldLabel>
+                    <FieldLabel styles={styles}>{t('publish.event.time')}</FieldLabel>
                     <TextInput
                       style={[styles.fieldInput, allDay && styles.priceInputDisabled]}
                       placeholder="19:00"
@@ -476,7 +498,7 @@ export default function PublishScreen() {
                         {allDay && <Ionicons name="checkmark" size={14} color="#fff" />}
                       </View>
                       <Text style={styles.checkboxLabel}>
-                        {eventDates.length > 1 ? 'Dias inteiros' : 'O dia inteiro'}
+                        {eventDates.length > 1 ? t('publish.event.fullDays') : t('publish.event.fullDay')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -485,7 +507,7 @@ export default function PublishScreen() {
 
               {/* Data(s) do evento — acima de Mensagem */}
               <View style={styles.section}>
-                <FieldLabel styles={styles}>Data(s) do evento</FieldLabel>
+                <FieldLabel styles={styles}>{t('publish.event.dates')}</FieldLabel>
                 <View style={styles.calendarWrap}>
                   <Calendar
                     // Remonta ao trocar de tema para o calendário recalcular seus estilos
@@ -512,17 +534,17 @@ export default function PublishScreen() {
                 </View>
                 {eventDates.length > 0 && (
                   <Text style={styles.helperText}>
-                    {eventDates.length} {eventDates.length === 1 ? 'dia selecionado' : 'dias selecionados'}
+                    {t('publish.event.selectedDays', { count: eventDates.length })}
                   </Text>
                 )}
               </View>
             </>
           ) : (
             <View style={styles.section}>
-              <FieldLabel styles={styles} optional>Título</FieldLabel>
+              <FieldLabel styles={styles} optional>{t('publish.postTitle')}</FieldLabel>
               <TextInput
                 style={styles.titleInput}
-                placeholder="Um título claro e direto..."
+                placeholder={t('publish.postTitlePlaceholder')}
                 placeholderTextColor={Colors.textTertiary}
                 value={title}
                 onChangeText={setTitle}
@@ -539,14 +561,14 @@ export default function PublishScreen() {
               context e um z-index alto lá dentro não escapa sozinho. */}
           <View style={[styles.section, { zIndex: 20 }]}>
             <FieldLabel styles={styles}>
-              {selectedCategory === 'enquete' ? 'Pergunta' : 'Mensagem'}
+              {selectedCategory === 'enquete' ? t('publish.poll.question') : t('publish.message')}
             </FieldLabel>
             <MentionInput
               style={selectedCategory === 'enquete' ? styles.titleInput : styles.contentInput}
               placeholder={
                 selectedCategory === 'enquete'
-                  ? 'O que você quer perguntar ao bairro?'
-                  : 'O que você quer compartilhar com o bairro? Use @ para mencionar vizinhos.'
+                  ? t('publish.poll.questionPlaceholder')
+                  : t('publish.messagePlaceholder')
               }
               placeholderTextColor={Colors.textTertiary}
               value={content}
@@ -572,12 +594,12 @@ export default function PublishScreen() {
           {!!selectedCategory && selectedCategory !== 'enquete' && (
             <View style={styles.section}>
               <FieldLabel styles={styles} optional>
-                {`${selectedCategory === 'venda' ? 'Fotos e vídeos do produto' : 'Fotos e vídeos'} (${media.length}/${MAX_MEDIA})`}
+                {`${selectedCategory === 'venda' ? t('publish.media.product') : t('publish.media.label')} (${media.length}/${MAX_MEDIA})`}
               </FieldLabel>
               {media.length === 0 ? (
                 <TouchableOpacity style={styles.imagePicker} onPress={pickMedia} activeOpacity={0.8}>
                   <Ionicons name="image-outline" size={22} color={Colors.primary} />
-                  <Text style={styles.imagePickerText}>Adicionar fotos ou vídeos</Text>
+                  <Text style={styles.imagePickerText}>{t('publish.media.add')}</Text>
                 </TouchableOpacity>
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageThumbRow}>
@@ -619,7 +641,7 @@ export default function PublishScreen() {
           {/* Campos específicos por categoria */}
           {selectedCategory === 'evento' && (
             <View style={styles.section}>
-              <FieldLabel styles={styles}>Local</FieldLabel>
+              <FieldLabel styles={styles}>{t('publish.location')}</FieldLabel>
               <LocationAutocompleteInput
                 value={location}
                 onChangeText={setLocation}
@@ -635,10 +657,10 @@ export default function PublishScreen() {
             <View style={styles.section}>
               <View style={styles.fieldRow}>
                 <View style={styles.fieldCol}>
-                  <FieldLabel styles={styles}>Nome do local</FieldLabel>
+                  <FieldLabel styles={styles}>{t('publish.recommendation.placeName')}</FieldLabel>
                   <TextInput
                     style={styles.fieldInput}
-                    placeholder="Ex.: Padaria do Zé"
+                    placeholder={t('publish.recommendation.placePlaceholder')}
                     placeholderTextColor={Colors.textTertiary}
                     value={placeName}
                     onChangeText={setPlaceName}
@@ -646,7 +668,7 @@ export default function PublishScreen() {
                   />
                 </View>
                 <View style={styles.fieldCol}>
-                  <FieldLabel styles={styles}>Local</FieldLabel>
+                  <FieldLabel styles={styles}>{t('publish.location')}</FieldLabel>
                   <LocationAutocompleteInput
                     value={location}
                     onChangeText={setLocation}
@@ -654,7 +676,7 @@ export default function PublishScreen() {
                     onSelectResult={(r) => setLocationCoords({ latitude: r.latitude, longitude: r.longitude })}
                     onPickOnMap={() => setLocationPickerOpen(true)}
                     status={locationStatus}
-                    placeholder="Ex.: Rua das Flores"
+                    placeholder={t('publish.recommendation.locationPlaceholder')}
                   />
                 </View>
               </View>
@@ -664,7 +686,7 @@ export default function PublishScreen() {
           {selectedCategory === 'venda' && (
             <>
               <View style={styles.section}>
-                <FieldLabel styles={styles}>Preço</FieldLabel>
+                <FieldLabel styles={styles}>{t('publish.sale.price')}</FieldLabel>
                 <View style={styles.priceRow}>
                   <View style={[styles.priceInputWrap, priceNegotiable && styles.priceInputDisabled]}>
                     <Text style={styles.priceCurrency}>R$</Text>
@@ -685,14 +707,14 @@ export default function PublishScreen() {
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.negChipText, priceNegotiable && styles.negChipTextActive]}>
-                      Negociável
+                      {t('publish.sale.negotiable')}
                     </Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
               <View style={styles.section}>
-                <FieldLabel styles={styles}>Local</FieldLabel>
+                <FieldLabel styles={styles}>{t('publish.location')}</FieldLabel>
                 <LocationAutocompleteInput
                   value={location}
                   onChangeText={setLocation}
@@ -707,7 +729,7 @@ export default function PublishScreen() {
 
           {selectedCategory === 'perdidos' && (
             <View style={styles.section}>
-              <FieldLabel styles={styles}>Local</FieldLabel>
+              <FieldLabel styles={styles}>{t('publish.location')}</FieldLabel>
               <LocationAutocompleteInput
                 value={location}
                 onChangeText={setLocation}
@@ -721,7 +743,7 @@ export default function PublishScreen() {
 
           {selectedCategory === 'seguranca' && (
             <View style={styles.section}>
-              <FieldLabel styles={styles}>Local</FieldLabel>
+              <FieldLabel styles={styles}>{t('publish.location')}</FieldLabel>
               <LocationAutocompleteInput
                 value={location}
                 onChangeText={setLocation}
@@ -755,7 +777,7 @@ export default function PublishScreen() {
                 ) : (
                   <>
                     <Ionicons name="send" size={18} color="#fff" />
-                    <Text style={styles.bottomPublishText}>Publicar</Text>
+                    <Text style={styles.bottomPublishText}>{t('publish.publish')}</Text>
                   </>
                 )}
               </TouchableOpacity>

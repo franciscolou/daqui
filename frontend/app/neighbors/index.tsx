@@ -14,6 +14,7 @@ import { Palette } from '../../constants/Colors';
 import { api } from '../../lib/api';
 import { User } from '../../data/mock';
 import { useAuth } from '../../lib/auth';
+import { useT } from '../../lib/i18n';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import FeedLayout from '../../components/FeedLayout';
@@ -22,6 +23,7 @@ export default function NeighborsScreen() {
   const { user } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
 
   const [neighbors, setNeighbors] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +51,7 @@ export default function NeighborsScreen() {
         <TouchableOpacity style={styles.iconBtn} onPress={() => goBack('/')}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Vizinhos</Text>
+        <Text style={styles.headerTitle}>{t('neighbors.title')}</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -62,10 +64,8 @@ export default function NeighborsScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View style={styles.intro}>
-            <Text style={styles.introTitle}>Vizinhos em {user?.neighborhood ?? 'seu bairro'}</Text>
-            <Text style={styles.introDesc}>
-              Pessoas do seu bairro no Daqui. Toque para ver o perfil ou mande uma mensagem.
-            </Text>
+            <Text style={styles.introTitle}>{t('neighbors.inNeighborhood', { neighborhood: user?.neighborhood ?? t('neighbors.yourNeighborhood') })}</Text>
+            <Text style={styles.introDesc}>{t('neighbors.description')}</Text>
           </View>
         }
         renderItem={({ item }) =>
@@ -86,7 +86,7 @@ export default function NeighborsScreen() {
               onPress={() => router.push(`/messages/${item.id}` as any)}
             >
               <Ionicons name="chatbubble-outline" size={15} color="#fff" />
-              <Text style={styles.msgBtnText}>Mensagem</Text>
+              <Text style={styles.msgBtnText}>{t('neighbors.message')}</Text>
             </TouchableOpacity>
           </TouchableOpacity>
           )
@@ -97,8 +97,8 @@ export default function NeighborsScreen() {
           ) : (
             <View style={styles.empty}>
               <Ionicons name="people-outline" size={48} color={Colors.textTertiary} />
-              <Text style={styles.emptyTitle}>Nenhum vizinho por aqui</Text>
-              <Text style={styles.emptyDesc}>Assim que outras pessoas do seu bairro entrarem, elas aparecem aqui.</Text>
+              <Text style={styles.emptyTitle}>{t('neighbors.emptyTitle')}</Text>
+              <Text style={styles.emptyDesc}>{t('neighbors.emptyDesc')}</Text>
             </View>
           )
         }

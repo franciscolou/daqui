@@ -14,6 +14,8 @@ import { goBack } from '../../lib/navigation';
 import { adsApi, AdPlan, AdPlanCategory, AdFormat } from '../../lib/adsApi';
 import { AD_CONTACT_CHANNELS } from '../../constants/ads';
 import AdCirculationArt from '../../components/AdCirculationArt';
+import { useT } from '../../lib/i18n';
+import { activeLocale } from '../../lib/time';
 
 const CONTENT_MAX = 1180;
 
@@ -77,7 +79,7 @@ const HERO_BULLETS: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [
 ];
 
 function formatMoney(cents: number) {
-  return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  return (cents / 100).toLocaleString(activeLocale(), { style: 'currency', currency: 'BRL' });
 }
 
 function reachLabel(plan: AdPlan) {
@@ -223,6 +225,7 @@ function PlanCtaButton({
 export default function AdvertiseScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const { t } = useT();
   const [customHovered, setCustomHovered] = useState(false);
   const { width } = useWindowDimensions();
   const reducedMotion = useReducedMotion();
@@ -256,11 +259,11 @@ export default function AdvertiseScreen() {
             style={styles.iconBtn}
             onPress={() => goBack('/')}
             accessibilityRole="button"
-            accessibilityLabel="Voltar"
+            accessibilityLabel={t('common.back')}
           >
             <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} accessibilityRole="header">Anuncie no Daqui</Text>
+          <Text style={styles.headerTitle} accessibilityRole="header">{t('ads.landing.title')}</Text>
           <View style={styles.iconBtn} />
         </View>
       </View>
@@ -282,16 +285,13 @@ export default function AdvertiseScreen() {
                     <Ionicons name="megaphone" size={13} color="#fff" />
                     <Text style={styles.eyebrowText}>PUBLICIDADE LOCAL</Text>
                   </View> */}
-                  <Text style={styles.heroTitle} accessibilityRole="header">Foque no seu negócio, a divulgação a gente resolve.</Text>
-                  <Text style={styles.heroSubtitle}>
-                    Apareça para quem mora perto: post no feed, pin no mapa, aviso em Novidades e recomendação
-                    nas Mensagens — tudo segmentado por bairro.
-                  </Text>
+                  <Text style={styles.heroTitle} accessibilityRole="header">{t('ads.landing.heroTitle')}</Text>
+                  <Text style={styles.heroSubtitle}>{t('ads.landing.heroSubtitle')}</Text>
                   <View style={styles.heroBullets}>
-                    {HERO_BULLETS.map((b) => (
+                    {HERO_BULLETS.map((b, i) => (
                       <View key={b.text} style={styles.heroBulletRow}>
                         <Ionicons name={b.icon} size={15} color="rgba(255,255,255,0.95)" />
-                        <Text style={styles.heroBulletText}>{b.text}</Text>
+                        <Text style={styles.heroBulletText}>{t(`ads.landing.bullets.${i}`)}</Text>
                       </View>
                     ))}
                   </View>
@@ -307,8 +307,8 @@ export default function AdvertiseScreen() {
 
           {/* ── Seleção de perfil ──────────────────────────────────── */}
           <FadeSlideIn delay={70} reducedMotion={reducedMotion} style={styles.sectionHead}>
-            <Text style={styles.sectionTitle} accessibilityRole="header">Escolha o seu perfil</Text>
-            <Text style={styles.sectionSubtitle}>O perfil define quais planos fazem mais sentido pro seu anúncio.</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">{t('ads.landing.chooseProfile')}</Text>
+            <Text style={styles.sectionSubtitle}>{t('ads.landing.profileHint')}</Text>
           </FadeSlideIn>
 
           <FadeSlideIn delay={110} reducedMotion={reducedMotion}>
@@ -323,7 +323,7 @@ export default function AdvertiseScreen() {
                     radius={18}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: active }}
-                    accessibilityLabel={`${cat.label}. ${cat.tagline}`}
+                    accessibilityLabel={`${t(`ads.landing.categories.${cat.key}.label`)}. ${t(`ads.landing.categories.${cat.key}.tagline`)}`}
                   >
                     <View style={[styles.categoryCard, active && styles.categoryCardActive]}>
                       {active ? (
@@ -341,8 +341,8 @@ export default function AdvertiseScreen() {
                         </LinearGradient>
                       )}
                       <View style={styles.categoryTextCol}>
-                        <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>{cat.label}</Text>
-                        <Text style={styles.categoryTagline} numberOfLines={2}>{cat.tagline}</Text>
+                        <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>{t(`ads.landing.categories.${cat.key}.label`)}</Text>
+                        <Text style={styles.categoryTagline} numberOfLines={2}>{t(`ads.landing.categories.${cat.key}.tagline`)}</Text>
                       </View>
                       {active && (
                         <View style={styles.categoryCheck}>
@@ -358,8 +358,8 @@ export default function AdvertiseScreen() {
 
           {/* ── Planos ─────────────────────────────────────────────── */}
           <FadeSlideIn delay={140} reducedMotion={reducedMotion} style={styles.sectionHead}>
-            <Text style={styles.sectionTitle} accessibilityRole="header">Planos para {activeMeta.label.toLowerCase()}</Text>
-            <Text style={styles.sectionSubtitle}>Compare preço, duração e alcance — contrate pronto ou personalize do seu jeito.</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">{t('ads.landing.plansFor', { profile: t(`ads.landing.categories.${activeMeta.key}.label`).toLowerCase() })}</Text>
+            <Text style={styles.sectionSubtitle}>{t('ads.landing.compareHint')}</Text>
           </FadeSlideIn>
 
           {loading ? (
@@ -379,31 +379,31 @@ export default function AdvertiseScreen() {
                       {popular && (
                         <View style={styles.popularRibbon}>
                           <Ionicons name="star" size={13} color="#fff" />
-                          <Text style={styles.popularRibbonText}>{plan.badge}</Text>
+                          <Text style={styles.popularRibbonText}>{t(`ads.landing.badges.${plan.badge}`, { defaultValue: plan.badge })}</Text>
                         </View>
                       )}
                       <View style={styles.planCardBody}>
                         {!popular && plan.badge && (
                           <View style={styles.softBadge}>
                             <Ionicons name="sparkles" size={12} color={Colors.primary} />
-                            <Text style={styles.softBadgeText}>{plan.badge}</Text>
+                            <Text style={styles.softBadgeText}>{t(`ads.landing.badges.${plan.badge}`, { defaultValue: plan.badge })}</Text>
                           </View>
                         )}
-                        <Text style={styles.planName}>{plan.name}</Text>
+                        <Text style={styles.planName}>{t(`ads.landing.plans.${plan.slug}.name`, { defaultValue: plan.name })}</Text>
                         <View style={styles.planPriceRow}>
                           <Text style={styles.planPrice}>{formatMoney(plan.priceCents)}</Text>
-                          <Text style={styles.planPriceMeta}>/ {plan.durationDays} dias</Text>
+                          <Text style={styles.planPriceMeta}>/ {t('ads.checkout.days', { count: plan.durationDays })}</Text>
                         </View>
-                        <Text style={styles.planDesc} numberOfLines={4}>{plan.description}</Text>
+                        <Text style={styles.planDesc} numberOfLines={4}>{t(`ads.landing.plans.${plan.slug}.description`, { defaultValue: plan.description })}</Text>
 
                         <View style={styles.planDivider} />
 
-                        <Text style={styles.planFormatsLabel}>Aparece em</Text>
+                        <Text style={styles.planFormatsLabel}>{t('ads.landing.appearsIn')}</Text>
                         <View style={styles.formatsRow}>
                           {plan.formats.map((f) => (
                             <View key={f} style={styles.formatTag}>
                               <Ionicons name={FORMAT_ICON[f]} size={12} color={Colors.primaryDark} />
-                              <Text style={styles.formatTagText}>{FORMAT_LABEL[f] || f}</Text>
+                              <Text style={styles.formatTagText}>{t(`ads.formats.${f}`, { defaultValue: FORMAT_LABEL[f] || f })}</Text>
                             </View>
                           ))}
                         </View>
@@ -417,9 +417,9 @@ export default function AdvertiseScreen() {
 
                         <PlanCtaButton
                           popular={popular}
-                          label="Contratar este plano"
+                          label={t('ads.landing.hirePlan')}
                           onPress={() => router.push({ pathname: '/advertise/customize', params: { planId: String(plan.id) } })}
-                          accessibilityLabel={`Contratar plano ${plan.name}, ${formatMoney(plan.priceCents)} por ${plan.durationDays} dias`}
+                          accessibilityLabel={t('ads.landing.hirePlanA11y', { name: plan.name, price: formatMoney(plan.priceCents), days: plan.durationDays })}
                         />
                       </View>
                     </View>
@@ -437,18 +437,18 @@ export default function AdvertiseScreen() {
             radius={20}
             style={styles.customCardWrap}
             accessibilityRole="button"
-            accessibilityLabel="Montar meu próprio plano de anúncio"
+            accessibilityLabel={t('ads.landing.customA11y')}
           >
             <View style={styles.customCard}>
               <View style={styles.customIconBg}>
                 <Ionicons name="options-outline" size={22} color={Colors.primary} />
               </View>
               <View style={styles.customTextCol}>
-                <Text style={styles.customTitle}>Ou monte seu próprio plano</Text>
-                <Text style={styles.customSubtitle}>Escolha formatos, alcance e duração sob medida para o seu orçamento.</Text>
+                <Text style={styles.customTitle}>{t('ads.landing.customTitle')}</Text>
+                <Text style={styles.customSubtitle}>{t('ads.landing.customSubtitle')}</Text>
               </View>
               <View style={[styles.customCtaPill, customHovered && styles.customCtaPillHover]}>
-                <Text style={[styles.customCtaText, customHovered && styles.customCtaTextHover]}>Personalizar</Text>
+                <Text style={[styles.customCtaText, customHovered && styles.customCtaTextHover]}>{t('ads.landing.customize')}</Text>
                 <Ionicons
                   name="arrow-forward"
                   size={15}
@@ -461,8 +461,8 @@ export default function AdvertiseScreen() {
 
           {/* ── Negociação direta ──────────────────────────────────── */}
           <View style={styles.contactSection}>
-            <Text style={styles.sectionTitle} accessibilityRole="header">Prefere negociar direto?</Text>
-            <Text style={styles.contactHint}>Fale com a equipe responsável pelos anúncios para montarmos uma proposta sob medida.</Text>
+            <Text style={styles.sectionTitle} accessibilityRole="header">{t('ads.landing.directTitle')}</Text>
+            <Text style={styles.contactHint}>{t('ads.landing.directHint')}</Text>
             <View style={styles.contactRow}>
               {AD_CONTACT_CHANNELS.map((c) => (
                 <PressableScale

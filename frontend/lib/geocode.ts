@@ -10,6 +10,8 @@
 //    (quando temos as coordenadas do dispositivo), pra não sugerir primeiro
 //    um lugar longe.
 
+import { activeLocale } from './time';
+
 import { Coords, haversineMeters } from './location';
 
 export interface NeighborhoodSuggestion {
@@ -71,7 +73,7 @@ export async function searchNeighborhoods(
     const url =
       'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=10&countrycodes=br&q=' +
       encodeURIComponent(q);
-    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    const res = await fetch(url, { headers: { 'Accept-Language': activeLocale() } });
     if (!res.ok) return [];
     const data: NominatimItem[] = await res.json();
 
@@ -123,7 +125,7 @@ export async function reverseNeighborhood(
   try {
     const url =
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=16&lat=${latitude}&lon=${longitude}`;
-    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    const res = await fetch(url, { headers: { 'Accept-Language': activeLocale() } });
     if (!res.ok) return null;
     const item: NominatimItem = await res.json();
     const name = extractName(item);
@@ -178,7 +180,7 @@ export async function searchCities(
     const url =
       'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=10&countrycodes=br&q=' +
       encodeURIComponent(q);
-    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    const res = await fetch(url, { headers: { 'Accept-Language': activeLocale() } });
     if (!res.ok) return [];
     const data: NominatimItem[] = await res.json();
 
@@ -230,7 +232,7 @@ export async function reverseCity(
   try {
     const url =
       `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=10&lat=${latitude}&lon=${longitude}`;
-    const res = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    const res = await fetch(url, { headers: { 'Accept-Language': activeLocale() } });
     if (!res.ok) return null;
     const item: NominatimItem = await res.json();
     const name = extractCity(item);

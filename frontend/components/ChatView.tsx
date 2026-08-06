@@ -20,7 +20,6 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, withDelay, withRepeat, withSequence, Easing,
 } from 'react-native-reanimated';
 import { Palette } from '../constants/Colors';
-import { GROUP_PRIVACY_INFO } from '../constants/groups';
 import { User } from '../data/mock';
 import { api, ChatMessage, GroupDetail } from '../lib/api';
 import { formatDayDivider, formatMessageTime } from '../lib/time';
@@ -32,6 +31,7 @@ import SharedPostPreview from './SharedPostPreview';
 import SharedCommentPreview from './SharedCommentPreview';
 import MentionInput from './MentionInput';
 import MentionText from './MentionText';
+import { useT } from '../lib/i18n';
 
 export type ChatTarget = { kind: 'dm' | 'group'; id: string };
 
@@ -73,6 +73,7 @@ function MessageBubble({
   onJumpTo: (id: string) => void;
 }) {
   const Colors = useTheme();
+  const { t } = useT();
   const ty = useSharedValue(animateIn ? 16 : 0);
   const op = useSharedValue(animateIn ? 0 : 1);
   const lastTapRef = useRef(0);
@@ -163,7 +164,7 @@ function MessageBubble({
                 style={[styles.replyQuoteText, mine && !hasShared && styles.replyQuoteTextMine]}
                 numberOfLines={1}
               >
-                {msg.replyTo.content || 'Post compartilhado'}
+                {msg.replyTo.content || t('messages.chat.sharedPost')}
               </Text>
             </TouchableOpacity>
           )}
@@ -294,6 +295,7 @@ export default function ChatView({
   onBack?: () => void; // mostra o botão de voltar quando definido
   onActivity?: () => void; // avisa o pai para recarregar a lista de conversas
 }) {
+  const { t } = useT();
   const { kind, id } = target;
   const { user: me } = useAuth();
   const { subscribeMessages, refreshUnreadCounts, typingDmUserIds, typingGroupUserIds, pingTyping } =
@@ -554,7 +556,7 @@ export default function ChatView({
     kind === 'dm'
     ? other?.neighborhood
     : group
-    ? `${group.membersCount} ${group.membersCount === 1 ? 'membro' : 'membros'} · ${GROUP_PRIVACY_INFO[group.privacy].shortLabel}`
+    ? `${t('messages.memberCount', { count: group.membersCount })} · ${t(`groups.privacy.${group.privacy}.short`)}`
     : '';
 
   return (
@@ -581,7 +583,7 @@ export default function ChatView({
           )}
           <View style={styles.flex}>
             <Text style={styles.headerName} numberOfLines={1}>
-              {headerName ?? (kind === 'group' ? 'Grupo' : 'Conversa')}
+              {headerName ?? (kind === 'group' ? t('messages.group') : t('messages.conversation'))}
             </Text>
             {!!headerSub && (
               <Text style={styles.headerSub} numberOfLines={1}>{headerSub}</Text>
@@ -655,8 +657,8 @@ export default function ChatView({
                 <Ionicons name="chatbubble-ellipses-outline" size={44} color={Colors.textTertiary} />
                 <Text style={styles.emptyText}>
                   {kind === 'group'
-                    ? 'Nenhuma mensagem ainda. Diga oi para o grupo!'
-                    : `Comece a conversa com ${other?.name?.split(' ')[0] ?? 'seu vizinho'}`}
+                    ? t('messages.chat.groupEmpty')
+                    : t('messages.chat.dmEmpty', { name: other?.name?.split(' ')[0] ?? t('messages.chat.yourNeighbor') })}
                 </Text>
               </View>
             }
@@ -668,10 +670,10 @@ export default function ChatView({
               <View style={styles.replyBarAccent} />
               <View style={styles.flex}>
                 <Text style={styles.replyBarSender} numberOfLines={1}>
-                  Respondendo a {replyingTo.sender.name}
+                  {t('messages.chat.replyingTo', { name: replyingTo.sender.name })}
                 </Text>
                 <Text style={styles.replyBarText} numberOfLines={1}>
-                  {replyingTo.content || 'Post compartilhado'}
+                  {replyingTo.content || t('messages.chat.sharedPost')}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setReplyingTo(null)} hitSlop={8}>
@@ -690,7 +692,7 @@ export default function ChatView({
                 style={[styles.input, styles.inputInner, { height: inputHeight }]}
                 dropdownDirection="up"
                 candidates={mentionCandidates}
-                placeholder="Escreva uma mensagem... use @ para mencionar"
+                placeholder={t('messages.chat.groupPlaceholder')}
                 placeholderTextColor={Colors.textTertiary}
                 value={input}
                 onChangeText={onChangeInput}
@@ -703,7 +705,7 @@ export default function ChatView({
               <TextInput
                 ref={inputRef}
                 style={[styles.input, { height: inputHeight }]}
-                placeholder="Escreva uma mensagem..."
+                placeholder={t('messages.chat.placeholder')}
                 placeholderTextColor={Colors.textTertiary}
                 value={input}
                 onChangeText={onChangeInput}

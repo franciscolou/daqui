@@ -5,9 +5,11 @@ import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { useRateForm } from '../lib/useRateForm';
 import RateForm from './RateForm';
+import { useT } from '../lib/i18n';
 
 /** Só usado no desktop — no mobile, "Avaliar o Daqui" abre uma tela cheia (ver app/rate/index.tsx). */
 export default function RateModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const form = useRateForm();
@@ -22,7 +24,7 @@ export default function RateModal({ visible, onClose }: { visible: boolean; onCl
       <Pressable style={styles.overlay} onPress={onClose} tabIndex={-1}>
         <Pressable style={styles.card} onPress={() => {}} tabIndex={-1}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Avaliar o Daqui</Text>
+            <Text style={styles.headerTitle}>{t('nav.rateApp')}</Text>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={22} color={Colors.textSecondary} />
             </TouchableOpacity>
