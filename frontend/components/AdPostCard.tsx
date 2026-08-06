@@ -216,7 +216,16 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   title: { fontSize: 15, fontWeight: '700', color: Colors.text, marginBottom: 4, letterSpacing: -0.2 },
   body: { fontSize: 14, color: Colors.text, lineHeight: 20, marginBottom: 10 },
   image: { width: '100%', height: 180, borderRadius: 12, marginBottom: 10, backgroundColor: Colors.borderLight },
-  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, alignSelf: 'flex-start' },
+  ctaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
   ctaText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
 
   actions: {

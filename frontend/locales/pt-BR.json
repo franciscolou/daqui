@@ -8,8 +8,9 @@
     "retry": "Tentar novamente",
     "resident": "Morador",
     "search": "Buscar...",
-    "searching": "Buscando…"
-    ,"confirm": "Confirmar", "understood": "Entendi"
+    "searching": "Buscando…",
+    "confirm": "Confirmar",
+    "understood": "Entendi"
   },
   "feed": {
     "myNeighborhood": "Meu bairro",
@@ -111,7 +112,11 @@
       "googleLoadError": "Não foi possível carregar o login do Google."
     },
     "signup": {
-      "steps": { "account": "Conta", "verify": "Verificar", "done": "Pronto" },
+      "steps": {
+        "account": "Conta",
+        "verify": "Verificar",
+        "done": "Pronto"
+      },
       "title": "Crie sua conta",
       "subtitle": "Junte-se a milhares de vizinhos",
       "verifyTitle": "Confirme seu e-mail",
@@ -224,7 +229,10 @@
     "update": "Atualizar avaliação",
     "submit": "Enviar avaliação",
     "labels": {
-      "regular": "Regular",
+      "label": "Toque nas estrelas para avaliar",
+      "terrible": "Péssimo",
+      "bad": "Ruim",
+      "regular": "Médio",
       "good": "Bom",
       "great": "Ótimo"
     }
@@ -274,8 +282,8 @@
     "createGroup": "Criar novo grupo",
     "createGroupDesc": "Converse com vários vizinhos ao mesmo tempo",
     "neighbors": "Vizinhos",
-    "noNeighbors": "Nenhum vizinho para conversar por enquanto."
-    ,"group": "Grupo",
+    "noNeighbors": "Nenhum vizinho para conversar por enquanto.",
+    "group": "Grupo",
     "conversation": "Conversa",
     "chat": {
       "groupEmpty": "Nenhuma mensagem ainda. Diga oi para o grupo!",
@@ -311,9 +319,21 @@
     "addMembers": "Adicionar membros",
     "noNeighbors": "Nenhum vizinho para adicionar por enquanto.",
     "privacy": {
-      "public": { "short": "Aberto", "label": "Público", "description": "Qualquer vizinho pode entrar." },
-      "request": { "short": "Solicitações", "label": "Com solicitação", "description": "Administradores aprovam quem entra." },
-      "closed": { "short": "Fechado", "label": "Fechado", "description": "Somente pessoas convidadas podem entrar." }
+      "public": {
+        "short": "Aberto",
+        "label": "Público",
+        "description": "Qualquer vizinho pode entrar."
+      },
+      "request": {
+        "short": "Solicitações",
+        "label": "Com solicitação",
+        "description": "Administradores aprovam quem entra."
+      },
+      "closed": {
+        "short": "Fechado",
+        "label": "Fechado",
+        "description": "Somente pessoas convidadas podem entrar."
+      }
     }
   },
   "neighbors": {
@@ -352,55 +372,160 @@
     "viewProfile": "Ver perfil completo"
   },
   "groupInfo": {
-    "title": "Informações do grupo", "notFound": "Grupo não encontrado ou indisponível.", "viewPhoto": "Ver foto do grupo",
-    "name": "Nome", "description": "Descrição", "saveChanges": "Salvar alterações",
-    "pendingRequests": "Solicitações pendentes ({{count}})", "rejectUser": "Recusar {{name}}", "approveUser": "Aprovar {{name}}",
-    "members": "Membros", "close": "Fechar", "add": "Adicionar", "allNeighborsAdded": "Todos os seus vizinhos já estão no grupo.",
-    "youSuffix": " (você)", "owner": "Dono", "admin": "Admin", "removeUser": "Remover {{name}}",
-    "join": "Entrar no grupo", "requestJoin": "Solicitar entrada", "requestSentCancel": "Solicitação enviada · toque para cancelar",
-    "leave": "Sair do grupo", "confirmLeave": "Toque de novo para sair", "delete": "Excluir grupo", "confirmDelete": "Toque de novo para excluir",
-    "removeMember": "Remover membro", "removeConfirmBefore": "Tem certeza que deseja remover", "removeConfirmAfter": " do grupo? Essa pessoa perderá o acesso à conversa.", "remove": "Remover"
+    "title": "Informações do grupo",
+    "notFound": "Grupo não encontrado ou indisponível.",
+    "viewPhoto": "Ver foto do grupo",
+    "name": "Nome",
+    "description": "Descrição",
+    "saveChanges": "Salvar alterações",
+    "pendingRequests": "Solicitações pendentes ({{count}})",
+    "rejectUser": "Recusar {{name}}",
+    "approveUser": "Aprovar {{name}}",
+    "members": "Membros",
+    "close": "Fechar",
+    "add": "Adicionar",
+    "allNeighborsAdded": "Todos os seus vizinhos já estão no grupo.",
+    "youSuffix": " (você)",
+    "owner": "Dono",
+    "admin": "Admin",
+    "removeUser": "Remover {{name}}",
+    "join": "Entrar no grupo",
+    "requestJoin": "Solicitar entrada",
+    "requestSentCancel": "Solicitação enviada · toque para cancelar",
+    "leave": "Sair do grupo",
+    "confirmLeave": "Toque de novo para sair",
+    "delete": "Excluir grupo",
+    "confirmDelete": "Toque de novo para excluir",
+    "removeMember": "Remover membro",
+    "removeConfirmBefore": "Tem certeza que deseja remover",
+    "removeConfirmAfter": " do grupo? Essa pessoa perderá o acesso à conversa.",
+    "remove": "Remover"
   },
   "help": {
     "title": "Ajuda e suporte",
-    "tabs": { "how": "Como usar", "faq": "FAQ", "tickets": "Meus chamados" },
+    "tabs": {
+      "how": "Como usar",
+      "faq": "FAQ",
+      "tickets": "Meus chamados"
+    },
     "how": {
       "intro": "Um passo a passo rápido pelas funcionalidades que mais importam no dia a dia do Daqui.",
       "steps": {
-        "0": { "title": "\"Meu bairro\" e \"Perto de mim\"", "desc": "No topo do Início, escolha o bairro do seu cadastro ou o mais próximo da sua localização. Você também pode incluir redondezas e filtrar por categoria." },
-        "1": { "title": "O selo \"Morador\"", "desc": "Posts e comentários de quem mora no bairro recebem o selo Morador, diferenciando vizinhos de visitantes." },
-        "2": { "title": "Publique em segundos", "desc": "Toque em Novo post, escolha uma categoria, adicione mídia ou crie uma enquete. Reserve a marcação importante para urgências." },
-        "3": { "title": "Curta, comente e compartilhe", "desc": "Interaja com os posts do bairro e encaminhe os mais úteis para uma conversa ou grupo." },
-        "4": { "title": "Mensagens diretas e grupos", "desc": "Converse em particular com um vizinho ou participe de grupos temáticos nas abas Mensagens e Grupos." },
-        "5": { "title": "Mapa do bairro", "desc": "Veja no mapa os avisos e eventos publicados perto de você." },
-        "6": { "title": "Denuncie o que for indevido", "desc": "Use Denunciar em posts, comentários ou perfis para avisar a moderação." },
-        "7": { "title": "Avalie o Daqui", "desc": "Conte como está sendo sua experiência em Avaliar o Daqui, na barra lateral." }
+        "0": {
+          "title": "\"Meu bairro\" e \"Perto de mim\"",
+          "desc": "No topo do Início, escolha o bairro do seu cadastro ou o mais próximo da sua localização. Você também pode incluir redondezas e filtrar por categoria."
+        },
+        "1": {
+          "title": "O selo \"Morador\"",
+          "desc": "Posts e comentários de quem mora no bairro recebem o selo Morador, diferenciando vizinhos de visitantes."
+        },
+        "2": {
+          "title": "Publique em segundos",
+          "desc": "Toque em Novo post, escolha uma categoria, adicione mídia ou crie uma enquete. Reserve a marcação importante para urgências."
+        },
+        "3": {
+          "title": "Curta, comente e compartilhe",
+          "desc": "Interaja com os posts do bairro e encaminhe os mais úteis para uma conversa ou grupo."
+        },
+        "4": {
+          "title": "Mensagens diretas e grupos",
+          "desc": "Converse em particular com um vizinho ou participe de grupos temáticos nas abas Mensagens e Grupos."
+        },
+        "5": {
+          "title": "Mapa do bairro",
+          "desc": "Veja no mapa os avisos e eventos publicados perto de você."
+        },
+        "6": {
+          "title": "Denuncie o que for indevido",
+          "desc": "Use Denunciar em posts, comentários ou perfis para avisar a moderação."
+        },
+        "7": {
+          "title": "Avalie o Daqui",
+          "desc": "Conte como está sendo sua experiência em Avaliar o Daqui, na barra lateral."
+        }
       }
     },
     "faq": {
-      "0": { "q": "O que é o Daqui?", "a": "Uma rede social de bairro para trocar avisos, recomendações, organizar eventos e ajudar vizinhos." },
-      "1": { "q": "Como o app sabe qual é o meu bairro? Posso trocar?", "a": "O bairro vem do seu cadastro e pode ser atualizado em Configurações > Meu endereço. Perto de mim usa a localização atual sem alterar o perfil." },
-      "2": { "q": "Qual a diferença entre Meu bairro, Perto de mim e Incluir redondezas?", "a": "Meu bairro usa o cadastro; Perto de mim usa a localização atual; Incluir redondezas também mostra bairros vizinhos." },
-      "3": { "q": "O que significa o selo Morador?", "a": "Ele indica que o autor mora no bairro daquele post ou comentário." },
-      "4": { "q": "Quem consegue ver o que eu publico?", "a": "Quem acessa o feed do bairro pode ver posts e comentários. Seu endereço exato nunca é exibido." },
-      "5": { "q": "O que muda ao marcar um post como importante?", "a": "O post ganha prioridade no feed. Use apenas para avisos realmente urgentes." },
-      "6": { "q": "Como funciona a denúncia de conteúdo?", "a": "A moderação analisa a denúncia e decide se remove o conteúdo ou descarta o caso." },
-      "7": { "q": "Minha conta pode ser suspensa?", "a": "Sim. Violações das regras podem levar a suspensão temporária ou indefinida." },
-      "8": { "q": "O Daqui se responsabiliza por vendas entre vizinhos?", "a": "Não. O Daqui não intermedia pagamentos, entregas ou garantias." },
-      "9": { "q": "Como recupero o acesso à conta?", "a": "Abra um chamado descrevendo o problema para receber ajuda do suporte." },
-      "10": { "q": "Como excluo minha conta e meus dados?", "a": "Abra um chamado solicitando a exclusão para o suporte conduzir o processo." },
-      "11": { "q": "Qual a diferença entre denunciar e abrir um chamado?", "a": "Denúncias são sobre conteúdo ou perfis; chamados são para dúvidas, problemas técnicos e solicitações da conta." },
-      "12": { "q": "Quanto tempo demora uma resposta?", "a": "Não há prazo fixo. A resposta aparecerá na aba Meus chamados." },
-      "13": { "q": "O Daqui é gratuito?", "a": "Sim. Publicar, comentar, conversar e participar de grupos não tem custo." }
+      "0": {
+        "q": "O que é o Daqui?",
+        "a": "Uma rede social de bairro para trocar avisos, recomendações, organizar eventos e ajudar vizinhos."
+      },
+      "1": {
+        "q": "Como o app sabe qual é o meu bairro? Posso trocar?",
+        "a": "O bairro vem do seu cadastro e pode ser atualizado em Configurações > Meu endereço. Perto de mim usa a localização atual sem alterar o perfil."
+      },
+      "2": {
+        "q": "Qual a diferença entre Meu bairro, Perto de mim e Incluir redondezas?",
+        "a": "Meu bairro usa o cadastro; Perto de mim usa a localização atual; Incluir redondezas também mostra bairros vizinhos."
+      },
+      "3": {
+        "q": "O que significa o selo Morador?",
+        "a": "Ele indica que o autor mora no bairro daquele post ou comentário."
+      },
+      "4": {
+        "q": "Quem consegue ver o que eu publico?",
+        "a": "Quem acessa o feed do bairro pode ver posts e comentários. Seu endereço exato nunca é exibido."
+      },
+      "5": {
+        "q": "O que muda ao marcar um post como importante?",
+        "a": "O post ganha prioridade no feed. Use apenas para avisos realmente urgentes."
+      },
+      "6": {
+        "q": "Como funciona a denúncia de conteúdo?",
+        "a": "A moderação analisa a denúncia e decide se remove o conteúdo ou descarta o caso."
+      },
+      "7": {
+        "q": "Minha conta pode ser suspensa?",
+        "a": "Sim. Violações das regras podem levar a suspensão temporária ou indefinida."
+      },
+      "8": {
+        "q": "O Daqui se responsabiliza por vendas entre vizinhos?",
+        "a": "Não. O Daqui não intermedia pagamentos, entregas ou garantias."
+      },
+      "9": {
+        "q": "Como recupero o acesso à conta?",
+        "a": "Abra um chamado descrevendo o problema para receber ajuda do suporte."
+      },
+      "10": {
+        "q": "Como excluo minha conta e meus dados?",
+        "a": "Abra um chamado solicitando a exclusão para o suporte conduzir o processo."
+      },
+      "11": {
+        "q": "Qual a diferença entre denunciar e abrir um chamado?",
+        "a": "Denúncias são sobre conteúdo ou perfis; chamados são para dúvidas, problemas técnicos e solicitações da conta."
+      },
+      "12": {
+        "q": "Quanto tempo demora uma resposta?",
+        "a": "Não há prazo fixo. A resposta aparecerá na aba Meus chamados."
+      },
+      "13": {
+        "q": "O Daqui é gratuito?",
+        "a": "Sim. Publicar, comentar, conversar e participar de grupos não tem custo."
+      }
     },
     "tickets": {
-      "required": "Preencha o assunto e a mensagem.", "sent": "#{{id}} enviado! A resposta do suporte vai aparecer aqui.", "sendError": "Não foi possível enviar. Tente novamente.",
-      "new": "Novo chamado", "subject": "Assunto", "subjectPlaceholder": "Resuma o que está acontecendo", "message": "Mensagem", "messagePlaceholder": "Descreva com detalhes o que você precisa", "attachments": "Anexos", "send": "Enviar chamado", "empty": "Você ainda não abriu nenhum chamado.",
-      "answered": "Respondido", "pending": "Pendente", "supportResponse": "Resposta do suporte", "awaitingResponse": "Ainda sem resposta — o suporte foi avisado e vai te responder por aqui."
+      "required": "Preencha o assunto e a mensagem.",
+      "sent": "#{{id}} enviado! A resposta do suporte vai aparecer aqui.",
+      "sendError": "Não foi possível enviar. Tente novamente.",
+      "new": "Novo chamado",
+      "subject": "Assunto",
+      "subjectPlaceholder": "Resuma o que está acontecendo",
+      "message": "Mensagem",
+      "messagePlaceholder": "Descreva com detalhes o que você precisa",
+      "attachments": "Anexos",
+      "send": "Enviar chamado",
+      "empty": "Você ainda não abriu nenhum chamado.",
+      "answered": "Respondido",
+      "pending": "Pendente",
+      "supportResponse": "Resposta do suporte",
+      "awaitingResponse": "Ainda sem resposta — o suporte foi avisado e vai te responder por aqui."
     }
   },
   "mute": {
-    "title": { "grupo": "Notificações do grupo", "conversa": "Notificações da conversa" },
+    "title": {
+      "grupo": "Notificações do grupo",
+      "conversa": "Notificações da conversa"
+    },
     "notifications": "Notificações",
     "active": "Ativadas",
     "activeDescription": "Ativadas — você recebe o selo de não lidas normalmente.",
@@ -410,49 +535,431 @@
     "reactivate": "Reativar notificações",
     "changeDuration": "Trocar duração",
     "muteFor": "Silenciar por",
-    "duration": { "8h": "8 horas", "1d": "1 dia", "1w": "1 semana", "forever": "Até eu reativar" }
-  },
-  "ads": {
-    "ad": "Anúncio", "sponsored": "Patrocinado", "learnMore": "Saiba mais", "art": { "business": "Padaria Nova", "caption": "Pão fresquinho todo dia ☀️", "nearby": "Novidade por perto", "promotion": "Confira a promoção", "recommendation": "Recomendo esse salão!", "schedule": "Combinar horário" },
-    "identity": { "individual": "Pessoa Física", "company": "Pessoa Jurídica", "companyName": "Razão social / nome da empresa", "fullName": "Nome completo", "invalidCnpj": "CNPJ inválido", "invalidCpf": "CPF inválido" },
-    "charts": { "noEvents": "Sem eventos no período.", "noData": "Sem dados." },
-    "success": { "title": "Anúncio recebido!", "description": "Assim que o pagamento for confirmado, seu anúncio entra no ar. Guarde o link abaixo — é por ele que você acompanha o status e os resultados do anúncio, sem precisar de login.", "copied": "Link copiado!", "view": "Ver meu anúncio", "back": "Voltar para o Daqui" }
-    ,"scope": { "country": "Brasil todo", "citywide": "cidade toda" },
-    "checkout": { "paymentError": "Não foi possível iniciar o pagamento. Tente novamente.", "reactivate": "Reativar campanha", "adDetails": "Dados do anúncio", "days_one": "1 dia", "days_other": "{{count}} dias", "yourDetails": "Seus dados", "email": "E-mail", "phoneOptional": "Telefone (opcional)", "remember": "Lembrar meus dados para campanhas futuras", "pinRequired": "Marque o local do pin acima para anunciar no mapa.", "goToPayment": "Ir para o pagamento" }
-    ,"formats": { "post": "Post no feed", "map": "Mapa", "conversation": "Conversa", "notification": "Novidades", "search_poster": "Busca" },
-    "status": { "awaiting_content": "Aguardando conteúdo", "pending_payment": "Aguardando pagamento", "active": "Ativo", "paused": "Pausado", "expired": "Encerrado", "rejected": "Rejeitado" },
-    "metrics": { "impressions": "Impressões", "clicks": "Cliques", "ctr": "CTR", "cpc": "Custo por clique", "cpm": "Custo por mil impressões" },
-    "dashboard": { "title": "Meus anúncios", "loadError": "Não foi possível carregar seus anúncios agora.", "empty": "Você ainda não tem campanhas.", "createFirst": "Criar minha primeira campanha", "createNew": "Criar nova campanha", "compare": "Comparar campanhas", "all": "Todas", "campaigns": "Campanhas", "active": "Ativas", "invested": "Investido", "overTime": "Ao longo do tempo", "byFormat": "Por formato", "stats": "{{impressions}} impressões · {{clicks}} cliques · {{ctr}}% CTR", "viewPanel": "Ver painel da campanha" }
-    ,"landing": {
-      "title": "Anuncie no Daqui", "heroTitle": "Foque no seu negócio, a divulgação a gente resolve.", "heroSubtitle": "Apareça para quem mora perto: post no feed, pin no mapa, aviso em Novidades e recomendação nas Mensagens — tudo segmentado por bairro.",
-      "bullets": { "0": "Alcance por bairro, sob seu controle", "1": "Controle cada detalhe", "2": "Monte a campanha perfeita" },
-      "chooseProfile": "Escolha o seu perfil", "profileHint": "O perfil define quais planos fazem mais sentido pro seu anúncio.",
-      "categories": { "local_business": { "label": "Comércio local", "tagline": "Seja a referência do seu bairro" }, "event": { "label": "Anuncie seu evento", "tagline": "Encha seu evento de gente da vizinhança" }, "enterprise": { "label": "Grandes empresas", "tagline": "Alcance sua cidade inteira com força total" }, "national": { "label": "Alcance nacional", "tagline": "Várias cidades de uma vez ou o Brasil todo" } },
-      "plansFor": "Planos para {{profile}}", "compareHint": "Compare preço, duração e alcance — contrate pronto ou personalize do seu jeito.", "appearsIn": "Aparece em", "hirePlan": "Contratar este plano", "hirePlanA11y": "Contratar plano {{name}}, {{price}} por {{days}} dias", "customA11y": "Montar meu próprio plano de anúncio", "customTitle": "Ou monte seu próprio plano", "customSubtitle": "Escolha formatos, alcance e duração sob medida para o seu orçamento.", "customize": "Personalizar", "directTitle": "Prefere negociar direto?", "directHint": "Fale com a equipe responsável pelos anúncios para montarmos uma proposta sob medida.",
-      "badges": { "Mais popular": "Mais popular", "Máximo alcance": "Máximo alcance", "Alcance nacional": "Alcance nacional" },
-      "plans": {
-        "local-no-mapa": { "name": "No Mapa", "description": "Só o pin no mapa do bairro por 10 dias — uma opção econômica para quem tem endereço fixo." }, "local-vizinhanca": { "name": "Vizinhança", "description": "Post no feed e pin no mapa para aparecer a quem passa perto do seu comércio." }, "local-bairro-plus": { "name": "Bairro Plus", "description": "Post, mapa e Novidades por 15 dias em até 3 bairros." }, "local-comercio-premium": { "name": "Comércio Premium", "description": "Post, mapa, conversa e Novidades por 30 dias em até 5 bairros." },
-        "evento-local": { "name": "Evento Local", "description": "Post e pin no mapa por 5 dias para divulgar seu evento no bairro." }, "evento-regional": { "name": "Evento Regional", "description": "Post, mapa, Novidades e Busca por 10 dias em até 5 bairros." }, "evento-grande": { "name": "Grande Evento", "description": "Todos os formatos por 15 dias em toda a cidade." },
-        "empresa-expansao": { "name": "Expansão", "description": "Post, mapa, Novidades e Busca por 30 dias em toda a cidade." }, "empresa-autoridade": { "name": "Autoridade", "description": "Todos os formatos por 60 dias em toda a cidade." }, "empresa-presenca-total": { "name": "Presença Total", "description": "Todos os formatos por 90 dias em toda a cidade." },
-        "nacional-rede-regional": { "name": "Rede Regional", "description": "Post e Novidades por 30 dias em até 5 cidades." }, "nacional-metropoles": { "name": "Metrópoles Brasil", "description": "Post, conversa, Novidades e Busca por 45 dias em até 15 cidades." }, "nacional-brasil-todo": { "name": "Brasil Todo", "description": "Post, conversa, Novidades e Busca por 60 dias em qualquer cidade do país." }
-      }
-    },
-    "creative": { "base": "O anúncio", "overrideHint": "O conteúdo acima aparece em todos os lugares. Quer título, texto ou imagem diferentes em algum? Personalize abaixo — o resto continua usando o conteúdo principal.", "customizeFor": "Personalizar para {{format}}", "inFormat": "Em {{format}}", "mapLocation": "Local marcado no mapa", "photoPermission": "Permita o acesso às fotos para adicionar mídia.", "uploadError": "Não foi possível enviar o arquivo.", "titlePlaceholder": "Título", "textPlaceholder": "Texto", "targetPlaceholder": "Link de destino (ao tocar no anúncio)", "addMedia": "Adicionar foto ou vídeo", "addIcon": "Adicionar ícone (foto)", "ctaPlaceholder": "Texto do botão (opcional)", "pinLocation": "Local do pin no mapa (obrigatório)", "linkAccount": "Vincular à conta @{{username}}" },
-    "advanced": { "clear": "Limpar tudo", "categories": "Categorias de post (opcional)", "hours": "Horários (opcional)", "hoursSelected_one": "1 horário selecionado", "hoursSelected_other": "{{count}} horários selecionados", "anyTime": "Qualquer horário", "days": "Dias da semana (opcional)", "everyDay": "Todos os dias", "specialDatesOptional": "Datas especiais (opcional)", "chooseCalendar": "Escolher no calendário", "datesSelectedHint": "O anúncio vai aparecer só nessas datas, dentro do período da campanha ({{start}} a {{end}}).", "noDatesHint": "Sem datas escolhidas, o anúncio segue os horários e dias acima durante todo o período da campanha ({{start}} a {{end}}).", "specialDates": "Datas especiais", "tapDates": "Toque em uma ou mais datas", "weekdays": { "mon": "Seg", "tue": "Ter", "wed": "Qua", "thu": "Qui", "fri": "Sex", "sat": "Sáb", "sun": "Dom" }, "info": { "categories": "Só vale para Post no feed. Selecione os assuntos junto dos quais o anúncio pode aparecer.", "hours": "Selecione as horas em que o anúncio pode aparecer. Sem seleção, ele pode ser exibido o dia inteiro.", "days": "Selecione os dias em que o anúncio pode aparecer. Sem seleção, ele pode ser exibido todos os dias.", "dates": "Ao escolher datas aqui, o anúncio aparece somente nelas. Só é possível escolher datas dentro do período da campanha." } },
-    "panel": { "title": "Meu anúncio", "edit": "Editar", "reactivate": "Reativar", "notFound": "Não encontramos nenhum anúncio com esse link. Confira se o endereço está completo ou fale com quem contratou o anúncio.", "duration": "Duração", "formats": "Formatos", "targeting": "Segmentação", "investment": "Investimento", "contentMissing": "Falta preencher o conteúdo do seu anúncio", "contentHint": "As condições acima já foram combinadas. Preencha o conteúdo criativo do anúncio para seguir ao pagamento.", "fillContent": "Preencher conteúdo do anúncio", "history": "Histórico", "current": "atual", "historyStats": "{{impressions}} imp · {{clicks}} cliques · {{price}}", "results": "Resultados", "groupBy": { "weekday": "Dia da semana", "hour": "Hora", "neighborhood": "Bairro" }, "noData": "Sem dados suficientes ainda.", "clickCount_one": "1 clique", "clickCount_other": "{{count}} cliques" },
-    "edit": { "saveError": "Não foi possível salvar as alterações.", "fill": "Preencher anúncio", "title": "Editar anúncio", "notFound": "Não encontramos nenhum anúncio com esse link.", "awaitingHint": "Preço, duração, segmentação e formatos já foram combinados com o time de anúncios — preencha somente o conteúdo abaixo.", "lockedHint": "Período, segmentação e formatos não são editáveis por aqui — fale com o time de anúncios para alterá-los.", "saveChanges": "Salvar alterações" },
-    "preview": { "title": "Prévia ao vivo", "subtitle": "Assim seu anúncio aparece em cada lugar.", "feed": "No feed", "map": "No mapa", "search": "Na Busca", "messages": "Em Mensagens", "notifications": "Nas Novidades", "searchPlaceholder": "Buscar no bairro…", "chips": { "Eventos": "Eventos", "Vendas": "Vendas", "Serviços": "Serviços", "Segurança": "Segurança" }, "adTitle": "Título do anúncio", "adText": "O texto do seu anúncio aparece aqui.", "adTextShort": "Texto do anúncio", "yourAd": "Seu anúncio", "advertising": "Publicidade", "fakePosts": { "0": "Alguém sabe que horas abre a feira de rua no sábado? Quero garantir os pastéis 😋", "1": "Vendo bicicleta seminova, super conservada. Chama no direct quem tiver interesse!" }, "fakeChats": { "0": "Ana: bom dia! alguém indica um encanador?", "1": "Combinado, te espero às 18h 👍" }, "fakeNotifs": { "0": "curtiu sua publicação", "1": "comentou: “que legal, vou lá!”" } },
-    "customize": {
-      "title": "Personalize seu anúncio", "placements": "Onde seu anúncio aparece", "formats": { "post": { "label": "Post no feed", "desc": "Card no meio do feed do bairro, como um post comum." }, "map": { "label": "Pin no mapa", "desc": "Marca seu ponto no mapa do bairro. Precisa de um endereço." }, "conversation": { "label": "Conversa", "desc": "Linha na aba Mensagens, abre um link ao tocar." }, "notification": { "label": "Novidades", "desc": "Item na aba de notificações." }, "search_poster": { "label": "Poster de busca", "desc": "Aparece na Busca antes da pesquisa." } },
-      "comboApplied": "Combo aplicado{{discount}}", "comboOffer": "Leve os dois e economize {{percent}}%", "pinNext": "No próximo passo você marca o endereço que vira o pin no mapa.", "duration": "Duração (dias)", "progressiveDiscount": "Desconto progressivo", "where": "Onde anunciar", "scopes": { "neighborhood": "Bairros", "citywide": "Cidade toda", "cities": "Várias cidades", "country": "Brasil todo" }, "neighborhoods": "Bairros", "city": "Cidade", "cities": "Cidades", "upTo": "até {{count}}", "cityPlaceholder": "Digite o nome da cidade...", "countryHint": "Seu anúncio aparece para qualquer pessoa usando o Daqui, em qualquer cidade do Brasil.",
-      "advanced": "Configurações avançadas", "objective": "Objetivo da campanha", "objectives": { "reach": "Alcance", "clicks": "Cliques", "profile_visits": "Visitas ao perfil", "map_opens": "Abertura do mapa", "whatsapp_opens": "Abertura do WhatsApp", "instagram_opens": "Abertura do Instagram", "website_opens": "Abertura do site" }, "priority": "Prioridade (1-5)", "rotationWeight": "Peso na rotação", "perUserCap": "Limite por pessoa", "noLimit": "sem limite", "audience": "Audiência", "audiences": { "all": "Todos", "residents": "Só moradores", "visitors": "Só visitantes atuais" }, "includeNearby": "Incluir bairros próximos",
-      "info": { "objective": "Escolha o resultado principal esperado. Isso organiza o relatório da campanha.", "priority": "Prioridade mais alta aumenta a frequência da campanha e custa mais.", "rotationWeight": "Divide a exibição entre suas próprias campanhas concorrentes.", "perUserCap": "Número máximo de vezes que uma pessoa pode ver o anúncio durante a campanha.", "audience": "Escolha entre todos, moradores ou visitantes atuais da região.", "includeNearby": "Também exibe o anúncio a moradores de bairros vizinhos." },
-      "noDiscount": "sem desconto", "durationDiscount": "Desconto por duração", "factors": { "bundle": "Combo post + mapa", "reach": "Alcance", "competition": "Concorrência no período/bairros", "seasonality": "Sazonalidade", "schedule": "Horário escolhido", "objective": "Objetivo da campanha", "priority": "Prioridade", "frequency": "Frequência/exclusividade", "durationDiscount": "Desconto por duração", "market": "Ajuste de mercado", "formats": "Formatos escolhidos" },
-      "planValue": "Valor do plano", "estimatedValue": "Valor estimado", "reach": "Alcance: {{reach}}", "reachNeighborhood": "moradores do bairro {{neighborhood}}", "reachNeighborhoods": "moradores de até {{count}} bairros", "reachNearby": "{{base}} + bairros vizinhos", "reachCity": "moradores de {{city}} (cidade toda)", "reachCities": "moradores de até {{count}} cidades", "reachCountry": "qualquer pessoa no Brasil", "lockedPriceHint": "Preço não muda com os bairros — escala com duração e formatos. ", "dynamicPriceHint": "A configuração saiu do que o plano cobre; o preço agora é dinâmico. ", "showLess": "▾ ver menos", "showCalculation": "▸ ver como calculamos", "comboSaving": "Combo post + mapa: {{value}} em relação aos dois separados", "continue": "Continuar"
+    "duration": {
+      "8h": "8 horas",
+      "1d": "1 dia",
+      "1w": "1 semana",
+      "forever": "Até eu reativar"
     }
   },
-  "time": { "yesterday": "ontem" },
-  "legal": { "title": "Documentos legais", "docs": { "terms": "Termos de Uso", "privacy": "Política de Privacidade" }, "kicker": "DAQUI — REDE SOCIAL DE BAIRRO", "updatedAt": "Última atualização em {{date}}" },
+  "ads": {
+    "ad": "Anúncio",
+    "sponsored": "Patrocinado",
+    "learnMore": "Saiba mais",
+    "art": {
+      "business": "Padaria Nova",
+      "caption": "Pão fresquinho todo dia ☀️",
+      "nearby": "Novidade por perto",
+      "promotion": "Confira a promoção",
+      "recommendation": "Recomendo esse salão!",
+      "schedule": "Combinar horário"
+    },
+    "identity": {
+      "individual": "Pessoa Física",
+      "company": "Pessoa Jurídica",
+      "companyName": "Razão social / nome da empresa",
+      "fullName": "Nome completo",
+      "invalidCnpj": "CNPJ inválido",
+      "invalidCpf": "CPF inválido"
+    },
+    "charts": {
+      "noEvents": "Sem eventos no período.",
+      "noData": "Sem dados."
+    },
+    "success": {
+      "title": "Anúncio recebido!",
+      "description": "Assim que o pagamento for confirmado, seu anúncio entra no ar. Guarde o link abaixo — é por ele que você acompanha o status e os resultados do anúncio, sem precisar de login.",
+      "copied": "Link copiado!",
+      "view": "Ver meu anúncio",
+      "back": "Voltar para o Daqui"
+    },
+    "scope": {
+      "country": "Brasil todo",
+      "citywide": "cidade toda"
+    },
+    "checkout": {
+      "paymentError": "Não foi possível iniciar o pagamento. Tente novamente.",
+      "reactivate": "Reativar campanha",
+      "adDetails": "Dados do anúncio",
+      "days_one": "1 dia",
+      "days_other": "{{count}} dias",
+      "yourDetails": "Seus dados",
+      "email": "E-mail",
+      "phoneOptional": "Telefone (opcional)",
+      "remember": "Lembrar meus dados para campanhas futuras",
+      "pinRequired": "Marque o local do pin acima para anunciar no mapa.",
+      "goToPayment": "Ir para o pagamento"
+    },
+    "formats": {
+      "post": "Post no feed",
+      "map": "Mapa",
+      "conversation": "Conversa",
+      "notification": "Novidades",
+      "search_poster": "Busca"
+    },
+    "status": {
+      "awaiting_content": "Aguardando conteúdo",
+      "pending_payment": "Aguardando pagamento",
+      "active": "Ativo",
+      "paused": "Pausado",
+      "expired": "Encerrado",
+      "rejected": "Rejeitado"
+    },
+    "metrics": {
+      "impressions": "Impressões",
+      "clicks": "Cliques",
+      "ctr": "CTR",
+      "cpc": "Custo por clique",
+      "cpm": "Custo por mil impressões"
+    },
+    "dashboard": {
+      "title": "Meus anúncios",
+      "loadError": "Não foi possível carregar seus anúncios agora.",
+      "empty": "Você ainda não tem campanhas.",
+      "createFirst": "Criar minha primeira campanha",
+      "createNew": "Criar nova campanha",
+      "compare": "Comparar campanhas",
+      "all": "Todas",
+      "campaigns": "Campanhas",
+      "active": "Ativas",
+      "invested": "Investido",
+      "overTime": "Ao longo do tempo",
+      "byFormat": "Por formato",
+      "stats": "{{impressions}} impressões · {{clicks}} cliques · {{ctr}}% CTR",
+      "viewPanel": "Ver painel da campanha"
+    },
+    "landing": {
+      "title": "Anuncie no Daqui",
+      "heroTitle": "Foque no seu negócio, a divulgação a gente resolve.",
+      "heroSubtitle": "Apareça para quem mora perto: post no feed, pin no mapa, aviso em Novidades e recomendação nas Mensagens — tudo segmentado por bairro.",
+      "bullets": {
+        "0": "Alcance por bairro, sob seu controle",
+        "1": "Controle cada detalhe",
+        "2": "Monte a campanha perfeita"
+      },
+      "chooseProfile": "Escolha o seu perfil",
+      "profileHint": "O perfil define quais planos fazem mais sentido pro seu anúncio.",
+      "categories": {
+        "local_business": {
+          "label": "Comércio local",
+          "tagline": "Seja a referência do seu bairro"
+        },
+        "event": {
+          "label": "Anuncie seu evento",
+          "tagline": "Encha seu evento de gente da vizinhança"
+        },
+        "enterprise": {
+          "label": "Grandes empresas",
+          "tagline": "Alcance sua cidade inteira com força total"
+        },
+        "national": {
+          "label": "Alcance nacional",
+          "tagline": "Várias cidades de uma vez ou o Brasil todo"
+        }
+      },
+      "plansFor": "Planos para {{profile}}",
+      "compareHint": "Compare preço, duração e alcance — contrate pronto ou personalize do seu jeito.",
+      "appearsIn": "Aparece em",
+      "hirePlan": "Contratar este plano",
+      "hirePlanA11y": "Contratar plano {{name}}, {{price}} por {{days}} dias",
+      "customA11y": "Montar meu próprio plano de anúncio",
+      "customTitle": "Ou monte seu próprio plano",
+      "customSubtitle": "Escolha formatos, alcance e duração sob medida para o seu orçamento.",
+      "customize": "Personalizar",
+      "directTitle": "Prefere negociar direto?",
+      "directHint": "Fale com a equipe responsável pelos anúncios para montarmos uma proposta sob medida.",
+      "badges": {
+        "Mais popular": "Mais popular",
+        "Máximo alcance": "Máximo alcance",
+        "Alcance nacional": "Alcance nacional"
+      },
+      "plans": {
+        "local-no-mapa": {
+          "name": "No Mapa",
+          "description": "Só o pin no mapa do bairro por 10 dias — uma opção econômica para quem tem endereço fixo."
+        },
+        "local-vizinhanca": {
+          "name": "Vizinhança",
+          "description": "Post no feed e pin no mapa para aparecer a quem passa perto do seu comércio."
+        },
+        "local-bairro-plus": {
+          "name": "Bairro Plus",
+          "description": "Post, mapa e Novidades por 15 dias em até 3 bairros."
+        },
+        "local-comercio-premium": {
+          "name": "Comércio Premium",
+          "description": "Post, mapa, conversa e Novidades por 30 dias em até 5 bairros."
+        },
+        "evento-local": {
+          "name": "Evento Local",
+          "description": "Post e pin no mapa por 5 dias para divulgar seu evento no bairro."
+        },
+        "evento-regional": {
+          "name": "Evento Regional",
+          "description": "Post, mapa, Novidades e Busca por 10 dias em até 5 bairros."
+        },
+        "evento-grande": {
+          "name": "Grande Evento",
+          "description": "Todos os formatos por 15 dias em toda a cidade."
+        },
+        "empresa-expansao": {
+          "name": "Expansão",
+          "description": "Post, mapa, Novidades e Busca por 30 dias em toda a cidade."
+        },
+        "empresa-autoridade": {
+          "name": "Autoridade",
+          "description": "Todos os formatos por 60 dias em toda a cidade."
+        },
+        "empresa-presenca-total": {
+          "name": "Presença Total",
+          "description": "Todos os formatos por 90 dias em toda a cidade."
+        },
+        "nacional-rede-regional": {
+          "name": "Rede Regional",
+          "description": "Post e Novidades por 30 dias em até 5 cidades."
+        },
+        "nacional-metropoles": {
+          "name": "Metrópoles Brasil",
+          "description": "Post, conversa, Novidades e Busca por 45 dias em até 15 cidades."
+        },
+        "nacional-brasil-todo": {
+          "name": "Brasil Todo",
+          "description": "Post, conversa, Novidades e Busca por 60 dias em qualquer cidade do país."
+        }
+      }
+    },
+    "creative": {
+      "base": "O anúncio",
+      "overrideHint": "O conteúdo acima aparece em todos os lugares. Quer título, texto ou imagem diferentes em algum? Personalize abaixo — o resto continua usando o conteúdo principal.",
+      "customizeFor": "Personalizar para {{format}}",
+      "inFormat": "Em {{format}}",
+      "mapLocation": "Local marcado no mapa",
+      "photoPermission": "Permita o acesso às fotos para adicionar mídia.",
+      "uploadError": "Não foi possível enviar o arquivo.",
+      "titlePlaceholder": "Título",
+      "textPlaceholder": "Texto",
+      "targetPlaceholder": "Link de destino (ao tocar no anúncio)",
+      "addMedia": "Adicionar foto ou vídeo",
+      "addIcon": "Adicionar ícone (foto)",
+      "ctaPlaceholder": "Texto do botão (opcional)",
+      "pinLocation": "Local do pin no mapa (obrigatório)",
+      "linkAccount": "Vincular à conta @{{username}}"
+    },
+    "advanced": {
+      "clear": "Limpar tudo",
+      "categories": "Categorias de post (opcional)",
+      "hours": "Horários (opcional)",
+      "hoursSelected_one": "1 horário selecionado",
+      "hoursSelected_other": "{{count}} horários selecionados",
+      "anyTime": "Qualquer horário",
+      "days": "Dias da semana (opcional)",
+      "everyDay": "Todos os dias",
+      "specialDatesOptional": "Datas especiais (opcional)",
+      "chooseCalendar": "Escolher no calendário",
+      "datesSelectedHint": "O anúncio vai aparecer só nessas datas, dentro do período da campanha ({{start}} a {{end}}).",
+      "noDatesHint": "Sem datas escolhidas, o anúncio segue os horários e dias acima durante todo o período da campanha ({{start}} a {{end}}).",
+      "specialDates": "Datas especiais",
+      "tapDates": "Toque em uma ou mais datas",
+      "weekdays": {
+        "mon": "Seg",
+        "tue": "Ter",
+        "wed": "Qua",
+        "thu": "Qui",
+        "fri": "Sex",
+        "sat": "Sáb",
+        "sun": "Dom"
+      },
+      "info": {
+        "categories": "Só vale para Post no feed. Selecione os assuntos junto dos quais o anúncio pode aparecer.",
+        "hours": "Selecione as horas em que o anúncio pode aparecer. Sem seleção, ele pode ser exibido o dia inteiro.",
+        "days": "Selecione os dias em que o anúncio pode aparecer. Sem seleção, ele pode ser exibido todos os dias.",
+        "dates": "Ao escolher datas aqui, o anúncio aparece somente nelas. Só é possível escolher datas dentro do período da campanha."
+      }
+    },
+    "panel": {
+      "title": "Meu anúncio",
+      "edit": "Editar",
+      "reactivate": "Reativar",
+      "notFound": "Não encontramos nenhum anúncio com esse link. Confira se o endereço está completo ou fale com quem contratou o anúncio.",
+      "duration": "Duração",
+      "formats": "Formatos",
+      "targeting": "Segmentação",
+      "investment": "Investimento",
+      "contentMissing": "Falta preencher o conteúdo do seu anúncio",
+      "contentHint": "As condições acima já foram combinadas. Preencha o conteúdo criativo do anúncio para seguir ao pagamento.",
+      "fillContent": "Preencher conteúdo do anúncio",
+      "history": "Histórico",
+      "current": "atual",
+      "historyStats": "{{impressions}} imp · {{clicks}} cliques · {{price}}",
+      "results": "Resultados",
+      "groupBy": {
+        "weekday": "Dia da semana",
+        "hour": "Hora",
+        "neighborhood": "Bairro"
+      },
+      "noData": "Sem dados suficientes ainda.",
+      "clickCount_one": "1 clique",
+      "clickCount_other": "{{count}} cliques"
+    },
+    "edit": {
+      "saveError": "Não foi possível salvar as alterações.",
+      "fill": "Preencher anúncio",
+      "title": "Editar anúncio",
+      "notFound": "Não encontramos nenhum anúncio com esse link.",
+      "awaitingHint": "Preço, duração, segmentação e formatos já foram combinados com o time de anúncios — preencha somente o conteúdo abaixo.",
+      "lockedHint": "Período, segmentação e formatos não são editáveis por aqui — fale com o time de anúncios para alterá-los.",
+      "saveChanges": "Salvar alterações"
+    },
+    "preview": {
+      "title": "Prévia ao vivo",
+      "subtitle": "Assim seu anúncio aparece em cada lugar.",
+      "feed": "No feed",
+      "map": "No mapa",
+      "search": "Na Busca",
+      "messages": "Em Mensagens",
+      "notifications": "Nas Novidades",
+      "searchPlaceholder": "Buscar no bairro…",
+      "chips": {
+        "Eventos": "Eventos",
+        "Vendas": "Vendas",
+        "Serviços": "Serviços",
+        "Segurança": "Segurança"
+      },
+      "adTitle": "Título do anúncio",
+      "adText": "O texto do seu anúncio aparece aqui.",
+      "adTextShort": "Texto do anúncio",
+      "yourAd": "Seu anúncio",
+      "advertising": "Publicidade",
+      "fakePosts": {
+        "0": "Alguém sabe que horas abre a feira de rua no sábado? Quero garantir os pastéis 😋",
+        "1": "Vendo bicicleta seminova, super conservada. Chama no direct quem tiver interesse!"
+      },
+      "fakeChats": {
+        "0": "Ana: bom dia! alguém indica um encanador?",
+        "1": "Combinado, te espero às 18h 👍"
+      },
+      "fakeNotifs": {
+        "0": "curtiu sua publicação",
+        "1": "comentou: “que legal, vou lá!”"
+      }
+    },
+    "customize": {
+      "title": "Personalize seu anúncio",
+      "placements": "Onde seu anúncio aparece",
+      "formats": {
+        "post": {
+          "label": "Post no feed",
+          "desc": "Card no meio do feed do bairro, como um post comum."
+        },
+        "map": {
+          "label": "Pin no mapa",
+          "desc": "Marca seu ponto no mapa do bairro. Precisa de um endereço."
+        },
+        "conversation": {
+          "label": "Conversa",
+          "desc": "Linha na aba Mensagens, abre um link ao tocar."
+        },
+        "notification": {
+          "label": "Novidades",
+          "desc": "Item na aba de notificações."
+        },
+        "search_poster": {
+          "label": "Poster de busca",
+          "desc": "Aparece na Busca antes da pesquisa."
+        }
+      },
+      "comboApplied": "Combo aplicado{{discount}}",
+      "comboOffer": "Leve os dois e economize {{percent}}%",
+      "pinNext": "No próximo passo você marca o endereço que vira o pin no mapa.",
+      "duration": "Duração (dias)",
+      "progressiveDiscount": "Desconto progressivo",
+      "where": "Onde anunciar",
+      "scopes": {
+        "neighborhood": "Bairros",
+        "citywide": "Cidade toda",
+        "cities": "Várias cidades",
+        "country": "Brasil todo"
+      },
+      "neighborhoods": "Bairros",
+      "city": "Cidade",
+      "cities": "Cidades",
+      "upTo": "até {{count}}",
+      "cityPlaceholder": "Digite o nome da cidade...",
+      "countryHint": "Seu anúncio aparece para qualquer pessoa usando o Daqui, em qualquer cidade do Brasil.",
+      "advanced": "Configurações avançadas",
+      "objective": "Objetivo da campanha",
+      "objectives": {
+        "reach": "Alcance",
+        "clicks": "Cliques",
+        "profile_visits": "Visitas ao perfil",
+        "map_opens": "Abertura do mapa",
+        "whatsapp_opens": "Abertura do WhatsApp",
+        "instagram_opens": "Abertura do Instagram",
+        "website_opens": "Abertura do site"
+      },
+      "priority": "Prioridade (1-5)",
+      "rotationWeight": "Peso na rotação",
+      "perUserCap": "Limite por pessoa",
+      "noLimit": "sem limite",
+      "audience": "Audiência",
+      "audiences": {
+        "all": "Todos",
+        "residents": "Só moradores",
+        "visitors": "Só visitantes atuais"
+      },
+      "includeNearby": "Incluir bairros próximos",
+      "info": {
+        "objective": "Escolha o resultado principal esperado. Isso organiza o relatório da campanha.",
+        "priority": "Prioridade mais alta aumenta a frequência da campanha e custa mais.",
+        "rotationWeight": "Divide a exibição entre suas próprias campanhas concorrentes.",
+        "perUserCap": "Número máximo de vezes que uma pessoa pode ver o anúncio durante a campanha.",
+        "audience": "Escolha entre todos, moradores ou visitantes atuais da região.",
+        "includeNearby": "Também exibe o anúncio a moradores de bairros vizinhos."
+      },
+      "noDiscount": "sem desconto",
+      "durationDiscount": "Desconto por duração",
+      "factors": {
+        "bundle": "Combo post + mapa",
+        "reach": "Alcance",
+        "competition": "Concorrência no período/bairros",
+        "seasonality": "Sazonalidade",
+        "schedule": "Horário escolhido",
+        "objective": "Objetivo da campanha",
+        "priority": "Prioridade",
+        "frequency": "Frequência/exclusividade",
+        "durationDiscount": "Desconto por duração",
+        "market": "Ajuste de mercado",
+        "formats": "Formatos escolhidos"
+      },
+      "planValue": "Valor do plano",
+      "estimatedValue": "Valor estimado",
+      "reach": "Alcance: {{reach}}",
+      "reachNeighborhood": "moradores do bairro {{neighborhood}}",
+      "reachNeighborhoods": "moradores de até {{count}} bairros",
+      "reachNearby": "{{base}} + bairros vizinhos",
+      "reachCity": "moradores de {{city}} (cidade toda)",
+      "reachCities": "moradores de até {{count}} cidades",
+      "reachCountry": "qualquer pessoa no Brasil",
+      "lockedPriceHint": "Preço não muda com os bairros — escala com duração e formatos. ",
+      "dynamicPriceHint": "A configuração saiu do que o plano cobre; o preço agora é dinâmico. ",
+      "showLess": "▾ ver menos",
+      "showCalculation": "▸ ver como calculamos",
+      "comboSaving": "Combo post + mapa: {{value}} em relação aos dois separados",
+      "continue": "Continuar"
+    }
+  },
+  "time": {
+    "yesterday": "ontem"
+  },
+  "legal": {
+    "title": "Documentos legais",
+    "docs": {
+      "terms": "Termos de Uso",
+      "privacy": "Política de Privacidade"
+    },
+    "kicker": "DAQUI — REDE SOCIAL DE BAIRRO",
+    "updatedAt": "Última atualização em {{date}}"
+  },
   "postDetail": {
     "reply": "Responder",
     "hideReplies": "Ocultar respostas",

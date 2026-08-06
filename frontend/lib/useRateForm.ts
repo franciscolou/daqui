@@ -13,9 +13,9 @@ export function useRateForm() {
   const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
   const { t } = useT();
   const RATING_LABELS: Record<number, string> = {
-    0: t('Toque nas estrelas para avaliar'),
-    1: t('Péssimo'),
-    2: t('Ruim'),
+    0: t('rate.labels.label'),
+    1: t('rate.labels.terrible'),
+    2: t('rate.labels.bad'),
     3: t('rate.labels.regular'),
     4: t('rate.labels.good'),
     5: t('rate.labels.great'),

@@ -8,8 +8,9 @@
     "retry": "Try again",
     "resident": "Resident",
     "search": "Search...",
-    "searching": "Searching…"
-    ,"confirm": "Confirm", "understood": "Got it"
+    "searching": "Searching…",
+    "confirm": "Confirm",
+    "understood": "Got it"
   },
   "feed": {
     "myNeighborhood": "My neighborhood",
@@ -111,7 +112,11 @@
       "googleLoadError": "Couldn't load Google sign-in."
     },
     "signup": {
-      "steps": { "account": "Account", "verify": "Verify", "done": "Done" },
+      "steps": {
+        "account": "Account",
+        "verify": "Verify",
+        "done": "Done"
+      },
       "title": "Create your account",
       "subtitle": "Join thousands of neighbors",
       "verifyTitle": "Confirm your email",
@@ -224,6 +229,9 @@
     "update": "Update review",
     "submit": "Submit review",
     "labels": {
+      "label": "Click the stars to rate",
+      "terrible": "Terrible",
+      "bad": "Bad",
       "regular": "Average",
       "good": "Good",
       "great": "Great"
@@ -274,8 +282,8 @@
     "createGroup": "Create a new group",
     "createGroupDesc": "Chat with multiple neighbors at once",
     "neighbors": "Neighbors",
-    "noNeighbors": "No neighbors available to chat right now."
-    ,"group": "Group",
+    "noNeighbors": "No neighbors available to chat right now.",
+    "group": "Group",
     "conversation": "Conversation",
     "chat": {
       "groupEmpty": "No messages yet. Say hi to the group!",
@@ -311,9 +319,21 @@
     "addMembers": "Add members",
     "noNeighbors": "No neighbors to add right now.",
     "privacy": {
-      "public": { "short": "Open", "label": "Public", "description": "Any neighbor can join." },
-      "request": { "short": "Requests", "label": "By request", "description": "Administrators approve who joins." },
-      "closed": { "short": "Closed", "label": "Closed", "description": "Only invited people can join." }
+      "public": {
+        "short": "Open",
+        "label": "Public",
+        "description": "Any neighbor can join."
+      },
+      "request": {
+        "short": "Requests",
+        "label": "By request",
+        "description": "Administrators approve who joins."
+      },
+      "closed": {
+        "short": "Closed",
+        "label": "Closed",
+        "description": "Only invited people can join."
+      }
     }
   },
   "neighbors": {
@@ -352,55 +372,160 @@
     "viewProfile": "View full profile"
   },
   "groupInfo": {
-    "title": "Group information", "notFound": "Group not found or unavailable.", "viewPhoto": "View group photo",
-    "name": "Name", "description": "Description", "saveChanges": "Save changes",
-    "pendingRequests": "Pending requests ({{count}})", "rejectUser": "Reject {{name}}", "approveUser": "Approve {{name}}",
-    "members": "Members", "close": "Close", "add": "Add", "allNeighborsAdded": "All your neighbors are already in the group.",
-    "youSuffix": " (you)", "owner": "Owner", "admin": "Admin", "removeUser": "Remove {{name}}",
-    "join": "Join group", "requestJoin": "Request to join", "requestSentCancel": "Request sent · tap to cancel",
-    "leave": "Leave group", "confirmLeave": "Tap again to leave", "delete": "Delete group", "confirmDelete": "Tap again to delete",
-    "removeMember": "Remove member", "removeConfirmBefore": "Are you sure you want to remove", "removeConfirmAfter": " from the group? This person will lose access to the conversation.", "remove": "Remove"
+    "title": "Group information",
+    "notFound": "Group not found or unavailable.",
+    "viewPhoto": "View group photo",
+    "name": "Name",
+    "description": "Description",
+    "saveChanges": "Save changes",
+    "pendingRequests": "Pending requests ({{count}})",
+    "rejectUser": "Reject {{name}}",
+    "approveUser": "Approve {{name}}",
+    "members": "Members",
+    "close": "Close",
+    "add": "Add",
+    "allNeighborsAdded": "All your neighbors are already in the group.",
+    "youSuffix": " (you)",
+    "owner": "Owner",
+    "admin": "Admin",
+    "removeUser": "Remove {{name}}",
+    "join": "Join group",
+    "requestJoin": "Request to join",
+    "requestSentCancel": "Request sent · tap to cancel",
+    "leave": "Leave group",
+    "confirmLeave": "Tap again to leave",
+    "delete": "Delete group",
+    "confirmDelete": "Tap again to delete",
+    "removeMember": "Remove member",
+    "removeConfirmBefore": "Are you sure you want to remove",
+    "removeConfirmAfter": " from the group? This person will lose access to the conversation.",
+    "remove": "Remove"
   },
   "help": {
     "title": "Help & support",
-    "tabs": { "how": "How to use", "faq": "FAQ", "tickets": "My tickets" },
+    "tabs": {
+      "how": "How to use",
+      "faq": "FAQ",
+      "tickets": "My tickets"
+    },
     "how": {
       "intro": "A quick guide to the Daqui features you'll use most often.",
       "steps": {
-        "0": { "title": "My neighborhood and Near me", "desc": "At the top of Home, choose your saved neighborhood or the one nearest your location. You can also include nearby areas and filter by category." },
-        "1": { "title": "The Resident badge", "desc": "Posts and comments by people who live in the neighborhood receive the Resident badge, distinguishing neighbors from visitors." },
-        "2": { "title": "Post in seconds", "desc": "Tap New post, choose a category, add media, or create a poll. Reserve the important marker for urgent matters." },
-        "3": { "title": "Like, comment, and share", "desc": "Interact with neighborhood posts and forward useful ones to a conversation or group." },
-        "4": { "title": "Direct messages and groups", "desc": "Talk privately with a neighbor or join topic-based groups from the Messages and Groups tabs." },
-        "5": { "title": "Neighborhood map", "desc": "See nearby notices and events on the map." },
-        "6": { "title": "Report inappropriate content", "desc": "Use Report on posts, comments, or profiles to notify the moderation team." },
-        "7": { "title": "Rate Daqui", "desc": "Tell us about your experience through Rate Daqui in the sidebar." }
+        "0": {
+          "title": "My neighborhood and Near me",
+          "desc": "At the top of Home, choose your saved neighborhood or the one nearest your location. You can also include nearby areas and filter by category."
+        },
+        "1": {
+          "title": "The Resident badge",
+          "desc": "Posts and comments by people who live in the neighborhood receive the Resident badge, distinguishing neighbors from visitors."
+        },
+        "2": {
+          "title": "Post in seconds",
+          "desc": "Tap New post, choose a category, add media, or create a poll. Reserve the important marker for urgent matters."
+        },
+        "3": {
+          "title": "Like, comment, and share",
+          "desc": "Interact with neighborhood posts and forward useful ones to a conversation or group."
+        },
+        "4": {
+          "title": "Direct messages and groups",
+          "desc": "Talk privately with a neighbor or join topic-based groups from the Messages and Groups tabs."
+        },
+        "5": {
+          "title": "Neighborhood map",
+          "desc": "See nearby notices and events on the map."
+        },
+        "6": {
+          "title": "Report inappropriate content",
+          "desc": "Use Report on posts, comments, or profiles to notify the moderation team."
+        },
+        "7": {
+          "title": "Rate Daqui",
+          "desc": "Tell us about your experience through Rate Daqui in the sidebar."
+        }
       }
     },
     "faq": {
-      "0": { "q": "What is Daqui?", "a": "A neighborhood social network for sharing notices and recommendations, organizing events, and helping neighbors." },
-      "1": { "q": "How does the app know my neighborhood? Can I change it?", "a": "Your neighborhood comes from your profile and can be updated under Settings > My address. Near me uses your current location without changing your profile." },
-      "2": { "q": "What's the difference between My neighborhood, Near me, and Include nearby areas?", "a": "My neighborhood uses your profile; Near me uses your current location; Include nearby areas also shows neighboring communities." },
-      "3": { "q": "What does the Resident badge mean?", "a": "It indicates that the author lives in the neighborhood where the post or comment was made." },
-      "4": { "q": "Who can see what I post?", "a": "Anyone viewing the neighborhood feed can see posts and comments. Your exact address is never displayed." },
-      "5": { "q": "What happens when I mark a post as important?", "a": "It receives priority in the feed. Use this only for genuinely urgent notices." },
-      "6": { "q": "How do content reports work?", "a": "The moderation team reviews each report and decides whether to remove the content." },
-      "7": { "q": "Can my account be suspended?", "a": "Yes. Rule violations may result in a temporary or indefinite suspension." },
-      "8": { "q": "Is Daqui responsible for sales between neighbors?", "a": "No. Daqui does not handle payments, delivery, or guarantees." },
-      "9": { "q": "How do I recover access to my account?", "a": "Open a support ticket describing the problem." },
-      "10": { "q": "How do I delete my account and data?", "a": "Open a ticket requesting deletion and support will guide the process." },
-      "11": { "q": "What's the difference between a report and a support ticket?", "a": "Reports concern content or profiles; tickets are for questions, technical problems, and account requests." },
-      "12": { "q": "How long does a response take?", "a": "There is no fixed timeframe. The response will appear under My tickets." },
-      "13": { "q": "Is Daqui free?", "a": "Yes. Posting, commenting, messaging, and joining groups are free." }
+      "0": {
+        "q": "What is Daqui?",
+        "a": "A neighborhood social network for sharing notices and recommendations, organizing events, and helping neighbors."
+      },
+      "1": {
+        "q": "How does the app know my neighborhood? Can I change it?",
+        "a": "Your neighborhood comes from your profile and can be updated under Settings > My address. Near me uses your current location without changing your profile."
+      },
+      "2": {
+        "q": "What's the difference between My neighborhood, Near me, and Include nearby areas?",
+        "a": "My neighborhood uses your profile; Near me uses your current location; Include nearby areas also shows neighboring communities."
+      },
+      "3": {
+        "q": "What does the Resident badge mean?",
+        "a": "It indicates that the author lives in the neighborhood where the post or comment was made."
+      },
+      "4": {
+        "q": "Who can see what I post?",
+        "a": "Anyone viewing the neighborhood feed can see posts and comments. Your exact address is never displayed."
+      },
+      "5": {
+        "q": "What happens when I mark a post as important?",
+        "a": "It receives priority in the feed. Use this only for genuinely urgent notices."
+      },
+      "6": {
+        "q": "How do content reports work?",
+        "a": "The moderation team reviews each report and decides whether to remove the content."
+      },
+      "7": {
+        "q": "Can my account be suspended?",
+        "a": "Yes. Rule violations may result in a temporary or indefinite suspension."
+      },
+      "8": {
+        "q": "Is Daqui responsible for sales between neighbors?",
+        "a": "No. Daqui does not handle payments, delivery, or guarantees."
+      },
+      "9": {
+        "q": "How do I recover access to my account?",
+        "a": "Open a support ticket describing the problem."
+      },
+      "10": {
+        "q": "How do I delete my account and data?",
+        "a": "Open a ticket requesting deletion and support will guide the process."
+      },
+      "11": {
+        "q": "What's the difference between a report and a support ticket?",
+        "a": "Reports concern content or profiles; tickets are for questions, technical problems, and account requests."
+      },
+      "12": {
+        "q": "How long does a response take?",
+        "a": "There is no fixed timeframe. The response will appear under My tickets."
+      },
+      "13": {
+        "q": "Is Daqui free?",
+        "a": "Yes. Posting, commenting, messaging, and joining groups are free."
+      }
     },
     "tickets": {
-      "required": "Enter a subject and message.", "sent": "#{{id}} sent! The support response will appear here.", "sendError": "We couldn't send it. Try again.",
-      "new": "New ticket", "subject": "Subject", "subjectPlaceholder": "Summarize what is happening", "message": "Message", "messagePlaceholder": "Describe what you need in detail", "attachments": "Attachments", "send": "Send ticket", "empty": "You haven't opened any tickets yet.",
-      "answered": "Answered", "pending": "Pending", "supportResponse": "Support response", "awaitingResponse": "No response yet — support has been notified and will reply here."
+      "required": "Enter a subject and message.",
+      "sent": "#{{id}} sent! The support response will appear here.",
+      "sendError": "We couldn't send it. Try again.",
+      "new": "New ticket",
+      "subject": "Subject",
+      "subjectPlaceholder": "Summarize what is happening",
+      "message": "Message",
+      "messagePlaceholder": "Describe what you need in detail",
+      "attachments": "Attachments",
+      "send": "Send ticket",
+      "empty": "You haven't opened any tickets yet.",
+      "answered": "Answered",
+      "pending": "Pending",
+      "supportResponse": "Support response",
+      "awaitingResponse": "No response yet — support has been notified and will reply here."
     }
   },
   "mute": {
-    "title": { "grupo": "Group notifications", "conversa": "Conversation notifications" },
+    "title": {
+      "grupo": "Group notifications",
+      "conversa": "Conversation notifications"
+    },
     "notifications": "Notifications",
     "active": "On",
     "activeDescription": "On — unread badges appear as usual.",
@@ -410,91 +535,773 @@
     "reactivate": "Turn notifications back on",
     "changeDuration": "Change duration",
     "muteFor": "Mute for",
-    "duration": { "8h": "8 hours", "1d": "1 day", "1w": "1 week", "forever": "Until I turn it back on" }
-  },
-  "ads": {
-    "ad": "Ad", "sponsored": "Sponsored", "learnMore": "Learn more", "art": { "business": "New Bakery", "caption": "Fresh bread every day ☀️", "nearby": "New nearby", "promotion": "See the offer", "recommendation": "I recommend this salon!", "schedule": "Book a time" },
-    "identity": { "individual": "Individual", "company": "Company", "companyName": "Legal or company name", "fullName": "Full name", "invalidCnpj": "Invalid CNPJ", "invalidCpf": "Invalid CPF" },
-    "charts": { "noEvents": "No events in this period.", "noData": "No data." },
-    "success": { "title": "Ad received!", "description": "Your ad will go live once payment is confirmed. Save the link below to track its status and results without signing in.", "copied": "Link copied!", "view": "View my ad", "back": "Back to Daqui" }
-    ,"scope": { "country": "All of Brazil", "citywide": "entire city" },
-    "checkout": { "paymentError": "We couldn't start the payment. Try again.", "reactivate": "Reactivate campaign", "adDetails": "Ad details", "days_one": "1 day", "days_other": "{{count}} days", "yourDetails": "Your details", "email": "Email", "phoneOptional": "Phone (optional)", "remember": "Remember my details for future campaigns", "pinRequired": "Mark the pin location above to advertise on the map.", "goToPayment": "Continue to payment" }
-    ,"formats": { "post": "Feed post", "map": "Map", "conversation": "Conversation", "notification": "Updates", "search_poster": "Search" },
-    "status": { "awaiting_content": "Awaiting content", "pending_payment": "Awaiting payment", "active": "Active", "paused": "Paused", "expired": "Ended", "rejected": "Rejected" },
-    "metrics": { "impressions": "Impressions", "clicks": "Clicks", "ctr": "CTR", "cpc": "Cost per click", "cpm": "Cost per thousand impressions" },
-    "dashboard": { "title": "My ads", "loadError": "We couldn't load your ads right now.", "empty": "You don't have any campaigns yet.", "createFirst": "Create my first campaign", "createNew": "Create new campaign", "compare": "Compare campaigns", "all": "All", "campaigns": "Campaigns", "active": "Active", "invested": "Spent", "overTime": "Over time", "byFormat": "By format", "stats": "{{impressions}} impressions · {{clicks}} clicks · {{ctr}}% CTR", "viewPanel": "View campaign dashboard" }
-    ,"landing": {
-      "title": "Advertise on Daqui", "heroTitle": "Focus on your business. We'll handle the promotion.", "heroSubtitle": "Reach nearby residents with feed posts, map pins, Updates notices, and Messages recommendations — all targeted by neighborhood.",
-      "bullets": { "0": "Neighborhood reach under your control", "1": "Control every detail", "2": "Build the perfect campaign" },
-      "chooseProfile": "Choose your profile", "profileHint": "Your profile helps us show the plans that best fit your ad.",
-      "categories": { "local_business": { "label": "Local business", "tagline": "Become a neighborhood favorite" }, "event": { "label": "Promote your event", "tagline": "Fill your event with local people" }, "enterprise": { "label": "Large companies", "tagline": "Reach your entire city" }, "national": { "label": "National reach", "tagline": "Several cities at once or all of Brazil" } },
-      "plansFor": "Plans for {{profile}}", "compareHint": "Compare price, duration, and reach — choose a ready-made plan or customize your own.", "appearsIn": "Appears in", "hirePlan": "Choose this plan", "hirePlanA11y": "Choose {{name}}, {{price}} for {{days}} days", "customA11y": "Build my own advertising plan", "customTitle": "Or build your own plan", "customSubtitle": "Choose formats, reach, and duration to fit your budget.", "customize": "Customize", "directTitle": "Prefer to talk to us?", "directHint": "Contact our advertising team for a custom proposal.",
-      "badges": { "Mais popular": "Most popular", "Máximo alcance": "Maximum reach", "Alcance nacional": "Nationwide reach" },
-      "plans": {
-        "local-no-mapa": { "name": "On the Map", "description": "A neighborhood map pin for 10 days — an affordable option for businesses with a fixed address." }, "local-vizinhanca": { "name": "Neighborhood", "description": "A feed post and map pin to reach people near your business." }, "local-bairro-plus": { "name": "Neighborhood Plus", "description": "Feed, map, and Updates for 15 days in up to 3 neighborhoods." }, "local-comercio-premium": { "name": "Business Premium", "description": "Feed, map, conversation, and Updates for 30 days in up to 5 neighborhoods." },
-        "evento-local": { "name": "Local Event", "description": "A feed post and map pin for 5 days to promote your neighborhood event." }, "evento-regional": { "name": "Regional Event", "description": "Feed, map, Updates, and Search for 10 days in up to 5 neighborhoods." }, "evento-grande": { "name": "Large Event", "description": "All formats for 15 days across the entire city." },
-        "empresa-expansao": { "name": "Expansion", "description": "Feed, map, Updates, and Search for 30 days across the city." }, "empresa-autoridade": { "name": "Authority", "description": "All formats for 60 days across the city." }, "empresa-presenca-total": { "name": "Total Presence", "description": "All formats for 90 days across the city." },
-        "nacional-rede-regional": { "name": "Regional Network", "description": "Feed and Updates for 30 days in up to 5 cities." }, "nacional-metropoles": { "name": "Brazilian Metropolises", "description": "Feed, conversation, Updates, and Search for 45 days in up to 15 cities." }, "nacional-brasil-todo": { "name": "All of Brazil", "description": "Feed, conversation, Updates, and Search for 60 days in any city nationwide." }
-      }
-    },
-    "creative": { "base": "The ad", "overrideHint": "The content above appears everywhere. Want a different title, text, or image somewhere? Customize it below — everything else keeps using the main content.", "customizeFor": "Customize for {{format}}", "inFormat": "In {{format}}", "mapLocation": "Location marked on the map", "photoPermission": "Allow photo access to add media.", "uploadError": "We couldn't upload the file.", "titlePlaceholder": "Title", "textPlaceholder": "Text", "targetPlaceholder": "Destination link (when the ad is tapped)", "addMedia": "Add photo or video", "addIcon": "Add icon (photo)", "ctaPlaceholder": "Button text (optional)", "pinLocation": "Map pin location (required)", "linkAccount": "Link to @{{username}}" },
-    "advanced": { "clear": "Clear all", "categories": "Post categories (optional)", "hours": "Hours (optional)", "hoursSelected_one": "1 hour selected", "hoursSelected_other": "{{count}} hours selected", "anyTime": "Any time", "days": "Days of the week (optional)", "everyDay": "Every day", "specialDatesOptional": "Special dates (optional)", "chooseCalendar": "Choose from calendar", "datesSelectedHint": "The ad will appear only on these dates within the campaign period ({{start}} to {{end}}).", "noDatesHint": "With no dates selected, the ad follows the hours and days above throughout the campaign ({{start}} to {{end}}).", "specialDates": "Special dates", "tapDates": "Tap one or more dates", "weekdays": { "mon": "Mon", "tue": "Tue", "wed": "Wed", "thu": "Thu", "fri": "Fri", "sat": "Sat", "sun": "Sun" }, "info": { "categories": "Only applies to Feed posts. Select the topics next to which the ad may appear.", "hours": "Select the hours when the ad may appear. With no selection, it can appear all day.", "days": "Select the days when the ad may appear. With no selection, it can appear every day.", "dates": "When you choose dates here, the ad appears only on those dates. Dates must be within the campaign period." } },
-    "panel": { "title": "My ad", "edit": "Edit", "reactivate": "Reactivate", "notFound": "We couldn't find an ad at this link. Check that the address is complete or contact the person who purchased it.", "duration": "Duration", "formats": "Formats", "targeting": "Targeting", "investment": "Investment", "contentMissing": "Your ad content still needs to be completed", "contentHint": "The terms above have already been agreed. Complete the creative content to proceed to payment.", "fillContent": "Complete ad content", "history": "History", "current": "current", "historyStats": "{{impressions}} imp · {{clicks}} clicks · {{price}}", "results": "Results", "groupBy": { "weekday": "Day of week", "hour": "Hour", "neighborhood": "Neighborhood" }, "noData": "Not enough data yet.", "clickCount_one": "1 click", "clickCount_other": "{{count}} clicks" },
-    "edit": { "saveError": "We couldn't save your changes.", "fill": "Complete ad", "title": "Edit ad", "notFound": "We couldn't find an ad at this link.", "awaitingHint": "Price, duration, targeting, and formats have already been agreed with the advertising team — complete only the content below.", "lockedHint": "Period, targeting, and formats can't be edited here — contact the advertising team to change them.", "saveChanges": "Save changes" },
-    "preview": { "title": "Live preview", "subtitle": "This is how your ad appears in each placement.", "feed": "In the feed", "map": "On the map", "search": "In Search", "messages": "In Messages", "notifications": "In Updates", "searchPlaceholder": "Search the neighborhood…", "chips": { "Eventos": "Events", "Vendas": "For sale", "Serviços": "Services", "Segurança": "Safety" }, "adTitle": "Ad title", "adText": "Your ad text appears here.", "adTextShort": "Ad text", "yourAd": "Your ad", "advertising": "Advertising", "fakePosts": { "0": "Does anyone know what time the street market opens on Saturday? I want to get some pastries 😋", "1": "Selling a well-kept used bicycle. Message me if you're interested!" }, "fakeChats": { "0": "Ana: good morning! Can anyone recommend a plumber?", "1": "Sounds good, see you at 6 PM 👍" }, "fakeNotifs": { "0": "liked your post", "1": "commented: “that's great, I'll be there!”" } },
-    "customize": {
-      "title": "Customize your ad", "placements": "Where your ad appears", "formats": { "post": { "label": "Feed post", "desc": "A card in the neighborhood feed, like a regular post." }, "map": { "label": "Map pin", "desc": "Marks your location on the neighborhood map. Requires an address." }, "conversation": { "label": "Conversation", "desc": "A row in Messages that opens a link when tapped." }, "notification": { "label": "Updates", "desc": "An item in the Updates tab." }, "search_poster": { "label": "Search poster", "desc": "Appears in Search before someone enters a query." } },
-      "comboApplied": "Bundle applied{{discount}}", "comboOffer": "Choose both and save {{percent}}%", "pinNext": "In the next step, mark the address used for the map pin.", "duration": "Duration (days)", "progressiveDiscount": "Progressive discount", "where": "Where to advertise", "scopes": { "neighborhood": "Neighborhoods", "citywide": "Entire city", "cities": "Multiple cities", "country": "All of Brazil" }, "neighborhoods": "Neighborhoods", "city": "City", "cities": "Cities", "upTo": "up to {{count}}", "cityPlaceholder": "Enter the city name...", "countryHint": "Your ad appears to anyone using Daqui in any city in Brazil.",
-      "advanced": "Advanced settings", "objective": "Campaign objective", "objectives": { "reach": "Reach", "clicks": "Clicks", "profile_visits": "Profile visits", "map_opens": "Map opens", "whatsapp_opens": "WhatsApp opens", "instagram_opens": "Instagram opens", "website_opens": "Website opens" }, "priority": "Priority (1-5)", "rotationWeight": "Rotation weight", "perUserCap": "Limit per person", "noLimit": "no limit", "audience": "Audience", "audiences": { "all": "Everyone", "residents": "Residents only", "visitors": "Current visitors only" }, "includeNearby": "Include nearby neighborhoods",
-      "info": { "objective": "Choose the main expected result. This organizes the campaign report.", "priority": "Higher priority increases campaign frequency and costs more.", "rotationWeight": "Splits delivery among your own competing campaigns.", "perUserCap": "Maximum number of times one person may see the ad during the campaign.", "audience": "Choose everyone, residents, or current visitors to the area.", "includeNearby": "Also shows the ad to residents of nearby neighborhoods." },
-      "noDiscount": "no discount", "durationDiscount": "Duration discount", "factors": { "bundle": "Feed + map bundle", "reach": "Reach", "competition": "Competition in the selected period/areas", "seasonality": "Seasonality", "schedule": "Selected hours", "objective": "Campaign objective", "priority": "Priority", "frequency": "Frequency/exclusivity", "durationDiscount": "Duration discount", "market": "Market adjustment", "formats": "Selected formats" },
-      "planValue": "Plan price", "estimatedValue": "Estimated price", "reach": "Reach: {{reach}}", "reachNeighborhood": "residents of {{neighborhood}}", "reachNeighborhoods": "residents of up to {{count}} neighborhoods", "reachNearby": "{{base}} + nearby neighborhoods", "reachCity": "residents of {{city}} (entire city)", "reachCities": "residents of up to {{count}} cities", "reachCountry": "anyone in Brazil", "lockedPriceHint": "Price doesn't change with neighborhoods — it scales with duration and formats. ", "dynamicPriceHint": "This configuration is outside the plan; pricing is now dynamic. ", "showLess": "▾ show less", "showCalculation": "▸ see how we calculate", "comboSaving": "Feed + map bundle: {{value}} compared with buying both separately", "continue": "Continue"
+    "duration": {
+      "8h": "8 hours",
+      "1d": "1 day",
+      "1w": "1 week",
+      "forever": "Until I turn it back on"
     }
   },
-  "time": { "yesterday": "yesterday" },
+  "ads": {
+    "ad": "Ad",
+    "sponsored": "Sponsored",
+    "learnMore": "Learn more",
+    "art": {
+      "business": "New Bakery",
+      "caption": "Fresh bread every day ☀️",
+      "nearby": "New nearby",
+      "promotion": "See the offer",
+      "recommendation": "I recommend this salon!",
+      "schedule": "Book a time"
+    },
+    "identity": {
+      "individual": "Individual",
+      "company": "Company",
+      "companyName": "Legal or company name",
+      "fullName": "Full name",
+      "invalidCnpj": "Invalid CNPJ",
+      "invalidCpf": "Invalid CPF"
+    },
+    "charts": {
+      "noEvents": "No events in this period.",
+      "noData": "No data."
+    },
+    "success": {
+      "title": "Ad received!",
+      "description": "Your ad will go live once payment is confirmed. Save the link below to track its status and results without signing in.",
+      "copied": "Link copied!",
+      "view": "View my ad",
+      "back": "Back to Daqui"
+    },
+    "scope": {
+      "country": "All of Brazil",
+      "citywide": "entire city"
+    },
+    "checkout": {
+      "paymentError": "We couldn't start the payment. Try again.",
+      "reactivate": "Reactivate campaign",
+      "adDetails": "Ad details",
+      "days_one": "1 day",
+      "days_other": "{{count}} days",
+      "yourDetails": "Your details",
+      "email": "Email",
+      "phoneOptional": "Phone (optional)",
+      "remember": "Remember my details for future campaigns",
+      "pinRequired": "Mark the pin location above to advertise on the map.",
+      "goToPayment": "Continue to payment"
+    },
+    "formats": {
+      "post": "Feed post",
+      "map": "Map",
+      "conversation": "Conversation",
+      "notification": "Updates",
+      "search_poster": "Search"
+    },
+    "status": {
+      "awaiting_content": "Awaiting content",
+      "pending_payment": "Awaiting payment",
+      "active": "Active",
+      "paused": "Paused",
+      "expired": "Ended",
+      "rejected": "Rejected"
+    },
+    "metrics": {
+      "impressions": "Impressions",
+      "clicks": "Clicks",
+      "ctr": "CTR",
+      "cpc": "Cost per click",
+      "cpm": "Cost per thousand impressions"
+    },
+    "dashboard": {
+      "title": "My ads",
+      "loadError": "We couldn't load your ads right now.",
+      "empty": "You don't have any campaigns yet.",
+      "createFirst": "Create my first campaign",
+      "createNew": "Create new campaign",
+      "compare": "Compare campaigns",
+      "all": "All",
+      "campaigns": "Campaigns",
+      "active": "Active",
+      "invested": "Spent",
+      "overTime": "Over time",
+      "byFormat": "By format",
+      "stats": "{{impressions}} impressions · {{clicks}} clicks · {{ctr}}% CTR",
+      "viewPanel": "View campaign dashboard"
+    },
+    "landing": {
+      "title": "Advertise on Daqui",
+      "heroTitle": "Focus on your business. We'll handle the promotion.",
+      "heroSubtitle": "Reach nearby residents with feed posts, map pins, Updates notices, and Messages recommendations — all targeted by neighborhood.",
+      "bullets": {
+        "0": "Neighborhood reach under your control",
+        "1": "Control every detail",
+        "2": "Build the perfect campaign"
+      },
+      "chooseProfile": "Choose your profile",
+      "profileHint": "Your profile helps us show the plans that best fit your ad.",
+      "categories": {
+        "local_business": {
+          "label": "Local business",
+          "tagline": "Become a neighborhood favorite"
+        },
+        "event": {
+          "label": "Promote your event",
+          "tagline": "Fill your event with local people"
+        },
+        "enterprise": {
+          "label": "Large companies",
+          "tagline": "Reach your entire city"
+        },
+        "national": {
+          "label": "National reach",
+          "tagline": "Several cities at once or all of Brazil"
+        }
+      },
+      "plansFor": "Plans for {{profile}}",
+      "compareHint": "Compare price, duration, and reach — choose a ready-made plan or customize your own.",
+      "appearsIn": "Appears in",
+      "hirePlan": "Choose this plan",
+      "hirePlanA11y": "Choose {{name}}, {{price}} for {{days}} days",
+      "customA11y": "Build my own advertising plan",
+      "customTitle": "Or build your own plan",
+      "customSubtitle": "Choose formats, reach, and duration to fit your budget.",
+      "customize": "Customize",
+      "directTitle": "Prefer to talk to us?",
+      "directHint": "Contact our advertising team for a custom proposal.",
+      "badges": {
+        "Mais popular": "Most popular",
+        "Máximo alcance": "Maximum reach",
+        "Alcance nacional": "Nationwide reach"
+      },
+      "plans": {
+        "local-no-mapa": {
+          "name": "On the Map",
+          "description": "A neighborhood map pin for 10 days — an affordable option for businesses with a fixed address."
+        },
+        "local-vizinhanca": {
+          "name": "Neighborhood",
+          "description": "A feed post and map pin to reach people near your business."
+        },
+        "local-bairro-plus": {
+          "name": "Neighborhood Plus",
+          "description": "Feed, map, and Updates for 15 days in up to 3 neighborhoods."
+        },
+        "local-comercio-premium": {
+          "name": "Business Premium",
+          "description": "Feed, map, conversation, and Updates for 30 days in up to 5 neighborhoods."
+        },
+        "evento-local": {
+          "name": "Local Event",
+          "description": "A feed post and map pin for 5 days to promote your neighborhood event."
+        },
+        "evento-regional": {
+          "name": "Regional Event",
+          "description": "Feed, map, Updates, and Search for 10 days in up to 5 neighborhoods."
+        },
+        "evento-grande": {
+          "name": "Large Event",
+          "description": "All formats for 15 days across the entire city."
+        },
+        "empresa-expansao": {
+          "name": "Expansion",
+          "description": "Feed, map, Updates, and Search for 30 days across the city."
+        },
+        "empresa-autoridade": {
+          "name": "Authority",
+          "description": "All formats for 60 days across the city."
+        },
+        "empresa-presenca-total": {
+          "name": "Total Presence",
+          "description": "All formats for 90 days across the city."
+        },
+        "nacional-rede-regional": {
+          "name": "Regional Network",
+          "description": "Feed and Updates for 30 days in up to 5 cities."
+        },
+        "nacional-metropoles": {
+          "name": "Brazilian Metropolises",
+          "description": "Feed, conversation, Updates, and Search for 45 days in up to 15 cities."
+        },
+        "nacional-brasil-todo": {
+          "name": "All of Brazil",
+          "description": "Feed, conversation, Updates, and Search for 60 days in any city nationwide."
+        }
+      }
+    },
+    "creative": {
+      "base": "The ad",
+      "overrideHint": "The content above appears everywhere. Want a different title, text, or image somewhere? Customize it below — everything else keeps using the main content.",
+      "customizeFor": "Customize for {{format}}",
+      "inFormat": "In {{format}}",
+      "mapLocation": "Location marked on the map",
+      "photoPermission": "Allow photo access to add media.",
+      "uploadError": "We couldn't upload the file.",
+      "titlePlaceholder": "Title",
+      "textPlaceholder": "Text",
+      "targetPlaceholder": "Destination link (when the ad is tapped)",
+      "addMedia": "Add photo or video",
+      "addIcon": "Add icon (photo)",
+      "ctaPlaceholder": "Button text (optional)",
+      "pinLocation": "Map pin location (required)",
+      "linkAccount": "Link to @{{username}}"
+    },
+    "advanced": {
+      "clear": "Clear all",
+      "categories": "Post categories (optional)",
+      "hours": "Hours (optional)",
+      "hoursSelected_one": "1 hour selected",
+      "hoursSelected_other": "{{count}} hours selected",
+      "anyTime": "Any time",
+      "days": "Days of the week (optional)",
+      "everyDay": "Every day",
+      "specialDatesOptional": "Special dates (optional)",
+      "chooseCalendar": "Choose from calendar",
+      "datesSelectedHint": "The ad will appear only on these dates within the campaign period ({{start}} to {{end}}).",
+      "noDatesHint": "With no dates selected, the ad follows the hours and days above throughout the campaign ({{start}} to {{end}}).",
+      "specialDates": "Special dates",
+      "tapDates": "Tap one or more dates",
+      "weekdays": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "info": {
+        "categories": "Only applies to Feed posts. Select the topics next to which the ad may appear.",
+        "hours": "Select the hours when the ad may appear. With no selection, it can appear all day.",
+        "days": "Select the days when the ad may appear. With no selection, it can appear every day.",
+        "dates": "When you choose dates here, the ad appears only on those dates. Dates must be within the campaign period."
+      }
+    },
+    "panel": {
+      "title": "My ad",
+      "edit": "Edit",
+      "reactivate": "Reactivate",
+      "notFound": "We couldn't find an ad at this link. Check that the address is complete or contact the person who purchased it.",
+      "duration": "Duration",
+      "formats": "Formats",
+      "targeting": "Targeting",
+      "investment": "Investment",
+      "contentMissing": "Your ad content still needs to be completed",
+      "contentHint": "The terms above have already been agreed. Complete the creative content to proceed to payment.",
+      "fillContent": "Complete ad content",
+      "history": "History",
+      "current": "current",
+      "historyStats": "{{impressions}} imp · {{clicks}} clicks · {{price}}",
+      "results": "Results",
+      "groupBy": {
+        "weekday": "Day of week",
+        "hour": "Hour",
+        "neighborhood": "Neighborhood"
+      },
+      "noData": "Not enough data yet.",
+      "clickCount_one": "1 click",
+      "clickCount_other": "{{count}} clicks"
+    },
+    "edit": {
+      "saveError": "We couldn't save your changes.",
+      "fill": "Complete ad",
+      "title": "Edit ad",
+      "notFound": "We couldn't find an ad at this link.",
+      "awaitingHint": "Price, duration, targeting, and formats have already been agreed with the advertising team — complete only the content below.",
+      "lockedHint": "Period, targeting, and formats can't be edited here — contact the advertising team to change them.",
+      "saveChanges": "Save changes"
+    },
+    "preview": {
+      "title": "Live preview",
+      "subtitle": "This is how your ad appears in each placement.",
+      "feed": "In the feed",
+      "map": "On the map",
+      "search": "In Search",
+      "messages": "In Messages",
+      "notifications": "In Updates",
+      "searchPlaceholder": "Search the neighborhood…",
+      "chips": {
+        "Eventos": "Events",
+        "Vendas": "For sale",
+        "Serviços": "Services",
+        "Segurança": "Safety"
+      },
+      "adTitle": "Ad title",
+      "adText": "Your ad text appears here.",
+      "adTextShort": "Ad text",
+      "yourAd": "Your ad",
+      "advertising": "Advertising",
+      "fakePosts": {
+        "0": "Does anyone know what time the street market opens on Saturday? I want to get some pastries 😋",
+        "1": "Selling a well-kept used bicycle. Message me if you're interested!"
+      },
+      "fakeChats": {
+        "0": "Ana: good morning! Can anyone recommend a plumber?",
+        "1": "Sounds good, see you at 6 PM 👍"
+      },
+      "fakeNotifs": {
+        "0": "liked your post",
+        "1": "commented: “that's great, I'll be there!”"
+      }
+    },
+    "customize": {
+      "title": "Customize your ad",
+      "placements": "Where your ad appears",
+      "formats": {
+        "post": {
+          "label": "Feed post",
+          "desc": "A card in the neighborhood feed, like a regular post."
+        },
+        "map": {
+          "label": "Map pin",
+          "desc": "Marks your location on the neighborhood map. Requires an address."
+        },
+        "conversation": {
+          "label": "Conversation",
+          "desc": "A row in Messages that opens a link when tapped."
+        },
+        "notification": {
+          "label": "Updates",
+          "desc": "An item in the Updates tab."
+        },
+        "search_poster": {
+          "label": "Search poster",
+          "desc": "Appears in Search before someone enters a query."
+        }
+      },
+      "comboApplied": "Bundle applied{{discount}}",
+      "comboOffer": "Choose both and save {{percent}}%",
+      "pinNext": "In the next step, mark the address used for the map pin.",
+      "duration": "Duration (days)",
+      "progressiveDiscount": "Progressive discount",
+      "where": "Where to advertise",
+      "scopes": {
+        "neighborhood": "Neighborhoods",
+        "citywide": "Entire city",
+        "cities": "Multiple cities",
+        "country": "All of Brazil"
+      },
+      "neighborhoods": "Neighborhoods",
+      "city": "City",
+      "cities": "Cities",
+      "upTo": "up to {{count}}",
+      "cityPlaceholder": "Enter the city name...",
+      "countryHint": "Your ad appears to anyone using Daqui in any city in Brazil.",
+      "advanced": "Advanced settings",
+      "objective": "Campaign objective",
+      "objectives": {
+        "reach": "Reach",
+        "clicks": "Clicks",
+        "profile_visits": "Profile visits",
+        "map_opens": "Map opens",
+        "whatsapp_opens": "WhatsApp opens",
+        "instagram_opens": "Instagram opens",
+        "website_opens": "Website opens"
+      },
+      "priority": "Priority (1-5)",
+      "rotationWeight": "Rotation weight",
+      "perUserCap": "Limit per person",
+      "noLimit": "no limit",
+      "audience": "Audience",
+      "audiences": {
+        "all": "Everyone",
+        "residents": "Residents only",
+        "visitors": "Current visitors only"
+      },
+      "includeNearby": "Include nearby neighborhoods",
+      "info": {
+        "objective": "Choose the main expected result. This organizes the campaign report.",
+        "priority": "Higher priority increases campaign frequency and costs more.",
+        "rotationWeight": "Splits delivery among your own competing campaigns.",
+        "perUserCap": "Maximum number of times one person may see the ad during the campaign.",
+        "audience": "Choose everyone, residents, or current visitors to the area.",
+        "includeNearby": "Also shows the ad to residents of nearby neighborhoods."
+      },
+      "noDiscount": "no discount",
+      "durationDiscount": "Duration discount",
+      "factors": {
+        "bundle": "Feed + map bundle",
+        "reach": "Reach",
+        "competition": "Competition in the selected period/areas",
+        "seasonality": "Seasonality",
+        "schedule": "Selected hours",
+        "objective": "Campaign objective",
+        "priority": "Priority",
+        "frequency": "Frequency/exclusivity",
+        "durationDiscount": "Duration discount",
+        "market": "Market adjustment",
+        "formats": "Selected formats"
+      },
+      "planValue": "Plan price",
+      "estimatedValue": "Estimated price",
+      "reach": "Reach: {{reach}}",
+      "reachNeighborhood": "residents of {{neighborhood}}",
+      "reachNeighborhoods": "residents of up to {{count}} neighborhoods",
+      "reachNearby": "{{base}} + nearby neighborhoods",
+      "reachCity": "residents of {{city}} (entire city)",
+      "reachCities": "residents of up to {{count}} cities",
+      "reachCountry": "anyone in Brazil",
+      "lockedPriceHint": "Price doesn't change with neighborhoods — it scales with duration and formats. ",
+      "dynamicPriceHint": "This configuration is outside the plan; pricing is now dynamic. ",
+      "showLess": "▾ show less",
+      "showCalculation": "▸ see how we calculate",
+      "comboSaving": "Feed + map bundle: {{value}} compared with buying both separately",
+      "continue": "Continue"
+    }
+  },
+  "time": {
+    "yesterday": "yesterday"
+  },
   "legal": {
-    "title": "Legal documents", "docs": { "terms": "Terms of Use", "privacy": "Privacy Policy" }, "kicker": "DAQUI — NEIGHBORHOOD SOCIAL NETWORK", "updatedAt": "Last updated {{date}}",
+    "title": "Legal documents",
+    "docs": {
+      "terms": "Terms of Use",
+      "privacy": "Privacy Policy"
+    },
+    "kicker": "DAQUI — NEIGHBORHOOD SOCIAL NETWORK",
+    "updatedAt": "Last updated {{date}}",
     "content": {
       "terms": {
         "intro": "These Terms of Use govern access to and use of Daqui, a neighborhood social-network app and website. By creating an account or using Daqui, you agree to these rules. If you do not agree, do not use the service.",
         "sections": {
-          "0": { "title": "1. What Daqui is", "blocks": { "0": { "text": "Daqui is a social network organized by neighborhood: a place for neighbors to share notices and recommendations, report lost and found items, organize events, and help each other. The feed, map, messages, and groups are associated with either your registered neighborhood (My neighborhood) or the neighborhood nearest your current location (Near me)." }, "1": { "text": "Daqui is free for residents. Advertisers may purchase advertising placements in the app; this commercial use is also governed by section 8 of these Terms." } } },
-          "1": { "title": "2. Who may use Daqui", "blocks": { "0": { "text": "Daqui may be used by people aged 13 or older. Anyone under 18 must use the app with the knowledge and supervision of a legal guardian." }, "1": { "text": "When registering, you state that the information you provide, including your name, username, email, and neighborhood, is truthful and will be kept up to date." } } },
-          "2": { "title": "3. Your account", "blocks": { "0": { "text": "You are responsible for keeping your password confidential and for all activity on your account. Notify support immediately if you suspect unauthorized access." }, "1": { "text": "In Settings, you can view and remotely revoke devices connected to your account under Connected devices." }, "2": { "text": "We may suspend or close accounts that violate these Terms. When applicable, moderation will provide the reason and duration." } } },
-          "3": { "title": "4. Neighborhood and location", "blocks": { "0": { "text": "The neighborhood shown on your profile is the one in your registration. Location used by Near me and the map identifies the nearest neighborhood and positions notices and events. Your exact address is never shown to other users; only the neighborhood name is displayed." }, "1": { "text": "The Resident badge identifies someone who lives in the neighborhood of a post or comment, distinguishing residents from people viewing through Near me or Include nearby areas." }, "2": { "text": "My neighborhood must be where you actually live. You may hide the Resident badge under Privacy & security. By setting or changing your address, you confirm that this information is truthful. Claiming residence in a neighborhood where you do not live violates the app's organization and may result in suspension." } } },
-          "4": { "title": "5. Content you publish", "blocks": { "0": { "text": "You retain ownership of what you publish, including posts, comments, polls, photos, and messages. By publishing in areas visible to others, you grant Daqui a non-exclusive license to host, display, and distribute that content within the app solely to operate the service." }, "1": { "text": "You are solely responsible for your content and confirm that you hold the necessary rights to it." }, "2": { "text": "You may not publish content that:" }, "3": { "items": { "0": "is illegal, discriminatory, defamatory, or incites violence or hatred;", "1": "constitutes a scam, fraud, or spam;", "2": "violates another person's privacy or image rights;", "3": "contains malware or attempts to compromise app security;", "4": "impersonates another person or organization." } }, "4": { "text": "Content falling into any of these categories may be removed by Daqui's moderation team." } } },
-          "5": { "title": "6. Moderation and reports", "blocks": { "0": { "text": "Any post, comment, or profile may be reported using the Report button. Moderation reviews the report and takes the action it considers appropriate." }, "1": { "text": "Daqui does not moderate transactions between neighbors. Sales, exchanges, and services are arranged directly between the parties. Daqui does not process payments, delivery, or guarantees and is not responsible for scams or misconduct in these transactions. Report the content or profile if this occurs." } } },
-          "6": { "title": "7. Groups and messages", "blocks": { "0": { "text": "Groups may be public, approval-based, or closed. Group owners and administrators are responsible for moderating their group's messages and members under these Terms." }, "1": { "text": "Direct messages are not restricted by neighborhood. Forwarding a post to someone in another neighborhood is blocked when the post belongs to a neighborhood other than your own." } } },
-          "7": { "title": "8. Ads and sponsored content", "blocks": { "0": { "text": "Daqui displays third-party ads in the feed, map, Messages, Updates, and Search, always marked as Ad or Sponsored. Ads are purchased through a separate service and payments are processed by an external provider, Stripe." }, "1": { "text": "Daqui is not responsible for products, services, or information promoted by advertisers. Any commercial relationship arising from an ad is solely between the user and advertiser." } } },
-          "8": { "title": "9. Notifications", "blocks": { "0": { "text": "The app may send push notifications about relevant activity such as messages, mentions, likes, and updates. You can mute individual conversations and groups or disable device notifications in system settings." } } },
-          "9": { "title": "10. Intellectual property", "blocks": { "0": { "text": "The Daqui name, logo, and app design belong to their owners. Nothing in these Terms transfers those rights to you." } } },
-          "10": { "title": "11. Disclaimers and limitation of liability", "blocks": { "0": { "text": "Daqui is provided as is. We do not verify the accuracy of user content and do not guarantee uninterrupted service. To the fullest extent permitted by law, Daqui is not liable for indirect damages resulting from use of the app or interactions arranged between users outside the platform." } } },
-          "11": { "title": "12. Changes to these Terms", "blocks": { "0": { "text": "We may update these Terms to reflect changes to the app or applicable law. Material changes will be communicated in the app. Continued use after an update constitutes acceptance of the revised Terms." } } },
-          "12": { "title": "13. Governing law", "blocks": { "0": { "text": "These Terms are governed by Brazilian law. Courts in Rio de Janeiro, RJ, will have jurisdiction over disputes, without prejudice to the consumer's local jurisdiction when applicable." } } },
-          "13": { "title": "14. Contact", "blocks": { "0": { "text": "Questions about these Terms may be sent to franciscogardenberg@gmail.com or through a ticket under Help & support in the app." } } }
+          "0": {
+            "title": "1. What Daqui is",
+            "blocks": {
+              "0": {
+                "text": "Daqui is a social network organized by neighborhood: a place for neighbors to share notices and recommendations, report lost and found items, organize events, and help each other. The feed, map, messages, and groups are associated with either your registered neighborhood (My neighborhood) or the neighborhood nearest your current location (Near me)."
+              },
+              "1": {
+                "text": "Daqui is free for residents. Advertisers may purchase advertising placements in the app; this commercial use is also governed by section 8 of these Terms."
+              }
+            }
+          },
+          "1": {
+            "title": "2. Who may use Daqui",
+            "blocks": {
+              "0": {
+                "text": "Daqui may be used by people aged 13 or older. Anyone under 18 must use the app with the knowledge and supervision of a legal guardian."
+              },
+              "1": {
+                "text": "When registering, you state that the information you provide, including your name, username, email, and neighborhood, is truthful and will be kept up to date."
+              }
+            }
+          },
+          "2": {
+            "title": "3. Your account",
+            "blocks": {
+              "0": {
+                "text": "You are responsible for keeping your password confidential and for all activity on your account. Notify support immediately if you suspect unauthorized access."
+              },
+              "1": {
+                "text": "In Settings, you can view and remotely revoke devices connected to your account under Connected devices."
+              },
+              "2": {
+                "text": "We may suspend or close accounts that violate these Terms. When applicable, moderation will provide the reason and duration."
+              }
+            }
+          },
+          "3": {
+            "title": "4. Neighborhood and location",
+            "blocks": {
+              "0": {
+                "text": "The neighborhood shown on your profile is the one in your registration. Location used by Near me and the map identifies the nearest neighborhood and positions notices and events. Your exact address is never shown to other users; only the neighborhood name is displayed."
+              },
+              "1": {
+                "text": "The Resident badge identifies someone who lives in the neighborhood of a post or comment, distinguishing residents from people viewing through Near me or Include nearby areas."
+              },
+              "2": {
+                "text": "My neighborhood must be where you actually live. You may hide the Resident badge under Privacy & security. By setting or changing your address, you confirm that this information is truthful. Claiming residence in a neighborhood where you do not live violates the app's organization and may result in suspension."
+              }
+            }
+          },
+          "4": {
+            "title": "5. Content you publish",
+            "blocks": {
+              "0": {
+                "text": "You retain ownership of what you publish, including posts, comments, polls, photos, and messages. By publishing in areas visible to others, you grant Daqui a non-exclusive license to host, display, and distribute that content within the app solely to operate the service."
+              },
+              "1": {
+                "text": "You are solely responsible for your content and confirm that you hold the necessary rights to it."
+              },
+              "2": {
+                "text": "You may not publish content that:"
+              },
+              "3": {
+                "items": {
+                  "0": "is illegal, discriminatory, defamatory, or incites violence or hatred;",
+                  "1": "constitutes a scam, fraud, or spam;",
+                  "2": "violates another person's privacy or image rights;",
+                  "3": "contains malware or attempts to compromise app security;",
+                  "4": "impersonates another person or organization."
+                }
+              },
+              "4": {
+                "text": "Content falling into any of these categories may be removed by Daqui's moderation team."
+              }
+            }
+          },
+          "5": {
+            "title": "6. Moderation and reports",
+            "blocks": {
+              "0": {
+                "text": "Any post, comment, or profile may be reported using the Report button. Moderation reviews the report and takes the action it considers appropriate."
+              },
+              "1": {
+                "text": "Daqui does not moderate transactions between neighbors. Sales, exchanges, and services are arranged directly between the parties. Daqui does not process payments, delivery, or guarantees and is not responsible for scams or misconduct in these transactions. Report the content or profile if this occurs."
+              }
+            }
+          },
+          "6": {
+            "title": "7. Groups and messages",
+            "blocks": {
+              "0": {
+                "text": "Groups may be public, approval-based, or closed. Group owners and administrators are responsible for moderating their group's messages and members under these Terms."
+              },
+              "1": {
+                "text": "Direct messages are not restricted by neighborhood. Forwarding a post to someone in another neighborhood is blocked when the post belongs to a neighborhood other than your own."
+              }
+            }
+          },
+          "7": {
+            "title": "8. Ads and sponsored content",
+            "blocks": {
+              "0": {
+                "text": "Daqui displays third-party ads in the feed, map, Messages, Updates, and Search, always marked as Ad or Sponsored. Ads are purchased through a separate service and payments are processed by an external provider, Stripe."
+              },
+              "1": {
+                "text": "Daqui is not responsible for products, services, or information promoted by advertisers. Any commercial relationship arising from an ad is solely between the user and advertiser."
+              }
+            }
+          },
+          "8": {
+            "title": "9. Notifications",
+            "blocks": {
+              "0": {
+                "text": "The app may send push notifications about relevant activity such as messages, mentions, likes, and updates. You can mute individual conversations and groups or disable device notifications in system settings."
+              }
+            }
+          },
+          "9": {
+            "title": "10. Intellectual property",
+            "blocks": {
+              "0": {
+                "text": "The Daqui name, logo, and app design belong to their owners. Nothing in these Terms transfers those rights to you."
+              }
+            }
+          },
+          "10": {
+            "title": "11. Disclaimers and limitation of liability",
+            "blocks": {
+              "0": {
+                "text": "Daqui is provided as is. We do not verify the accuracy of user content and do not guarantee uninterrupted service. To the fullest extent permitted by law, Daqui is not liable for indirect damages resulting from use of the app or interactions arranged between users outside the platform."
+              }
+            }
+          },
+          "11": {
+            "title": "12. Changes to these Terms",
+            "blocks": {
+              "0": {
+                "text": "We may update these Terms to reflect changes to the app or applicable law. Material changes will be communicated in the app. Continued use after an update constitutes acceptance of the revised Terms."
+              }
+            }
+          },
+          "12": {
+            "title": "13. Governing law",
+            "blocks": {
+              "0": {
+                "text": "These Terms are governed by Brazilian law. Courts in Rio de Janeiro, RJ, will have jurisdiction over disputes, without prejudice to the consumer's local jurisdiction when applicable."
+              }
+            }
+          },
+          "13": {
+            "title": "14. Contact",
+            "blocks": {
+              "0": {
+                "text": "Questions about these Terms may be sent to franciscogardenberg@gmail.com or through a ticket under Help & support in the app."
+              }
+            }
+          }
         }
       },
       "privacy": {
         "intro": "This Privacy Policy explains what data Daqui collects, why it is used, and your rights under Brazil's General Data Protection Law (LGPD, Law No. 13,709/2018).",
         "sections": {
-          "0": { "title": "1. Who controls your data", "blocks": { "0": { "text": "The people responsible for Daqui are the controllers of data processed in the app. To exercise your rights or ask privacy questions, open a ticket under Help & support or contact franciscogardenberg@gmail.com." } } },
-          "1": { "title": "2. Data we collect", "blocks": {
-            "0": { "text": "Registration data:" }, "1": { "items": { "0": "Name;", "1": "Username;", "2": "Email;", "3": "Encrypted password;", "4": "Neighborhood." } },
-            "2": { "text": "Profile data:" }, "3": { "items": { "0": "Photo;", "1": "Bio;", "2": "Other information you choose to add." } },
-            "4": { "text": "Location data:" }, "5": { "items": { "0": "Device coordinates;", "1": "Used to identify the nearest neighborhood for Near me;", "2": "Used to position notices on the map;", "3": "Used to suggest nearby neighborhoods and never shown to other users as an exact address." } },
-            "6": { "text": "Content you create:" }, "7": { "items": { "0": "Posts;", "1": "Comments;", "2": "Polls and votes;", "3": "Direct and group messages;", "4": "Reports and ratings you submit." } },
-            "8": { "text": "Technical data:" }, "9": { "items": { "0": "Login sessions, including device, browser, IP address, and access date and time;", "1": "Device push-notification token;", "2": "Support records created when you open a ticket." } }
-          } },
-          "2": { "title": "3. How we use data", "blocks": { "0": { "items": { "0": "Display the feed, map, and search based on your neighborhood;", "1": "Provide direct messages, groups, and mentions;", "2": "Send push notifications about activity relevant to you;", "3": "Moderate content and investigate reports, including audit records of moderation actions;", "4": "Protect account security, sessions, and detect unauthorized access;", "5": "Respond to support tickets;", "6": "Select the ads shown to you." } } } },
-          "3": { "title": "4. Legal basis under the LGPD", "blocks": { "0": { "text": "We process data to perform the app-use agreement, for Daqui's and the community's legitimate interests in moderation, security, and fraud prevention, and, where applicable, with your consent, such as when you authorize device location or push notifications." } } },
-          "4": { "title": "5. Who we share data with", "blocks": { "0": { "text": "We do not sell personal data. We share data only as needed to operate the service:" }, "1": { "items": { "0": "Notification infrastructure providers, including Expo Push Service, to deliver device notifications;", "1": "Geocoding services, including OpenStreetMap and Nominatim, to convert coordinates into a neighborhood or address without identifying you to those services;", "2": "Stripe, only when you purchase an ad. Payment data does not pass through Daqui's servers;", "3": "Other users, only for information inherently public in the app, such as name, username, photo, neighborhood, posts, and visible comments. If you link your account to your own ad, the same public information also appears on the ad card." } } } },
-          "5": { "title": "6. Retention and deletion", "blocks": { "0": { "text": "We keep data while your account is active. You may request deletion of your account and data through Help & support. Our team processes requests within a reasonable period, except for records the law requires us to retain, such as security logs or legal obligations." } } },
-          "6": { "title": "7. Security", "blocks": { "0": { "text": "Passwords are stored as bcrypt hashes, never as plain text. Access is protected by JWT session tokens, and connected devices can be revoked remotely in Settings. Moderation and administration accounts also use two-factor authentication." } } },
-          "7": { "title": "8. Your data-subject rights", "blocks": { "0": { "text": "Under the LGPD, you may request at any time:" }, "1": { "items": { "0": "Confirmation that we process your data and access to it;", "1": "Correction of incomplete, inaccurate, or outdated data;", "2": "Deletion of your personal data;", "3": "Data portability to another provider;", "4": "Withdrawal of consent, including for location or notifications;", "5": "Information about who receives your data." } }, "2": { "text": "To exercise these rights, use Help & support in the app or email franciscogardenberg@gmail.com." } } },
-          "8": { "title": "9. Cookies and local storage", "blocks": { "0": { "text": "On the web, we use browser local storage only to keep you signed in and save app-experience preferences. We do not use third-party tracking cookies or cross-site behavioral advertising." } } },
-          "9": { "title": "10. Children and teenagers", "blocks": { "0": { "text": "Daqui is not intended for children under 13 and does not knowingly collect children's data. Users aged 13 to 18 must use the app under the supervision of a legal guardian." } } },
-          "10": { "title": "11. Changes to this Policy", "blocks": { "0": { "text": "We may update this Policy periodically. The latest update date is always shown at the top of this page, and material changes will be communicated in the app." } } },
-          "11": { "title": "12. Contact and data protection officer", "blocks": { "0": { "text": "Privacy questions, data-subject requests, or complaints may be sent to franciscogardenberg@gmail.com." } } }
+          "0": {
+            "title": "1. Who controls your data",
+            "blocks": {
+              "0": {
+                "text": "The people responsible for Daqui are the controllers of data processed in the app. To exercise your rights or ask privacy questions, open a ticket under Help & support or contact franciscogardenberg@gmail.com."
+              }
+            }
+          },
+          "1": {
+            "title": "2. Data we collect",
+            "blocks": {
+              "0": {
+                "text": "Registration data:"
+              },
+              "1": {
+                "items": {
+                  "0": "Name;",
+                  "1": "Username;",
+                  "2": "Email;",
+                  "3": "Encrypted password;",
+                  "4": "Neighborhood."
+                }
+              },
+              "2": {
+                "text": "Profile data:"
+              },
+              "3": {
+                "items": {
+                  "0": "Photo;",
+                  "1": "Bio;",
+                  "2": "Other information you choose to add."
+                }
+              },
+              "4": {
+                "text": "Location data:"
+              },
+              "5": {
+                "items": {
+                  "0": "Device coordinates;",
+                  "1": "Used to identify the nearest neighborhood for Near me;",
+                  "2": "Used to position notices on the map;",
+                  "3": "Used to suggest nearby neighborhoods and never shown to other users as an exact address."
+                }
+              },
+              "6": {
+                "text": "Content you create:"
+              },
+              "7": {
+                "items": {
+                  "0": "Posts;",
+                  "1": "Comments;",
+                  "2": "Polls and votes;",
+                  "3": "Direct and group messages;",
+                  "4": "Reports and ratings you submit."
+                }
+              },
+              "8": {
+                "text": "Technical data:"
+              },
+              "9": {
+                "items": {
+                  "0": "Login sessions, including device, browser, IP address, and access date and time;",
+                  "1": "Device push-notification token;",
+                  "2": "Support records created when you open a ticket."
+                }
+              }
+            }
+          },
+          "2": {
+            "title": "3. How we use data",
+            "blocks": {
+              "0": {
+                "items": {
+                  "0": "Display the feed, map, and search based on your neighborhood;",
+                  "1": "Provide direct messages, groups, and mentions;",
+                  "2": "Send push notifications about activity relevant to you;",
+                  "3": "Moderate content and investigate reports, including audit records of moderation actions;",
+                  "4": "Protect account security, sessions, and detect unauthorized access;",
+                  "5": "Respond to support tickets;",
+                  "6": "Select the ads shown to you."
+                }
+              }
+            }
+          },
+          "3": {
+            "title": "4. Legal basis under the LGPD",
+            "blocks": {
+              "0": {
+                "text": "We process data to perform the app-use agreement, for Daqui's and the community's legitimate interests in moderation, security, and fraud prevention, and, where applicable, with your consent, such as when you authorize device location or push notifications."
+              }
+            }
+          },
+          "4": {
+            "title": "5. Who we share data with",
+            "blocks": {
+              "0": {
+                "text": "We do not sell personal data. We share data only as needed to operate the service:"
+              },
+              "1": {
+                "items": {
+                  "0": "Notification infrastructure providers, including Expo Push Service, to deliver device notifications;",
+                  "1": "Geocoding services, including OpenStreetMap and Nominatim, to convert coordinates into a neighborhood or address without identifying you to those services;",
+                  "2": "Stripe, only when you purchase an ad. Payment data does not pass through Daqui's servers;",
+                  "3": "Other users, only for information inherently public in the app, such as name, username, photo, neighborhood, posts, and visible comments. If you link your account to your own ad, the same public information also appears on the ad card."
+                }
+              }
+            }
+          },
+          "5": {
+            "title": "6. Retention and deletion",
+            "blocks": {
+              "0": {
+                "text": "We keep data while your account is active. You may request deletion of your account and data through Help & support. Our team processes requests within a reasonable period, except for records the law requires us to retain, such as security logs or legal obligations."
+              }
+            }
+          },
+          "6": {
+            "title": "7. Security",
+            "blocks": {
+              "0": {
+                "text": "Passwords are stored as bcrypt hashes, never as plain text. Access is protected by JWT session tokens, and connected devices can be revoked remotely in Settings. Moderation and administration accounts also use two-factor authentication."
+              }
+            }
+          },
+          "7": {
+            "title": "8. Your data-subject rights",
+            "blocks": {
+              "0": {
+                "text": "Under the LGPD, you may request at any time:"
+              },
+              "1": {
+                "items": {
+                  "0": "Confirmation that we process your data and access to it;",
+                  "1": "Correction of incomplete, inaccurate, or outdated data;",
+                  "2": "Deletion of your personal data;",
+                  "3": "Data portability to another provider;",
+                  "4": "Withdrawal of consent, including for location or notifications;",
+                  "5": "Information about who receives your data."
+                }
+              },
+              "2": {
+                "text": "To exercise these rights, use Help & support in the app or email franciscogardenberg@gmail.com."
+              }
+            }
+          },
+          "8": {
+            "title": "9. Cookies and local storage",
+            "blocks": {
+              "0": {
+                "text": "On the web, we use browser local storage only to keep you signed in and save app-experience preferences. We do not use third-party tracking cookies or cross-site behavioral advertising."
+              }
+            }
+          },
+          "9": {
+            "title": "10. Children and teenagers",
+            "blocks": {
+              "0": {
+                "text": "Daqui is not intended for children under 13 and does not knowingly collect children's data. Users aged 13 to 18 must use the app under the supervision of a legal guardian."
+              }
+            }
+          },
+          "10": {
+            "title": "11. Changes to this Policy",
+            "blocks": {
+              "0": {
+                "text": "We may update this Policy periodically. The latest update date is always shown at the top of this page, and material changes will be communicated in the app."
+              }
+            }
+          },
+          "11": {
+            "title": "12. Contact and data protection officer",
+            "blocks": {
+              "0": {
+                "text": "Privacy questions, data-subject requests, or complaints may be sent to franciscogardenberg@gmail.com."
+              }
+            }
+          }
         }
       }
     }
