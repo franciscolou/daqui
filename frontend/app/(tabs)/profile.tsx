@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../../constants/Colors';
-import { Post } from '../../data/mock';
+import { Post, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -75,7 +75,7 @@ export default function ProfileScreen() {
             <Text style={styles.noPostsText}>{t('profile.noOwnPosts')}</Text>
           </View>
         ) : (
-          myPosts.map((post) => <PostCard key={post.id} post={post} onDeleted={handlePostDeleted} />)
+          myPosts.map((post) => <PostCard key={postListKey(post)} post={post} onDeleted={handlePostDeleted} />)
         )}
       </View>
 

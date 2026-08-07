@@ -135,11 +135,31 @@ def get_feed(
                 if name and name not in neighborhoods:
                     neighborhoods.append(name)
 
+    # Reposts simples (sem citação) entram no feed igual um post normal, no
+    # momento em que o vizinho reposta — ver post_dao.list_reposts_for_feed
+    # (entregue pelo bairro de quem repostou, não o bairro original do post).
+    # Sem paginação em SQL pros dois lados: mescla tudo em Python por data
+    # efetiva (publicação ou repost) e só então corta a página pedida —
+    # mesmo espírito de "resolver em Python" já usado noutras queries do
+    # projeto por limitação do SQLite.
+    own_posts = post_dao.list_feed_all(db, neighborhoods, category)
+    reposts = post_dao.list_reposts_for_feed(db, neighborhoods, category)
+    items = [
+        (_to_schema(p, user, db), p.pinned, p.created_at) for p in own_posts
+    ] + [
+        (
+            _to_schema(p, user, db, reposted_by=reposter, reposted_at=reposted_at),
+            False,
+            reposted_at,
+        )
+        for p, reposter, reposted_at in reposts
+    ]
+    items.sort(key=lambda item: (item[1], item[2]), reverse=True)
+    total = len(items)
     offset = (page - 1) * page_size
-    posts = post_dao.list_feed(db, neighborhoods, category, offset, page_size)
-    total = post_dao.count_feed(db, neighborhoods, category)
+    page_items = [schema for schema, _, _ in items[offset : offset + page_size]]
     return PostFeed(
-        items=[_to_schema(p, user, db) for p in posts],
+        items=page_items,
         total=total,
         page=page,
         page_size=page_size,

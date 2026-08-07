@@ -47,6 +47,17 @@ import LikersModal from '../../components/LikersModal';
 type WebViewProps = ViewProps & { onMouseEnter?: () => void; onMouseLeave?: () => void };
 const HoverableView = View as unknown as ComponentType<WebViewProps>;
 
+// Popularidade dos comentários principais: uma resposta e uma curtida têm o
+// mesmo peso. O backend entrega nessa ordem; este comparador também preserva a
+// ordem depois de atualizações otimistas feitas na tela.
+const sortCommentsByPopularity = (comments: Comment[]) =>
+  [...comments].sort((a, b) => {
+    const scoreDifference =
+      b.likesCount + b.repliesCount - (a.likesCount + a.repliesCount);
+    if (scoreDifference !== 0) return scoreDifference;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
 export default function PostDetailScreen() {
   const { t } = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -102,7 +113,7 @@ export default function PostDetailScreen() {
       setLikesCount(p.likesCount);
       setReposted(!!p.reposted);
       setSharesCount(p.sharesCount);
-      setComments(c); // apenas comentários de topo; respostas vêm sob demanda
+      setComments(sortCommentsByPopularity(c)); // apenas comentários de topo; respostas vêm sob demanda
       setCommentCount(p.commentsCount);
       // Recarga completa da tela zera o estado das respostas expandidas.
       setRepliesByParent({});
@@ -161,7 +172,9 @@ export default function PostDetailScreen() {
 
   // Atualiza um comentário onde quer que ele esteja (topo ou dentro das respostas).
   const updateComment = (commentId: string, updater: (c: Comment) => Comment) => {
-    setComments((prev) => prev.map((c) => (c.id === commentId ? updater(c) : c)));
+    setComments((prev) =>
+      sortCommentsByPopularity(prev.map((c) => (c.id === commentId ? updater(c) : c))),
+    );
     setRepliesByParent((prev) => {
       let changed = false;
       const next: Record<string, Comment[]> = {};
@@ -204,7 +217,7 @@ export default function PostDetailScreen() {
           }
         }
       } else {
-        setComments((prev) => [created, ...prev]);
+        setComments((prev) => sortCommentsByPopularity([created, ...prev]));
       }
       setReplyingTo(null);
     } catch {

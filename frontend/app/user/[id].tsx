@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../constants/Colors';
-import { Post, User } from '../../data/mock';
+import { Post, User, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { goBack } from '../../lib/navigation';
@@ -158,7 +158,7 @@ export default function UserScreen() {
                 <Text style={styles.noPostsText}>{t('profile.noPosts')}</Text>
               </View>
             ) : (
-              userPosts.map((post) => <PostCard key={post.id} post={post} onDeleted={handlePostDeleted} />)
+              userPosts.map((post) => <PostCard key={postListKey(post)} post={post} onDeleted={handlePostDeleted} />)
             )}
           </View>
         </>

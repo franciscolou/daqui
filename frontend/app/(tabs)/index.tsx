@@ -21,7 +21,7 @@ import { Palette } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
-import { CATEGORIES, PostCategory, Post } from '../../data/mock';
+import { CATEGORIES, PostCategory, Post, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
 import { getOrCreateAdViewerId } from '../../lib/storage';
@@ -539,7 +539,7 @@ export default function FeedScreen() {
     <FlatList
       style={styles.feedFill}
       data={[] as FeedItem[]}
-      keyExtractor={(item) => (item.kind === 'post' ? item.post.id : `ad-${item.ad.id}`)}
+      keyExtractor={(item) => (item.kind === 'post' ? postListKey(item.post) : `ad-${item.ad.id}`)}
       renderItem={() => null}
       showsVerticalScrollIndicator={false}
       ListHeaderComponent={feedHeader}
@@ -564,7 +564,7 @@ export default function FeedScreen() {
       ref={listRef}
       style={styles.feedFill}
       data={feedItems}
-      keyExtractor={(item) => (item.kind === 'post' ? item.post.id : `ad-${item.ad.id}`)}
+      keyExtractor={(item) => (item.kind === 'post' ? postListKey(item.post) : `ad-${item.ad.id}`)}
       showsVerticalScrollIndicator={false}
       ListHeaderComponent={feedHeader}
       renderItem={({ item }) => (

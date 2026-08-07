@@ -111,6 +111,14 @@ export interface Post {
   poll?: Poll;                // enquete
 }
 
+// Chave de lista estável para um item de post: o mesmo `Post.id` pode
+// aparecer duas vezes no feed/timeline (o post em si + um repost dele por
+// outra pessoa, estilo Twitter — ver reposted_by/reposted_at), então usar só
+// `post.id` como key colide. Combina com quem/quando repostou quando houver.
+export function postListKey(post: Post): string {
+  return post.repostedBy ? `${post.id}-repost-${post.repostedBy.id}-${post.repostedAt}` : post.id;
+}
+
 export interface Message {
   id: string;
   user: User;

@@ -36,6 +36,35 @@ def list_feed(
     )
 
 
+def list_feed_all(db: Session, neighborhoods: list[str], category: PostCategory | None) -> list[Post]:
+    """Mesma query de `list_feed`, sem paginação — usada por `get_feed` pra
+    mesclar com reposts em Python antes de paginar (ver `list_reposts_for_feed`)."""
+    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods))
+    if category:
+        q = q.filter(Post.category == category)
+    return q.order_by(desc(Post.pinned), desc(Post.created_at)).all()
+
+
+def list_reposts_for_feed(
+    db: Session, neighborhoods: list[str], category: PostCategory | None
+) -> list[tuple[Post, User, datetime]]:
+    """Reposts simples (sem citação) entregues ao feed de bairro de quem
+    repostou — mesmo critério de um post normal (bairro + categoria), mas
+    usando o bairro de quem DEU O REPOST, não o bairro original do post: é
+    o repostador quem está publicando de novo pros vizinhos dele, estilo
+    retweet do Twitter. Exclui repost do próprio post (já aparece via
+    `list_feed_all`, duplicaria)."""
+    q = (
+        db.query(Post, User, PostRepost.created_at)
+        .join(PostRepost, PostRepost.post_id == Post.id)
+        .join(User, User.id == PostRepost.user_id)
+        .filter(User.neighborhood.in_(neighborhoods), Post.author_id != PostRepost.user_id)
+    )
+    if category:
+        q = q.filter(Post.category == category)
+    return [(post, reposter, reposted_at) for post, reposter, reposted_at in q.all()]
+
+
 def top_important(db: Session, neighborhood: str) -> Post | None:
     return (
         db.query(Post)

@@ -7,11 +7,23 @@ from app.models.post import Post
 
 def list_for_post(db: Session, post_id: int) -> list[Comment]:
     # Apenas os comentários de topo (respostas são carregadas sob demanda, via
-    # list_replies). Mais recentes primeiro.
+    # list_replies). Os mais populares vêm primeiro: cada curtida e cada
+    # resposta direta valem um ponto. Data e id tornam o desempate estável.
+    replies = (
+        db.query(
+            Comment.parent_id.label("parent_id"),
+            func.count(Comment.id).label("replies_count"),
+        )
+        .filter(Comment.parent_id.is_not(None))
+        .group_by(Comment.parent_id)
+        .subquery()
+    )
+    popularity = Comment.likes_count + func.coalesce(replies.c.replies_count, 0)
     return (
         db.query(Comment)
+        .outerjoin(replies, replies.c.parent_id == Comment.id)
         .filter(Comment.post_id == post_id, Comment.parent_id.is_(None))
-        .order_by(desc(Comment.created_at))
+        .order_by(desc(popularity), desc(Comment.created_at), desc(Comment.id))
         .all()
     )
 

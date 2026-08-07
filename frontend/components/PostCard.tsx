@@ -101,6 +101,17 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
 
   const quote = () => router.push(`/quote/${post.id}` as any);
 
+  // Numa timeline com repost simples (banner "fulano repostou"), o cartão
+  // inteiro — inclusive avatar/nome do autor original — leva ao detalhe do
+  // post; só o nome de quem repostou (no banner) leva ao perfil dele.
+  const goToAuthorOrPost = () => {
+    if (post.repostedBy) {
+      (onPress ?? openPost)();
+    } else {
+      router.push(`/user/${post.author.id}` as any);
+    }
+  };
+
   const doDelete = async () => {
     if (deleting) return;
     setDeleting(true);
@@ -124,19 +135,24 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
       {/* Banner "fulano repostou" (estilo Twitter) — só aparece na timeline
           do perfil, quando este item veio de um repost simples alheio. */}
       {!!post.repostedBy && (
-        <View style={styles.repostBanner}>
+        <TouchableOpacity
+          style={styles.repostBanner}
+          onPress={() => router.push(`/user/${post.repostedBy!.id}` as any)}
+          activeOpacity={0.7}
+          focusable={false}
+        >
           <Ionicons name="repeat" size={13} color={Colors.textTertiary} />
           <Text style={styles.repostBannerText} numberOfLines={1}>
             {user && post.repostedBy.id === user.id
               ? t('post.repostedByYou')
               : t('post.repostedBy', { name: post.repostedBy.name })}
           </Text>
-        </View>
+        </TouchableOpacity>
       )}
 
       <View style={styles.contentRow}>
       {/* Left col: avatar */}
-      <TouchableOpacity style={styles.leftCol} onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.8} focusable={false}>
+      <TouchableOpacity style={styles.leftCol} onPress={goToAuthorOrPost} activeOpacity={0.8} focusable={false}>
         <View style={styles.avatarWrapper}>
           <Image source={{ uri: post.author.avatar }} style={styles.avatar} />
         </View>
@@ -147,7 +163,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
         {/* Author + meta row */}
         <View style={styles.topRow}>
           <View style={styles.authorMeta}>
-            <TouchableOpacity onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.7} focusable={false}>
+            <TouchableOpacity onPress={goToAuthorOrPost} activeOpacity={0.7} focusable={false}>
               <Text style={styles.authorName} numberOfLines={1}>{post.author.name}</Text>
             </TouchableOpacity>
             {!!post.author.username && (
@@ -451,6 +467,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     width: 48,
     marginRight: 12,
     alignItems: 'center',
+    // Sem isto, o item é esticado na vertical pelo contentRow e transforma
+    // toda a faixa à esquerda do conteúdo em um link invisível para o perfil.
+    alignSelf: 'flex-start',
   },
   avatarWrapper: { position: 'relative' },
   avatar: {
