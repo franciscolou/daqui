@@ -9,6 +9,7 @@ import { api } from '../lib/api';
 import { User } from '../data/mock';
 import VideoPlayer from './VideoPlayer';
 import VerifiedBadge from './VerifiedBadge';
+import ActionMenu from './ActionMenu';
 import { useT } from '../lib/i18n';
 
 // Card de anúncio no feed — mesmo formato visual de um PostCard, mas com
@@ -37,6 +38,7 @@ export default function AdPostCard({
   const [likesCount, setLikesCount] = useState(ad.likesCount);
   const [reposted, setReposted] = useState(ad.reposted);
   const [repostsCount, setRepostsCount] = useState(ad.repostsCount);
+  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
 
   useEffect(() => {
     if (!ad.linkedUserId) {
@@ -159,7 +161,7 @@ export default function AdPostCard({
           <Text style={styles.actionCount}>{ad.commentsCount}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionBtn} onPress={toggleRepost}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => setRepostMenuVisible(true)}>
           <Ionicons
             name="repeat-outline"
             size={19}
@@ -177,6 +179,25 @@ export default function AdPostCard({
           <Ionicons name="arrow-redo-outline" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
       </View>
+
+      <ActionMenu
+        visible={repostMenuVisible}
+        onClose={() => setRepostMenuVisible(false)}
+        options={[
+          {
+            key: 'repost',
+            label: reposted ? 'Desfazer repost' : 'Repostar',
+            icon: 'repeat-outline',
+            onPress: toggleRepost,
+          },
+          {
+            key: 'quote',
+            label: 'Citar',
+            icon: 'create-outline',
+            onPress: () => router.push(`/quote/${ad.id}?kind=ad` as any),
+          },
+        ]}
+      />
     </Pressable>
   );
 }

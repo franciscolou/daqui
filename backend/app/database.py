@@ -187,6 +187,8 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE posts ADD COLUMN quoted_post_id INTEGER REFERENCES posts(id)"))
             if "quoted_comment_id" not in columns:
                 conn.execute(text("ALTER TABLE posts ADD COLUMN quoted_comment_id INTEGER REFERENCES comments(id)"))
+            if "quoted_ad_id" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN quoted_ad_id INTEGER"))
 
     if "groups" in tables:
         columns = {c["name"] for c in inspector.get_columns("groups")}

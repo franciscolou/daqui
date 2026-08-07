@@ -988,7 +988,9 @@
     "deleteTitle": "Excluir publicação?",
     "deleteMessage": "Esta ação não pode ser desfeita. O post e seus comentários serão removidos.",
     "deleteConfirm": "Excluir",
-    "allDay": "Dia inteiro"
+    "allDay": "Dia inteiro",
+    "repostedByYou": "Você repostou",
+    "repostedBy": "{{name}} repostou"
   },
   "poll": {
     "vote": "Votar",

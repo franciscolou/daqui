@@ -80,10 +80,12 @@ class PostCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     poll: Optional[PollCreate] = None
-    # Repost com citação (estilo Twitter): no máximo um dos dois preenchido —
+    # Repost com citação (estilo Twitter): no máximo um dos três preenchido —
     # ver services/post.py::create_post.
     quoted_post_id: Optional[int] = None
     quoted_comment_id: Optional[int] = None
+    # Citação de um anúncio (ads-backend, id opaco — ver models/post.py::quoted_ad_id).
+    quoted_ad_id: Optional[int] = None
 
 
 class PostUpdate(BaseModel):
@@ -117,10 +119,19 @@ class PostOut(BaseModel):
     # True quando o usuário logado deu repost simples (sem citação) neste post.
     reposted: bool = False
     # Preenchido quando este post é uma citação (repost com comentário, estilo
-    # Twitter) — no máximo um dos dois.
+    # Twitter) — no máximo um dos três.
     quoted_post: Optional[SharedPostOut] = None
     quoted_comment: Optional[SharedCommentOut] = None
+    # Eco cru do id do anúncio citado (sem preview embutido — este backend não
+    # tem acesso aos dados do ads-backend; o frontend resolve via adsApi).
+    quoted_ad_id: Optional[int] = None
     poll: Optional[PollOut] = None
+    # Preenchidos só na timeline do perfil, quando este item aparece porque o
+    # dono do perfil deu repost SIMPLES (sem citação) neste post de outro
+    # autor — estilo "fulano repostou" do Twitter. None nos demais contextos
+    # (feed, post/[id], etc.) e para os próprios posts do dono do perfil.
+    reposted_by: Optional[UserPublic] = None
+    reposted_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

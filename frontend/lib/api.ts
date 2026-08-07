@@ -247,6 +247,9 @@ interface BackendPost {
   reposted: boolean;
   quoted_post: BackendSharedPost | null;
   quoted_comment: BackendSharedComment | null;
+  quoted_ad_id: number | null;
+  reposted_by: BackendUser | null;
+  reposted_at: string | null;
   poll: BackendPoll | null;
 }
 
@@ -775,6 +778,9 @@ function mapPost(p: BackendPost): Post {
     reposted: p.reposted,
     quotedPost: p.quoted_post ? mapSharedPost(p.quoted_post) : undefined,
     quotedComment: p.quoted_comment ? mapSharedComment(p.quoted_comment) : undefined,
+    quotedAdId: p.quoted_ad_id ?? undefined,
+    repostedBy: p.reposted_by ? mapUser(p.reposted_by) : undefined,
+    repostedAt: p.reposted_at ?? undefined,
     pinned: p.pinned,
     important: p.important,
     // Campos específicos por categoria (backend snake_case → camelCase)
@@ -1344,11 +1350,12 @@ export const api = {
     latitude?: number;
     longitude?: number;
     poll?: { options: string[]; multiple: boolean; closes_at: string };
-    // Repost com citação (estilo Twitter): no máximo um dos dois.
+    // Repost com citação (estilo Twitter): no máximo um dos três.
     quotedPostId?: string;
     quotedCommentId?: string;
+    quotedAdId?: number;
   }): Promise<Post> {
-    const { quotedPostId, quotedCommentId, ...rest } = payload;
+    const { quotedPostId, quotedCommentId, quotedAdId, ...rest } = payload;
     return mapPost(
       await request<BackendPost>('/posts/', {
         method: 'POST',
@@ -1356,6 +1363,7 @@ export const api = {
           ...rest,
           quoted_post_id: quotedPostId ? Number(quotedPostId) : undefined,
           quoted_comment_id: quotedCommentId ? Number(quotedCommentId) : undefined,
+          quoted_ad_id: quotedAdId,
         },
       }),
     );

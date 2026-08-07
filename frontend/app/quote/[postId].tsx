@@ -16,12 +16,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { Post } from '../../data/mock';
 import { api, ApiError, Comment, SharedComment, SharedPost } from '../../lib/api';
+import { Ad, adsApi } from '../../lib/adsApi';
 import { useAuth } from '../../lib/auth';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import WideLayout from '../../components/WideLayout';
 import SharedPostPreview from '../../components/SharedPostPreview';
 import SharedCommentPreview from '../../components/SharedCommentPreview';
+import SharedAdPreview from '../../components/SharedAdPreview';
 import MentionInput from '../../components/MentionInput';
 import { useT } from '../../lib/i18n';
 
@@ -51,17 +53,24 @@ function toSharedComment(c: Comment): SharedComment {
 
 export default function QuoteScreen() {
   const { t } = useT();
-  // Cita um post (rota /quote/{postId}) ou um comentário
-  // (/quote/{postId}?commentId=...) — mesma convenção de /forward/[postId].
-  const { postId, commentId } = useLocalSearchParams<{ postId: string; commentId?: string }>();
+  // Cita um post (rota /quote/{postId}), um comentário
+  // (/quote/{postId}?commentId=...) ou um anúncio (/quote/{adId}?kind=ad) —
+  // mesma convenção de /forward/[postId].
+  const { postId, commentId, kind } = useLocalSearchParams<{
+    postId: string;
+    commentId?: string;
+    kind?: string;
+  }>();
   const { user, loading: authLoading } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
 
   const quotingComment = !!commentId;
+  const quotingAd = kind === 'ad';
 
   const [post, setPost] = useState<Post | null>(null);
   const [comment, setComment] = useState<Comment | null>(null);
+  const [ad, setAd] = useState<Ad | null>(null);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
@@ -70,7 +79,9 @@ export default function QuoteScreen() {
   const load = useCallback(async () => {
     if (!postId) return;
     try {
-      if (commentId) {
+      if (quotingAd) {
+        setAd(await adsApi.getAdById(Number(postId), { userId: user ? Number(user.id) : undefined }));
+      } else if (commentId) {
         setComment(await api.getComment(commentId));
       } else {
         setPost(await api.getPost(postId));
@@ -78,16 +89,17 @@ export default function QuoteScreen() {
     } catch {
       setPost(null);
       setComment(null);
+      setAd(null);
     } finally {
       setLoading(false);
     }
-  }, [postId, commentId]);
+  }, [postId, commentId, quotingAd, user]);
 
   useEffect(() => {
     if (!authLoading) load();
   }, [load, authLoading]);
 
-  const notFound = quotingComment ? !comment : !post;
+  const notFound = quotingAd ? !ad : quotingComment ? !comment : !post;
 
   const publish = async () => {
     if (posting || notFound) return;
@@ -97,9 +109,18 @@ export default function QuoteScreen() {
       const created = await api.createPost({
         category: 'geral',
         content: text.trim(),
-        quotedPostId: quotingComment ? undefined : postId,
-        quotedCommentId: quotingComment ? commentId : undefined,
+        quotedPostId: quotingAd || quotingComment ? undefined : postId,
+        quotedCommentId: quotingAd || !quotingComment ? undefined : commentId,
+        quotedAdId: quotingAd ? Number(postId) : undefined,
       });
+      // Citar um anúncio conta como repost dele (mesmo critério do backend
+      // pra posts citados) — o ads-backend não sabe da criação do post acima
+      // (serviço separado), então o client bate os dois endpoints.
+      if (quotingAd && ad && !ad.reposted && user) {
+        adsApi
+          .toggleAdRepost(Number(postId), { userId: Number(user.id), creativeId: ad.creativeId })
+          .catch(() => {});
+      }
       router.replace(`/post/${created.id}` as any);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('quote.error'));
@@ -115,7 +136,11 @@ export default function QuoteScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.topBar}>
-            <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${postId}` as any)} hitSlop={10}>
+            <TouchableOpacity
+              style={styles.topBarIconBtn}
+              onPress={() => goBack((quotingAd ? `/ad/${postId}` : `/post/${postId}`) as any)}
+              hitSlop={10}
+            >
               <Ionicons name="close" size={22} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>{t('post.quote')}</Text>
@@ -141,7 +166,11 @@ export default function QuoteScreen() {
             <View style={styles.center}>
               <Ionicons name="alert-circle-outline" size={32} color={Colors.textTertiary} />
               <Text style={styles.emptyText}>
-                {quotingComment ? t('quote.commentNotFound') : t('postDetail.notFound')}
+                {quotingAd
+                  ? t('forward.adNotFound')
+                  : quotingComment
+                    ? t('quote.commentNotFound')
+                    : t('postDetail.notFound')}
               </Text>
             </View>
           ) : (
@@ -167,7 +196,9 @@ export default function QuoteScreen() {
                 />
               </View>
               <View style={styles.previewWrap}>
-                {quotingComment && comment ? (
+                {quotingAd && ad ? (
+                  <SharedAdPreview ad={ad} static />
+                ) : quotingComment && comment ? (
                   <SharedCommentPreview comment={toSharedComment(comment)} static />
                 ) : post ? (
                   <SharedPostPreview post={toSharedPost(post)} static />

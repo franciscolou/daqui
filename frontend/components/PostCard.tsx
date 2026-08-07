@@ -4,7 +4,8 @@ import { router } from 'expo-router';
 import { Palette } from '../constants/Colors';
 import { Post, CATEGORY_ICONS } from '../data/mock';
 import { api } from '../lib/api';
-import { useState, type ReactNode } from 'react';
+import { Ad, adsApi } from '../lib/adsApi';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '../lib/auth';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { useT } from '../lib/i18n';
@@ -19,6 +20,7 @@ import ReportModal from './ReportModal';
 import ResidentBadge from './ResidentBadge';
 import SharedCommentPreview from './SharedCommentPreview';
 import SharedPostPreview from './SharedPostPreview';
+import SharedAdPreview from './SharedAdPreview';
 
 interface PostCardProps {
   post: Post;
@@ -46,6 +48,15 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
   const [deleting, setDeleting] = useState(false);
   const catColor = Colors.category[post.category] ?? Colors.primary;
   const isOwnPost = !!user && user.id === post.author.id;
+  const [quotedAd, setQuotedAd] = useState<Ad | null>(null);
+
+  useEffect(() => {
+    if (post.quotedAdId == null) {
+      setQuotedAd(null);
+      return;
+    }
+    adsApi.getAdById(post.quotedAdId).then(setQuotedAd).catch(() => setQuotedAd(null));
+  }, [post.quotedAdId]);
 
   const openPost = () => router.push(`/post/${post.id}` as any);
 
@@ -110,6 +121,20 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
       {/* Important bar on the left edge */}
       {post.important && <View style={styles.importantBar} />}
 
+      {/* Banner "fulano repostou" (estilo Twitter) — só aparece na timeline
+          do perfil, quando este item veio de um repost simples alheio. */}
+      {!!post.repostedBy && (
+        <View style={styles.repostBanner}>
+          <Ionicons name="repeat" size={13} color={Colors.textTertiary} />
+          <Text style={styles.repostBannerText} numberOfLines={1}>
+            {user && post.repostedBy.id === user.id
+              ? t('post.repostedByYou')
+              : t('post.repostedBy', { name: post.repostedBy.name })}
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.contentRow}>
       {/* Left col: avatar */}
       <TouchableOpacity style={styles.leftCol} onPress={() => router.push(`/user/${post.author.id}` as any)} activeOpacity={0.8} focusable={false}>
         <View style={styles.avatarWrapper}>
@@ -192,6 +217,8 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
           <SharedCommentPreview comment={post.quotedComment} />
         ) : post.quotedPost ? (
           <SharedPostPreview post={post.quotedPost} />
+        ) : quotedAd ? (
+          <SharedAdPreview ad={quotedAd} />
         ) : null}
 
         {/* Actions */}
@@ -236,6 +263,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
             <Ionicons name="bookmark-outline" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
         </View>
+      </View>
       </View>
     </TouchableOpacity>
 
@@ -390,7 +418,6 @@ function PostDetails({
 
 const makeStyles = (Colors: Palette) => StyleSheet.create({
   row: {
-    flexDirection: 'row',
     backgroundColor: Colors.surface,
     paddingHorizontal: 16,
     paddingTop: 14,
@@ -399,6 +426,15 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderBottomColor: Colors.border,
     position: 'relative',
   },
+  contentRow: { flexDirection: 'row' },
+  repostBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginLeft: 60,
+    marginBottom: 6,
+  },
+  repostBannerText: { fontSize: 12, color: Colors.textTertiary, fontWeight: '700' },
   importantBar: {
     position: 'absolute',
     left: 0,

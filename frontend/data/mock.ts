@@ -87,9 +87,17 @@ export interface Post {
   liked: boolean;
   reposted?: boolean;
   // Preenchidos quando este post é uma citação (repost com comentário, estilo
-  // Twitter) — no máximo um dos dois.
+  // Twitter) — no máximo um dos três.
   quotedPost?: SharedPost;
   quotedComment?: SharedComment;
+  // Id do anúncio citado (ads-backend, serviço separado) — sem preview
+  // embutido; resolvido no client via adsApi.getAdById.
+  quotedAdId?: number;
+  // Preenchidos só na timeline do perfil, quando este item aparece porque o
+  // dono do perfil deu repost simples (sem citação) neste post de outro
+  // autor — banner "fulano repostou" estilo Twitter.
+  repostedBy?: User;
+  repostedAt?: string;
   pinned?: boolean;
   important?: boolean;
   // Campos específicos por categoria (vindos de `details` no backend)

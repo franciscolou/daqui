@@ -1334,7 +1334,9 @@
     "deleteTitle": "Delete post?",
     "deleteMessage": "This action cannot be undone. The post and its comments will be removed.",
     "deleteConfirm": "Delete",
-    "allDay": "All day"
+    "allDay": "All day",
+    "repostedByYou": "You reposted",
+    "repostedBy": "{{name}} reposted"
   },
   "poll": {
     "vote": "Vote",

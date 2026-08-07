@@ -53,7 +53,14 @@ def _poll_schema(post: Post, viewer: User, db: Session) -> PollOut | None:
     )
 
 
-def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
+def _to_schema(
+    post: Post,
+    viewer: User,
+    db: Session,
+    *,
+    reposted_by: User | None = None,
+    reposted_at: datetime | None = None,
+) -> PostOut:
     liked = post_dao.get_like(db, post.id, viewer.id) is not None
     # "Repostado" cobre tanto o repost simples quanto já ter citado este post
     # (estilo Twitter: o ícone acende nos dois casos).
@@ -94,7 +101,10 @@ def _to_schema(post: Post, viewer: User, db: Session) -> PostOut:
         quoted_comment=(
             SharedCommentOut.model_validate(post.quoted_comment) if post.quoted_comment else None
         ),
+        quoted_ad_id=post.quoted_ad_id,
         poll=_poll_schema(post, viewer, db),
+        reposted_by=reposted_by,
+        reposted_at=reposted_at,
     )
 
 
@@ -144,11 +154,23 @@ def get_top_important(db: Session, viewer: User) -> PostOut | None:
 
 
 def list_by_author(db: Session, author_id: int, viewer: User) -> list[PostOut]:
+    """Timeline do perfil: os posts do próprio autor (inclui citações, que já
+    são posts de verdade) + posts de outros autores que ele repostou sem
+    citar (estilo "fulano repostou" do Twitter — invisível de outra forma,
+    já que um repost simples não cria uma linha em `posts`). Mesclados e
+    ordenados pela data "efetiva" de cada item (publicação ou repost)."""
     author = user_dao.get_by_id(db, author_id)
     if not author:
         return []
-    posts = post_dao.list_by_author(db, author_id)
-    return [_to_schema(p, viewer, db) for p in posts]
+    own_posts = post_dao.list_by_author(db, author_id)
+    reposts = post_dao.list_reposted_by_author(db, author_id)
+    items = [(_to_schema(p, viewer, db), p.created_at) for p in own_posts]
+    items += [
+        (_to_schema(p, viewer, db, reposted_by=author, reposted_at=reposted_at), reposted_at)
+        for p, reposted_at in reposts
+    ]
+    items.sort(key=lambda item: item[1], reverse=True)
+    return [schema for schema, _ in items]
 
 
 def get_map_posts(db: Session, viewer: User) -> list[PostOut]:
@@ -316,9 +338,15 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
                 ),
             )
 
-    # Repost com citação: no máximo um dos dois, e o alvo precisa existir.
-    if payload.quoted_post_id is not None and payload.quoted_comment_id is not None:
-        raise HTTPException(status_code=400, detail="Cite um post ou um comentário, não os dois")
+    # Repost com citação: no máximo um dos três, e o alvo (post/comentário)
+    # precisa existir. `quoted_ad_id` não é validado — o anúncio vive no
+    # ads-backend, serviço separado sem cliente HTTP entre os dois (mesmo
+    # tratamento de confiança que Message.shared_ad_id já recebe).
+    quoted_targets = [payload.quoted_post_id, payload.quoted_comment_id, payload.quoted_ad_id]
+    if sum(1 for t in quoted_targets if t is not None) > 1:
+        raise HTTPException(
+            status_code=400, detail="Cite um post, um comentário ou um anúncio, não mais de um"
+        )
     quoted_post = quoted_comment = None
     if payload.quoted_post_id is not None:
         quoted_post = post_dao.get_by_id(db, payload.quoted_post_id)
@@ -373,6 +401,7 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         longitude=longitude,
         quoted_post_id=quoted_post.id if quoted_post else None,
         quoted_comment_id=quoted_comment.id if quoted_comment else None,
+        quoted_ad_id=payload.quoted_ad_id,
     )
 
     # Citar conta como repost pro alvo (mesmo contador do repost simples).

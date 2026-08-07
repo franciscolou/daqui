@@ -102,7 +102,7 @@ export default function UserScreen() {
             isMe ? (
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnPrimary]}
-                onPress={() => router.push('/(tabs)/profile')}
+                onPress={() => router.push('/settings' as any)}
                 activeOpacity={0.85}
               >
                 <Ionicons name="settings-outline" size={16} color="#fff" />

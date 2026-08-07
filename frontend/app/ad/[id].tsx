@@ -26,6 +26,7 @@ import { submitOnEnter } from '../../lib/keyboard';
 import { useT } from '../../lib/i18n';
 import WideLayout from '../../components/WideLayout';
 import HoverTime from '../../components/HoverTime';
+import ActionMenu from '../../components/ActionMenu';
 import ConfirmModal from '../../components/ConfirmModal';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import VideoPlayer from '../../components/VideoPlayer';
@@ -51,6 +52,7 @@ export default function AdDetailScreen() {
   const [repostsCount, setRepostsCount] = useState(0);
   const [confirmDeleteComment, setConfirmDeleteComment] = useState<AdComment | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const campaignId = id ? Number(id) : undefined;
@@ -289,7 +291,7 @@ export default function AdDetailScreen() {
             <Ionicons name="chatbubble-outline" size={18} color={Colors.textTertiary} />
             <Text style={styles.actionCount}>{ad.commentsCount}</Text>
           </View>
-          <TouchableOpacity style={styles.actionBtn} onPress={toggleRepost}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setRepostMenuVisible(true)}>
             <Ionicons
               name="repeat-outline"
               size={19}
@@ -378,6 +380,25 @@ export default function AdDetailScreen() {
           )}
         </View>
       </WideLayout>
+
+      <ActionMenu
+        visible={repostMenuVisible}
+        onClose={() => setRepostMenuVisible(false)}
+        options={[
+          {
+            key: 'repost',
+            label: reposted ? 'Desfazer repost' : 'Repostar',
+            icon: 'repeat-outline',
+            onPress: toggleRepost,
+          },
+          {
+            key: 'quote',
+            label: 'Citar',
+            icon: 'create-outline',
+            onPress: () => ad && router.push(`/quote/${ad.id}?kind=ad` as any),
+          },
+        ]}
+      />
 
       <ConfirmModal
         visible={!!confirmDeleteComment}

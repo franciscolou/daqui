@@ -94,6 +94,21 @@ def count_by_author(db: Session, author_id: int) -> int:
     return db.query(Post).filter(Post.author_id == author_id).count()
 
 
+def list_reposted_by_author(db: Session, author_id: int) -> list[tuple[Post, datetime]]:
+    """Posts de OUTROS autores que `author_id` deu repost simples (sem
+    citação) — usados pra compor a timeline do perfil estilo "fulano
+    repostou" (ver services/post.py::list_by_author). Exclui repost do
+    próprio post (já apareceria via list_by_author, seria duplicado)."""
+    rows = (
+        db.query(Post, PostRepost.created_at)
+        .join(PostRepost, PostRepost.post_id == Post.id)
+        .filter(PostRepost.user_id == author_id, Post.author_id != author_id)
+        .order_by(desc(PostRepost.created_at))
+        .all()
+    )
+    return [(post, reposted_at) for post, reposted_at in rows]
+
+
 def count_important_since(db: Session, author_id: int, since: datetime) -> int:
     """Quantos posts marcados como importantes o autor já publicou a partir de
     `since` (usado pra limitar posts importantes por mês, ver services/post.py)."""
@@ -131,6 +146,7 @@ def create(
     longitude: float | None = None,
     quoted_post_id: int | None = None,
     quoted_comment_id: int | None = None,
+    quoted_ad_id: int | None = None,
 ) -> Post:
     post = Post(
         author_id=author_id,
@@ -146,6 +162,7 @@ def create(
         longitude=longitude,
         quoted_post_id=quoted_post_id,
         quoted_comment_id=quoted_comment_id,
+        quoted_ad_id=quoted_ad_id,
     )
     db.add(post)
     db.commit()

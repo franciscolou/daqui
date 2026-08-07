@@ -63,6 +63,11 @@ class Post(Base):
     quoted_comment_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("comments.id"), nullable=True
     )
+    # Repost com citação de um ANÚNCIO (ads-backend — banco separado, zero
+    # cross-import). Opaco aqui e nunca validado, mesmo tratamento que
+    # Message.shared_ad_id já dá a esse tipo de referência; no máximo um dos
+    # três "quoted_*" é preenchido (ver services/post.py::create_post).
+    quoted_ad_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

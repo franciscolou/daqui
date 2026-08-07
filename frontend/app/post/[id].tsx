@@ -18,6 +18,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from 're
 import { Palette } from '../../constants/Colors';
 import { CATEGORY_ICONS, Post } from '../../data/mock';
 import { api, Comment } from '../../lib/api';
+import { Ad, adsApi } from '../../lib/adsApi';
 import { formatExactDateTime } from '../../lib/time';
 import { useAuth } from '../../lib/auth';
 import { goBack } from '../../lib/navigation';
@@ -36,6 +37,7 @@ import PostMediaGallery from '../../components/PostMediaGallery';
 import ResidentBadge from '../../components/ResidentBadge';
 import SharedCommentPreview from '../../components/SharedCommentPreview';
 import SharedPostPreview from '../../components/SharedPostPreview';
+import SharedAdPreview from '../../components/SharedAdPreview';
 import MentionInput from '../../components/MentionInput';
 import MentionText from '../../components/MentionText';
 import LikersModal from '../../components/LikersModal';
@@ -81,6 +83,15 @@ export default function PostDetailScreen() {
   const [repliesByParent, setRepliesByParent] = useState<Record<string, Comment[]>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loadingReplies, setLoadingReplies] = useState<Set<string>>(new Set());
+  const [quotedAd, setQuotedAd] = useState<Ad | null>(null);
+
+  useEffect(() => {
+    if (post?.quotedAdId == null) {
+      setQuotedAd(null);
+      return;
+    }
+    adsApi.getAdById(post.quotedAdId).then(setQuotedAd).catch(() => setQuotedAd(null));
+  }, [post?.quotedAdId]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -524,6 +535,8 @@ export default function PostDetailScreen() {
           <SharedCommentPreview comment={post.quotedComment} />
         ) : post.quotedPost ? (
           <SharedPostPreview post={post.quotedPost} />
+        ) : quotedAd ? (
+          <SharedAdPreview ad={quotedAd} />
         ) : null}
 
         {(() => {

@@ -3,6 +3,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +12,7 @@ import { Post } from '../../data/mock';
 import { api } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import FeedLayout from '../../components/FeedLayout';
 import PostCard from '../../components/PostCard';
@@ -50,7 +51,20 @@ export default function ProfileScreen() {
 
   const content = (
     <>
-      <ProfileHeader user={user} isWide={isWide} />
+      <ProfileHeader
+        user={user}
+        isWide={isWide}
+        actions={
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => router.push('/settings' as any)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="settings-outline" size={16} color={Colors.text} />
+            <Text style={styles.editBtnText}>{t('profile.edit')}</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {/* My posts — timeline */}
       <View style={styles.timelineSection}>
@@ -84,6 +98,21 @@ export default function ProfileScreen() {
 }
 
 const makeStyles = (Colors: Palette) => StyleSheet.create({
+  editBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Colors.shadow.sm,
+  },
+  editBtnText: { color: Colors.text, fontWeight: '700', fontSize: 15 },
+
   /* ── Posts timeline ── */
   timelineSection: {
     marginTop: 8,
