@@ -1225,7 +1225,7 @@
     },
     "notifications": {
       "push": "Push",
-      "pushLabel": "Notificações push",
+      "pushLabel": "Notificações",
       "pushDesc": "Avisos no celular quando o app está fechado",
       "inApp": "No aplicativo",
       "likes": "Curtidas",

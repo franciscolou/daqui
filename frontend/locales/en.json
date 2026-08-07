@@ -1571,7 +1571,7 @@
     },
     "notifications": {
       "push": "Push",
-      "pushLabel": "Push notifications",
+      "pushLabel": "Notifications",
       "pushDesc": "Alerts on your phone when the app is closed",
       "inApp": "In the app",
       "likes": "Likes",
