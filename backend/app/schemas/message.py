@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.core.uploads import MediaType
 from app.models.mute import MuteKind
 from app.models.notification import NotificationType
 from app.models.post import PostCategory
@@ -37,6 +38,10 @@ class SharedCommentOut(BaseModel):
 class MessageCreate(BaseModel):
     receiver_id: int
     content: str = ""
+    # Foto ou vídeo anexado (opcional; ver services/message.py::upload_media).
+    # Mensagem pode ser só mídia, sem texto.
+    media_url: str | None = None
+    media_type: MediaType | None = None
     shared_post_id: int | None = None
     shared_comment_id: int | None = None
     reply_to_id: int | None = None
@@ -63,6 +68,8 @@ class MessageReplyOut(BaseModel):
 class MessageOut(BaseModel):
     id: int
     content: str
+    media_url: str | None = None
+    media_type: MediaType | None = None
     read: bool
     created_at: datetime
     sender: UserPublic

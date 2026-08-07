@@ -1,8 +1,9 @@
-from fastapi import Depends, Query
+from fastapi import Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem, MediaGalleryItem
 from app.schemas.message import (
     ConversationOut,
     MessageCreate,
@@ -14,6 +15,22 @@ from app.schemas.message import (
 from app.schemas.mute import MuteIn, MuteStatusOut
 from app.services import message
 from app.services import mutes as mute_service
+
+
+def upload_media(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+) -> AttachmentItem:
+    return message.upload_media(current_user, str(request.base_url), file)
+
+
+def list_media(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[MediaGalleryItem]:
+    return message.list_media(db, current_user, user_id)
 
 
 def list_conversations(

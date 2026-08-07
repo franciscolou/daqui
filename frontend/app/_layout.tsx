@@ -46,10 +46,12 @@ export default function RootLayout() {
                   <Stack.Screen name="poll/[id]" />
                   <Stack.Screen name="messages/[id]/index" />
                   <Stack.Screen name="messages/[id]/info" />
+                  <Stack.Screen name="messages/[id]/media" />
                   <Stack.Screen name="groups/index" />
                   <Stack.Screen name="groups/new" />
                   <Stack.Screen name="groups/[id]/index" />
                   <Stack.Screen name="groups/[id]/info" />
+                  <Stack.Screen name="groups/[id]/media" />
                   <Stack.Screen name="neighbors/index" />
                   <Stack.Screen name="rate/index" />
                   <Stack.Screen name="help/index" />

@@ -180,14 +180,32 @@ def create_message(
     sender_id: int,
     content: str,
     reply_to_id: int | None = None,
+    media_url: str | None = None,
+    media_type: str | None = None,
 ) -> GroupMessage:
     msg = GroupMessage(
-        group_id=group_id, sender_id=sender_id, content=content, reply_to_id=reply_to_id
+        group_id=group_id,
+        sender_id=sender_id,
+        content=content,
+        reply_to_id=reply_to_id,
+        media_url=media_url,
+        media_type=media_type,
     )
     db.add(msg)
     db.commit()
     db.refresh(msg)
     return msg
+
+
+def get_media_messages(db: Session, group_id: int) -> list[GroupMessage]:
+    """Mídia (foto/vídeo) já compartilhada no grupo, mais recente primeiro —
+    alimenta a galeria da tela de info (ver services/group.py::list_media)."""
+    return (
+        db.query(GroupMessage)
+        .filter(GroupMessage.group_id == group_id, GroupMessage.media_url.isnot(None))
+        .order_by(desc(GroupMessage.created_at))
+        .all()
+    )
 
 
 def get_messages(db: Session, group_id: int) -> list[GroupMessage]:

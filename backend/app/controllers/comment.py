@@ -1,10 +1,19 @@
-from fastapi import Depends
+from fastapi import Depends, File, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_moderator, get_current_user, get_db
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem
 from app.schemas.comment import CommentCreate, CommentOut
 from app.services import comment
+
+
+def upload_media(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+) -> AttachmentItem:
+    return comment.upload_media(current_user, str(request.base_url), file)
 
 
 def list_comments(

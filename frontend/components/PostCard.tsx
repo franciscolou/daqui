@@ -213,7 +213,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
 
         {/* Title */}
         {post.title && (
-          <Text style={styles.title}>{post.title}</Text>
+          <MentionText style={styles.title}>{post.title}</MentionText>
         )}
 
         {/* Body */}

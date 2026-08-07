@@ -1,13 +1,11 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Armazenamento simples de chave/valor para o token de autenticação.
- * Na web usa localStorage (persiste entre recargas). Em nativo, sem uma
- * dependência de storage instalada, cai para memória — o token dura
- * enquanto o app estiver aberto. Suficiente para o fluxo de desenvolvimento.
+ * Na web usa localStorage; em Android/iOS usa AsyncStorage. Ambos persistem
+ * entre reinicializações do app.
  */
-const memory = new Map<string, string>();
-
 const hasLocalStorage =
   Platform.OS === 'web' &&
   typeof globalThis !== 'undefined' &&
@@ -15,7 +13,7 @@ const hasLocalStorage =
 
 export async function getItem(key: string): Promise<string | null> {
   if (hasLocalStorage) return globalThis.localStorage.getItem(key);
-  return memory.get(key) ?? null;
+  return AsyncStorage.getItem(key);
 }
 
 export async function setItem(key: string, value: string): Promise<void> {
@@ -23,7 +21,7 @@ export async function setItem(key: string, value: string): Promise<void> {
     globalThis.localStorage.setItem(key, value);
     return;
   }
-  memory.set(key, value);
+  await AsyncStorage.setItem(key, value);
 }
 
 export async function removeItem(key: string): Promise<void> {
@@ -31,7 +29,7 @@ export async function removeItem(key: string): Promise<void> {
     globalThis.localStorage.removeItem(key);
     return;
   }
-  memory.delete(key);
+  await AsyncStorage.removeItem(key);
 }
 
 const AD_VIEWER_ID_KEY = 'daqui.adViewerId';

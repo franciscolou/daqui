@@ -12,6 +12,12 @@
     "confirm": "Confirmar",
     "understood": "Entendi"
   },
+  "externalLink": {
+    "title": "Você está saindo do Daqui",
+    "message": "Este link leva a um site externo, que pode conter conteúdo malicioso. Verifique o endereço antes de continuar.",
+    "dontShowAgain": "Não mostrar este aviso novamente",
+    "continue": "Acessar site"
+  },
   "feed": {
     "myNeighborhood": "Meu bairro",
     "nearMe": "Perto de mim",
@@ -292,8 +298,18 @@
       "replyingTo": "Respondendo a {{name}}",
       "sharedPost": "Post compartilhado",
       "groupPlaceholder": "Escreva uma mensagem... use @ para mencionar",
-      "placeholder": "Escreva uma mensagem..."
+      "placeholder": "Escreva uma mensagem...",
+      "takePhoto": "Usar a câmera",
+      "chooseFromLibrary": "Escolher da galeria",
+      "cameraPermission": "Permita o acesso à câmera para tirar uma foto.",
+      "mediaPermission": "Permita o acesso às fotos para anexar uma imagem ou vídeo.",
+      "mediaUploadError": "Não foi possível enviar o arquivo.",
+      "mediaLoadError": "Não foi possível carregar a imagem ou vídeo."
     }
+  },
+  "mediaGallery": {
+    "title": "Mídia compartilhada",
+    "empty": "Nenhuma foto ou vídeo compartilhado ainda."
   },
   "groups": {
     "title": "Grupos",
@@ -976,7 +992,13 @@
     "commentPlaceholder": "Escreva um comentário...",
     "deleteComment": "Excluir comentário",
     "deleteCommentTitle": "Excluir comentário?",
-    "deleteCommentMessage": "Esta ação não pode ser desfeita. As respostas a ele também serão removidas."
+    "deleteCommentMessage": "Esta ação não pode ser desfeita. As respostas a ele também serão removidas.",
+    "takePhoto": "Usar a câmera",
+    "chooseFromLibrary": "Escolher da galeria",
+    "cameraPermission": "Permita o acesso à câmera para tirar uma foto.",
+    "mediaPermission": "Permita o acesso às fotos para anexar uma imagem.",
+    "imageUploadError": "Não foi possível enviar a imagem.",
+    "imageLoadError": "Não foi possível carregar a imagem."
   },
   "post": {
     "important": "Importante",

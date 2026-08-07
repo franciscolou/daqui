@@ -132,6 +132,10 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE messages ADD COLUMN reply_to_id INTEGER REFERENCES messages(id)"))
             if "shared_ad_id" not in columns:
                 conn.execute(text("ALTER TABLE messages ADD COLUMN shared_ad_id INTEGER"))
+            if "media_url" not in columns:
+                conn.execute(text("ALTER TABLE messages ADD COLUMN media_url VARCHAR(500)"))
+            if "media_type" not in columns:
+                conn.execute(text("ALTER TABLE messages ADD COLUMN media_type VARCHAR(10)"))
 
     if "comments" in tables:
         columns = {c["name"] for c in inspector.get_columns("comments")}
@@ -142,14 +146,20 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE comments ADD COLUMN likes_count INTEGER DEFAULT 0 NOT NULL"))
             if "reposts_count" not in columns:
                 conn.execute(text("ALTER TABLE comments ADD COLUMN reposts_count INTEGER DEFAULT 0 NOT NULL"))
+            if "image_url" not in columns:
+                conn.execute(text("ALTER TABLE comments ADD COLUMN image_url VARCHAR(500)"))
 
     if "group_messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("group_messages")}
-        if "reply_to_id" not in columns:
-            with engine.begin() as conn:
+        with engine.begin() as conn:
+            if "reply_to_id" not in columns:
                 conn.execute(
                     text("ALTER TABLE group_messages ADD COLUMN reply_to_id INTEGER REFERENCES group_messages(id)")
                 )
+            if "media_url" not in columns:
+                conn.execute(text("ALTER TABLE group_messages ADD COLUMN media_url VARCHAR(500)"))
+            if "media_type" not in columns:
+                conn.execute(text("ALTER TABLE group_messages ADD COLUMN media_type VARCHAR(10)"))
 
     if "posts" in tables:
         columns = {c["name"] for c in inspector.get_columns("posts")}

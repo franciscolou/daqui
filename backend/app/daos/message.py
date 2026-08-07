@@ -54,6 +54,23 @@ def get_thread(db: Session, user_id: int, other_id: int) -> list[Message]:
     )
 
 
+def get_media_thread(db: Session, user_id: int, other_id: int) -> list[Message]:
+    """Mídia (foto/vídeo) já compartilhada na conversa, mais recente primeiro —
+    alimenta a galeria da tela de info (ver services/message.py::list_media)."""
+    return (
+        db.query(Message)
+        .filter(
+            or_(
+                and_(Message.sender_id == user_id, Message.receiver_id == other_id),
+                and_(Message.sender_id == other_id, Message.receiver_id == user_id),
+            ),
+            Message.media_url.isnot(None),
+        )
+        .order_by(desc(Message.created_at))
+        .all()
+    )
+
+
 def mark_thread_read(db: Session, messages: list[Message], receiver_id: int) -> None:
     for m in messages:
         if m.receiver_id == receiver_id and not m.read:
@@ -105,11 +122,15 @@ def create(
     reply_to_id: int | None = None,
     shared_comment_id: int | None = None,
     shared_ad_id: int | None = None,
+    media_url: str | None = None,
+    media_type: str | None = None,
 ) -> Message:
     msg = Message(
         sender_id=sender_id,
         receiver_id=receiver_id,
         content=content,
+        media_url=media_url,
+        media_type=media_type,
         shared_post_id=shared_post_id,
         shared_comment_id=shared_comment_id,
         reply_to_id=reply_to_id,

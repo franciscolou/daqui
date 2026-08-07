@@ -111,6 +111,19 @@ export default function DmInfoScreen() {
             <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={[styles.row, styles.rowSpacing]}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/messages/${id}/media` as any)}
+          >
+            <View style={styles.iconWrap}>
+              <Ionicons name="images-outline" size={18} color={Colors.primary} />
+            </View>
+            <Text style={styles.label}>{t('mediaGallery.title')}</Text>
+            <View style={styles.flex} />
+            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
           <View style={styles.gap} />
 
           <NotificationMuteRow kind="dm" id={other.id} />
@@ -167,6 +180,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.borderLight,
   },
+  rowSpacing: { marginTop: 10 },
   iconWrap: {
     width: 34,
     height: 34,

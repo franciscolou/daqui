@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.controllers import comment
+from app.schemas.attachment import AttachmentItem
 from app.schemas.comment import CommentOut
 
 router = APIRouter(tags=["comments"])
@@ -15,6 +16,13 @@ router.post(
     response_model=CommentOut,
     status_code=201,
 )(comment.create_comment)
+
+# Estático antes de "/comments/{comment_id}", senão o FastAPI captura "media" como id.
+router.post(
+    "/comments/media",
+    response_model=AttachmentItem,
+    status_code=201,
+)(comment.upload_media)
 
 router.get(
     "/comments/{comment_id}",

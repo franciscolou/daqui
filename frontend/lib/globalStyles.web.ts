@@ -128,6 +128,18 @@ if (typeof document !== 'undefined') {
           display: none !important;
         }
 
+        /* A checkbox do aviso de link externo mantém foco e clique, mas o
+           próprio check já comunica seu estado sem o realce global. */
+        #external-link-checkbox-no-hover::after {
+          display: none !important;
+        }
+
+        /* Fotos e vídeos enviados em DMs/grupos já comunicam o clique pelo
+           próprio conteúdo e não devem receber a película global de hover. */
+        [id^="chat-media-no-hover-"]::after {
+          display: none !important;
+        }
+
       }
     `;
     document.head.appendChild(style);

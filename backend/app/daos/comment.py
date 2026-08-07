@@ -71,9 +71,14 @@ def create(
     author_id: int,
     content: str,
     parent_id: int | None = None,
+    image_url: str | None = None,
 ) -> Comment:
     comment = Comment(
-        post_id=post_id, author_id=author_id, content=content, parent_id=parent_id
+        post_id=post_id,
+        author_id=author_id,
+        content=content,
+        parent_id=parent_id,
+        image_url=image_url,
     )
     db.add(comment)
     db.commit()

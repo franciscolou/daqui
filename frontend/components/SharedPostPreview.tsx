@@ -6,6 +6,7 @@ import { SharedPost } from '../lib/api';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import HoverTime from './HoverTime';
 import { useT } from '../lib/i18n';
+import MentionText from './MentionText';
 
 interface Props {
   post: SharedPost;
@@ -31,8 +32,8 @@ export default function SharedPostPreview({ post, static: isStatic }: Props) {
         <HoverTime iso={post.createdAt} style={styles.time} />
       </View>
 
-      {!!post.title && <Text style={styles.title} numberOfLines={2}>{post.title}</Text>}
-      {!!post.content && <Text style={styles.body} numberOfLines={3}>{post.content}</Text>}
+      {!!post.title && <MentionText style={styles.title} numberOfLines={2}>{post.title}</MentionText>}
+      {!!post.content && <MentionText style={styles.body} numberOfLines={3}>{post.content}</MentionText>}
 
       {!!post.image && (
         <Image source={{ uri: post.image }} style={styles.image} resizeMode="cover" />

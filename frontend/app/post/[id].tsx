@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { Palette } from '../../constants/Colors';
 import { CATEGORY_ICONS, Post } from '../../data/mock';
@@ -34,6 +35,7 @@ import HoverTime from '../../components/HoverTime';
 import ReportModal from '../../components/ReportModal';
 import ConfirmModal from '../../components/ConfirmModal';
 import PostMediaGallery from '../../components/PostMediaGallery';
+import ImageViewerModal from '../../components/ImageViewerModal';
 import ResidentBadge from '../../components/ResidentBadge';
 import SharedCommentPreview from '../../components/SharedCommentPreview';
 import SharedPostPreview from '../../components/SharedPostPreview';
@@ -84,6 +86,11 @@ export default function PostDetailScreen() {
   const [reportPostVisible, setReportPostVisible] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
   const inputRef = useRef<TextInput>(null);
+  // Foto anexada ao comentário em digitação (câmera ou galeria).
+  const [imageDraft, setImageDraft] = useState<{ localUri: string; url?: string; uploading: boolean } | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [attachMenuVisible, setAttachMenuVisible] = useState(false);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
   // Confirmação de exclusão (post ou comentário) + estado de envio.
   const [confirmDeletePost, setConfirmDeletePost] = useState(false);
   const [confirmDeleteComment, setConfirmDeleteComment] = useState<Comment | null>(null);
@@ -190,13 +197,64 @@ export default function PostDetailScreen() {
     });
   };
 
+  // Anexa foto ao comentário em digitação (câmera no nativo, galeria em
+  // qualquer plataforma — expo-image-picker não suporta câmera na web).
+  const pickCommentImage = async (source: 'camera' | 'library') => {
+    setImageError(null);
+    try {
+      const perm =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setImageError(
+          source === 'camera' ? t('postDetail.cameraPermission') : t('postDetail.mediaPermission'),
+        );
+        return;
+      }
+      const res =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7 })
+          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+      if (res.canceled) return;
+
+      const asset = res.assets[0];
+      const localUri = asset.uri;
+      setImageDraft({ localUri, uploading: true });
+      try {
+        const uploaded = await api.uploadCommentAttachment({
+          uri: asset.uri,
+          mimeType: asset.mimeType ?? undefined,
+          fileName: asset.fileName ?? undefined,
+        });
+        setImageDraft({ localUri, url: uploaded.url, uploading: false });
+      } catch {
+        setImageDraft(null);
+        setImageError(t('postDetail.imageUploadError'));
+      }
+    } catch {
+      setImageError(t('postDetail.imageLoadError'));
+    }
+  };
+
+  // Sempre oferece câmera e galeria — no web, expo-image-picker abre o
+  // seletor de arquivo com o atributo `capture` (câmera no navegador do
+  // celular; desktops com webcam também costumam expor a opção "Usar
+  // câmera" no próprio diálogo do sistema).
+  const openAttach = () => {
+    setImageError(null);
+    setAttachMenuVisible(true);
+  };
+
   const submit = async () => {
     const content = text.trim();
-    if (!content || sending || !id) return;
+    const imageUrl = imageDraft?.url;
+    if ((!content && !imageUrl) || sending || !id || imageDraft?.uploading) return;
     setSending(true);
     try {
-      const created = await api.addComment(id, content, replyingTo?.id);
+      const created = await api.addComment(id, content, replyingTo?.id, imageUrl);
       setText('');
+      setImageDraft(null);
       setCommentCount((n) => n + 1);
       if (created.parentId) {
         const parentId = created.parentId;
@@ -410,7 +468,18 @@ export default function PostDetailScreen() {
                   <Ionicons name="ellipsis-horizontal" size={15} color={Colors.textTertiary} />
                 </TouchableOpacity>
               </View>
-              <MentionText style={styles.commentText}>{comment.content}</MentionText>
+              {!!comment.content && (
+                <MentionText style={styles.commentText}>{comment.content}</MentionText>
+              )}
+              {!!comment.imageUrl && (
+                <TouchableOpacity
+                  onPress={() => setViewerImage(comment.imageUrl!)}
+                  activeOpacity={0.9}
+                  style={styles.commentImageWrap}
+                >
+                  <Image source={{ uri: comment.imageUrl }} style={styles.commentImage} resizeMode="cover" />
+                </TouchableOpacity>
+              )}
             </View>
             {/* Ações do comentário — como num post: curtir, responder, encaminhar */}
             <View style={styles.commentActions}>
@@ -532,7 +601,7 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {post.title && <Text style={styles.title}>{post.title}</Text>}
+        {post.title && <MentionText style={styles.title}>{post.title}</MentionText>}
         <MentionText style={styles.body}>{post.content}</MentionText>
         {post.poll && (
           <PollBlock
@@ -703,6 +772,37 @@ export default function PostDetailScreen() {
             </View>
           )}
 
+          {!!imageDraft && (
+            <View style={styles.imagePreviewRow}>
+              <View style={styles.imagePreviewWrap}>
+                <Image source={{ uri: imageDraft.localUri }} style={styles.imagePreview} resizeMode="cover" />
+                {imageDraft.uploading && (
+                  <View style={styles.imagePreviewOverlay}>
+                    <ActivityIndicator color="#fff" size="small" />
+                  </View>
+                )}
+                {/* O position:absolute vive num View simples, não no
+                    TouchableOpacity — nesta build, as classes internas de
+                    estado (cursor/touchAction) do próprio Touchable empatam
+                    em especificidade com "position: absolute" e vencem por
+                    ordem de inserção, jogando o botão pro fluxo normal (canto
+                    errado) em vez de flutuar no canto (ver mesmo comentário
+                    em components/ChatView.tsx). */}
+                <View style={styles.imagePreviewRemoveWrap}>
+                  <TouchableOpacity
+                    style={styles.imagePreviewRemove}
+                    onPress={() => setImageDraft(null)}
+                    disabled={imageDraft.uploading}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close" size={12} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+          {!!imageError && <Text style={styles.imageErrorText}>{imageError}</Text>}
+
           <View style={styles.composer}>
             <Image source={{ uri: user?.avatar }} style={styles.composerAvatar} />
             <MentionInput
@@ -717,10 +817,16 @@ export default function PostDetailScreen() {
               multiline
               onKeyPress={submitOnEnter(submit)}
             />
+            <TouchableOpacity style={styles.attachBtn} onPress={openAttach} hitSlop={8}>
+              <Ionicons name="image-outline" size={20} color={Colors.textTertiary} />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={submit}
-              disabled={!text.trim() || sending}
-              style={[styles.sendBtn, (!text.trim() || sending) && styles.sendBtnDisabled]}
+              disabled={(!text.trim() && !imageDraft?.url) || sending || !!imageDraft?.uploading}
+              style={[
+                styles.sendBtn,
+                ((!text.trim() && !imageDraft?.url) || sending || !!imageDraft?.uploading) && styles.sendBtnDisabled,
+              ]}
             >
               {sending ? (
                 <ActivityIndicator color="#fff" size="small" />
@@ -763,6 +869,29 @@ export default function PostDetailScreen() {
         onClose={() => setReportComment(null)}
         targetType="comment"
         targetId={reportComment?.id ?? ''}
+      />
+      <ActionMenu
+        visible={attachMenuVisible}
+        onClose={() => setAttachMenuVisible(false)}
+        options={[
+          {
+            key: 'camera',
+            label: t('postDetail.takePhoto'),
+            icon: 'camera-outline',
+            onPress: () => pickCommentImage('camera'),
+          },
+          {
+            key: 'library',
+            label: t('postDetail.chooseFromLibrary'),
+            icon: 'image-outline',
+            onPress: () => pickCommentImage('library'),
+          },
+        ]}
+      />
+      <ImageViewerModal
+        visible={!!viewerImage}
+        media={viewerImage ? [{ url: viewerImage, type: 'image' }] : []}
+        onClose={() => setViewerImage(null)}
       />
       <ConfirmModal
         visible={!!confirmDeleteComment}
@@ -995,6 +1124,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   commentUsername: { fontSize: 12, color: Colors.textTertiary, fontWeight: '500', flexShrink: 1 },
   commentTime: { fontSize: 11, color: Colors.textTertiary },
   commentText: { fontSize: 14, color: Colors.textSecondary, lineHeight: 19 },
+  commentImageWrap: { marginTop: 8, alignSelf: 'flex-start' },
+  commentImage: { width: 160, height: 160, borderRadius: 12, backgroundColor: Colors.border },
   commentActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1036,6 +1167,38 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   replyBannerText: { flex: 1, fontSize: 13, color: Colors.primary, fontWeight: '600' },
 
+  imagePreviewRow: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    backgroundColor: Colors.surface,
+  },
+  imagePreviewWrap: { position: 'relative', width: 64, height: 64 },
+  imagePreview: { width: 64, height: 64, borderRadius: 12, backgroundColor: Colors.border },
+  imagePreviewOverlay: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 12,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as any,
+  imagePreviewRemoveWrap: { position: 'absolute', top: -6, right: -6, width: 20, height: 20 },
+  imagePreviewRemove: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageErrorText: {
+    fontSize: 12,
+    color: Colors.error,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    backgroundColor: Colors.surface,
+  },
+
   composer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1047,6 +1210,9 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   composerAvatar: { width: 32, height: 32, borderRadius: 16 },
+  // Mesma caixa 38×38 do sendBtn — garante que os dois ícones fiquem
+  // exatamente na mesma altura em vez de só aproximarem por padding.
+  attachBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   composerInput: {
     flex: 1,
     maxHeight: 100,

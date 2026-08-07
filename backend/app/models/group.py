@@ -100,6 +100,9 @@ class GroupMessage(Base):
     group_id: Mapped[int] = mapped_column(ForeignKey("groups.id"), nullable=False, index=True)
     sender_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Foto ou vídeo anexado à mensagem (opcional; mensagem pode ser só mídia, sem texto).
+    media_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    media_type: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # "image" | "video"
     # Mensagem respondida (marcada com duplo clique no app). Opcional.
     reply_to_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("group_messages.id"), nullable=True

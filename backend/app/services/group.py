@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.uploads import save_data_url_image
+from app.core.uploads import save_data_url_image, save_upload_media
 from app.daos import group as group_dao
 from app.daos import user as user_dao
 from app.models.group import (
@@ -14,6 +14,7 @@ from app.models.group import (
     GroupRole,
 )
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem, MediaGalleryItem
 from app.schemas.group import (
     GroupConversationOut,
     GroupCreate,
@@ -93,7 +94,10 @@ def _preview_text(msg: GroupMessage | None) -> str:
         return "Grupo criado"
     name = getattr(msg.sender, "name", "") or ""
     first = name.split(" ")[0] if name else ""
-    return f"{first}: {msg.content}" if first else msg.content
+    content = msg.content or (
+        ("🎥 Vídeo" if msg.media_type == "video" else "📷 Foto") if msg.media_url else ""
+    )
+    return f"{first}: {content}" if first else content
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────
@@ -339,20 +343,30 @@ def get_thread(db: Session, user: User, group_id: int) -> list[GroupMessageOut]:
 
 
 def send_message(
-    db: Session, user: User, group_id: int, content: str, reply_to_id: int | None = None
+    db: Session,
+    user: User,
+    group_id: int,
+    content: str,
+    reply_to_id: int | None = None,
+    media_url: str | None = None,
+    media_type: str | None = None,
 ) -> GroupMessageOut:
     group = _require_group(db, group_id)
     member = _require_membership(db, group, user)
     content = content.strip()
-    if not content:
+    if not content and media_url is None:
         raise HTTPException(status_code=400, detail="Mensagem vazia")
     if reply_to_id is not None:
         replied = group_dao.get_message_by_id(db, reply_to_id)
         if not replied or replied.group_id != group.id:
             raise HTTPException(status_code=404, detail="Mensagem respondida não encontrada")
-    msg = group_dao.create_message(db, group.id, user.id, content, reply_to_id)
+    msg = group_dao.create_message(
+        db, group.id, user.id, content, reply_to_id, media_url=media_url, media_type=media_type
+    )
     group_dao.mark_read(db, member, msg.id)
 
+    # Sem texto (mensagem só com foto/vídeo): prévia própria pro push.
+    notify_text = content or (("🎥 Vídeo" if media_type == "video" else "📷 Foto") if media_url else "")
     for other_member in group_dao.list_members(db, group.id):
         if other_member.user_id == user.id:
             continue
@@ -364,8 +378,27 @@ def send_message(
             db,
             other_member.user_id,
             group.name,
-            f"{user.name}: {content}",
+            f"{user.name}: {notify_text}",
             data={"type": "group", "groupId": group.id},
         )
 
     return GroupMessageOut.model_validate(msg)
+
+
+def upload_media(db: Session, user: User, group_id: int, base_url: str, file: UploadFile) -> AttachmentItem:
+    group = _require_group(db, group_id)
+    _require_membership(db, group, user)
+    url, media_type = save_upload_media(base_url, file, prefix=f"group_{group.id}_{user.id}")
+    return AttachmentItem(url=url, type=media_type)
+
+
+def list_media(db: Session, user: User, group_id: int) -> list[MediaGalleryItem]:
+    """Galeria de fotos/vídeos já compartilhados no grupo — usada pela tela de
+    info (ver components/MediaGalleryView.tsx no frontend)."""
+    group = _require_group(db, group_id)
+    _require_membership(db, group, user)
+    messages = group_dao.get_media_messages(db, group.id)
+    return [
+        MediaGalleryItem(id=m.id, url=m.media_url, type=m.media_type, created_at=m.created_at)
+        for m in messages
+    ]

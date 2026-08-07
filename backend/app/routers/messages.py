@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.controllers import message
+from app.schemas.attachment import AttachmentItem, MediaGalleryItem
 from app.schemas.message import (
     ConversationOut,
     MessageOut,
@@ -16,10 +17,13 @@ router.get( "/conversations",  response_model=list[ConversationOut])(message.lis
 router.get( "/search",         response_model=list[MessageSearchOut])(message.search_messages)
 router.get( "/unread-count",   response_model=UnreadCountOut)(message.get_unread_count)
 router.post("/typing",         status_code=204)(message.ping_typing)
+router.post("/media",          response_model=AttachmentItem, status_code=201)(message.upload_media)
 router.get( "/{user_id}",      response_model=list[MessageOut])(message.get_thread)
 router.post("/",               response_model=MessageOut, status_code=201)(message.send_message)
 
-# Silenciamento de notificações da conversa (2 segmentos — não colide com /{user_id}).
+# Silenciamento de notificações e galeria de mídia da conversa (2 segmentos —
+# não colidem com /{user_id}).
 router.get(   "/{user_id}/mute", response_model=MuteStatusOut)(message.get_mute)
 router.post(  "/{user_id}/mute", response_model=MuteStatusOut)(message.mute_conversation)
 router.delete("/{user_id}/mute", response_model=MuteStatusOut)(message.unmute_conversation)
+router.get(   "/{user_id}/media", response_model=list[MediaGalleryItem])(message.list_media)

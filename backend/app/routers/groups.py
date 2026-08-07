@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.controllers import group
+from app.schemas.attachment import AttachmentItem, MediaGalleryItem
 from app.schemas.group import (
     GroupConversationOut,
     GroupDetailOut,
@@ -20,6 +21,8 @@ router.get("/discover", response_model=list[GroupOut])(group.discover)
 router.get("/{group_id}", response_model=GroupDetailOut)(group.get_group)
 router.patch("/{group_id}", response_model=GroupDetailOut)(group.update_group)
 router.post("/{group_id}/avatar", response_model=GroupDetailOut)(group.set_group_avatar)
+router.post("/{group_id}/media", response_model=AttachmentItem, status_code=201)(group.upload_media)
+router.get("/{group_id}/media", response_model=list[MediaGalleryItem])(group.list_media)
 router.delete("/{group_id}", status_code=204)(group.delete_group)
 
 router.post("/{group_id}/join", response_model=GroupDetailOut)(group.join_group)

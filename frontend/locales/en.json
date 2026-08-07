@@ -12,6 +12,12 @@
     "confirm": "Confirm",
     "understood": "Got it"
   },
+  "externalLink": {
+    "title": "You're leaving Daqui",
+    "message": "This link opens an external website that may contain malicious content. Check the address before continuing.",
+    "dontShowAgain": "Don't show this warning again",
+    "continue": "Visit website"
+  },
   "feed": {
     "myNeighborhood": "My neighborhood",
     "nearMe": "Near me",
@@ -292,8 +298,18 @@
       "replyingTo": "Replying to {{name}}",
       "sharedPost": "Shared post",
       "groupPlaceholder": "Write a message... use @ to mention someone",
-      "placeholder": "Write a message..."
+      "placeholder": "Write a message...",
+      "takePhoto": "Take a photo",
+      "chooseFromLibrary": "Choose from library",
+      "cameraPermission": "Allow camera access to take a photo.",
+      "mediaPermission": "Allow photo access to attach an image or video.",
+      "mediaUploadError": "Couldn't upload the file.",
+      "mediaLoadError": "Couldn't load the image or video."
     }
+  },
+  "mediaGallery": {
+    "title": "Shared media",
+    "empty": "No photos or videos shared yet."
   },
   "groups": {
     "title": "Groups",
@@ -1322,7 +1338,13 @@
     "commentPlaceholder": "Write a comment...",
     "deleteComment": "Delete comment",
     "deleteCommentTitle": "Delete comment?",
-    "deleteCommentMessage": "This action cannot be undone. Its replies will also be removed."
+    "deleteCommentMessage": "This action cannot be undone. Its replies will also be removed.",
+    "takePhoto": "Take a photo",
+    "chooseFromLibrary": "Choose from library",
+    "cameraPermission": "Allow camera access to take a photo.",
+    "mediaPermission": "Allow photo access to attach an image.",
+    "imageUploadError": "Couldn't upload the image.",
+    "imageLoadError": "Couldn't load the image."
   },
   "post": {
     "important": "Important",

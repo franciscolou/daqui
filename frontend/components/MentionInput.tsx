@@ -114,7 +114,12 @@ export default function MentionInput({
     : null;
 
   const handleLayout: TextInputProps['onLayout'] = (e) => {
-    setInputHeight(e.nativeEvent.layout.height);
+    // Só usado no cálculo de `anchorTop` acima (dropdownDirection="down");
+    // sem essa guarda, todo layout do campo (inclusive o resize por digitação)
+    // reatualiza esse state e força um re-render do campo — que, no caso do
+    // composer de mensagens (dropdownDirection="up"), competia com o ajuste
+    // imperativo de altura de `ChatView` e prendia o campo em 2 linhas.
+    if (needsMirror) setInputHeight(e.nativeEvent.layout.height);
     onLayout?.(e);
   };
 

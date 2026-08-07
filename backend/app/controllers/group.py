@@ -1,8 +1,9 @@
-from fastapi import Depends, Query, Request
+from fastapi import Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user, get_db
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem, MediaGalleryItem
 from app.schemas.group import (
     GroupAvatarUpdate,
     GroupConversationOut,
@@ -181,8 +182,32 @@ def send_message(
     current_user: User = Depends(get_current_user),
 ) -> GroupMessageOut:
     return group_service.send_message(
-        db, current_user, group_id, payload.content, payload.reply_to_id
+        db,
+        current_user,
+        group_id,
+        payload.content,
+        payload.reply_to_id,
+        media_url=payload.media_url,
+        media_type=payload.media_type.value if payload.media_type else None,
     )
+
+
+def upload_media(
+    group_id: int,
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> AttachmentItem:
+    return group_service.upload_media(db, current_user, group_id, str(request.base_url), file)
+
+
+def list_media(
+    group_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[MediaGalleryItem]:
+    return group_service.list_media(db, current_user, group_id)
 
 
 def mute_group(

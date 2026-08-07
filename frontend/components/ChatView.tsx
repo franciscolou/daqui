@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, withDelay, withRepeat, withSequence, Easing,
@@ -32,6 +33,9 @@ import SharedCommentPreview from './SharedCommentPreview';
 import SharedAdPreview from './SharedAdPreview';
 import MentionInput from './MentionInput';
 import MentionText from './MentionText';
+import ActionMenu from './ActionMenu';
+import ImageViewerModal, { MediaItem } from './ImageViewerModal';
+import VideoPlayer from './VideoPlayer';
 import { useT } from '../lib/i18n';
 import { Ad, adsApi } from '../lib/adsApi';
 
@@ -61,6 +65,7 @@ function MessageBubble({
   styles,
   onReply,
   onJumpTo,
+  onViewMedia,
 }: {
   msg: ChatMessage;
   mine: boolean;
@@ -73,6 +78,7 @@ function MessageBubble({
   styles: ReturnType<typeof makeStyles>;
   onReply: (msg: ChatMessage) => void;
   onJumpTo: (id: string) => void;
+  onViewMedia: (msg: ChatMessage) => void;
 }) {
   const Colors = useTheme();
   const { t } = useT();
@@ -86,6 +92,10 @@ function MessageBubble({
   const showReplyIcon = Platform.OS !== 'web' || hovered;
   // Post, comentário ou anúncio encaminhado: recebem o mesmo tratamento de balão "shared".
   const hasShared = !!msg.sharedPost || !!msg.sharedComment || !!msg.sharedAdId;
+  // Foto/vídeo anexado tem o mesmo tratamento visual: sem fundo/padding do
+  // balão (a própria mídia preenche o espaço).
+  const hasMedia = !!msg.mediaUrl;
+  const hasRich = hasShared || hasMedia;
   // Anúncio encaminhado só traz o id (ver lib/api.ts::ChatMessage.sharedAdId)
   // — o próprio ads-backend é quem tem os dados, então resolve no client.
   const [sharedAd, setSharedAd] = useState<Ad | null>(null);
@@ -154,7 +164,7 @@ function MessageBubble({
           style={[
             styles.bubble,
             mine ? styles.bubbleMine : styles.bubbleTheirs,
-            hasShared && styles.bubbleShared,
+            hasRich && styles.bubbleShared,
             highlighted && styles.bubbleHighlight,
           ]}
         >
@@ -163,17 +173,17 @@ function MessageBubble({
           )}
           {!!msg.replyTo && (
             <TouchableOpacity
-              style={[styles.replyQuote, mine && !hasShared && styles.replyQuoteMine]}
+              style={[styles.replyQuote, mine && !hasRich && styles.replyQuoteMine]}
               onPress={() => onJumpTo(msg.replyTo!.id)}
             >
               <Text
-                style={[styles.replyQuoteSender, mine && !hasShared && styles.replyQuoteTextMine]}
+                style={[styles.replyQuoteSender, mine && !hasRich && styles.replyQuoteTextMine]}
                 numberOfLines={1}
               >
                 {msg.replyTo.sender.name}
               </Text>
               <Text
-                style={[styles.replyQuoteText, mine && !hasShared && styles.replyQuoteTextMine]}
+                style={[styles.replyQuoteText, mine && !hasRich && styles.replyQuoteTextMine]}
                 numberOfLines={1}
               >
                 {msg.replyTo.content || t('messages.chat.sharedPost')}
@@ -195,25 +205,33 @@ function MessageBubble({
               <SharedAdPreview ad={sharedAd} />
             </View>
           )}
+          {!!msg.mediaUrl && (
+            <Pressable
+              nativeID={`chat-media-no-hover-${msg.id}`}
+              onPress={() => onViewMedia(msg)}
+              style={styles.mediaWrap}
+            >
+              {msg.mediaType === 'video' ? (
+                <VideoPlayer uri={msg.mediaUrl} style={styles.messageMedia} contentFit="cover" />
+              ) : (
+                <Image source={{ uri: msg.mediaUrl }} style={styles.messageMedia} resizeMode="cover" />
+              )}
+            </Pressable>
+          )}
           {!!msg.content && (
-            linkMentions ? (
-              <MentionText
-                style={[styles.bubbleText, mine && !hasShared && styles.bubbleTextMine]}
-                linkStyle={mine && !hasShared ? styles.bubbleMention : undefined}
-              >
-                {msg.content}
-              </MentionText>
-            ) : (
-              <Text style={[styles.bubbleText, mine && !hasShared && styles.bubbleTextMine]}>
-                {msg.content}
-              </Text>
-            )
+            <MentionText
+              style={[styles.bubbleText, mine && !hasRich && styles.bubbleTextMine]}
+              linkStyle={mine && !hasRich ? styles.bubbleMention : undefined}
+              mentionsEnabled={linkMentions}
+            >
+              {msg.content}
+            </MentionText>
           )}
           <Text
             style={[
               styles.bubbleTime,
-              mine && !hasShared && styles.bubbleTimeMine,
-              hasShared && styles.bubbleTimeShared,
+              mine && !hasRich && styles.bubbleTimeMine,
+              hasRich && styles.bubbleTimeShared,
             ]}
           >
             {formatMessageTime(msg.createdAt)}
@@ -334,6 +352,11 @@ export default function ChatView({
   const [enteringIds, setEnteringIds] = useState<Set<string>>(new Set());
   // mensagem marcada (duplo clique) para responder — some ao enviar ou cancelar
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  // Foto/vídeo anexado à mensagem em digitação (câmera ou galeria) — só em DM.
+  const [mediaDraft, setMediaDraft] = useState<{ localUri: string; type: 'image' | 'video'; url?: string; uploading: boolean } | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
+  const [attachMenuVisible, setAttachMenuVisible] = useState(false);
+  const [viewerMedia, setViewerMedia] = useState<MediaItem | null>(null);
 
   const listRef = useRef<FlatList<ChatItem>>(null);
   const didScrollRef = useRef(false);
@@ -419,29 +442,86 @@ export default function ChatView({
     [subscribeMessages, kind, id, refreshQuiet],
   );
 
+  // Anexa foto/vídeo à mensagem em digitação (câmera no nativo, galeria em
+  // qualquer plataforma — expo-image-picker não suporta câmera na web).
+  const pickMessageMedia = useCallback(async (source: 'camera' | 'library') => {
+    setMediaError(null);
+    try {
+      const perm =
+        source === 'camera'
+          ? await ImagePicker.requestCameraPermissionsAsync()
+          : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setMediaError(
+          source === 'camera' ? t('messages.chat.cameraPermission') : t('messages.chat.mediaPermission'),
+        );
+        return;
+      }
+      const res =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.7 })
+          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.7 });
+      if (res.canceled) return;
+
+      const asset = res.assets[0];
+      const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
+      const localUri = asset.uri;
+      setMediaDraft({ localUri, type, uploading: true });
+      try {
+        const pickedAsset = {
+          uri: asset.uri,
+          mimeType: asset.mimeType ?? undefined,
+          fileName: asset.fileName ?? undefined,
+        };
+        const uploaded =
+          kind === 'dm'
+            ? await api.uploadMessageAttachment(pickedAsset)
+            : await api.uploadGroupMessageAttachment(id, pickedAsset);
+        setMediaDraft({ localUri, type: uploaded.type, url: uploaded.url, uploading: false });
+      } catch {
+        setMediaDraft(null);
+        setMediaError(t('messages.chat.mediaUploadError'));
+      }
+    } catch {
+      setMediaError(t('messages.chat.mediaLoadError'));
+    }
+  }, [t, kind, id]);
+
+  // Sempre oferece câmera e galeria — no web, expo-image-picker abre o
+  // seletor de arquivo com o atributo `capture` (câmera no navegador do
+  // celular; desktops com webcam também costumam expor a opção "Usar
+  // câmera" no próprio diálogo do sistema).
+  const openAttach = useCallback(() => {
+    setMediaError(null);
+    setAttachMenuVisible(true);
+  }, []);
+
   const send = useCallback(async () => {
     const content = input.trim();
-    if (!content || !id || sending) return;
+    const media = mediaDraft?.url ? { url: mediaDraft.url, type: mediaDraft.type } : undefined;
+    if ((!content && !media) || !id || sending || mediaDraft?.uploading) return;
     const replyToId = replyingTo?.id;
     setSending(true);
     setInput('');
     setInputHeight(INPUT_MIN_HEIGHT);
     setReplyingTo(null);
+    setMediaDraft(null);
     try {
       const msg =
         kind === 'dm'
-          ? await api.sendMessage(id, content, undefined, replyToId)
-          : await api.sendGroupMessage(id, content, replyToId);
+          ? await api.sendMessage(id, content, undefined, replyToId, undefined, undefined, media?.url, media?.type)
+          : await api.sendGroupMessage(id, content, replyToId, media?.url, media?.type);
       setMessages((prev) => [...prev, msg]);
       animateEntrance([msg.id]);
       onActivity?.();
     } catch {
       setInput(content);
       setReplyingTo(replyingTo ?? null);
+      setMediaDraft(mediaDraft);
     } finally {
       setSending(false);
     }
-  }, [input, id, kind, sending, onActivity, animateEntrance, replyingTo]);
+  }, [input, id, kind, sending, onActivity, animateEntrance, replyingTo, mediaDraft]);
 
   // Na web, o scrollHeight de um textarea nunca fica menor que a altura já
   // aplicada via CSS — por isso, para encolher ao apagar texto, é preciso
@@ -458,7 +538,11 @@ export default function ChatView({
     const next = Math.min(Math.max(node.scrollHeight, INPUT_MIN_HEIGHT), INPUT_MAX_HEIGHT);
     node.style.height = `${next}px`;
     setInputHeight(next);
-  }, [input]);
+    // `loading` nas deps: enquanto a tela mostra o spinner, o composer (e o
+    // ref) nem existe ainda — sem reagir à troca pra `false`, esse ajuste só
+    // rodava na próxima tecla digitada, deixando o campo "grudado" em 2
+    // linhas (56px) até lá, mesmo com o `height` certo já declarado no style.
+  }, [input, kind, loading]);
 
   // "Digitando": no DM, é só o outro participante; no grupo, cruza os ids de
   // quem está digitando com os membros pra achar os usuários.
@@ -665,6 +749,9 @@ export default function ChatView({
                   linkMentions={kind === 'group'}
                   onReply={setReplyingTo}
                   onJumpTo={jumpToMessage}
+                  onViewMedia={(m) =>
+                    m.mediaUrl && setViewerMedia({ url: m.mediaUrl, type: m.mediaType ?? 'image' })
+                  }
                   styles={styles}
                 />
               );
@@ -699,6 +786,42 @@ export default function ChatView({
             </View>
           )}
 
+          {/* Preview da foto/vídeo anexado — some ao enviar ou remover. */}
+          {!!mediaDraft && (
+            <View style={styles.mediaPreviewRow}>
+              <View style={styles.mediaPreviewWrap}>
+                {mediaDraft.type === 'video' ? (
+                  <View style={[styles.mediaPreview, styles.mediaPreviewVideo]}>
+                    <Ionicons name="videocam" size={20} color="#fff" />
+                  </View>
+                ) : (
+                  <Image source={{ uri: mediaDraft.localUri }} style={styles.mediaPreview} resizeMode="cover" />
+                )}
+                {mediaDraft.uploading && (
+                  <View style={styles.mediaPreviewOverlay}>
+                    <ActivityIndicator color="#fff" size="small" />
+                  </View>
+                )}
+                {/* O position:absolute vive num View simples (não no
+                    Pressable): num Pressable/TouchableOpacity, nesta build,
+                    as classes internas de estado (cursor/touchAction) empatam
+                    em especificidade com "position: absolute" e vencem por
+                    ordem de inserção — o botão caía dentro do fluxo normal
+                    (canto errado) em vez de flutuar no canto. */}
+                <View style={styles.mediaPreviewRemoveWrap}>
+                  <Pressable
+                    style={styles.mediaPreviewRemove}
+                    onPress={() => !mediaDraft.uploading && setMediaDraft(null)}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close" size={12} color="#fff" />
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          )}
+          {!!mediaError && <Text style={styles.mediaErrorText}>{mediaError}</Text>}
+
           {/* Composer — @menção só existe em grupos (só membros podem ser
               mencionados; numa DM já é só o outro participante, sem sentido). */}
           <View style={styles.composer}>
@@ -721,7 +844,7 @@ export default function ChatView({
             ) : (
               <TextInput
                 ref={inputRef}
-                style={[styles.input, { height: inputHeight }]}
+                style={[styles.input, styles.inputWrap, { height: inputHeight }]}
                 placeholder={t('messages.chat.placeholder')}
                 placeholderTextColor={Colors.textTertiary}
                 value={input}
@@ -732,10 +855,16 @@ export default function ChatView({
                 onSubmitEditing={send}
               />
             )}
+            <TouchableOpacity style={styles.attachBtn} onPress={openAttach} hitSlop={8}>
+              <Ionicons name="image-outline" size={20} color={Colors.textTertiary} />
+            </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
+              style={[
+                styles.sendBtn,
+                ((!input.trim() && !mediaDraft?.url) || sending || !!mediaDraft?.uploading) && styles.sendBtnDisabled,
+              ]}
               onPress={send}
-              disabled={!input.trim() || sending}
+              disabled={(!input.trim() && !mediaDraft?.url) || sending || !!mediaDraft?.uploading}
               activeOpacity={0.85}
             >
               <Ionicons name="send" size={18} color="#fff" />
@@ -743,6 +872,30 @@ export default function ChatView({
           </View>
         </KeyboardAvoidingView>
       )}
+
+      <ActionMenu
+        visible={attachMenuVisible}
+        onClose={() => setAttachMenuVisible(false)}
+        options={[
+          {
+            key: 'camera',
+            label: t('messages.chat.takePhoto'),
+            icon: 'camera-outline',
+            onPress: () => pickMessageMedia('camera'),
+          },
+          {
+            key: 'library',
+            label: t('messages.chat.chooseFromLibrary'),
+            icon: 'image-outline',
+            onPress: () => pickMessageMedia('library'),
+          },
+        ]}
+      />
+      <ImageViewerModal
+        visible={!!viewerMedia}
+        media={viewerMedia ? [viewerMedia] : []}
+        onClose={() => setViewerMedia(null)}
+      />
     </View>
   );
 }
@@ -815,6 +968,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderWidth: 0,
   },
   sharedWrap: { marginBottom: 2 },
+  mediaWrap: { marginBottom: 2 },
+  messageMedia: { width: 220, height: 220, borderRadius: 14, backgroundColor: Colors.border },
   bubbleTimeShared: { color: Colors.textTertiary, marginRight: 2 },
   senderName: { fontSize: 12, fontWeight: '700', color: Colors.primary, marginBottom: 2 },
   bubbleMine: { backgroundColor: Colors.primaryDeep, borderBottomRightRadius: 4 },
@@ -855,6 +1010,38 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   replyBarAccent: { width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: Colors.primary },
   replyBarSender: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   replyBarText: { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
+  mediaPreviewRow: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    backgroundColor: Colors.surface,
+  },
+  mediaPreviewWrap: { position: 'relative', width: 64, height: 64 },
+  mediaPreview: { width: 64, height: 64, borderRadius: 12, backgroundColor: Colors.border },
+  mediaPreviewVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E293B' },
+  mediaPreviewOverlay: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 12,
+    backgroundColor: 'rgba(15,23,42,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as any,
+  mediaPreviewRemoveWrap: { position: 'absolute', top: -6, right: -6, width: 20, height: 20 },
+  mediaPreviewRemove: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mediaErrorText: {
+    fontSize: 12,
+    color: Colors.error,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    backgroundColor: Colors.surface,
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -866,7 +1053,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderTopColor: Colors.borderLight,
   },
   input: {
-    flex: 1,
     backgroundColor: Colors.background,
     borderRadius: 14,
     paddingHorizontal: 14,
@@ -877,10 +1063,22 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.text,
     outlineStyle: 'none',
   } as any,
-  // MentionInput embrulha o campo: o wrapper ocupa a vaga flex:1 da linha e o
-  // input interno preenche a largura (sem flex vertical, altura própria).
+  // Ocupa a vaga flex:1 da linha do composer — no DM, direto no TextInput
+  // (linha); no grupo, no wrapper que o MentionInput monta em volta do campo
+  // (View, que por padrão empilha em coluna — outro eixo, outra história).
   inputWrap: { flex: 1 },
-  inputInner: { flex: 0, alignSelf: 'stretch' },
+  // Dentro do wrapper de coluna do MentionInput, o eixo principal do campo
+  // passa a ser a ALTURA — herdar o "flex:1" de `styles.input` (que ali era
+  // só sobre largura, no eixo do composer) faria esse `flex-basis:0%` reger
+  // a altura em vez do `height` explícito, e o campo travava do tamanho
+  // mínimo automático do flex item (o `rows` nativo do textarea, 2 linhas).
+  // flexGrow/flexShrink (não o shorthand "flex: 0", que tem o mesmo problema
+  // do flex:1 — seta flex-basis:0%) zera isso sem tocar no eixo de largura.
+  inputInner: { flexGrow: 0, flexShrink: 0, alignSelf: 'stretch' },
+  // Mesma caixa 40×40 do sendBtn (não só padding) — com alignItems:"flex-end"
+  // na linha do composer, caixas de altura diferente ficam com o topo
+  // desalinhado; do mesmo tamanho, os dois ícones ficam na mesma altura.
+  attachBtn: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   sendBtn: {
     width: 40,
     height: 40,

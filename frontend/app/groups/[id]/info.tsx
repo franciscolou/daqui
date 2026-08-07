@@ -323,6 +323,19 @@ export default function GroupInfoScreen() {
             onChange={(s) => setGroup((g) => (g ? { ...g, isMuted: s.isMuted, mutedUntil: s.mutedUntil } : g))}
           />
 
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.7}
+            onPress={() => router.push(`/groups/${id}/media` as any)}
+          >
+            <View style={styles.iconWrap}>
+              <Ionicons name="images-outline" size={18} color={Colors.primary} />
+            </View>
+            <Text style={styles.rowLabel}>{t('mediaGallery.title')}</Text>
+            <View style={styles.flex} />
+            <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
           {/* Nome/descrição — editável para administradores */}
           {canManage ? (
             <View style={styles.section}>
@@ -715,6 +728,26 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   privacyPillText: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
   privacyPillTextOpen: { color: Colors.primaryDark },
   membersCount: { fontSize: 13, color: Colors.textTertiary },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    marginTop: 14,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  iconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryFaint,
+  },
+  rowLabel: { fontSize: 15, fontWeight: '600', color: Colors.text },
   section: {
     marginTop: 18,
     padding: 14,

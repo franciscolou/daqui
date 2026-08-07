@@ -9,6 +9,9 @@ class CommentCreate(BaseModel):
     content: str
     # Comentário respondido (thread). Nulo = comentário de topo.
     parent_id: int | None = None
+    # Foto anexada (opcional; ver services/comment.py::upload_media). Comentário
+    # pode ser só imagem, sem texto.
+    image_url: str | None = None
 
 
 class CommentOut(BaseModel):
@@ -16,6 +19,7 @@ class CommentOut(BaseModel):
     post_id: int
     parent_id: int | None = None
     content: str
+    image_url: str | None = None
     created_at: datetime
     author: UserPublic
     # True quando o bairro atual do autor é o mesmo do post comentado — selo de Morador.

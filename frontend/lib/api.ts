@@ -258,6 +258,7 @@ interface BackendComment {
   post_id: number;
   parent_id: number | null;
   content: string;
+  image_url: string | null;
   created_at: string;
   author: BackendUser;
   author_is_resident: boolean;
@@ -280,6 +281,7 @@ export interface Comment {
   postId: string;
   parentId?: string; // comentário respondido (thread); ausente = comentário de topo
   content: string;
+  imageUrl?: string; // foto anexada (opcional; comentário pode ser só imagem)
   createdAt: string;
   author: User;
   authorIsResident: boolean; // autor mora no bairro do post comentado (selo de Morador)
@@ -333,6 +335,8 @@ interface BackendMessageReply {
 interface BackendMessage {
   id: number;
   content: string;
+  media_url: string | null;
+  media_type: 'image' | 'video' | null;
   read: boolean;
   created_at: string;
   sender: BackendUser;
@@ -392,9 +396,29 @@ interface BackendGroupConversation {
 interface BackendGroupMessage {
   id: number;
   content: string;
+  media_url: string | null;
+  media_type: 'image' | 'video' | null;
   created_at: string;
   sender: BackendUser;
   reply_to: BackendMessageReply | null;
+}
+
+interface BackendMediaGalleryItem {
+  id: number;
+  url: string;
+  type: 'image' | 'video';
+  created_at: string;
+}
+
+export interface GalleryMediaItem {
+  id: string;
+  url: string;
+  type: 'image' | 'video';
+  createdAt: string;
+}
+
+function mapGalleryMediaItem(m: BackendMediaGalleryItem): GalleryMediaItem {
+  return { id: String(m.id), url: m.url, type: m.type, createdAt: m.created_at };
 }
 
 interface BackendRemovedSnapshot {
@@ -487,6 +511,8 @@ export interface MessageReply {
 export interface ChatMessage {
   id: string;
   content: string;
+  mediaUrl?: string; // foto ou vídeo anexado (opcional; mensagem pode ser só mídia)
+  mediaType?: 'image' | 'video';
   read: boolean;
   createdAt: string;
   sender: User;
@@ -787,6 +813,7 @@ function mapComment(c: BackendComment): Comment {
     postId: String(c.post_id),
     parentId: c.parent_id != null ? String(c.parent_id) : undefined,
     content: c.content,
+    imageUrl: c.image_url ?? undefined,
     createdAt: c.created_at, // ISO — formatado na renderização (lib/time)
     author: mapUser(c.author),
     authorIsResident: c.author_is_resident,
@@ -848,6 +875,8 @@ function mapMessage(m: BackendMessage): ChatMessage {
   return {
     id: String(m.id),
     content: m.content,
+    mediaUrl: m.media_url ?? undefined,
+    mediaType: m.media_type ?? undefined,
     read: m.read,
     createdAt: m.created_at,
     sender: mapUser(m.sender),
@@ -915,6 +944,8 @@ function mapGroupMessage(m: BackendGroupMessage): ChatMessage {
   return {
     id: String(m.id),
     content: m.content,
+    mediaUrl: m.media_url ?? undefined,
+    mediaType: m.media_type ?? undefined,
     read: true,
     createdAt: m.created_at,
     sender: mapUser(m.sender),
@@ -1320,6 +1351,33 @@ export const api = {
     return requestMultipart<PostMedia>('/support-tickets/attachments', formData);
   },
 
+  async uploadCommentAttachment(asset: PickedMediaAsset): Promise<PostMedia> {
+    const formData = await buildMediaFormData(asset);
+    return requestMultipart<PostMedia>('/comments/media', formData);
+  },
+
+  async uploadMessageAttachment(asset: PickedMediaAsset): Promise<PostMedia> {
+    const formData = await buildMediaFormData(asset);
+    return requestMultipart<PostMedia>('/messages/media', formData);
+  },
+
+  async uploadGroupMessageAttachment(groupId: string, asset: PickedMediaAsset): Promise<PostMedia> {
+    const formData = await buildMediaFormData(asset);
+    return requestMultipart<PostMedia>(`/groups/${groupId}/media`, formData);
+  },
+
+  // Galeria de mídia já compartilhada na conversa (DM) ou no grupo — usada
+  // pela tela "Mídia, links e arquivos" (ver components/MediaGalleryView.tsx).
+  async getDmMedia(userId: string): Promise<GalleryMediaItem[]> {
+    const r = await request<BackendMediaGalleryItem[]>(`/messages/${userId}/media`);
+    return r.map(mapGalleryMediaItem);
+  },
+
+  async getGroupMedia(groupId: string): Promise<GalleryMediaItem[]> {
+    const r = await request<BackendMediaGalleryItem[]>(`/groups/${groupId}/media`);
+    return r.map(mapGalleryMediaItem);
+  },
+
   async getImportantQuota(): Promise<ImportantQuota> {
     return mapImportantQuota(await request<BackendImportantQuota>('/posts/important-quota'));
   },
@@ -1429,11 +1487,20 @@ export const api = {
     return r.map(mapComment);
   },
 
-  async addComment(postId: string, content: string, parentId?: string): Promise<Comment> {
+  async addComment(
+    postId: string,
+    content: string,
+    parentId?: string,
+    imageUrl?: string,
+  ): Promise<Comment> {
     return mapComment(
       await request<BackendComment>(`/posts/${postId}/comments`, {
         method: 'POST',
-        body: { content, parent_id: parentId ? Number(parentId) : undefined },
+        body: {
+          content,
+          parent_id: parentId ? Number(parentId) : undefined,
+          image_url: imageUrl,
+        },
       }),
     );
   },
@@ -1531,6 +1598,8 @@ export const api = {
     replyToId?: string,
     sharedCommentId?: string,
     sharedAdId?: number,
+    mediaUrl?: string,
+    mediaType?: 'image' | 'video',
   ): Promise<ChatMessage> {
     return mapMessage(
       await request<BackendMessage>('/messages/', {
@@ -1542,6 +1611,8 @@ export const api = {
           shared_comment_id: sharedCommentId ? Number(sharedCommentId) : undefined,
           reply_to_id: replyToId ? Number(replyToId) : undefined,
           shared_ad_id: sharedAdId,
+          media_url: mediaUrl,
+          media_type: mediaType,
         },
       }),
     );
@@ -1676,11 +1747,22 @@ export const api = {
     return r.map(mapGroupMessage);
   },
 
-  async sendGroupMessage(id: string, content: string, replyToId?: string): Promise<ChatMessage> {
+  async sendGroupMessage(
+    id: string,
+    content: string,
+    replyToId?: string,
+    mediaUrl?: string,
+    mediaType?: 'image' | 'video',
+  ): Promise<ChatMessage> {
     return mapGroupMessage(
       await request<BackendGroupMessage>(`/groups/${id}/messages`, {
         method: 'POST',
-        body: { content, reply_to_id: replyToId ? Number(replyToId) : undefined },
+        body: {
+          content,
+          reply_to_id: replyToId ? Number(replyToId) : undefined,
+          media_url: mediaUrl,
+          media_type: mediaType,
+        },
       }),
     );
   },

@@ -6,6 +6,7 @@ import { SharedComment } from '../lib/api';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import HoverTime from './HoverTime';
 import { useT } from '../lib/i18n';
+import MentionText from './MentionText';
 
 interface Props {
   comment: SharedComment;
@@ -35,7 +36,7 @@ export default function SharedCommentPreview({ comment, static: isStatic }: Prop
         <HoverTime iso={comment.createdAt} style={styles.time} />
       </View>
 
-      {!!comment.content && <Text style={styles.body} numberOfLines={4}>{comment.content}</Text>}
+      {!!comment.content && <MentionText style={styles.body} numberOfLines={4}>{comment.content}</MentionText>}
 
       {!isStatic && (
         <View style={styles.footer}>

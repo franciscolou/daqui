@@ -1,6 +1,7 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.uploads import save_upload_media
 from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
@@ -8,11 +9,17 @@ from app.models.audit_log import AuditLogAction
 from app.models.comment import Comment
 from app.models.notification import NotificationType
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem
 from app.schemas.comment import CommentCreate, CommentOut
 from app.schemas.user import UserPublic
 from app.services import audit_log as audit_log_service
 from app.services import mentions
 from app.services import notification as notification_service
+
+
+def upload_media(user: User, base_url: str, file: UploadFile) -> AttachmentItem:
+    url, media_type = save_upload_media(base_url, file, prefix=f"comment_{user.id}")
+    return AttachmentItem(url=url, type=media_type)
 
 
 def _visible_post_or_404(db: Session, post_id: int, viewer: User):
@@ -39,6 +46,7 @@ def _to_schema(
         post_id=comment.post_id,
         parent_id=comment.parent_id,
         content=comment.content,
+        image_url=comment.image_url,
         created_at=comment.created_at,
         author=UserPublic.model_validate(comment.author),
         author_is_resident=author_is_resident,
@@ -81,7 +89,7 @@ def create(db: Session, post_id: int, user: User, payload: CommentCreate) -> Com
     post = _visible_post_or_404(db, post_id, user)
 
     content = payload.content.strip()
-    if not content:
+    if not content and not payload.image_url:
         raise HTTPException(status_code=400, detail="Comentário vazio")
 
     # Resposta a outro comentário (thread): valida que o pai é do mesmo post.
@@ -91,24 +99,31 @@ def create(db: Session, post_id: int, user: User, payload: CommentCreate) -> Com
             raise HTTPException(status_code=404, detail="Comentário respondido não encontrado")
 
     comment = comment_dao.create(
-        db, post_id=post_id, author_id=user.id, content=content, parent_id=payload.parent_id
+        db,
+        post_id=post_id,
+        author_id=user.id,
+        content=content,
+        parent_id=payload.parent_id,
+        image_url=payload.image_url,
     )
     post.comments_count = comment_dao.count_for_post(db, post_id)
     user.comments_count = comment_dao.count_by_author(db, user.id)
     db.commit()
     db.refresh(comment)
 
+    # Sem texto (comentário só com foto): mensagem de notificação própria.
+    notify_text = content or "📷 Foto"
     if post.author_id != user.id:
         notification_service.notify(
             db,
             user_id=post.author_id,
             type_=NotificationType.COMMENT,
             content="comentou no seu post",
-            target_text=content[:200],
+            target_text=notify_text[:200],
             post_id=post_id,
             actor_id=user.id,
             push_title=f"{user.name} comentou no seu post",
-            push_body=content[:200],
+            push_body=notify_text[:200],
         )
 
     # Notifica @menções no comentário (leva pro post ao tocar na novidade).

@@ -1,7 +1,8 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core import typing_registry
+from app.core.uploads import save_upload_media
 from app.daos import comment as comment_dao
 from app.daos import group as group_dao
 from app.daos import message as message_dao
@@ -10,6 +11,7 @@ from app.daos import user as user_dao
 from app.models.message import Message
 from app.models.mute import MuteKind
 from app.models.user import User
+from app.schemas.attachment import AttachmentItem, MediaGalleryItem
 from app.schemas.message import (
     ConversationOut,
     MessageCreate,
@@ -21,10 +23,27 @@ from app.services import mutes as mute_service
 from app.services import push as push_service
 
 
+def upload_media(user: User, base_url: str, file: UploadFile) -> AttachmentItem:
+    url, media_type = save_upload_media(base_url, file, prefix=f"message_{user.id}")
+    return AttachmentItem(url=url, type=media_type)
+
+
+def list_media(db: Session, user: User, other_id: int) -> list[MediaGalleryItem]:
+    """Galeria de fotos/vídeos já trocados na conversa — usada pela tela de
+    info (ver components/MediaGalleryView.tsx no frontend)."""
+    messages = message_dao.get_media_thread(db, user.id, other_id)
+    return [
+        MediaGalleryItem(id=m.id, url=m.media_url, type=m.media_type, created_at=m.created_at)
+        for m in messages
+    ]
+
+
 def _preview_text(msg: Message) -> str:
     """Texto da prévia na lista de conversas/busca (mensagem só com post vira rótulo)."""
     if msg.content:
         return msg.content
+    if msg.media_url is not None:
+        return "🎥 Vídeo" if msg.media_type == "video" else "📷 Foto"
     if msg.shared_post_id is not None:
         title = getattr(msg.shared_post, "title", None)
         return f"📎 {title}" if title else "📎 Post compartilhado"
@@ -104,6 +123,7 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
     content = payload.content.strip()
     if (
         not content
+        and payload.media_url is None
         and payload.shared_post_id is None
         and payload.shared_comment_id is None
         and payload.shared_ad_id is None
@@ -139,6 +159,8 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         payload.reply_to_id,
         shared_comment_id=payload.shared_comment_id,
         shared_ad_id=payload.shared_ad_id,
+        media_url=payload.media_url,
+        media_type=payload.media_type.value if payload.media_type else None,
     )
     if receiver.notify_messages and not mute_service.get_dm_status(db, receiver, user.id).is_muted:
         push_service.notify_user(
