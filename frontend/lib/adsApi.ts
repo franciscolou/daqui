@@ -112,6 +112,7 @@ interface BackendAd {
   reposts_count: number;
   liked: boolean;
   reposted: boolean;
+  created_at: string;
 }
 
 export interface Ad {
@@ -136,6 +137,10 @@ export interface Ad {
   repostsCount: number;
   liked: boolean;
   reposted: boolean;
+  // Usado só pra ordenar posts de anúncio expirados dentro da timeline do
+  // perfil (ver user/[id].tsx e (tabs)/profile.tsx) — ausente em previews
+  // locais que nunca entram nessa lista (ver AdPreview.tsx::draftToAd).
+  createdAt?: string;
 }
 
 function mapAd(b: BackendAd): Ad {
@@ -157,6 +162,7 @@ function mapAd(b: BackendAd): Ad {
     repostsCount: b.reposts_count,
     liked: b.liked,
     reposted: b.reposted,
+    createdAt: b.created_at,
   };
 }
 
@@ -893,6 +899,19 @@ export const adsApi = {
     } catch {
       // fire-and-forget: uma falha aqui não deve travar a navegação do usuário
     }
+  },
+
+  // Posts de anúncios expirados vinculados a esta conta — o que
+  // user/[id].tsx e (tabs)/profile.tsx mesclam na timeline como post normal
+  // (a campanha já não impulsiona mais nada, ver AdPostCard `sponsored`).
+  async getLinkedPosts(userId: string, viewerUserId?: string): Promise<Ad[]> {
+    const qs = new URLSearchParams();
+    if (viewerUserId) qs.set('viewer_user_id', viewerUserId);
+    const query = qs.toString();
+    const r = await request<BackendAd[]>(
+      `/ads/linked-posts/${encodeURIComponent(userId)}${query ? `?${query}` : ''}`,
+    );
+    return r.map(mapAd);
   },
 
   // ── Engajamento estilo post (ver app/ad/[id].tsx) ─────────────────────

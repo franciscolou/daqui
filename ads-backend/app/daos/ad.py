@@ -124,6 +124,44 @@ def update_campaign(db: Session, campaign: AdCampaign, **fields) -> AdCampaign:
     return campaign
 
 
+def expire_due_campaigns(db: Session) -> int:
+    """Transiciona pra `EXPIRED` toda campanha `ACTIVE` cujo `ends_at` já
+    passou — sem isso o campo fica parado em `active` pra sempre (a
+    elegibilidade de entrega já excluía essas campanhas pela comparação de
+    data, mas o status persistido nunca refletia isso, ver dashboard do
+    anunciante). Chamada em loop pelo `lifespan` de `main.py`; `ends_at IS
+    NULL` (sem data de término) nunca expira sozinha."""
+    now = datetime.now(timezone.utc)
+    updated = (
+        db.query(AdCampaign)
+        .filter(
+            AdCampaign.status == AdCampaignStatus.ACTIVE,
+            AdCampaign.ends_at.is_not(None),
+            AdCampaign.ends_at < now,
+        )
+        .update({"status": AdCampaignStatus.EXPIRED}, synchronize_session=False)
+    )
+    db.commit()
+    return updated
+
+
+def list_expired_linked_campaigns(db: Session, user_id: int) -> list[AdCampaign]:
+    """Campanhas expiradas cujo criativo está vinculado a esta conta do
+    Daqui — é o que "assenta" como post normal no perfil do usuário (ver
+    services/ad.py::get_linked_posts_for_user)."""
+    return (
+        db.query(AdCampaign)
+        .join(AdCreative, AdCreative.campaign_id == AdCampaign.id)
+        .filter(
+            AdCampaign.status == AdCampaignStatus.EXPIRED,
+            AdCreative.linked_user_id == user_id,
+        )
+        .order_by(AdCampaign.created_at.desc())
+        .distinct()
+        .all()
+    )
+
+
 def _scope_cities(targeting: dict) -> set[str] | None:
     """Conjunto de cidades "cobertas" por um targeting, em minúsculas — só
     definido pra escopos que têm cidade conhecida (`citywide`/`cities`).

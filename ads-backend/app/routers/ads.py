@@ -47,6 +47,12 @@ router.get("/my-campaigns/exists", response_model=HasCampaignsOut)(
 router.get("/my-campaigns", response_model=GlobalAnalyticsOut)(
     ad.get_my_campaigns_analytics
 )
+# Posts de anúncios expirados vinculados a uma conta — perfil do app Daqui
+# (ver app/user/[id].tsx e (tabs)/profile.tsx). Rota estática de 2 segmentos,
+# não conflita com "/{campaign_id}" (1 segmento).
+router.get("/linked-posts/{user_id}", response_model=list[AdOut])(
+    ad.get_linked_posts
+)
 router.post("/{campaign_id}/click", status_code=204)(ad.track_click)
 # Engajamento estilo post num anúncio (curtir/repostar/comentar) — ver
 # tela app/ad/[id].tsx. Rotas dinâmicas "/{campaign_id}/..." coexistem com

@@ -23,12 +23,17 @@ export default function AdPostCard({
   ad,
   viewerId,
   viewerUserId,
+  sponsored = true,
 }: {
   ad: Ad;
   viewerId?: string;
   // Id real do usuário logado no Daqui (distinto do `viewerId` anônimo acima,
   // usado só pra impressão/clique) — necessário pra curtir/comentar/repostar.
   viewerUserId?: string;
+  // false quando a campanha já expirou e o post "assentou" na timeline do
+  // usuário vinculado (ver user/[id].tsx e (tabs)/profile.tsx) — não impulsiona
+  // mais nada, então some o aviso "Patrocinado", ficando como post normal.
+  sponsored?: boolean;
 }) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -116,8 +121,12 @@ export default function AdPostCard({
               <Text style={styles.authorUsername} numberOfLines={1}>@{linkedUser.username}</Text>
             )}
             {linkedUser.verified && <VerifiedBadge size={13} />}
-            <Text style={styles.dot}>·</Text>
-            <Text style={styles.sponsoredText}>{t('ads.sponsored')}</Text>
+            {sponsored && (
+              <>
+                <Text style={styles.dot}>·</Text>
+                <Text style={styles.sponsoredText}>{t('ads.sponsored')}</Text>
+              </>
+            )}
           </View>
         </View>
       ) : (

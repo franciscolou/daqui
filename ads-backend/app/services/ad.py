@@ -397,6 +397,19 @@ def handle_stripe_webhook(db: Session, payload: bytes, signature: str) -> None:
         _activate(db, campaign, session.get("id"))
 
 
+def _is_publicly_visible(campaign: AdCampaign) -> bool:
+    """Campanha não-expirada segue acessível como sempre. Expirada só
+    continua acessível (detalhe, curtir/comentar/repostar) se o post tiver
+    conta vinculada — aí ela "assenta" como post normal daquele usuário (ver
+    get_linked_posts_for_user). Sem vínculo, uma vez expirada ela só volta a
+    ficar visível/reativável no painel do próprio anunciante (por
+    access_token, que não passa por aqui — ver get_my_campaign)."""
+    if campaign.status != AdCampaignStatus.EXPIRED:
+        return True
+    creative = ad_dao.pick_creative(campaign, AdFormat.POST)
+    return bool(creative and creative.linked_user_id)
+
+
 def get_active_ad(db: Session, format: AdFormat, ctx: dict) -> AdOut | None:
     campaign = ad_dao.get_active_for_format(db, format, ctx)
     if not campaign:
@@ -447,6 +460,7 @@ def _to_ad_out(
         reposts_count=campaign.reposts_count,
         liked=liked,
         reposted=reposted,
+        created_at=campaign.created_at,
     )
 
 
@@ -454,7 +468,7 @@ def get_ad_detail(
     db: Session, campaign_id: int, creative_id: int | None, user_id: int | None
 ) -> AdOut:
     campaign = ad_dao.get_campaign(db, campaign_id)
-    if not campaign:
+    if not campaign or not _is_publicly_visible(campaign):
         raise HTTPException(status_code=404, detail="Anúncio não encontrado")
     creative = (
         ad_dao.get_creative(db, creative_id) if creative_id is not None else None
@@ -468,7 +482,7 @@ def get_ad_detail(
 
 def toggle_ad_like(db: Session, campaign_id: int, payload: AdEngagementIn) -> AdOut:
     campaign = ad_dao.get_campaign(db, campaign_id)
-    if not campaign:
+    if not campaign or not _is_publicly_visible(campaign):
         raise HTTPException(status_code=404, detail="Anúncio não encontrado")
     existing = ad_dao.get_like(db, campaign_id, payload.user_id)
     if existing:
@@ -484,7 +498,7 @@ def toggle_ad_like(db: Session, campaign_id: int, payload: AdEngagementIn) -> Ad
 
 def toggle_ad_repost(db: Session, campaign_id: int, payload: AdEngagementIn) -> AdOut:
     campaign = ad_dao.get_campaign(db, campaign_id)
-    if not campaign:
+    if not campaign or not _is_publicly_visible(campaign):
         raise HTTPException(status_code=404, detail="Anúncio não encontrado")
     existing = ad_dao.get_repost(db, campaign_id, payload.user_id)
     if existing:
@@ -499,6 +513,9 @@ def toggle_ad_repost(db: Session, campaign_id: int, payload: AdEngagementIn) -> 
 
 
 def list_ad_comments(db: Session, campaign_id: int) -> list[AdCommentOut]:
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    if not campaign or not _is_publicly_visible(campaign):
+        raise HTTPException(status_code=404, detail="Anúncio não encontrado")
     comments = ad_dao.list_comments(db, campaign_id)
     return [AdCommentOut.model_validate(c) for c in comments]
 
@@ -507,7 +524,7 @@ def create_ad_comment(
     db: Session, campaign_id: int, payload: AdCommentIn
 ) -> AdCommentOut:
     campaign = ad_dao.get_campaign(db, campaign_id)
-    if not campaign:
+    if not campaign or not _is_publicly_visible(campaign):
         raise HTTPException(status_code=404, detail="Anúncio não encontrado")
     comment = ad_dao.add_comment(db, campaign_id, payload.user_id, payload.content)
     campaign.comments_count += 1
@@ -531,6 +548,24 @@ def delete_ad_comment(
     db.commit()
 
 
+def get_linked_posts_for_user(
+    db: Session, user_id: int, viewer_user_id: int | None
+) -> list[AdOut]:
+    """Posts de anúncios expirados vinculados a esta conta — o que o
+    frontend mescla na timeline do perfil como post normal (sem tag
+    "Patrocinado", já que a campanha não impulsiona mais nada). Ver
+    _is_publicly_visible/pick_creative sobre por que só sobrevive quem tinha
+    o vínculo no criativo que efetivamente vira o "post"."""
+    campaigns = ad_dao.list_expired_linked_campaigns(db, user_id)
+    out = []
+    for campaign in campaigns:
+        creative = ad_dao.pick_creative(campaign, AdFormat.POST)
+        if not creative or creative.linked_user_id != user_id:
+            continue
+        out.append(_to_ad_out(db, campaign, creative, viewer_user_id))
+    return out
+
+
 def get_active_ad_list(
     db: Session, format: AdFormat, ctx: dict, exclude_ids: list[int], limit: int
 ) -> list[AdOut]:
@@ -545,7 +580,7 @@ def get_active_ad_list(
 
 def track_click(db: Session, campaign_id: int, payload: ClickIn | None) -> None:
     campaign = ad_dao.get_campaign(db, campaign_id)
-    if not campaign:
+    if not campaign or not _is_publicly_visible(campaign):
         return
     payload = payload or ClickIn()
     creative = None

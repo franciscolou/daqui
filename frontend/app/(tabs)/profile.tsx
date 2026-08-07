@@ -10,12 +10,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../../constants/Colors';
 import { Post, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
+import { Ad, adsApi } from '../../lib/adsApi';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import FeedLayout from '../../components/FeedLayout';
 import PostCard from '../../components/PostCard';
+import AdPostCard from '../../components/AdPostCard';
 import ProfileHeader from '../../components/ProfileHeader';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useT } from '../../lib/i18n';
@@ -30,6 +32,9 @@ export default function ProfileScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [myPosts, setMyPosts] = useState<Post[]>([]);
+  // Posts de campanhas de anúncio expiradas vinculadas à própria conta —
+  // deixam de ser impulsionadas e "assentam" na timeline como post normal.
+  const [linkedAds, setLinkedAds] = useState<Ad[]>([]);
   const scrollRef = useRef<ScrollView>(null);
 
   useRegisterScrollToTop('profile', () => {
@@ -40,12 +45,37 @@ export default function ProfileScreen() {
     useCallback(() => {
       if (!user) return;
       api.getUserPosts(user.id).then(setMyPosts).catch(() => setMyPosts([]));
+      adsApi.getLinkedPosts(user.id, user.id).then(setLinkedAds).catch(() => setLinkedAds([]));
     }, [user]),
   );
 
   const handlePostDeleted = useCallback((postId: string) => {
     setMyPosts((prev) => prev.filter((p) => p.id !== postId));
   }, []);
+
+  const timelineItems = useMemo(() => {
+    const items: { key: string; date: string; node: React.ReactNode }[] = [
+      ...myPosts.map((post) => ({
+        key: postListKey(post),
+        date: post.createdAt,
+        node: <PostCard key={postListKey(post)} post={post} onDeleted={handlePostDeleted} />,
+      })),
+      ...linkedAds.map((ad) => ({
+        key: `ad-${ad.id}`,
+        date: ad.createdAt ?? '',
+        node: (
+          <AdPostCard
+            key={`ad-${ad.id}`}
+            ad={ad}
+            viewerId={user?.id}
+            viewerUserId={user?.id}
+            sponsored={false}
+          />
+        ),
+      })),
+    ];
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [myPosts, linkedAds, user?.id, handlePostDeleted]);
 
   if (!user) return null;
 
@@ -69,13 +99,13 @@ export default function ProfileScreen() {
       {/* My posts — timeline */}
       <View style={styles.timelineSection}>
         <Text style={styles.timelineTitle}>{t('profile.myPosts')}</Text>
-        {myPosts.length === 0 ? (
+        {timelineItems.length === 0 ? (
           <View style={styles.noPosts}>
             <Ionicons name="document-text-outline" size={32} color={Colors.textTertiary} />
             <Text style={styles.noPostsText}>{t('profile.noOwnPosts')}</Text>
           </View>
         ) : (
-          myPosts.map((post) => <PostCard key={postListKey(post)} post={post} onDeleted={handlePostDeleted} />)
+          timelineItems.map((item) => item.node)
         )}
       </View>
 

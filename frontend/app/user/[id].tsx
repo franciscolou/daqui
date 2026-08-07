@@ -10,14 +10,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { Post, User, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
+import { Ad, adsApi } from '../../lib/adsApi';
 import { useAuth } from '../../lib/auth';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import PostCard from '../../components/PostCard';
+import AdPostCard from '../../components/AdPostCard';
 import FeedLayout from '../../components/FeedLayout';
 import ProfileHeader from '../../components/ProfileHeader';
 import ActionMenu from '../../components/ActionMenu';
@@ -35,6 +37,10 @@ export default function UserScreen() {
 
   const [user, setUser] = useState<User | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
+  // Posts de campanhas de anúncio expiradas vinculadas a esta conta — depois
+  // de expirar, deixam de ser impulsionadas e "assentam" na timeline como
+  // post normal (ver AdPostCard `sponsored={false}` abaixo).
+  const [linkedAds, setLinkedAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
@@ -45,22 +51,48 @@ export default function UserScreen() {
     setUserPosts((prev) => prev.filter((p) => p.id !== postId));
   }, []);
 
+  const timelineItems = useMemo(() => {
+    const items: { key: string; date: string; node: React.ReactNode }[] = [
+      ...userPosts.map((post) => ({
+        key: postListKey(post),
+        date: post.createdAt,
+        node: <PostCard key={postListKey(post)} post={post} onDeleted={handlePostDeleted} />,
+      })),
+      ...linkedAds.map((ad) => ({
+        key: `ad-${ad.id}`,
+        date: ad.createdAt ?? '',
+        node: (
+          <AdPostCard
+            key={`ad-${ad.id}`}
+            ad={ad}
+            viewerId={me?.id}
+            viewerUserId={me?.id}
+            sponsored={false}
+          />
+        ),
+      })),
+    ];
+    return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [userPosts, linkedAds, me?.id, handlePostDeleted]);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const [u, posts] = await Promise.all([
+      const [u, posts, ads] = await Promise.all([
         api.getUser(id),
         api.getUserPosts(id).catch(() => [] as Post[]),
+        adsApi.getLinkedPosts(id, me?.id).catch(() => [] as Ad[]),
       ]);
       setUser(u);
       setUserPosts(posts);
+      setLinkedAds(ads);
     } catch {
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, me?.id]);
 
   useEffect(() => {
     load();
@@ -152,13 +184,13 @@ export default function UserScreen() {
             <Text style={styles.timelineTitle}>
               {isMe ? t('profile.myPosts') : t('profile.posts')}
             </Text>
-            {userPosts.length === 0 ? (
+            {timelineItems.length === 0 ? (
               <View style={styles.noPosts}>
                 <Ionicons name="document-text-outline" size={32} color={Colors.textTertiary} />
                 <Text style={styles.noPostsText}>{t('profile.noPosts')}</Text>
               </View>
             ) : (
-              userPosts.map((post) => <PostCard key={postListKey(post)} post={post} onDeleted={handlePostDeleted} />)
+              timelineItems.map((item) => item.node)
             )}
           </View>
         </>

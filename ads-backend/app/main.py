@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,14 +7,37 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import UPLOAD_DIR
-from app.database import create_tables
+from app.daos import ad as ad_dao
+from app.database import SessionLocal, create_tables
 from app.routers import ads, audit_log, auth, geo, staff
+
+logger = logging.getLogger(__name__)
+
+EXPIRE_CAMPAIGNS_INTERVAL_SECONDS = 30
+
+
+async def _expire_campaigns_loop() -> None:
+    """Único "job" de expiração do serviço: roda em processo, sem depender
+    de infra externa (scheduler/cron/lambda) — troca por EventBridge+Lambda
+    (ou equivalente) chamando o mesmo `ad_dao.expire_due_campaigns` quando
+    for pra produção."""
+    while True:
+        db = SessionLocal()
+        try:
+            ad_dao.expire_due_campaigns(db)
+        except Exception:
+            logger.exception("Falha ao expirar campanhas vencidas")
+        finally:
+            db.close()
+        await asyncio.sleep(EXPIRE_CAMPAIGNS_INTERVAL_SECONDS)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
+    task = asyncio.create_task(_expire_campaigns_loop())
     yield
+    task.cancel()
 
 
 app = FastAPI(

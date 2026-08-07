@@ -492,6 +492,7 @@ class AdOut(BaseModel):
     reposts_count: int = 0
     liked: bool = False
     reposted: bool = False
+    created_at: datetime
 
 
 class ClickIn(BaseModel):

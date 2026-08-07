@@ -139,6 +139,16 @@ def get_active_ad_list(
     return ad_service.get_active_ad_list(db, format, ctx, _parse_ids(exclude_ids), limit)
 
 
+def get_linked_posts(
+    user_id: int,
+    viewer_user_id: int | None = Query(None),
+    db: Session = Depends(get_db),
+) -> list[AdOut]:
+    # Público — usado pelo perfil do app Daqui pra mesclar posts de anúncios
+    # expirados vinculados a esta conta (ver services::get_linked_posts_for_user).
+    return ad_service.get_linked_posts_for_user(db, user_id, viewer_user_id)
+
+
 def track_click(
     campaign_id: int,
     payload: ClickIn | None = Body(None),
