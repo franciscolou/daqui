@@ -400,6 +400,8 @@
     "members": "Members",
     "close": "Close",
     "add": "Add",
+    "searchUsername": "Search by @username",
+    "noUsersFound": "No users found.",
     "allNeighborsAdded": "All your neighbors are already in the group.",
     "youSuffix": " (you)",
     "owner": "Owner",

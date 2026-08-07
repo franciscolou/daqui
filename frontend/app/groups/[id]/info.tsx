@@ -46,6 +46,7 @@ export default function GroupInfoScreen() {
 
   const [busyId, setBusyId] = useState<string | null>(null); // membro em ação
   const [adding, setAdding] = useState(false); // painel de adicionar aberto
+  const [memberSearch, setMemberSearch] = useState('');
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarVisible, setAvatarVisible] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -134,6 +135,15 @@ export default function GroupInfoScreen() {
     [group],
   );
   const addable = neighbors.filter((u) => !memberIds.has(u.id));
+  const normalizedMemberSearch = memberSearch.trim().toLowerCase().replace(/^@/, '');
+  const visibleAddable = addable
+    .filter((u) => !normalizedMemberSearch || u.username.toLowerCase().includes(normalizedMemberSearch))
+    .slice(0, 5);
+
+  const toggleAdding = () => {
+    if (adding) setMemberSearch('');
+    setAdding(!adding);
+  };
 
   const addMember = async (userId: string) => {
     if (!group) return;
@@ -450,20 +460,39 @@ export default function GroupInfoScreen() {
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>{t('groupInfo.members')}</Text>
             {canManage && addable.length > 0 && (
-              <TouchableOpacity style={styles.addToggle} onPress={() => setAdding((a) => !a)}>
+              <Pressable
+                nativeID="group-add-members-toggle-no-hover"
+                tabIndex={-1}
+                style={styles.addToggle}
+                onPress={toggleAdding}
+              >
                 <Ionicons name={adding ? 'close' : 'person-add'} size={16} color={Colors.primary} />
                 <Text style={styles.addToggleText}>{t(adding ? 'groupInfo.close' : 'groupInfo.add')}</Text>
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
 
           {/* Painel de adicionar membros (vizinhos ainda não no grupo) */}
           {canManage && adding && (
             <View style={styles.addPanel}>
+              <View style={styles.memberSearchBar}>
+                <Ionicons name="search-outline" size={17} color={Colors.textTertiary} />
+                <TextInput
+                  style={styles.memberSearchInput}
+                  value={memberSearch}
+                  onChangeText={setMemberSearch}
+                  placeholder={t('groupInfo.searchUsername')}
+                  placeholderTextColor={Colors.textTertiary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
               {addable.length === 0 ? (
                 <Text style={styles.emptyDesc}>{t('groupInfo.allNeighborsAdded')}</Text>
+              ) : visibleAddable.length === 0 ? (
+                <Text style={styles.emptyDesc}>{t('groupInfo.noUsersFound')}</Text>
               ) : (
-                addable.map((u) => (
+                visibleAddable.map((u) => (
                   <View key={u.id} style={styles.memberRow}>
                     <Image source={{ uri: u.avatar }} style={styles.memberAvatar} />
                     <View style={styles.flex}>
@@ -818,6 +847,26 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     padding: 8,
     marginBottom: 8,
   },
+  memberSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 42,
+    margin: 4,
+    marginBottom: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 11,
+    backgroundColor: Colors.surface,
+  },
+  memberSearchInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    color: Colors.text,
+    outlineStyle: 'none',
+  } as any,
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',

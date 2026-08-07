@@ -140,6 +140,12 @@ if (typeof document !== 'undefined') {
           display: none !important;
         }
 
+        /* O botão que abre/fecha o seletor de membros do grupo não recebe a
+           película global; os botões individuais de adicionar continuam com hover. */
+        #group-add-members-toggle-no-hover::after {
+          display: none !important;
+        }
+
       }
     `;
     document.head.appendChild(style);

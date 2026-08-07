@@ -400,6 +400,8 @@
     "members": "Membros",
     "close": "Fechar",
     "add": "Adicionar",
+    "searchUsername": "Buscar por @username",
+    "noUsersFound": "Nenhum usuário encontrado.",
     "allNeighborsAdded": "Todos os seus vizinhos já estão no grupo.",
     "youSuffix": " (você)",
     "owner": "Dono",
