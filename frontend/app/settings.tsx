@@ -1063,7 +1063,11 @@ function LanguagePanel() {
           return (
             <TouchableOpacity
               key={opt.key}
-              style={[styles.settingRow, active && { backgroundColor: Colors.primaryFaint, borderRadius: 12 }]}
+              style={[
+                styles.settingRow,
+                styles.languageOption,
+                active && { backgroundColor: Colors.primaryFaint },
+              ]}
               activeOpacity={0.7}
               onPress={() => setPreference(opt.key)}
             >
@@ -1452,6 +1456,10 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   settingText: { flex: 1, minWidth: 0 },
   settingLabel: { fontSize: 15, fontWeight: '500', color: Colors.text },
   settingDesc: { fontSize: 13, color: Colors.textTertiary, marginTop: 2 },
+  languageOption: {
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
   linkIcon: {
     width: 36,
     height: 36,

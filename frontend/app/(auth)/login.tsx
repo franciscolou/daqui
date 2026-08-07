@@ -271,8 +271,8 @@ export default function LoginScreen() {
 
             <View style={styles.altRow}>
               <Text style={styles.altText}>{t('auth.login.noAccount')}</Text>
-              <TouchableOpacity onPress={() => router.replace('/(auth)/signup')}>
-                <Text style={styles.altLink}>{t('auth.login.signUpFree')}</Text>
+              <TouchableOpacity style={styles.altLinkBtn} onPress={() => router.replace('/(auth)/signup')}>
+                <Text style={styles.altLink}>{t('auth.login.signUpLink')}</Text>
               </TouchableOpacity>
             </View>
             </>
@@ -477,6 +477,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   altText: { fontSize: 14, color: Colors.textSecondary },
+  altLinkBtn: { borderRadius: 6, paddingHorizontal: 4, paddingVertical: 2, marginHorizontal: -4, marginVertical: -2 },
   altLink: { fontSize: 14, color: Colors.primaryDark, fontWeight: '700' },
 
   twoFaIntro: {

@@ -287,7 +287,7 @@ export default function SignupScreen() {
             {step === 0 && (
               <View style={styles.altRow}>
                 <Text style={styles.altText}>{t('auth.signup.haveAccount')}</Text>
-                <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
+                <TouchableOpacity style={styles.altLinkBtn} onPress={() => router.replace('/(auth)/login')}>
                   <Text style={styles.altLink}>{t('auth.signup.signIn')}</Text>
                 </TouchableOpacity>
               </View>
@@ -522,5 +522,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   altText: { fontSize: 14, color: Colors.textSecondary },
+  altLinkBtn: { borderRadius: 6, paddingHorizontal: 4, paddingVertical: 2, marginHorizontal: -4, marginVertical: -2 },
   altLink: { fontSize: 14, color: Colors.primaryDark, fontWeight: '700' },
 });

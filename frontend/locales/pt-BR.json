@@ -55,15 +55,15 @@
   "auth": {
     "emailPlaceholder": "seu@email.com",
     "features": {
-      "connect": "Conecte-se com vizinhos",
+      "connect": "Conecte-se com quem está por perto",
       "stayUpdated": "Fique por dentro do bairro",
       "grow": "Amplie seu negócio"
     },
-    "headline": "O seu bairro na palma da mão",
+    "headline": "Seu mundo, mais perto de você do que nunca.",
     "subline": "Entre numa rede de vizinhos que se ajudam, compartilham e cuidam do bairro juntos.",
-    "artHeadlinePrefix": "Seu bairro ",
-    "artHeadlineAccent": "ganha vida.",
-    "artSubline": "Descubra um novo horizonte para a vivência em comunidade e acompanhe as notícias das redondezas em tempo real.",
+    "artHeadlinePrefix": "A nova era da ",
+    "artHeadlineAccent": "proximidade.",
+    "artSubline": "Redescubra a vivência em comunidade e acompanhe as notícias das redondezas em tempo real.",
     "neighborsCount": "{{count}} vizinhos",
     "neighborsNearYou": "vizinhos perto de você",
     "communityGrowing": "Comunidade em crescimento",
@@ -103,7 +103,7 @@
       "signIn": "Entrar",
       "orContinueWith": "ou continue com",
       "noAccount": "Não tem conta? ",
-      "signUpFree": "Cadastre-se grátis",
+      "signUpLink": "Cadastre-se",
       "backToLogin": "Voltar ao login",
       "twoFaCodeHintApp": "Digite o código de 6 dígitos gerado pelo seu app autenticador (Google Authenticator, Authy, etc.).",
       "twoFaCodeHintEmail": "Digite o código de 6 dígitos que enviamos por e-mail. Ele vale por 10 minutos.",
@@ -1359,7 +1359,9 @@
     "startedFollowing": " começou a seguir você",
     "welcomeBefore": "Bem-vindo(a) ao Daqui! Antes de começar, confira a seção ",
     "welcomeHighlight": "Ajuda e suporte",
-    "welcomeAfter": " pra aprender a usar o app."
+    "welcomeAfter": " pra aprender a usar o app.",
+    "postRemovedText": "Seu post foi removido pela moderação por não seguir as diretrizes da comunidade.",
+    "commentRemovedText": "Seu comentário foi removido pela moderação por não seguir as diretrizes da comunidade."
   },
   "search": {
     "filterAll": "Tudo",

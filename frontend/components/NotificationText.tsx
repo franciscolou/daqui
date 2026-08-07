@@ -15,6 +15,8 @@ function truncate(value: string, max = 70): string {
  *  - [Usuário] curtiu seu comentário "[Texto do comentário]"
  *  - [Usuário] começou a seguir você
  *  - [Usuário] comentou: "[Texto do comentário]"
+ *  - Seu post/comentário foi removido pela moderação... (post_removed/comment_removed,
+ *    texto fixo por i18n, ignora n.content — mesmo padrão do welcome)
  * Curtida de post com mais de 3 curtidores mescla numa só notificação
  * (n.groupCount/n.extraActor, ver services/post.py::_notify_like no backend):
  *  - [Usuário1], [Usuário2] e outra(s) X pessoa(s) curtiram seu post
@@ -48,6 +50,10 @@ export function notificationParts(n: AppNotification, boldStyle: StyleProp<TextS
       return <>{actor}{t('notifications.startedFollowing')}</>;
     case 'welcome':
       return <>{t('notifications.welcomeBefore')}<Text style={boldStyle}>{t('notifications.welcomeHighlight')}</Text>{t('notifications.welcomeAfter')}</>;
+    case 'post_removed':
+      return <>{t('notifications.postRemovedText')}</>;
+    case 'comment_removed':
+      return <>{t('notifications.commentRemovedText')}</>;
     default:
       return <>{n.content}</>;
   }

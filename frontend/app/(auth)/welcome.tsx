@@ -625,8 +625,8 @@ export default function WelcomeScreen() {
 
       <View style={styles.switchRow}>
         <Text style={styles.switchText}>{t('auth.login.noAccount')}</Text>
-        <TouchableOpacity onPress={() => goTo('signup')}>
-          <Text style={styles.switchLink}>{t('auth.login.signUpFree')}</Text>
+        <TouchableOpacity style={styles.switchLinkBtn} onPress={() => goTo('signup')}>
+          <Text style={styles.switchLink}>{t('auth.login.signUpLink')}</Text>
         </TouchableOpacity>
       </View>
       </>
@@ -800,7 +800,7 @@ export default function WelcomeScreen() {
       {step === 0 && (
         <View style={[styles.switchRow, isCompactDesktop && styles.switchRowCompact]}>
           <Text style={styles.switchText}>{t('auth.signup.haveAccount')}</Text>
-          <TouchableOpacity onPress={() => goTo('login')}>
+          <TouchableOpacity style={styles.switchLinkBtn} onPress={() => goTo('login')}>
             <Text style={styles.switchLink}>{t('auth.signup.signIn')}</Text>
           </TouchableOpacity>
         </View>
@@ -864,7 +864,7 @@ export default function WelcomeScreen() {
               <Text style={styles.clusterBadgeText}>
                 {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
                   ? t('auth.neighborsCount', { count: communityStats.totalUsers.toLocaleString(numberLocale) })
-                  : t('auth.communityGrowing')}
+                  : t('auth.communityGrowingCta')}
               </Text>
             </View>
           </Animated.View>
@@ -1173,6 +1173,7 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
   switchRowCompact: { marginTop: 12 },
   switchText: { fontSize: 14, color: FORM_TEXT_SECONDARY },
+  switchLinkBtn: { borderRadius: 6, paddingHorizontal: 4, paddingVertical: 2, marginHorizontal: -4, marginVertical: -2 },
   switchLink: { fontSize: 14, color: FORM_ACCENT, fontWeight: '700' },
 
   // Signup steps
