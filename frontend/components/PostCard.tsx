@@ -272,12 +272,6 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
           >
             <Ionicons name="arrow-redo-outline" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
-
-          <View style={{ flex: 1 }} />
-
-          <TouchableOpacity style={styles.actionBtn}>
-            <Ionicons name="bookmark-outline" size={18} color={Colors.textTertiary} />
-          </TouchableOpacity>
         </View>
       </View>
       </View>
