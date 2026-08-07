@@ -76,6 +76,18 @@ export function formatHoverTime(iso: string): string {
   }).format(d);
 }
 
+/** Notificações: "agora", "5m atrás", "3h atrás", "2d atrás", ou data por extenso após 1 semana. */
+export function formatNotificationTime(iso: string): string {
+  const min = Math.floor(secondsSince(parseDate(iso)) / 60);
+  if (min < 1) return word('agora', 'now');
+  if (min < 60) return word(`${min}m atrás`, `${min}m ago`);
+  const h = Math.floor(min / 60);
+  if (h < 24) return word(`${h}h atrás`, `${h}h ago`);
+  const days = Math.floor(h / 24);
+  if (days < 7) return word(`${days}d atrás`, `${days}d ago`);
+  return parseDate(iso).toLocaleDateString(locale());
+}
+
 /** Mensagens: "agora" (<1min) ou hora exata "12:43". */
 export function formatMessageTime(iso: string): string {
   const d = parseDate(iso);

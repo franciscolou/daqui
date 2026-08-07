@@ -680,20 +680,6 @@ export interface AppNotification {
 // ─────────────────────────────────────────────────────────────
 const FALLBACK_AVATAR = 'https://i.pravatar.cc/150?img=12';
 
-export function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  const diff = Math.max(0, Date.now() - then);
-  const min = Math.floor(diff / 60000);
-  const english = activeLocale().startsWith('en');
-  if (min < 1) return english ? 'now' : 'agora';
-  if (min < 60) return english ? `${min}m ago` : `${min}m atrás`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return english ? `${h}h ago` : `${h}h atrás`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return english ? `${d}d ago` : `${d}d atrás`;
-  return new Date(iso).toLocaleDateString(activeLocale());
-}
-
 export function mapUser(u: BackendUser): User {
   return {
     id: String(u.id),
@@ -942,7 +928,7 @@ function mapNotification(n: BackendNotification): AppNotification {
     type: n.type,
     content: n.content,
     targetText: n.target_text ?? undefined,
-    time: relativeTime(n.created_at),
+    time: n.created_at, // ISO — formatado na renderização (lib/time)
     read: n.read,
     postId: n.post_id != null ? String(n.post_id) : undefined,
     actor: n.actor ? mapUser(n.actor) : undefined,

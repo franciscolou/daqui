@@ -25,6 +25,7 @@ import { useRealtime } from '../../lib/realtime';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
+import { formatNotificationTime } from '../../lib/time';
 import FeedLayout from '../../components/FeedLayout';
 import MobileMenu from '../../components/MobileMenu';
 
@@ -63,6 +64,13 @@ export default function NotificationsScreen() {
     getOrCreateAdViewerId().then(setAdViewerId);
   }, []);
 
+  // Reconta "5m atrás" etc. em tempo real enquanto a tela fica aberta, sem refetch.
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => tick((v) => v + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       adsApi
@@ -90,8 +98,12 @@ export default function NotificationsScreen() {
     return [adNotification, ...notifications];
   }, [notifications, ad, t]);
 
-  // Recarrega ao vivo quando o servidor avisa (via websocket) que chegou algo novo.
-  useEffect(() => subscribeNotifications(load), [subscribeNotifications, load]);
+  // Recarrega ao vivo quando o servidor avisa (via websocket) que chegou algo novo —
+  // só enquanto a tela está em foco: o navigator mantém esta tela montada em segundo
+  // plano depois da primeira visita, e um useEffect comum aqui dispararia load() (que
+  // marca como lida) por notificações que chegaram sem o usuário ter entrado na aba,
+  // fazendo o indicador da barra sumir cedo demais.
+  useFocusEffect(useCallback(() => subscribeNotifications(load), [subscribeNotifications, load]));
 
   useRegisterScrollToTop('notifications', () => {
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
@@ -175,7 +187,9 @@ export default function NotificationsScreen() {
                 <Text style={[styles.notifText, !item.read && styles.notifTextUnread]}>
                   {notificationParts(item, styles.notifBold, t)}
                 </Text>
-                <Text style={styles.notifTime}>{item.time}</Text>
+                <Text style={styles.notifTime}>
+                  {item.type === 'ad' ? item.time : formatNotificationTime(item.time)}
+                </Text>
               </View>
               {!item.read && <View style={styles.unreadDot} />}
             </TouchableOpacity>
