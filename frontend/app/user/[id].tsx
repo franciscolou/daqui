@@ -101,12 +101,12 @@ export default function UserScreen() {
           !user.locked ? (
             isMe ? (
               <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnPrimary]}
+                style={[styles.actionBtn, styles.actionBtnEdit]}
                 onPress={() => router.push('/settings' as any)}
                 activeOpacity={0.85}
               >
-                <Ionicons name="settings-outline" size={16} color="#fff" />
-                <Text style={styles.actionBtnPrimaryText}>{t('profile.edit')}</Text>
+                <Ionicons name="settings-outline" size={16} color={Colors.text} />
+                <Text style={styles.actionBtnEditText}>{t('profile.edit')}</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
@@ -229,6 +229,12 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   actionBtnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  actionBtnEdit: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  actionBtnEditText: { color: Colors.text, fontWeight: '700', fontSize: 15 },
 
 
   timelineSection: {
