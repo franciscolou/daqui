@@ -650,7 +650,14 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: Colors.border,
   },
-  detailCol: { width: DETAIL_W, flexShrink: 1, minWidth: 0, backgroundColor: Colors.background },
+  detailCol: {
+    width: DETAIL_W,
+    flexShrink: 1,
+    minWidth: 0,
+    backgroundColor: Colors.background,
+    borderRightWidth: 1,
+    borderRightColor: Colors.border,
+  },
   mobileBody: { flex: 1, backgroundColor: Colors.surface },
 
   // Cabeçalho da lista
