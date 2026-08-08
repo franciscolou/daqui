@@ -137,6 +137,13 @@ def change_password(
     auth.change_password(db, current_user, payload)
 
 
+def logout(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    auth.logout(db, current_user)
+
+
 def list_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

@@ -443,6 +443,21 @@ def list_sessions(db: Session, user: User) -> list[SessionOut]:
     ]
 
 
+def logout(db: Session, user: User) -> None:
+    """Revoga a sessão atual (o token usado nesta chamada) ao sair do app.
+
+    Sem isso, todo logout deixava a sessão como "ativa" para sempre em
+    "Dispositivos conectados" — só desaparecia se o usuário a desconectasse
+    manualmente ali, o que ninguém faz no fluxo normal de sair/entrar de novo.
+    """
+    session_id = getattr(user, "current_session_id", None)
+    if session_id is None:
+        return
+    session = session_dao.get_by_id(db, session_id)
+    if session and session.revoked_at is None:
+        session_dao.revoke(db, session)
+
+
 def revoke_session(db: Session, user: User, session_id: int) -> None:
     session = session_dao.get_by_id(db, session_id)
     if not session or session.user_id != user.id or session.revoked_at is not None:

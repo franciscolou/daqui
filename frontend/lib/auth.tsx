@@ -161,6 +161,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await unregisterPushToken();
+    try {
+      await api.logout();
+    } catch {
+      // Best-effort: se o token já expirou ou a rede falhou, ainda assim
+      // seguimos com o logout local — a sessão vai parar de aparecer como
+      // ativa sozinha quando o token expirar (ver list_active_for_user).
+    }
     await setToken(null);
     setUser(null);
   }, []);

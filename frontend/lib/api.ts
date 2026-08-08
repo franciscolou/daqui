@@ -1147,6 +1147,10 @@ export const api = {
     });
   },
 
+  async logout(): Promise<void> {
+    await request<void>('/auth/logout', { method: 'POST' });
+  },
+
   async getSessions(): Promise<UserSession[]> {
     const r = await request<BackendSession[]>('/auth/sessions');
     return r.map(mapSession);

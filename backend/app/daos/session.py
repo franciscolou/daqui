@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.session import UserSession
 
 
@@ -36,9 +37,18 @@ def get_by_id(db: Session, session_id: int) -> UserSession | None:
 
 
 def list_active_for_user(db: Session, user_id: int) -> list[UserSession]:
+    # "Ativa" também exige o token ainda não ter expirado — sem isso, sessões
+    # de logins antigos (nunca desconectadas manualmente nem revogadas por
+    # logout, ver auth.logout) ficam listadas para sempre em "Dispositivos
+    # conectados" mesmo depois que o JWT em si já parou de funcionar.
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return (
         db.query(UserSession)
-        .filter(UserSession.user_id == user_id, UserSession.revoked_at.is_(None))
+        .filter(
+            UserSession.user_id == user_id,
+            UserSession.revoked_at.is_(None),
+            UserSession.created_at >= cutoff,
+        )
         .order_by(UserSession.created_at.desc())
         .all()
     )
