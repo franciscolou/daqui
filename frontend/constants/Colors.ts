@@ -44,8 +44,8 @@ export const lightColors = {
   background: '#F8FAFC',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  border: '#E2E8F0',
-  borderLight: '#F1F5F9',
+  border: '#CBD5E1',
+  borderLight: '#DCE3EC',
 
   // Destaque de alerta/urgente (pastéis no claro, tingido no escuro)
   dangerSurface: '#FFF1F0',
