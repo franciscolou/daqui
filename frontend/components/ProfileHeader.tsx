@@ -77,9 +77,7 @@ export default function ProfileHeader({
                 <TouchableOpacity style={styles.iconBtn} onPress={onBack} hitSlop={6}>
                   <Ionicons name="chevron-back" size={20} color="#fff" />
                 </TouchableOpacity>
-              ) : (
-                <View style={styles.iconBtn} />
-              )}
+              ) : null}
               <View style={styles.topActions}>
                 {!!onSearchChange && (
                   <TouchableOpacity
@@ -214,7 +212,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 'auto' },
   iconBtn: {
     width: 36,
     height: 36,
