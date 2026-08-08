@@ -1249,7 +1249,12 @@
     "appearance": {
       "theme": "Tema",
       "darkMode": "Modo escuro",
-      "darkModeDesc": "Reduz o brilho em ambientes com pouca luz"
+      "darkModeDesc": "Reduz o brilho em ambientes com pouca luz",
+      "mapTheme": "Aparência do mapa",
+      "mapThemeDesc": "Escolha a aparência do mapa independentemente do restante do app",
+      "mapFollowApp": "Acompanhar tema do app",
+      "mapLight": "Mapa claro",
+      "mapDark": "Mapa escuro"
     },
     "changeNeighborhood": {
       "title": "Alterar bairro de moradia",

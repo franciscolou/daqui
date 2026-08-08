@@ -18,8 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
-import { BRAND_FONT } from '../../constants/BrandFont';
-import { useTheme, useThemedStyles } from '../../lib/theme';
+import { useTheme, useThemeMode, useThemedStyles } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
 import { CATEGORIES, PostCategory, Post, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
@@ -36,6 +35,7 @@ import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
 import MobileMenu from '../../components/MobileMenu';
 import HomeNeighborhoodSetup from '../../components/HomeNeighborhoodSetup';
+import DaquiMark from '../../components/DaquiMark';
 
 type FilterKey = 'todos' | PostCategory;
 type ViewMode = 'meu' | 'perto';
@@ -56,6 +56,7 @@ export default function FeedScreen() {
   const isWide = width >= WIDE;
   const { user } = useAuth();
   const Colors = useTheme();
+  const { mode } = useThemeMode();
   const styles = useThemedStyles(makeStyles);
   const { view: requestedView } = useLocalSearchParams<{ view?: string }>();
 
@@ -652,7 +653,9 @@ export default function FeedScreen() {
       ) : (
         <View style={styles.mobileBody}>
           <View style={styles.mobileTopBar}>
-            <Text style={styles.mobileBrand}>daqui</Text>
+            <View accessible accessibilityRole="image" accessibilityLabel="Daqui" style={styles.mobileLogo}>
+              <DaquiMark size={28} color={mode === 'dark' ? '#FFFFFF' : Colors.primaryDark} />
+            </View>
             <MobileMenu
               inline
               activeCategory={activeCategory}
@@ -719,13 +722,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
-  mobileBrand: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: Colors.primaryDark,
-    letterSpacing: -0.5,
-    fontFamily: BRAND_FONT,
-  },
+  mobileLogo: { height: 28, justifyContent: 'center' },
 
   /* ── Feed header pieces ── */
   composeBox: {

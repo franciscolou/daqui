@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { useThemeMode } from '../lib/theme';
 import {
   buildLeafletHtml,
   LeafletHtmlOptions,
@@ -26,9 +27,14 @@ export default function LeafletMap({
   style,
   ...options
 }: LeafletMapProps) {
+  const { mode, mapMode } = useThemeMode();
+  const appearance = mapMode === 'system' ? mode : mapMode;
   const webviewRef = useRef<WebView>(null);
   // `markers` NÃO entra nas deps do html — ver comentário abaixo do useMemo.
-  const html = useMemo(() => buildLeafletHtml(options), [
+  // As opções abaixo são enumeradas de propósito: mudanças nos pins usam a
+  // ponte JS e não podem recriar o WebView (isso perderia pan e zoom).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const html = useMemo(() => buildLeafletHtml({ ...options, appearance }), [
     options.center.latitude,
     options.center.longitude,
     options.zoom,
@@ -37,6 +43,7 @@ export default function LeafletMap({
     options.pickable,
     options.pickedLocation?.latitude,
     options.pickedLocation?.longitude,
+    appearance,
   ]);
 
   // Atualiza os pins sem recarregar o WebView (ver SET_MARKERS_MESSAGE_TYPE em
@@ -59,6 +66,7 @@ export default function LeafletMap({
   return (
     <WebView
       ref={webviewRef}
+      androidLayerType="hardware"
       originWhitelist={['*']}
       source={{ html }}
       style={style}

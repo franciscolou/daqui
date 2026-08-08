@@ -11,16 +11,20 @@ import { darkColors, lightColors, Palette } from '../constants/Colors';
 import { getItem, setItem } from './storage';
 
 type Mode = 'light' | 'dark';
+export type MapMode = 'system' | 'light' | 'dark';
 
 interface ThemeState {
   mode: Mode;
   colors: Palette;
   toggle: () => void;
   setMode: (mode: Mode) => void;
+  mapMode: MapMode;
+  setMapMode: (mode: MapMode) => void;
 }
 
 const ThemeContext = createContext<ThemeState | null>(null);
 const THEME_KEY = 'daqui.theme';
+const MAP_THEME_KEY = 'daqui.mapTheme';
 
 function hexToRgba(hex: string, alpha: number): string {
   const clean = hex.replace('#', '');
@@ -34,11 +38,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<Mode>(
     Appearance.getColorScheme() === 'dark' ? 'dark' : 'light',
   );
+  const [mapMode, setMapModeState] = useState<MapMode>('system');
 
   // Restaura a preferência salva
   useEffect(() => {
     getItem(THEME_KEY).then((v) => {
       if (v === 'light' || v === 'dark') setModeState(v);
+    });
+    getItem(MAP_THEME_KEY).then((v) => {
+      if (v === 'system' || v === 'light' || v === 'dark') setMapModeState(v);
     });
   }, []);
 
@@ -53,6 +61,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setItem(THEME_KEY, next).catch(() => {});
       return next;
     });
+  }, []);
+
+  const setMapMode = useCallback((next: MapMode) => {
+    setMapModeState(next);
+    setItem(MAP_THEME_KEY, next).catch(() => {});
   }, []);
 
   const colors = mode === 'dark' ? darkColors : lightColors;
@@ -70,8 +83,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [colors, mode]);
 
   const value = useMemo<ThemeState>(
-    () => ({ mode, colors, toggle, setMode }),
-    [mode, colors, toggle, setMode],
+    () => ({ mode, colors, toggle, setMode, mapMode, setMapMode }),
+    [mode, colors, toggle, setMode, mapMode, setMapMode],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

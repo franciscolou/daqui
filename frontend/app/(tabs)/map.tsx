@@ -107,12 +107,14 @@ export default function MapScreen() {
       .catch(() => setAdCandidates([]));
   }, [user?.city, user?.interactionsCount, adViewerId]);
 
+  const userLatitude = user?.latitude;
+  const userLongitude = user?.longitude;
   const userCoords = useMemo(() => {
-    if (user?.latitude != null && user?.longitude != null) {
-      return { latitude: user.latitude, longitude: user.longitude };
+    if (userLatitude != null && userLongitude != null) {
+      return { latitude: userLatitude, longitude: userLongitude };
     }
     return null;
-  }, [user?.latitude, user?.longitude]);
+  }, [userLatitude, userLongitude]);
 
   // Só posts com coordenadas viram pins (os sem local não aparecem).
   const located = useMemo(
@@ -233,45 +235,44 @@ export default function MapScreen() {
 
         {/* Map area */}
         <View style={styles.mapWrapper}>
-          {loading ? (
+          <LeafletMap
+            center={center}
+            zoom={focusCoords ? 17 : 15}
+            markers={markers}
+            focusId={params.focus}
+            onBoundsChange={handleBoundsChange}
+            onSelectMarker={(id) => {
+              const clickedAd = adsInBounds.find((a) => `ad-${a.id}` === id);
+              if (clickedAd) {
+                adsApi.trackAdClick(clickedAd.id, {
+                  viewerId: adViewerId,
+                  creativeId: clickedAd.creativeId,
+                  format: 'map',
+                });
+                Linking.openURL(clickedAd.targetUrl);
+                return;
+              }
+              router.push(`/post/${id}` as any);
+            }}
+            style={styles.map}
+          />
+          {loading && (
             <View style={styles.mapLoading}>
               <ActivityIndicator color={Colors.primary} size="large" />
             </View>
-          ) : (
-            <LeafletMap
-              center={center}
-              zoom={focusCoords ? 17 : 15}
-              markers={markers}
-              focusId={params.focus}
-              onBoundsChange={handleBoundsChange}
-              onSelectMarker={(id) => {
-                const clickedAd = adsInBounds.find((a) => `ad-${a.id}` === id);
-                if (clickedAd) {
-                  adsApi.trackAdClick(clickedAd.id, {
-                    viewerId: adViewerId,
-                    creativeId: clickedAd.creativeId,
-                    format: 'map',
-                  });
-                  Linking.openURL(clickedAd.targetUrl);
-                  return;
-                }
-                router.push(`/post/${id}` as any);
-              }}
-              style={styles.map}
-            />
           )}
         </View>
 
         {/* Legend */}
         <View style={styles.legend}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.legendRow}>
+          <View style={styles.legendRow}>
             {(Object.entries(Colors.category) as [PostCategory, string][]).map(([key, color]) => (
               <View key={key} style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: color }]} />
                 <Text style={styles.legendText}>{t(`categories.${key}`)}</Text>
               </View>
             ))}
-          </ScrollView>
+          </View>
         </View>
 
         {/* Nearby section */}
@@ -382,9 +383,25 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     ...Colors.shadow.md,
   },
   map: { flex: 1, width: '100%', height: '100%' },
-  mapLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  mapLoading: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surface + 'A3',
+    pointerEvents: 'none',
+  },
   legend: { paddingVertical: 4 },
-  legendRow: { paddingHorizontal: 16, gap: 12 },
+  legendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    columnGap: 12,
+    rowGap: 8,
+  },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   legendDot: { width: 10, height: 10, borderRadius: 3 },
   legendText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },

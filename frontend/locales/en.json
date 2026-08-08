@@ -1595,7 +1595,12 @@
     "appearance": {
       "theme": "Theme",
       "darkMode": "Dark mode",
-      "darkModeDesc": "Reduces brightness in low-light environments"
+      "darkModeDesc": "Reduces brightness in low-light environments",
+      "mapTheme": "Map appearance",
+      "mapThemeDesc": "Choose the map appearance independently from the rest of the app",
+      "mapFollowApp": "Follow app theme",
+      "mapLight": "Light map",
+      "mapDark": "Dark map"
     },
     "changeNeighborhood": {
       "title": "Change home neighborhood",

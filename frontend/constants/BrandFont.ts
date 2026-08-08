@@ -1,49 +1,24 @@
 /**
- * Fonte-marca (wordmark) do Daqui.
+ * Fonte-marca (wordmark) do Daqui: Bricolage Grotesque — grotesca
+ * contemporânea, com caráter e um toque "design atual" (escolhida entre 5
+ * candidatas testadas para um app de bairro acolhedor/comunitário).
  *
- * COMO TESTAR: troque SOMENTE a constante `SELECTED` abaixo por uma das chaves
- * e recarregue a web. As 5 fontes candidatas são carregadas em runtime logo
- * abaixo (o SPA do Expo ignora `app/+html.tsx`, então injetamos via JS).
- *
- * MODO PREVIEW: enquanto escolhemos a fonte, ela é aplicada como fonte padrão
- * de TODO `<Text>` do app (ver patch no fim do arquivo), para você ver como
- * ficaria no sistema inteiro — não só no wordmark. Quando você decidir, me
- * avise a escolhida que eu removo as outras, tiro o patch global e deixo a
- * fonte só onde fizer sentido.
- *
- * As opções (pensadas para um app de bairro — acolhedor, comunitário, brasileiro):
- *  - poppins   → geométrica, moderna e limpa. Aposta segura.
- *  - baloo     → arredondada e "gordinha", bem cara de logo, brincalhona e calorosa.
- *  - nunito    → humanista arredondada, amigável e muito legível.
- *  - fraunces  → serifada com personalidade, dá um ar editorial/icônico.
- *  - bricolage → grotesca contemporânea, com caráter e um toque "design atual".
+ * MODO PREVIEW: aplicada como fonte padrão de TODO `<Text>` do app (ver patch
+ * no fim do arquivo), não só no wordmark.
  */
 import { Text as RNText } from 'react-native';
 
-export type BrandFontKey = 'poppins' | 'baloo' | 'nunito' | 'fraunces' | 'bricolage';
-
-// 👇 TROQUE AQUI para pré-visualizar cada fonte
-const SELECTED: BrandFontKey = 'bricolage';
-
-const FAMILIES: Record<BrandFontKey, string> = {
-  poppins: '"Poppins", system-ui, sans-serif',
-  baloo: '"Baloo 2", system-ui, sans-serif',
-  nunito: '"Nunito", system-ui, sans-serif',
-  fraunces: '"Fraunces", Georgia, serif',
-  bricolage: '"Bricolage Grotesque", system-ui, sans-serif',
-};
-
 /** fontFamily pronto para usar em styles do wordmark. */
-export const BRAND_FONT = FAMILIES[SELECTED];
+export const BRAND_FONT = '"Bricolage Grotesque", system-ui, sans-serif';
 
-// ── Carregamento das fontes na web ─────────────────────────────────────────
+// ── Carregamento da fonte na web ────────────────────────────────────────────
 // `document` só existe na web; no nativo (RN) isto é ignorado.
-// Inclui o peso 400 (regular) em todas as famílias — sem ele, o navegador
-// substitui qualquer <Text> sem fontWeight explícito (ou seja, a maioria do
-// corpo de texto do app) pela face mais pesada disponível (600+), deixando
-// tudo com aparência de negrito mesmo onde o CSS não pede isso.
+// Inclui o peso 400 (regular) — sem ele, o navegador substitui qualquer
+// <Text> sem fontWeight explícito (ou seja, a maioria do corpo de texto do
+// app) pela face mais pesada disponível (600+), deixando tudo com aparência
+// de negrito mesmo onde o CSS não pede isso.
 const GOOGLE_FONTS_HREF =
-  'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;600;700;800;900&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&display=swap';
+  'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&display=swap';
 
 if (typeof document !== 'undefined') {
   let link = document.getElementById('daqui-brand-fonts') as HTMLLinkElement | null;

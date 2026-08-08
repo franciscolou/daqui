@@ -8,6 +8,7 @@ import {
   SET_MARKERS_MESSAGE_TYPE,
 } from './leafletHtml';
 import { useT } from '../lib/i18n';
+import { useThemeMode } from '../lib/theme';
 
 export interface LeafletMapProps extends LeafletHtmlOptions {
   onSelectMarker?: (id: string) => void;
@@ -19,7 +20,8 @@ export interface LeafletMapProps extends LeafletHtmlOptions {
   style?: StyleProp<ViewStyle>;
 }
 
-// Web: renderiza o mapa Leaflet dentro de um <iframe srcDoc> (mesmo HTML do nativo).
+// Web: renderiza o mapa Leaflet dentro de um <iframe> (mesmo HTML do nativo),
+// servido via Blob URL (ver comentário abaixo do useMemo de `htmlBlobUrl`).
 export default function LeafletMap({
   onSelectMarker,
   onPick,
@@ -28,9 +30,14 @@ export default function LeafletMap({
   ...options
 }: LeafletMapProps) {
   const { t } = useT();
+  const { mode, mapMode } = useThemeMode();
+  const appearance = mapMode === 'system' ? mode : mapMode;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // `markers` NÃO entra nas deps do html — ver comentário abaixo do useMemo.
-  const html = useMemo(() => buildLeafletHtml(options), [
+  // As opções abaixo são enumeradas de propósito: mudanças nos pins usam a
+  // ponte JS e não podem recriar o iframe (isso perderia pan e zoom).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const html = useMemo(() => buildLeafletHtml({ ...options, appearance }), [
     options.center.latitude,
     options.center.longitude,
     options.zoom,
@@ -39,7 +46,21 @@ export default function LeafletMap({
     options.pickable,
     options.pickedLocation?.latitude,
     options.pickedLocation?.longitude,
+    appearance,
   ]);
+
+  // O documento de um iframe `srcDoc` tem URL "about:srcdoc" (origin "null")
+  // — o worker do MapLibre usa essa URL ao se registrar e, com ela, nunca
+  // mais responde a nenhuma mensagem (nem carregamento de tile), deixando o
+  // mapa "carregando" pra sempre. Servir o mesmo HTML via Blob URL dá ao
+  // iframe uma URL de verdade (mesma origem) e resolve isso.
+  const htmlBlobUrl = useMemo(() => {
+    const blob = new Blob([html], { type: 'text/html' });
+    return URL.createObjectURL(blob);
+  }, [html]);
+  useEffect(() => {
+    return () => URL.revokeObjectURL(htmlBlobUrl);
+  }, [htmlBlobUrl]);
 
   useEffect(() => {
     if (!onSelectMarker && !onPick && !onBoundsChange) return;
@@ -63,7 +84,7 @@ export default function LeafletMap({
 
   // Atualiza os pins sem recarregar o iframe (ver SET_MARKERS_MESSAGE_TYPE em
   // leafletHtml.ts) — necessário porque agora `markers` muda a cada pan/zoom
-  // (bounding box novo, ver (tabs)/map.tsx); recarregar o `srcDoc` a cada vez
+  // (bounding box novo, ver (tabs)/map.tsx); recarregar o iframe a cada vez
   // resetaria a posição em que o usuário deixou o mapa. Pula a primeira
   // chamada: o load inicial já usa `options.markers` (embutido no `html`).
   const isFirstMarkers = useRef(true);
@@ -83,7 +104,7 @@ export default function LeafletMap({
     <View style={style}>
       <iframe
         ref={iframeRef}
-        srcDoc={html}
+        src={htmlBlobUrl}
         title={t('map.title')}
         style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
       />

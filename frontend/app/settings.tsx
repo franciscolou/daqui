@@ -25,7 +25,7 @@ import { useAuth } from '../lib/auth';
 import { LanguagePreference, SUPPORTED_LANGUAGES, useLanguage, useT } from '../lib/i18n';
 import { registerPushToken, unregisterPushToken } from '../lib/push';
 import { getItem, setItem } from '../lib/storage';
-import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
+import { MapMode, useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
 import { formatExactDateTime } from '../lib/time';
 import LeftSidebar from '../components/LeftSidebar';
 import MobileMenu from '../components/MobileMenu';
@@ -1019,7 +1019,13 @@ function AddressPanel() {
 function AppearancePanel() {
   const { t } = useT();
   const styles = useThemedStyles(makeStyles);
-  const { mode, toggle } = useThemeMode();
+  const Colors = useTheme();
+  const { mode, toggle, mapMode, setMapMode } = useThemeMode();
+  const mapOptions: { key: MapMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { key: 'system', label: t('settings.appearance.mapFollowApp'), icon: 'contrast-outline' },
+    { key: 'light', label: t('settings.appearance.mapLight'), icon: 'sunny-outline' },
+    { key: 'dark', label: t('settings.appearance.mapDark'), icon: 'moon-outline' },
+  ];
   return (
     <View style={styles.panelGroup}>
       <SectionTitle>{t('settings.appearance.theme')}</SectionTitle>
@@ -1029,6 +1035,28 @@ function AppearancePanel() {
         value={mode === 'dark'}
         onValueChange={toggle}
       />
+      <View style={{ height: 20 }} />
+      <SectionTitle>{t('settings.appearance.mapTheme')}</SectionTitle>
+      <Text style={[styles.settingDesc, { marginBottom: 10 }]}>{t('settings.appearance.mapThemeDesc')}</Text>
+      <View style={{ gap: 8 }}>
+        {mapOptions.map((option) => {
+          const active = mapMode === option.key;
+          return (
+            <TouchableOpacity
+              key={option.key}
+              style={[styles.settingRow, styles.languageOption, active && { backgroundColor: Colors.primaryFaint }]}
+              activeOpacity={0.7}
+              onPress={() => setMapMode(option.key)}
+            >
+              <Ionicons name={option.icon} size={20} color={active ? Colors.primary : Colors.textSecondary} />
+              <View style={styles.settingText}>
+                <Text style={[styles.settingLabel, active && { color: Colors.primary, fontWeight: '700' }]}>{option.label}</Text>
+              </View>
+              {active && <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
       <View style={{ height: 20 }} />
       <LanguagePanel />
     </View>
