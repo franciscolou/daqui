@@ -436,9 +436,14 @@ export default function PostDetailScreen() {
     const isLoading = loadingReplies.has(comment.id);
     const replies = repliesByParent[comment.id] ?? [];
     return (
-      <View key={comment.id}>
+      <View
+        key={comment.id}
+        style={[styles.commentSubtree, depth === 0 && styles.commentThread]}
+      >
+        {isExpanded && replies.length > 0 && (
+          <View style={[styles.threadLine, { left: 32 + indent }]} />
+        )}
         <View style={[styles.comment, { paddingLeft: 16 + indent }]}>
-          {depth > 0 && <View style={styles.threadLine} />}
           <TouchableOpacity
             style={styles.commentAvatarBtn}
             onPress={() => router.push(`/user/${comment.author.id}` as any)}
@@ -1076,9 +1081,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.textSecondary,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: Colors.background,
+    backgroundColor: Colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,
   },
   noComments: {
@@ -1086,21 +1090,29 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.textTertiary,
     textAlign: 'center',
     paddingVertical: 32,
+    backgroundColor: Colors.surface,
   },
 
+  commentSubtree: {
+    position: 'relative',
+  },
+  commentThread: {
+    backgroundColor: Colors.surface,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
   comment: {
     flexDirection: 'row',
     gap: 10,
     paddingRight: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     position: 'relative',
   },
   // Linha vertical à esquerda das respostas, reforçando a hierarquia da thread.
   threadLine: {
     position: 'absolute',
-    left: 8,
-    top: 0,
-    bottom: 0,
+    top: 46,
+    bottom: 18,
     width: 2,
     backgroundColor: Colors.border,
     borderRadius: 1,
@@ -1114,10 +1126,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   commentAvatar: { width: 34, height: 34, borderRadius: 17 },
   commentMain: { flex: 1, minWidth: 0 },
   commentBubble: {
-    backgroundColor: Colors.background,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingTop: 1,
   },
   commentHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   commentAuthor: { fontSize: 13, fontWeight: '700', color: Colors.text, flexShrink: 1 },
