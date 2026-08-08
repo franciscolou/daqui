@@ -51,26 +51,89 @@ if (typeof document !== 'undefined') {
         transition: background-color 600000s ease-in-out 0s, color 600000s ease-in-out 0s !important;
       }
 
-      /* Scrollbar fino e discreto no lugar do padrão do navegador (Chrome/Safari/Edge). */
-      *::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      *::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      *::-webkit-scrollbar-thumb {
-        background-color: rgba(100, 116, 139, 0.35);
-        border-radius: 999px;
-      }
-      *::-webkit-scrollbar-thumb:hover {
-        background-color: rgba(34, 197, 94, 0.55);
-      }
+      /* Scrollbar fino e discreto no lugar do padrão do navegador (Chrome/Safari/Edge),
+         só no desktop (mesmo breakpoint de WideLayout.tsx: WIDE = 900). No mobile web
+         mantém o scrollbar nativo do sistema (que já é overlay/discreto por padrão).
+         Só aparece quando o conteúdo realmente estoura o container — isso é o
+         comportamento padrão do browser com overflow:auto, nenhuma regra extra precisa
+         disso. Fino sempre (largura fixa nos dois estados) — "enrijece" (fica mais
+         visível) quando o mouse se aproxima só por cor/opacidade do thumb, nunca por
+         tamanho. Sem transition em lugar nenhum aqui de propósito, mesmo na cor: é
+         limitação real do motor, não falta de tentativa — scrollbars são renderizados
+         como "anonymous content"/shadow DOM interno do browser, que nunca passou a
+         suportar transition/animação (WebKit bug 104412, aberto desde 2013, sem
+         correção; confirmado também pro Chromium na discussão do CSSWG sobre
+         scrollbar hover colors, github.com/w3c/csswg-drafts/issues/10591 — "there is
+         no way to address this issue in chromium browsers with css"). Declarar
+         transition no thumb não quebra nada, só não faz nada — por isso nem declaramos.
+         A troca de cor no hover é instantânea por design, é o mesmo comportamento de
+         qualquer site com scrollbar customizado hoje. O hover é no container inteiro
+         — não é preciso acertar o cabelo fino do thumb.
 
-      /* Firefox */
-      * {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
+         !important em 'display'/'scrollbar-width': quase todo ScrollView do app passa
+         showsVerticalScrollIndicator={false} (pensado pro visual mobile, sem indicador
+         nenhum) — o react-native-web compila isso pra uma regra por-classe
+         '.rXXXX::-webkit-scrollbar{display:none}' (+ 'scrollbar-width:none'), com
+         especificidade maior que '*::-webkit-scrollbar'. Sem o !important aqui, essa
+         regra global nunca apareceria de verdade em nenhuma tela — é exatamente o
+         showsVerticalScrollIndicator={false} que esconde tudo hoje.
+
+         @supports selector(::-webkit-scrollbar) separa Chrome/Safari/Edge de Firefox
+         de propósito — não é só sobre ONDE cada sintaxe funciona, é sobre EVITAR QUE
+         AS DUAS COMPITAM no mesmo navegador. Desde a v121 o Chrome também implementa a
+         property padrão scrollbar-width (que antes era só do Firefox); se a gente fixa
+         'scrollbar-width: thin' pra tudo, o Chrome passa a desenhar o scrollbar "thin"
+         NATIVO do próprio SO — que ignora completamente as cores/bordas dos pseudo-
+         elementos ::-webkit-scrollbar-* abaixo e não tem opção de espessura em px nem
+         de engrossar no hover. Foi exatamente isso que deixou a barra grossa, com
+         setas, e sem reação ao mouse num teste real (o Chromium headless usado antes
+         pra verificar computa scrollbar-width certinho mas não pinta o resultado,
+         então esse conflito passou despercebido). Por isso: no ramo com suporte a
+         ::-webkit-scrollbar, cancela o 'none' do react-native-web com 'auto' (deixa o
+         Chrome fora do modo nativo "thin") e controla espessura/cor só via pixel; só
+         no ramo SEM suporte (Firefox) usa scrollbar-width, que ali é o único jeito. */
+      @media (min-width: 900px) {
+        @supports selector(::-webkit-scrollbar) {
+          * {
+            scrollbar-width: auto !important;
+          }
+          *::-webkit-scrollbar {
+            display: block !important;
+            width: 4px;
+            height: 4px;
+          }
+          *::-webkit-scrollbar-button {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+          }
+          *::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          *::-webkit-scrollbar-corner {
+            background: transparent;
+          }
+          *::-webkit-scrollbar-thumb {
+            background-color: rgba(100, 116, 139, 0.16);
+            border-radius: 999px;
+            border: none;
+          }
+          *:hover::-webkit-scrollbar-thumb {
+            background-color: rgba(100, 116, 139, 0.45);
+          }
+          *::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(34, 197, 94, 0.55);
+          }
+        }
+
+        /* Firefox: sem controle de espessura por hover (scrollbar-width só aceita
+           thin/auto/none), fica fino sempre — já é bem mais discreto que o padrão. */
+        @supports not selector(::-webkit-scrollbar) {
+          * {
+            scrollbar-width: thin !important;
+            scrollbar-color: rgba(100, 116, 139, 0.2) transparent;
+          }
+        }
       }
 
       /* Hover para tudo que é clicável (TouchableOpacity/Pressable ganham
