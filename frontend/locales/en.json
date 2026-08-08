@@ -1744,13 +1744,10 @@
     "sectionPosts": "Posts"
   },
   "map": {
-    "title": "Neighborhood Map",
+    "title": "Map",
     "neighborhoodNotSet": "Neighborhood not set",
-    "locationNotSetTitle": "Location not set",
-    "locationNotSetDesc": "Set up your neighborhood to see the map of your area.",
-    "configureNeighborhood": "Set up my neighborhood",
     "nearYou": "Near you",
-    "noLocatedPosts": "No posts with a location in your neighborhood yet.",
+    "noLocatedPosts": "No posts with a location nearby yet.",
     "inNeighborhood": "in the neighborhood",
     "sponsoredAuthor": "Ad",
     "activityTitle": "Neighborhood activity",

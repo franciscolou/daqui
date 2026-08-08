@@ -1253,8 +1253,17 @@ export const api = {
     return p ? mapPost(p) : null;
   },
 
-  async getMapPosts(): Promise<Post[]> {
-    const r = await request<BackendPost[]>('/posts/map');
+  // Bounding box do recorte visível do mapa (ver components/leafletHtml.ts,
+  // que reporta os limites reais renderizados) — sem filtro de bairro, o
+  // mapa mostra qualquer post com coordenadas dentro da área visível.
+  async getMapPosts(bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }): Promise<Post[]> {
+    const qs = new URLSearchParams({
+      min_lat: String(bounds.minLat),
+      max_lat: String(bounds.maxLat),
+      min_lng: String(bounds.minLng),
+      max_lng: String(bounds.maxLng),
+    });
+    const r = await request<BackendPost[]>(`/posts/map?${qs.toString()}`);
     return r.map(mapPost);
   },
 

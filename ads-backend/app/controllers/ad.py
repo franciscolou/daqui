@@ -121,7 +121,10 @@ def get_active_ad_list(
     viewer_id: str | None = Query(None),
     user_id: int | None = Query(None),
     exclude_ids: str | None = Query(None),
-    limit: int = Query(3, ge=1, le=10),
+    # Default (3) e teto (10) pensados pra rolagem infinita da Busca; o mapa
+    # busca um pool bem maior de uma vez (format=map, filtra por bounding box
+    # no cliente depois — ver (tabs)/map.tsx), daí o teto mais alto.
+    limit: int = Query(3, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> list[AdOut]:
     ctx = {

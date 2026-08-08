@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
@@ -23,9 +23,14 @@ import { formatDistance, haversineMeters } from '../../lib/location';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import LeafletMap from '../../components/LeafletMap';
 import FeedLayout from '../../components/FeedLayout';
-import { MapMarker } from '../../components/leafletHtml';
+import { MapBounds, MapMarker } from '../../components/leafletHtml';
 
 const MAP_HEIGHT = 440;
+// Fallback quando o usuário não tem localização própria (sem "meu bairro" e
+// sem GPS resolvido) — o mapa deixou de exigir isso pra abrir (ver pedido de
+// deixar os pins visíveis pra todo mundo, não só de quem já tem endereço
+// configurado). Centro aproximado de São Paulo (única cidade do Daqui hoje).
+const DEFAULT_CENTER = { latitude: -23.5505, longitude: -46.6333 };
 
 export default function MapScreen() {
   const Colors = useTheme();
@@ -47,8 +52,11 @@ export default function MapScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [stats, setStats] = useState<NeighborhoodStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [ad, setAd] = useState<Ad | null>(null);
+  const [adCandidates, setAdCandidates] = useState<Ad[]>([]);
   const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
+  // Área realmente visível no mapa agora (ver leafletHtml.ts::sendBounds) —
+  // é o que decide o que buscar, não mais o bairro do usuário.
+  const [bounds, setBounds] = useState<MapBounds | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
   useRegisterScrollToTop('map', () => {
@@ -56,48 +64,48 @@ export default function MapScreen() {
   });
 
   useEffect(() => {
-    Promise.all([api.getMapPosts(), api.getNeighborhoodStats().catch(() => null)])
-      .then(([mapPosts, s]) => {
-        setPosts(mapPosts);
-        setStats(s);
+    api.getNeighborhoodStats().then(setStats).catch(() => setStats(null));
+  }, []);
+
+  // Só busca posts quando já se sabe o recorte visível (o mapa precisa
+  // renderizar com um centro antes de reportar seus bounds reais — ver
+  // `center` abaixo). Refaz a cada pan/zoom (`bounds` muda), preservando a
+  // posição em que o usuário deixou o mapa — nunca volta pro centro inicial.
+  const boundsSeq = useRef(0);
+  useEffect(() => {
+    if (!bounds) return;
+    const seq = ++boundsSeq.current;
+    api
+      .getMapPosts({ minLat: bounds.south, maxLat: bounds.north, minLng: bounds.west, maxLng: bounds.east })
+      .then((mapPosts) => {
+        if (seq === boundsSeq.current) setPosts(mapPosts);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        if (seq === boundsSeq.current) setLoading(false);
+      });
+  }, [bounds]);
 
   useEffect(() => {
     getOrCreateAdViewerId().then(setAdViewerId);
   }, []);
 
+  // Anúncios do formato "mapa" não são mais buscados por bairro — o pool
+  // elegível é por cidade (`ads-backend` não tem noção de bounding box), e o
+  // que efetivamente vira marker é filtrado abaixo por `bounds` no cliente
+  // (ver `adsInBounds`). Sem rotação/espaçamento aqui: todos os elegíveis
+  // dentro da área visível podem aparecer ao mesmo tempo.
   useEffect(() => {
     adsApi
-      .getAd('map', {
-        neighborhood: user?.neighborhood,
+      .getAds('map', {
         city: user?.city,
         engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
         viewerId: adViewerId,
+        limit: 50,
       })
-      .then(setAd)
-      .catch(() => setAd(null));
-  }, [user?.neighborhood, user?.city, user?.interactionsCount, adViewerId]);
-
-  // Sem viewability real aqui (o pin vive dentro do WebView do Leaflet — saber
-  // se ele está de fato dentro do recorte visível do mapa exigiria trocar
-  // mensagens com o WebView a cada pan/zoom). Como aproximação, loga uma
-  // impressão quando o anúncio com coordenadas chega, deduplicada por id
-  // (não reloga a cada refetch se continuar sendo o mesmo anúncio).
-  const lastTrackedAdIdRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (ad?.latitude == null || ad?.longitude == null) return;
-    if (lastTrackedAdIdRef.current === ad.id) return;
-    lastTrackedAdIdRef.current = ad.id;
-    adsApi.trackAdImpression(ad.id, {
-      viewerId: adViewerId,
-      creativeId: ad.creativeId,
-      format: 'map',
-      neighborhood: user?.neighborhood,
-    });
-  }, [ad, adViewerId, user?.neighborhood]);
+      .then(setAdCandidates)
+      .catch(() => setAdCandidates([]));
+  }, [user?.city, user?.interactionsCount, adViewerId]);
 
   const userCoords = useMemo(() => {
     if (user?.latitude != null && user?.longitude != null) {
@@ -112,19 +120,62 @@ export default function MapScreen() {
     [posts],
   );
 
-  // Sem foco/coords do usuário/posts com local: não há centro confiável pra
-  // mostrar — melhor deixar isso explícito do que abrir o mapa num lugar
-  // arbitrário que não tem nada a ver com o usuário.
-  const center = useMemo(() => {
-    if (focusCoords) return focusCoords;
-    if (userCoords) return userCoords;
-    if (located.length) {
-      const lat = located.reduce((s, p) => s + (p.latitude ?? 0), 0) / located.length;
-      const lon = located.reduce((s, p) => s + (p.longitude ?? 0), 0) / located.length;
-      return { latitude: lat, longitude: lon };
+  const adsInBounds = useMemo(() => {
+    if (!bounds) return [];
+    return adCandidates.filter(
+      (a) =>
+        a.latitude != null &&
+        a.longitude != null &&
+        a.latitude >= bounds.south &&
+        a.latitude <= bounds.north &&
+        a.longitude >= bounds.west &&
+        a.longitude <= bounds.east,
+    );
+  }, [adCandidates, bounds]);
+
+  // Real (não "foi buscado do backend"): só conta impressão pro anúncio que
+  // ficar dentro da área visível do mapa por pelo menos 1s contínuo — mesmo
+  // padrão de viewability usado no feed/mensagens/notificações (ver
+  // lib/useAdImpression.ts), adaptado pra cá porque o mapa não usa FlatList.
+  const trackedAdIdsRef = useRef<Set<number>>(new Set());
+  const dwellTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  useEffect(() => {
+    const inBoundsIds = new Set(adsInBounds.map((a) => a.id));
+    dwellTimersRef.current.forEach((timer, id) => {
+      if (!inBoundsIds.has(id)) {
+        clearTimeout(timer);
+        dwellTimersRef.current.delete(id);
+      }
+    });
+    for (const ad of adsInBounds) {
+      if (trackedAdIdsRef.current.has(ad.id) || dwellTimersRef.current.has(ad.id)) continue;
+      const timer = setTimeout(() => {
+        dwellTimersRef.current.delete(ad.id);
+        trackedAdIdsRef.current.add(ad.id);
+        adsApi.trackAdImpression(ad.id, {
+          viewerId: adViewerId,
+          creativeId: ad.creativeId,
+          format: 'map',
+          neighborhood: user?.neighborhood,
+        });
+      }, 1000);
+      dwellTimersRef.current.set(ad.id, timer);
     }
-    return null;
-  }, [focusCoords, userCoords, located]);
+  }, [adsInBounds, adViewerId, user?.neighborhood]);
+
+  useEffect(
+    () => () => {
+      dwellTimersRef.current.forEach((timer) => clearTimeout(timer));
+    },
+    [],
+  );
+
+  // Foco vindo de outra tela > localização do usuário > centro padrão da
+  // cidade. Não depende mais de `located` (posts) como o antigo fallback de
+  // "média dos posts" dependia — bom, porque isso evita que o mapa "puxe" de
+  // volta essa posição toda vez que um novo lote de posts chega por causa do
+  // pan/zoom do usuário (nenhuma dessas fontes muda com o pan em si).
+  const center = useMemo(() => focusCoords ?? userCoords ?? DEFAULT_CENTER, [focusCoords, userCoords]);
 
   const markers = useMemo(() => {
     const list: MapMarker[] = located.map((p) => ({
@@ -140,11 +191,11 @@ export default function MapScreen() {
       createdAt: p.createdAt,
       maxAgeDays: CATEGORY_LIFESPAN_DAYS[p.category],
     }));
-    if (ad?.latitude != null && ad?.longitude != null) {
+    for (const ad of adsInBounds) {
       list.push({
         id: `ad-${ad.id}`,
-        latitude: ad.latitude,
-        longitude: ad.longitude,
+        latitude: ad.latitude as number,
+        longitude: ad.longitude as number,
         color: Colors.accent,
         title: ad.title,
         description: ad.content,
@@ -153,7 +204,9 @@ export default function MapScreen() {
       });
     }
     return list;
-  }, [located, Colors, ad, t]);
+  }, [located, Colors, adsInBounds, t]);
+
+  const handleBoundsChange = useCallback((b: MapBounds) => setBounds(b), []);
 
   const nearby = useMemo(() => {
     const withDist = located.map((p) => ({
@@ -184,31 +237,22 @@ export default function MapScreen() {
             <View style={styles.mapLoading}>
               <ActivityIndicator color={Colors.primary} size="large" />
             </View>
-          ) : !center ? (
-            <View style={styles.mapEmpty}>
-              <Ionicons name="location-outline" size={32} color={Colors.textTertiary} />
-              <Text style={styles.mapEmptyTitle}>{t('map.locationNotSetTitle')}</Text>
-              <Text style={styles.mapEmptyDesc}>
-                {t('map.locationNotSetDesc')}
-              </Text>
-              <TouchableOpacity
-                style={styles.mapEmptyBtn}
-                onPress={() => router.push({ pathname: '/(tabs)', params: { view: 'meu' } } as any)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.mapEmptyBtnText}>{t('map.configureNeighborhood')}</Text>
-              </TouchableOpacity>
-            </View>
           ) : (
             <LeafletMap
               center={center}
               zoom={focusCoords ? 17 : 15}
               markers={markers}
               focusId={params.focus}
+              onBoundsChange={handleBoundsChange}
               onSelectMarker={(id) => {
-                if (ad && id === `ad-${ad.id}`) {
-                  adsApi.trackAdClick(ad.id, { viewerId: adViewerId, creativeId: ad.creativeId, format: 'map' });
-                  Linking.openURL(ad.targetUrl);
+                const clickedAd = adsInBounds.find((a) => `ad-${a.id}` === id);
+                if (clickedAd) {
+                  adsApi.trackAdClick(clickedAd.id, {
+                    viewerId: adViewerId,
+                    creativeId: clickedAd.creativeId,
+                    format: 'map',
+                  });
+                  Linking.openURL(clickedAd.targetUrl);
                   return;
                 }
                 router.push(`/post/${id}` as any);
@@ -339,23 +383,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   map: { flex: 1, width: '100%', height: '100%' },
   mapLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  mapEmpty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 6,
-  },
-  mapEmptyTitle: { fontSize: 15, fontWeight: '800', color: Colors.text, marginTop: 6 },
-  mapEmptyDesc: { fontSize: 13, color: Colors.textTertiary, textAlign: 'center', lineHeight: 18 },
-  mapEmptyBtn: {
-    marginTop: 10,
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-  },
-  mapEmptyBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   legend: { paddingVertical: 4 },
   legendRow: { paddingHorizontal: 16, gap: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },

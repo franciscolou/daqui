@@ -60,10 +60,14 @@ def get_top_important(
 
 
 def get_map_posts(
+    min_lat: float = Query(...),
+    max_lat: float = Query(...),
+    min_lng: float = Query(...),
+    max_lng: float = Query(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[PostOut]:
-    return post.get_map_posts(db, current_user)
+    return post.get_map_posts(db, current_user, min_lat, max_lat, min_lng, max_lng)
 
 
 def get_post(

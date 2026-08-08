@@ -33,10 +33,28 @@ export interface LeafletHtmlOptions {
   pickedLocation?: { latitude: number; longitude: number } | null;
 }
 
+export interface MapBounds {
+  south: number;
+  north: number;
+  west: number;
+  east: number;
+}
+
 // Mensagem enviada do mapa para o app: `id` quando um pin de post é
 // selecionado (clique), `latitude`/`longitude` quando um ponto é escolhido no
-// modo `pickable` (clique no mapa ou arrastar o pin).
+// modo `pickable` (clique no mapa ou arrastar o pin), `bounds` sempre que a
+// área visível muda (pan/zoom) — usado pra rebuscar posts/anúncios só do
+// recorte atual (ver (tabs)/map.tsx) e pra saber quais pins de anúncio estão
+// realmente na tela (impressão real, não só "foi buscado").
 export const MAP_MESSAGE_TYPE = 'daqui-map';
+
+// Mensagem enviada do app PARA o mapa (direção oposta de MAP_MESSAGE_TYPE):
+// atualiza os pins sem recarregar a página. Necessário porque `markers` agora
+// muda a cada pan/zoom (bounding box novo) — se cada mudança regenerasse o
+// HTML inteiro (como antes), o WebView/iframe recarregaria do zero a cada
+// vez, perdendo a posição em que o usuário deixou o mapa. Ver
+// LeafletMap.tsx/LeafletMap.web.tsx.
+export const SET_MARKERS_MESSAGE_TYPE = 'daqui-map-set-markers';
 
 export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
   const {
@@ -59,6 +77,8 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 <style>
   html, body, #map { height: 100%; width: 100%; margin: 0; padding: 0; background: #e5e7eb; }
   /* O wrapper mantém a área de 22x22 sempre no lugar (é o que o Leaflet
@@ -99,6 +119,7 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
 <body>
 <div id="map"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script>
   var CFG = ${data};
   // id pra clique num pin de post; lat/lng pra escolha de ponto no modo
@@ -107,6 +128,16 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     var payload = { type: '${MAP_MESSAGE_TYPE}' };
     if (id != null) payload.id = id;
     if (lat != null && lng != null) { payload.latitude = lat; payload.longitude = lng; }
+    var msg = JSON.stringify(payload);
+    if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(msg); }
+    else if (window.parent) { window.parent.postMessage(msg, '*'); }
+  }
+  function sendBounds() {
+    var b = map.getBounds();
+    var payload = {
+      type: '${MAP_MESSAGE_TYPE}',
+      bounds: { south: b.getSouth(), north: b.getNorth(), west: b.getWest(), east: b.getEast() },
+    };
     var msg = JSON.stringify(payload);
     if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(msg); }
     else if (window.parent) { window.parent.postMessage(msg, '*'); }
@@ -202,24 +233,56 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     return 1 - (1 - MIN_PIN_SCALE) * ratio;
   }
 
-  CFG.markers.forEach(function (m) {
-    var icon = L.divIcon({
-      className: '',
-      html: '<div class="daqui-pin-wrap"><div class="daqui-pin" style="background:' +
-        m.color + ';--daqui-scale:' + pinScale(m) + '"></div></div>',
-      iconSize: [22, 22], iconAnchor: [11, 22], tooltipAnchor: [12, -11],
+  // Agrupa pins próximos num número quando o zoom está aberto o bastante pra
+  // ter muitos ao mesmo tempo na tela (mapa deixou de ser só do bairro, ver
+  // (tabs)/map.tsx) — sem isso, centenas de pins de uma vez travam o render.
+  var cluster = L.markerClusterGroup({ maxClusterRadius: 60 });
+  map.addLayer(cluster);
+
+  // Reaproveitável: recebe uma lista nova de markers e substitui os atuais
+  // sem recarregar a página. applyFocus só é true na primeira chamada — nas
+  // atualizações seguintes (pan/zoom trazendo posts/anúncios diferentes) não
+  // faz sentido reabrir o tooltip do foco original de novo.
+  function setMarkers(markersArray, applyFocus) {
+    cluster.clearLayers();
+    markersArray.forEach(function (m) {
+      var icon = L.divIcon({
+        className: '',
+        html: '<div class="daqui-pin-wrap"><div class="daqui-pin" style="background:' +
+          m.color + ';--daqui-scale:' + pinScale(m) + '"></div></div>',
+        iconSize: [22, 22], iconAnchor: [11, 22], tooltipAnchor: [12, -11],
+      });
+      var mk = L.marker([m.latitude, m.longitude], { icon: icon });
+      // Card à direita do pin ao passar o mouse (hover); clique abre o post.
+      mk.bindTooltip(buildCard(m), {
+        direction: 'right', opacity: 1, sticky: false, className: 'daqui-tip',
+      });
+      mk.on('click', function () { send(m.id); });
+      cluster.addLayer(mk);
+      if (applyFocus && CFG.focusId && String(m.id) === String(CFG.focusId)) {
+        // zoomToShowLayer (não só setView) porque esse marker pode estar
+        // agrupado num cluster no zoom inicial — ele cuida de abrir o
+        // cluster até o marker aparecer sozinho antes de mostrar o tooltip.
+        cluster.zoomToShowLayer(mk, function () { mk.openTooltip(); });
+      }
     });
-    var mk = L.marker([m.latitude, m.longitude], { icon: icon }).addTo(map);
-    // Card à direita do pin ao passar o mouse (hover); clique abre o post.
-    mk.bindTooltip(buildCard(m), {
-      direction: 'right', opacity: 1, sticky: false, className: 'daqui-tip',
-    });
-    mk.on('click', function () { send(m.id); });
-    if (CFG.focusId && String(m.id) === String(CFG.focusId)) {
-      map.setView([m.latitude, m.longitude], CFG.zoom);
-      mk.openTooltip();
-    }
+  }
+  // Exposta em window pro nativo chamar via injectJavaScript (ver
+  // LeafletMap.tsx); a web usa postMessage (handler logo abaixo).
+  window.daquiSetMarkers = function (markersArray) { setMarkers(markersArray, false); };
+  setMarkers(CFG.markers, true);
+
+  window.addEventListener('message', function (e) {
+    try {
+      var data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+      if (data && data.type === '${SET_MARKERS_MESSAGE_TYPE}' && data.markers) {
+        setMarkers(data.markers, false);
+      }
+    } catch (err) { /* ignora mensagens desconhecidas */ }
   });
+
+  map.on('moveend', sendBounds);
+  sendBounds();
 </script>
 </body>
 </html>`;

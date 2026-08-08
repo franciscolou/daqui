@@ -1398,13 +1398,10 @@
     "sectionPosts": "Posts"
   },
   "map": {
-    "title": "Mapa do Bairro",
+    "title": "Mapa",
     "neighborhoodNotSet": "Bairro não configurado",
-    "locationNotSetTitle": "Localização não configurada",
-    "locationNotSetDesc": "Configure seu bairro para ver o mapa da sua região.",
-    "configureNeighborhood": "Configurar meu bairro",
     "nearYou": "Perto de você",
-    "noLocatedPosts": "Nenhum post com local no bairro ainda.",
+    "noLocatedPosts": "Nenhum post com local por perto ainda.",
     "inNeighborhood": "no bairro",
     "sponsoredAuthor": "Anúncio",
     "activityTitle": "Atividade do bairro",

@@ -99,11 +99,25 @@ def search(db: Session, neighborhood: str, query: str, limit: int = 30) -> list[
     )
 
 
-def list_map(db: Session, neighborhood: str, limit: int = 200) -> list[Post]:
-    # Posts do bairro com coordenadas — viram pins no mapa.
+def list_map(
+    db: Session,
+    min_lat: float,
+    max_lat: float,
+    min_lng: float,
+    max_lng: float,
+    limit: int = 300,
+) -> list[Post]:
+    # Posts com coordenadas dentro do recorte visível do mapa — sem filtro de
+    # bairro (o mapa mostra tudo que está na área que o usuário está vendo,
+    # ver services/post.py::get_map_posts). Sem suporte a bbox cruzando o
+    # antimeridiano (irrelevante pro Brasil).
     return (
         db.query(Post)
-        .filter(Post.neighborhood == neighborhood, Post.latitude.isnot(None))
+        .filter(
+            Post.latitude.isnot(None),
+            Post.latitude.between(min_lat, max_lat),
+            Post.longitude.between(min_lng, max_lng),
+        )
         .order_by(desc(Post.created_at))
         .limit(limit)
         .all()

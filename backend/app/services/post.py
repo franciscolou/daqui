@@ -193,8 +193,10 @@ def list_by_author(db: Session, author_id: int, viewer: User) -> list[PostOut]:
     return [schema for schema, _ in items]
 
 
-def get_map_posts(db: Session, viewer: User) -> list[PostOut]:
-    posts = post_dao.list_map(db, viewer.neighborhood)
+def get_map_posts(
+    db: Session, viewer: User, min_lat: float, max_lat: float, min_lng: float, max_lng: float
+) -> list[PostOut]:
+    posts = post_dao.list_map(db, min_lat, max_lat, min_lng, max_lng)
     return [_to_schema(p, viewer, db) for p in posts]
 
 

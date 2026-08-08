@@ -41,8 +41,12 @@ class Post(Base):
     neighborhood: Mapped[str] = mapped_column(String(120), default="")
     # Local do post (endereço validado no bairro) + coordenadas p/ o mapa.
     location: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
-    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # Indexadas: o mapa agora consulta por bounding box (`daos/post.py::list_map`),
+    # sem filtro de bairro. Índice novo só entra num banco recriado do zero
+    # (create_all não altera tabela já existente) — em dev, apagar daqui.db e
+    # rodar o seed de novo se quiser o índice localmente.
+    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True, index=True)
+    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True, index=True)
     likes_count: Mapped[int] = mapped_column(Integer, default=0)
     comments_count: Mapped[int] = mapped_column(Integer, default=0)
     shares_count: Mapped[int] = mapped_column(Integer, default=0)
