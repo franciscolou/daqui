@@ -57,8 +57,8 @@ export const lightColors = {
   dangerBody: '#7F1D1D',
 
   text: '#0F172A',
-  textSecondary: '#64748B',
-  textTertiary: '#94A3B8',
+  textSecondary: '#475569',
+  textTertiary: '#64748B',
   textInverse: '#FFFFFF',
 
   shadow: {
