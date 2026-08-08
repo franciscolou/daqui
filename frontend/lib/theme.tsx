@@ -38,7 +38,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<Mode>(
     Appearance.getColorScheme() === 'dark' ? 'dark' : 'light',
   );
-  const [mapMode, setMapModeState] = useState<MapMode>('system');
+  const [mapMode, setMapModeState] = useState<MapMode>('light');
 
   // Restaura a preferência salva
   useEffect(() => {
