@@ -54,6 +54,10 @@ router.get("/linked-posts/{user_id}", response_model=list[AdOut])(
     ad.get_linked_posts
 )
 router.post("/{campaign_id}/click", status_code=204)(ad.track_click)
+# Impressão de verdade (anúncio ficou visível na tela), disparada pelo
+# cliente — ver `useAdImpression.ts` no frontend e nota em
+# `services/ad.py::_campaign_to_ad_out`.
+router.post("/{campaign_id}/impression", status_code=204)(ad.track_impression)
 # Engajamento estilo post num anúncio (curtir/repostar/comentar) — ver
 # tela app/ad/[id].tsx. Rotas dinâmicas "/{campaign_id}/..." coexistem com
 # as estáticas acima sem conflito (segmentos diferentes).

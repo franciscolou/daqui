@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
@@ -8,10 +9,31 @@ import { useT } from '../lib/i18n';
 
 // Poster mostrado só no estado vazio da aba Busca (antes do usuário digitar
 // algo) — desaparece completamente quando não há campanha ativa para o formato.
-export default function AdSearchPoster({ ad, viewerId }: { ad: Ad; viewerId?: string }) {
+export default function AdSearchPoster({
+  ad,
+  viewerId,
+  neighborhood,
+}: {
+  ad: Ad;
+  viewerId?: string;
+  neighborhood?: string;
+}) {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { t } = useT();
+
+  // Sem viewability real (a lista roda dentro de um ScrollView comum, sem
+  // virtualização/threshold de visibilidade como o FlatList — ver
+  // lib/useAdImpression.ts). Como aproximação, loga uma impressão por
+  // anúncio montado, uma vez só (o componente só remonta se o id mudar,
+  // já que a chave da lista em search.tsx é `a.id`).
+  const trackedRef = useRef(false);
+  useEffect(() => {
+    if (trackedRef.current) return;
+    trackedRef.current = true;
+    adsApi.trackAdImpression(ad.id, { viewerId, creativeId: ad.creativeId, format: 'search_poster', neighborhood });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ad.id]);
 
   const open = () => {
     adsApi.trackAdClick(ad.id, { viewerId, creativeId: ad.creativeId, format: 'search_poster' });

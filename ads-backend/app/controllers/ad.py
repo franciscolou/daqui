@@ -24,6 +24,7 @@ from app.schemas.ad import (
     CreativeOut,
     GlobalAnalyticsOut,
     HasCampaignsOut,
+    ImpressionIn,
     ManualCampaignCreate,
     MediaUploadOut,
     MyCampaignOut,
@@ -155,6 +156,14 @@ def track_click(
     db: Session = Depends(get_db),
 ) -> None:
     ad_service.track_click(db, campaign_id, payload)
+
+
+def track_impression(
+    campaign_id: int,
+    payload: ImpressionIn | None = Body(None),
+    db: Session = Depends(get_db),
+) -> None:
+    ad_service.track_impression(db, campaign_id, payload)
 
 
 def get_ad_detail(

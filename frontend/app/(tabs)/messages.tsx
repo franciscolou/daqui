@@ -32,6 +32,8 @@ import {
   MessageResult,
 } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
+import { useAdImpressionTracking } from '../../lib/useAdImpression';
+import { MESSAGES_AD_GAP, createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
 import { getOrCreateAdViewerId } from '../../lib/storage';
 import { formatConversationTime, formatPostTime } from '../../lib/time';
 import LeftSidebar from '../../components/LeftSidebar';
@@ -65,7 +67,7 @@ export default function MessagesScreen() {
   const { user } = useAuth();
 
   const [selected, setSelected] = useState<Selected | null>(null);
-  const [ad, setAd] = useState<Ad | null>(null);
+  const [displayInbox, setDisplayInbox] = useState<InboxItem[]>([]);
   const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
   const [newConvOpen, setNewConvOpen] = useState(false);
   const [neighbors, setNeighbors] = useState<User[]>([]);
@@ -84,6 +86,11 @@ export default function MessagesScreen() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seq = useRef(0);
   const listRef = useRef<FlatList<InboxItem>>(null);
+  // Rotação (último anúncio mostrado) sobrevive a recargas da lista — sem
+  // paginação aqui, a lista é refeita a cada `load()`, mas não repetir o
+  // mesmo anúncio deve valer além de uma única recarga.
+  const msgRotationRef = useRef(createAdRotationState());
+  const msgSpacingSeq = useRef(0);
 
   useRegisterScrollToTop('messages', () => {
     if (selected && !isWide) {
@@ -112,20 +119,6 @@ export default function MessagesScreen() {
   useEffect(() => {
     getOrCreateAdViewerId().then(setAdViewerId);
   }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      adsApi
-        .getAd('conversation', {
-          neighborhood: user?.neighborhood,
-          city: user?.city,
-          engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
-          viewerId: adViewerId,
-        })
-        .then(setAd)
-        .catch(() => setAd(null));
-    }, [user?.neighborhood, user?.city, user?.interactionsCount, adViewerId]),
-  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -156,12 +149,43 @@ export default function MessagesScreen() {
     );
   }, [inbox, searching, search]);
 
-  // O anúncio (se houver) é fixado no topo — só fora do modo de busca, e sem
-  // nenhuma linha reservada quando não existe campanha ativa para o formato.
-  const displayInbox = useMemo<InboxItem[]>(() => {
-    if (searching || !ad) return filteredInbox;
-    return [{ kind: 'ad', key: `ad-${ad.id}`, ad }, ...filteredInbox];
-  }, [filteredInbox, searching, ad]);
+  // Espaçamento variável + rotação (ver lib/adSpacing.ts) — sem paginação
+  // aqui, então cada mudança da lista de conversas refaz a intercalação do
+  // zero (a rotação em si, acima em `msgRotationRef`, sobrevive à recarga).
+  // Fora do modo de busca só: buscar não deve misturar anúncio no resultado
+  // (a busca em si é só um filtro de leitura, não precisa passar pelo efeito).
+  useEffect(() => {
+    if (searching) return;
+    const seqId = ++msgSpacingSeq.current;
+    const scan = createAdSpacingState(MESSAGES_AD_GAP);
+    let occurrence = 0;
+    (async () => {
+      const items: InboxItem[] = [];
+      for (const conv of filteredInbox) {
+        items.push(conv);
+        const ad = await advanceAdSlot(scan, MESSAGES_AD_GAP, msgRotationRef.current, (excludeIds) =>
+          adsApi.getAds('conversation', {
+            neighborhood: user?.neighborhood,
+            city: user?.city,
+            engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+            viewerId: adViewerId,
+            excludeIds,
+            limit: 1,
+          }),
+        );
+        if (seqId !== msgSpacingSeq.current) return;
+        if (ad) items.push({ kind: 'ad', key: `ad-${ad.id}-${occurrence++}`, ad });
+      }
+      setDisplayInbox(items);
+    })();
+  }, [filteredInbox, searching, user?.neighborhood, user?.city, user?.interactionsCount, adViewerId]);
+
+  const { onViewableItemsChanged: onAdViewableItemsChanged, viewabilityConfig: adViewabilityConfig } =
+    useAdImpressionTracking<InboxItem>(
+      'conversation',
+      (item) => (item.kind === 'ad' ? item.ad : null),
+      { viewerId: adViewerId, neighborhood: user?.neighborhood },
+    );
 
   const runSearch = (term: string) => {
     const id = ++seq.current;
@@ -266,9 +290,11 @@ export default function MessagesScreen() {
         {listHeader}
         <FlatList
           ref={listRef}
-          data={displayInbox}
+          data={searching ? filteredInbox : displayInbox}
           keyExtractor={(item) => item.key}
           showsVerticalScrollIndicator={false}
+          onViewableItemsChanged={onAdViewableItemsChanged}
+          viewabilityConfig={adViewabilityConfig}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
           }

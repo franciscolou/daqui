@@ -901,6 +901,27 @@ export const adsApi = {
     }
   },
 
+  // Impressão de verdade — chamar só quando o anúncio ficou de fato visível
+  // na tela (ver lib/useAdImpression.ts), não a cada busca/refetch do anúncio.
+  async trackAdImpression(
+    id: number,
+    params: { viewerId?: string; creativeId?: number; format?: AdFormat; neighborhood?: string } = {},
+  ): Promise<void> {
+    try {
+      await request<void>(`/ads/${id}/impression`, {
+        method: 'POST',
+        body: {
+          viewer_id: params.viewerId,
+          creative_id: params.creativeId,
+          format: params.format,
+          neighborhood: params.neighborhood,
+        },
+      });
+    } catch {
+      // fire-and-forget: uma falha aqui não deve travar a navegação do usuário
+    }
+  },
+
   // Posts de anúncios expirados vinculados a esta conta — o que
   // user/[id].tsx e (tabs)/profile.tsx mesclam na timeline como post normal
   // (a campanha já não impulsiona mais nada, ver AdPostCard `sponsored`).

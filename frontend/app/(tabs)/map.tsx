@@ -81,6 +81,24 @@ export default function MapScreen() {
       .catch(() => setAd(null));
   }, [user?.neighborhood, user?.city, user?.interactionsCount, adViewerId]);
 
+  // Sem viewability real aqui (o pin vive dentro do WebView do Leaflet — saber
+  // se ele está de fato dentro do recorte visível do mapa exigiria trocar
+  // mensagens com o WebView a cada pan/zoom). Como aproximação, loga uma
+  // impressão quando o anúncio com coordenadas chega, deduplicada por id
+  // (não reloga a cada refetch se continuar sendo o mesmo anúncio).
+  const lastTrackedAdIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (ad?.latitude == null || ad?.longitude == null) return;
+    if (lastTrackedAdIdRef.current === ad.id) return;
+    lastTrackedAdIdRef.current = ad.id;
+    adsApi.trackAdImpression(ad.id, {
+      viewerId: adViewerId,
+      creativeId: ad.creativeId,
+      format: 'map',
+      neighborhood: user?.neighborhood,
+    });
+  }, [ad, adViewerId, user?.neighborhood]);
+
   const userCoords = useMemo(() => {
     if (user?.latitude != null && user?.longitude != null) {
       return { latitude: user.latitude, longitude: user.longitude };

@@ -44,6 +44,7 @@ from app.schemas.ad import (
     GlobalAnalyticsOut,
     GlobalAnalyticsSummary,
     HasCampaignsOut,
+    ImpressionIn,
     ManualCampaignCreate,
     MediaUploadOut,
     MyCampaignOut,
@@ -420,18 +421,13 @@ def get_active_ad(db: Session, format: AdFormat, ctx: dict) -> AdOut | None:
 def _campaign_to_ad_out(
     db: Session, campaign: AdCampaign, format: AdFormat, ctx: dict
 ) -> AdOut | None:
+    # Não loga IMPRESSION aqui: isto só serve o anúncio (ver `_within_caps`
+    # sobre por que servir != ser visto). A impressão de verdade é registrada
+    # por `track_impression`, chamado pelo cliente só quando o anúncio fica
+    # de fato visível na tela (ver `frontend/lib/useAdImpression.ts`).
     creative = ad_dao.pick_creative(campaign, format)
     if not creative:
         return None
-    ad_dao.log_event(
-        db,
-        campaign=campaign,
-        creative=creative,
-        event_type=AdEventType.IMPRESSION,
-        format=format,
-        neighborhood=ctx.get("neighborhood"),
-        viewer_id=ctx.get("viewer_id"),
-    )
     return _to_ad_out(db, campaign, creative, ctx.get("user_id"))
 
 
@@ -595,6 +591,25 @@ def track_click(db: Session, campaign_id: int, payload: ClickIn | None) -> None:
         neighborhood=None,
         viewer_id=payload.viewer_id,
         objective_action=payload.objective_action,
+    )
+
+
+def track_impression(db: Session, campaign_id: int, payload: ImpressionIn | None) -> None:
+    campaign = ad_dao.get_campaign(db, campaign_id)
+    if not campaign or not _is_publicly_visible(campaign):
+        return
+    payload = payload or ImpressionIn()
+    creative = None
+    if payload.creative_id is not None:
+        creative = ad_dao.get_creative(db, payload.creative_id)
+    ad_dao.log_event(
+        db,
+        campaign=campaign,
+        creative=creative,
+        event_type=AdEventType.IMPRESSION,
+        format=payload.format or "",
+        neighborhood=payload.neighborhood,
+        viewer_id=payload.viewer_id,
     )
 
 

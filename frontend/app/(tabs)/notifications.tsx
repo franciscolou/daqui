@@ -12,13 +12,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { NOTIF_ICONS } from '../../constants/notifications';
 import { notificationParts } from '../../components/NotificationText';
 import RemovedContentModal from '../../components/RemovedContentModal';
 import { api, AppNotification } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
+import { useAdImpressionTracking } from '../../lib/useAdImpression';
+import { FEED_AD_GAP, createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
 import { getOrCreateAdViewerId } from '../../lib/storage';
 import { useAuth } from '../../lib/auth';
 import { useRealtime } from '../../lib/realtime';
@@ -32,6 +34,20 @@ import MobileMenu from '../../components/MobileMenu';
 const WIDE = 900;
 const REMOVED_TYPES = new Set(['post_removed', 'comment_removed']);
 
+// Notificação sintética pro slot de anúncio (ver lib/adSpacing.ts) — `ad`
+// embutido, diferente de AppNotification, é o que permite mais de uma
+// ocorrência (possivelmente do mesmo anúncio) na mesma lista sem depender de
+// um único estado externo.
+interface AdNotificationItem {
+  id: string;
+  type: 'ad';
+  content: string;
+  time: string;
+  read: true;
+  ad: Ad;
+}
+type DisplayNotification = AppNotification | AdNotificationItem;
+
 export default function NotificationsScreen() {
   const { width } = useWindowDimensions();
   const isWide = width >= WIDE;
@@ -41,12 +57,17 @@ export default function NotificationsScreen() {
   const { subscribeNotifications } = useRealtime();
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [ad, setAd] = useState<Ad | null>(null);
+  const [displayNotifications, setDisplayNotifications] = useState<DisplayNotification[]>([]);
   const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [removedPreview, setRemovedPreview] = useState<AppNotification | null>(null);
-  const listRef = useRef<FlatList<AppNotification>>(null);
+  const listRef = useRef<FlatList<DisplayNotification>>(null);
+  // Rotação (último anúncio mostrado) sobrevive a recargas da lista — a lista
+  // inteira é refeita a cada `load()` (sem paginação aqui), mas não repetir o
+  // mesmo anúncio deve valer além de uma única recarga.
+  const notifRotationRef = useRef(createAdRotationState());
+  const notifSpacingSeq = useRef(0);
 
   const load = useCallback(() => {
     return api.getNotifications()
@@ -71,32 +92,49 @@ export default function NotificationsScreen() {
     return () => clearInterval(id);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      adsApi
-        .getAd('notification', {
-          neighborhood: user?.neighborhood,
-          city: user?.city,
-          engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
-          viewerId: adViewerId,
-        })
-        .then(setAd)
-        .catch(() => setAd(null));
-    }, [user?.neighborhood, user?.city, user?.interactionsCount, adViewerId]),
-  );
+  // Espaçamento variável + rotação (ver lib/adSpacing.ts) — sem paginação
+  // aqui, então cada `load()` refaz a lista inteira do zero (a rotação em si,
+  // acima em `notifRotationRef`, sobrevive à recarga).
+  useEffect(() => {
+    const seq = ++notifSpacingSeq.current;
+    const scan = createAdSpacingState(FEED_AD_GAP);
+    let occurrence = 0;
+    (async () => {
+      const items: DisplayNotification[] = [];
+      for (const n of notifications) {
+        items.push(n);
+        const ad = await advanceAdSlot(scan, FEED_AD_GAP, notifRotationRef.current, (excludeIds) =>
+          adsApi.getAds('notification', {
+            neighborhood: user?.neighborhood,
+            city: user?.city,
+            engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+            viewerId: adViewerId,
+            excludeIds,
+            limit: 1,
+          }),
+        );
+        if (seq !== notifSpacingSeq.current) return;
+        if (ad) {
+          items.push({
+            id: `ad-${ad.id}-${occurrence++}`,
+            type: 'ad',
+            content: ad.title,
+            time: t('notifications.sponsored'),
+            read: true,
+            ad,
+          });
+        }
+      }
+      setDisplayNotifications(items);
+    })();
+  }, [notifications, user?.neighborhood, user?.city, user?.interactionsCount, adViewerId, t]);
 
-  // Prepend do anúncio (se houver) — sem linha reservada quando não existe.
-  const displayNotifications = useMemo<AppNotification[]>(() => {
-    if (!ad) return notifications;
-    const adNotification: AppNotification = {
-      id: `ad-${ad.id}`,
-      type: 'ad',
-      content: ad.title,
-      time: t('notifications.sponsored'),
-      read: true,
-    };
-    return [adNotification, ...notifications];
-  }, [notifications, ad, t]);
+  const { onViewableItemsChanged: onAdViewableItemsChanged, viewabilityConfig: adViewabilityConfig } =
+    useAdImpressionTracking<DisplayNotification>(
+      'notification',
+      (item) => ('ad' in item ? item.ad : null),
+      { viewerId: adViewerId, neighborhood: user?.neighborhood },
+    );
 
   // Recarrega ao vivo quando o servidor avisa (via websocket) que chegou algo novo —
   // só enquanto a tela está em foco: o navigator mantém esta tela montada em segundo
@@ -132,6 +170,8 @@ export default function NotificationsScreen() {
         data={displayNotifications}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onAdViewableItemsChanged}
+        viewabilityConfig={adViewabilityConfig}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
         }
@@ -148,12 +188,41 @@ export default function NotificationsScreen() {
           )
         }
         renderItem={({ item }) => {
-          const style = NOTIF_ICONS[item.type] ?? NOTIF_ICONS.welcome;
-          const onPress = () => {
-            if (item.type === 'ad' && ad) {
+          // `'ad' in item` (em vez de `item.type === 'ad'`) é o jeito correto
+          // de estreitar a união aqui: `AppNotification.type` é `string` (não
+          // um literal), então TS não consegue descartar esse ramo só pela
+          // comparação de `type`.
+          if ('ad' in item) {
+            const { ad } = item;
+            const style = NOTIF_ICONS.ad;
+            const onPress = () => {
               adsApi.trackAdClick(ad.id, { viewerId: adViewerId, creativeId: ad.creativeId, format: 'notification' });
               Linking.openURL(ad.targetUrl);
-            } else if (REMOVED_TYPES.has(item.type) && item.snapshot) setRemovedPreview(item);
+            };
+            return (
+              <TouchableOpacity style={styles.notifRow} activeOpacity={0.85} onPress={onPress}>
+                {ad.imageUrl ? (
+                  <View style={styles.notifAvatarWrapper}>
+                    <Image source={{ uri: ad.imageUrl }} style={styles.notifAvatar} />
+                    <View style={[styles.notifTypeBadge, { backgroundColor: style.bg }]}>
+                      <Ionicons name={style.icon as any} size={10} color={style.color} />
+                    </View>
+                  </View>
+                ) : (
+                  <View style={[styles.notifIconBox, { backgroundColor: style.bg }]}>
+                    <Ionicons name={style.icon as any} size={20} color={style.color} />
+                  </View>
+                )}
+                <View style={styles.notifContent}>
+                  <Text style={styles.notifText}>{notificationParts(item, styles.notifBold, t)}</Text>
+                  <Text style={styles.notifTime}>{item.time}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }
+          const style = NOTIF_ICONS[item.type] ?? NOTIF_ICONS.welcome;
+          const onPress = () => {
+            if (REMOVED_TYPES.has(item.type) && item.snapshot) setRemovedPreview(item);
             else if (item.type === 'welcome') router.push('/help');
             else if (item.postId) router.push(`/post/${item.postId}` as any);
             else if (item.actor) router.push(`/user/${item.actor.id}` as any);
@@ -171,13 +240,6 @@ export default function NotificationsScreen() {
                     <Ionicons name={style.icon as any} size={10} color={style.color} />
                   </View>
                 </View>
-              ) : item.type === 'ad' && ad?.imageUrl ? (
-                <View style={styles.notifAvatarWrapper}>
-                  <Image source={{ uri: ad.imageUrl }} style={styles.notifAvatar} />
-                  <View style={[styles.notifTypeBadge, { backgroundColor: style.bg }]}>
-                    <Ionicons name={style.icon as any} size={10} color={style.color} />
-                  </View>
-                </View>
               ) : (
                 <View style={[styles.notifIconBox, { backgroundColor: style.bg }]}>
                   <Ionicons name={style.icon as any} size={20} color={style.color} />
@@ -187,9 +249,7 @@ export default function NotificationsScreen() {
                 <Text style={[styles.notifText, !item.read && styles.notifTextUnread]}>
                   {notificationParts(item, styles.notifBold, t)}
                 </Text>
-                <Text style={styles.notifTime}>
-                  {item.type === 'ad' ? item.time : formatNotificationTime(item.time)}
-                </Text>
+                <Text style={styles.notifTime}>{formatNotificationTime(item.time)}</Text>
               </View>
               {!item.read && <View style={styles.unreadDot} />}
             </TouchableOpacity>

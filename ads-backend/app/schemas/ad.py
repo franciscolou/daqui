@@ -502,6 +502,17 @@ class ClickIn(BaseModel):
     objective_action: ObjectiveAction | None = None
 
 
+class ImpressionIn(BaseModel):
+    """Disparado pelo cliente quando o anúncio ficou de fato visível (ver
+    `frontend/lib/useAdImpression.ts`) — não mais no momento em que a
+    campanha é apenas buscada/servida por `GET /ads/active/{format}`."""
+
+    viewer_id: str | None = None
+    creative_id: int | None = None
+    format: AdFormat | None = None
+    neighborhood: str | None = None
+
+
 class AdEngagementIn(BaseModel):
     user_id: int
     creative_id: int | None = None

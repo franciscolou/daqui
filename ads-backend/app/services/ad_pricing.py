@@ -20,17 +20,16 @@ from app.models.ad import (
 
 FORMAT_DAILY_RATE_CENTS = {
     AdFormat.POST: 350,  # card no feed — a superfície de maior atenção
-    AdFormat.MAP: 250,  # pin no mapa do bairro
-    AdFormat.CONVERSATION: 300,
-    AdFormat.NOTIFICATION: 250,
-    AdFormat.SEARCH_POSTER: 200,
+    AdFormat.MAP: 350,  # pin no mapa do bairro — o diferencial do Daqui
+    AdFormat.NOTIFICATION: 300,
+    AdFormat.SEARCH_POSTER: 300,
+    AdFormat.CONVERSATION: 250,  # aba Mensagens — a superfície menos acessada
 }
 
 # Combo "post + mapa": os dois juntos saem 15% mais baratos que a soma dos
-# preços individuais (350 + 250 = 600 → 510/dia, praticamente o mesmo valor
-# do antigo formato único "post", que já embutia os dois lugares). O desconto
-# incide SÓ sobre a parcela desses dois formatos — os demais escolhidos na
-# mesma campanha continuam custando o preço cheio (ver `format_base`).
+# preços individuais (350 + 350 = 700 → 595/dia). O desconto incide SÓ sobre
+# a parcela desses dois formatos — os demais escolhidos na mesma campanha
+# continuam custando o preço cheio (ver `format_base`).
 POST_MAP_BUNDLE_DISCOUNT = 0.15
 BUNDLE_FACTOR_LABEL = "Combo post + mapa"
 

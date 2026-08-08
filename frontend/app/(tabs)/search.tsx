@@ -266,7 +266,7 @@ export default function SearchScreen() {
             <Text style={styles.stateText}>{t('search.emptyState')}</Text>
           </View>
           {ads.map((a) => (
-            <AdSearchPoster key={a.id} ad={a} viewerId={adViewerId} />
+            <AdSearchPoster key={a.id} ad={a} viewerId={adViewerId} neighborhood={user?.neighborhood} />
           ))}
           {loadingMoreAds && (
             <View style={styles.adsLoading}>

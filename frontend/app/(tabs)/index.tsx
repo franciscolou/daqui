@@ -16,7 +16,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -24,6 +24,8 @@ import { useT } from '../../lib/i18n';
 import { CATEGORIES, PostCategory, Post, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
+import { useAdImpressionTracking } from '../../lib/useAdImpression';
+import { FEED_AD_GAP, createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
 import { getOrCreateAdViewerId } from '../../lib/storage';
 import { getDeviceCoords, LocationError, Coords } from '../../lib/location';
 import { useAuth } from '../../lib/auth';
@@ -60,10 +62,9 @@ export default function FeedScreen() {
   const [activeCategory, setActiveCategory] = useState<FilterKey>('todos');
   const [importantOnly, setImportantOnly] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [feedAd, setFeedAd] = useState<Ad | null>(null);
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
   const [adViewerReady, setAdViewerReady] = useState(false);
-  const [adLoading, setAdLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +158,6 @@ export default function FeedScreen() {
   // chegue atrasada depois que o usuário já trocou de visualização/bairro
   // (senão ela apareceria colada num feed que já é de outro contexto).
   const feedSeq = useRef(0);
-  const adSeq = useRef(0);
   const loadingMorePostsRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -284,37 +284,8 @@ export default function FeedScreen() {
       .finally(() => setAdViewerReady(true));
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      const seq = ++adSeq.current;
-      if (initialViewLoading || !adViewerReady) return;
-      if (viewMode === 'perto' && (!pertoNeighborhood || !pertoCoords)) {
-        setFeedAd(null);
-        setAdLoading(false);
-        return;
-      }
-      setAdLoading(true);
-      adsApi
-        .getAd('post', {
-          neighborhood: activeNeighborhood ?? undefined,
-          city: user?.city,
-          viewMode: viewMode === 'meu' ? 'home' : 'nearby',
-          category: activeCategory !== 'todos' ? activeCategory : undefined,
-          engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
-          viewerId: adViewerId,
-          userId: user ? Number(user.id) : undefined,
-        })
-        .then((ad) => {
-          if (seq === adSeq.current) setFeedAd(ad);
-        })
-        .catch(() => {
-          if (seq === adSeq.current) setFeedAd(null);
-        })
-        .finally(() => {
-          if (seq === adSeq.current) setAdLoading(false);
-        });
-    }, [activeNeighborhood, viewMode, activeCategory, user?.interactionsCount, user?.city, user?.id, adViewerId, adViewerReady, initialViewLoading, pertoCoords, pertoNeighborhood]),
-  );
+  // A inserção de anúncios no feed (espaçamento variável + rotação) fica no
+  // efeito abaixo de `filteredPosts` — ver lib/adSpacing.ts.
 
   const handlePostDeleted = useCallback((postId: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -374,21 +345,79 @@ export default function FeedScreen() {
     transform: [{ translateX: indicator.value * (tabsWidth / 2) }],
   }));
 
-  const filteredPosts = posts.filter(
-    (p) =>
-      (activeCategory === 'todos' || p.category === activeCategory) &&
-      (!importantOnly || p.important),
+  const filteredPosts = useMemo(
+    () =>
+      posts.filter(
+        (p) => (activeCategory === 'todos' || p.category === activeCategory) && (!importantOnly || p.important),
+      ),
+    [posts, activeCategory, importantOnly],
   );
 
-  // O anúncio (se houver) entra numa posição fixa da lista — sem vaga
-  // reservada quando não existe (feedAd null não altera o array).
-  const feedItems: FeedItem[] = feedAd
-    ? [
-        ...filteredPosts.slice(0, 2).map((post): FeedItem => ({ kind: 'post', post })),
-        { kind: 'ad', ad: feedAd },
-        ...filteredPosts.slice(2).map((post): FeedItem => ({ kind: 'post', post })),
-      ]
-    : filteredPosts.map((post): FeedItem => ({ kind: 'post', post }));
+  // Espaçamento variável + rotação de anúncios (ver lib/adSpacing.ts) — o
+  // estado (quantos posts orgânicos desde o último anúncio, qual foi o
+  // último anúncio mostrado) fica num ref pra sobreviver entre execuções
+  // deste efeito sem virar dependência dele.
+  const feedSpacingRef = useRef({
+    scan: createAdSpacingState(FEED_AD_GAP),
+    rotation: createAdRotationState(),
+    builtIds: [] as string[],
+  });
+  const feedSpacingSeq = useRef(0);
+
+  useEffect(() => {
+    if (!adViewerReady) return;
+    const spacing = feedSpacingRef.current;
+    const newIds = filteredPosts.map(postListKey);
+    // "Append" = os ids atuais começam exatamente pelos já processados (ex.:
+    // `loadMorePosts` colou mais posts no fim) — preserva o espaçamento e a
+    // rotação em andamento. Qualquer outra mudança (refresh, troca de bairro/
+    // "meu"-"perto", filtro de categoria/importantes) é tratada como uma
+    // visão nova do feed e reinicia os dois.
+    const isAppend =
+      newIds.length >= spacing.builtIds.length && spacing.builtIds.every((id, i) => newIds[i] === id);
+    const startIndex = isAppend ? spacing.builtIds.length : 0;
+    if (!isAppend) {
+      spacing.scan = createAdSpacingState(FEED_AD_GAP);
+      spacing.rotation = createAdRotationState();
+      setFeedItems([]);
+    }
+    const toProcess = filteredPosts.slice(startIndex);
+    spacing.builtIds = newIds;
+    if (toProcess.length === 0) return;
+
+    const seq = ++feedSpacingSeq.current;
+    (async () => {
+      const appended: FeedItem[] = [];
+      for (const post of toProcess) {
+        appended.push({ kind: 'post', post });
+        const ad = await advanceAdSlot(spacing.scan, FEED_AD_GAP, spacing.rotation, (excludeIds) =>
+          adsApi.getAds('post', {
+            neighborhood: activeNeighborhood ?? undefined,
+            city: user?.city,
+            viewMode: viewMode === 'meu' ? 'home' : 'nearby',
+            category: activeCategory !== 'todos' ? activeCategory : undefined,
+            engagement: (user?.interactionsCount ?? 0) >= 5 ? 'active' : undefined,
+            viewerId: adViewerId,
+            excludeIds,
+            limit: 1,
+          }),
+        );
+        // Uma visão nova começou no meio deste processamento (ex.: usuário
+        // trocou de bairro enquanto a busca do anúncio ainda estava no ar) —
+        // descarta este lote, o próximo disparo do efeito já reconstrói do zero.
+        if (seq !== feedSpacingSeq.current) return;
+        if (ad) appended.push({ kind: 'ad', ad });
+      }
+      setFeedItems((prev) => (isAppend ? [...prev, ...appended] : appended));
+    })();
+  }, [filteredPosts, adViewerReady, adViewerId, activeNeighborhood, viewMode, activeCategory, user?.city, user?.interactionsCount]);
+
+  const { onViewableItemsChanged: onAdViewableItemsChanged, viewabilityConfig: adViewabilityConfig } =
+    useAdImpressionTracking<FeedItem>(
+      'post',
+      (item) => (item.kind === 'ad' ? item.ad : null),
+      { viewerId: adViewerId, neighborhood: activeNeighborhood ?? undefined },
+    );
 
   // View tabs: "Meu bairro" | "Perto de mim" (desktop e mobile) — presente
   // tanto no feed quanto na configuração de "Meu bairro", para o usuário
@@ -533,10 +562,11 @@ export default function FeedScreen() {
   // O slide anima só o conteúdo (posts/setup), não o header nem as abas —
   // por isso o transform vai no `Animated.View` de cada item/conteúdo, nunca
   // num wrapper que também contenha `viewTabsBlock`/`feedHeader`.
-  const feedPending = initialViewLoading || locLoading || loading || adLoading;
+  const feedPending = initialViewLoading || locLoading || loading;
 
   const feed = feedPending ? (
     <FlatList
+      key="feed-loading"
       style={styles.feedFill}
       data={[] as FeedItem[]}
       keyExtractor={(item) => (item.kind === 'post' ? postListKey(item.post) : `ad-${item.ad.id}`)}
@@ -561,11 +591,14 @@ export default function FeedScreen() {
     </View>
   ) : (
     <FlatList
+      key="feed-list"
       ref={listRef}
       style={styles.feedFill}
       data={feedItems}
-      keyExtractor={(item) => (item.kind === 'post' ? postListKey(item.post) : `ad-${item.ad.id}`)}
+      keyExtractor={(item, index) => (item.kind === 'post' ? postListKey(item.post) : `ad-${item.ad.id}-${index}`)}
       showsVerticalScrollIndicator={false}
+      onViewableItemsChanged={onAdViewableItemsChanged}
+      viewabilityConfig={adViewabilityConfig}
       ListHeaderComponent={feedHeader}
       renderItem={({ item }) => (
         <Animated.View style={contentStyle}>
