@@ -17,6 +17,11 @@ export interface LeafletMapProps extends LeafletHtmlOptions {
   // visível — ver (tabs)/map.tsx, que rebusca posts/anúncios por esse recorte
   // em vez de por bairro.
   onBoundsChange?: (bounds: MapBounds) => void;
+  // Disparado ao tocar num símbolo de "pilha" (vários pins colidindo no
+  // mesmo lugar, ver STACK_THRESHOLD em leafletHtml.ts) — vem com os ids dos
+  // posts agrupados ali, pra tela listar embaixo do mapa em vez de abrir um
+  // post só.
+  onSelectStack?: (ids: string[]) => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -26,6 +31,7 @@ export default function LeafletMap({
   onSelectMarker,
   onPick,
   onBoundsChange,
+  onSelectStack,
   style,
   ...options
 }: LeafletMapProps) {
@@ -63,13 +69,14 @@ export default function LeafletMap({
   }, [htmlBlobUrl]);
 
   useEffect(() => {
-    if (!onSelectMarker && !onPick && !onBoundsChange) return;
+    if (!onSelectMarker && !onPick && !onBoundsChange && !onSelectStack) return;
     const handler = (event: MessageEvent) => {
       try {
         const data =
           typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         if (data?.type !== MAP_MESSAGE_TYPE) return;
         if (data.bounds) onBoundsChange?.(data.bounds);
+        else if (data.stackIds) onSelectStack?.(data.stackIds.map(String));
         else if (data.id) onSelectMarker?.(String(data.id));
         else if (data.latitude != null && data.longitude != null) {
           onPick?.({ latitude: data.latitude, longitude: data.longitude });
@@ -80,7 +87,7 @@ export default function LeafletMap({
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [onSelectMarker, onPick, onBoundsChange]);
+  }, [onSelectMarker, onPick, onBoundsChange, onSelectStack]);
 
   // Atualiza os pins sem recarregar o iframe (ver SET_MARKERS_MESSAGE_TYPE em
   // leafletHtml.ts) — necessário porque agora `markers` muda a cada pan/zoom

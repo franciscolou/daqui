@@ -16,6 +16,11 @@ export interface LeafletMapProps extends LeafletHtmlOptions {
   // visível — ver (tabs)/map.tsx, que rebusca posts/anúncios por esse recorte
   // em vez de por bairro.
   onBoundsChange?: (bounds: MapBounds) => void;
+  // Disparado ao tocar num símbolo de "pilha" (vários pins colidindo no
+  // mesmo lugar, ver STACK_THRESHOLD em leafletHtml.ts) — vem com os ids dos
+  // posts agrupados ali, pra tela listar embaixo do mapa em vez de abrir um
+  // post só.
+  onSelectStack?: (ids: string[]) => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -24,6 +29,7 @@ export default function LeafletMap({
   onSelectMarker,
   onPick,
   onBoundsChange,
+  onSelectStack,
   style,
   ...options
 }: LeafletMapProps) {
@@ -76,6 +82,7 @@ export default function LeafletMap({
           const data = JSON.parse(event.nativeEvent.data);
           if (data?.type !== MAP_MESSAGE_TYPE) return;
           if (data.bounds) onBoundsChange?.(data.bounds);
+          else if (data.stackIds) onSelectStack?.(data.stackIds.map(String));
           else if (data.id) onSelectMarker?.(String(data.id));
           else if (data.latitude != null && data.longitude != null) {
             onPick?.({ latitude: data.latitude, longitude: data.longitude });

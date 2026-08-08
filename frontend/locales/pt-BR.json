@@ -1410,7 +1410,9 @@
     "inNeighborhood": "no bairro",
     "sponsoredAuthor": "Anúncio",
     "activityTitle": "Atividade do bairro",
-    "activityStats": "{{posts}} posts · {{neighbors}} vizinhos"
+    "activityStats": "{{posts}} posts · {{neighbors}} vizinhos",
+    "stackTitle": "{{count}} posts neste local",
+    "backToNearby": "Voltar para perto de você"
   },
   "rightSidebar": {
     "noLocation": "Sem localização",

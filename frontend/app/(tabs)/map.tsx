@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +24,10 @@ import { formatDistance, haversineMeters } from '../../lib/location';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import LeafletMap from '../../components/LeafletMap';
 import FeedLayout from '../../components/FeedLayout';
+import MobileMenu from '../../components/MobileMenu';
 import { MapBounds, MapMarker } from '../../components/leafletHtml';
+
+const WIDE = 900;
 
 const MAP_HEIGHT = 440;
 // Fallback quando o usuário não tem localização própria (sem "meu bairro" e
@@ -38,6 +42,8 @@ export default function MapScreen() {
   const { t } = useT();
   const { user } = useAuth();
   const params = useLocalSearchParams<{ focus?: string; lat?: string; lng?: string }>();
+  const { width } = useWindowDimensions();
+  const isWide = width >= WIDE;
 
   // Coordenadas para focar, vindas de outra tela (ex.: um post) via query params.
   const focusCoords = useMemo(() => {
@@ -84,6 +90,29 @@ export default function MapScreen() {
       .finally(() => {
         if (seq === boundsSeq.current) setLoading(false);
       });
+  }, [bounds]);
+
+  // Bairro mostrado no subtítulo abaixo de "Mapa": não é mais fixo no bairro
+  // do usuário — acompanha o recorte visível, resolvendo o bairro do CENTRO
+  // do viewport (aproximação simples de "bairro que ocupa a maior parte da
+  // tela"; não existe no backend um bairro com polígono/área pra calcular
+  // isso de verdade, só o ponto único que /geo/resolve já resolve). Só
+  // dispara ~600ms depois do usuário parar de arrastar, pra não bater no
+  // provedor de geocoding a cada frame do pan.
+  const [viewportNeighborhood, setViewportNeighborhood] = useState<string | null>(null);
+  useEffect(() => {
+    if (!bounds) return;
+    const centerLat = (bounds.south + bounds.north) / 2;
+    const centerLng = (bounds.west + bounds.east) / 2;
+    const timer = setTimeout(() => {
+      api
+        .resolveNeighborhood(centerLat, centerLng)
+        .then((r) => setViewportNeighborhood(r.neighborhood))
+        // Ponto sem bairro resolvível (ex.: sobre água) — mantém o último
+        // nome válido em vez de piscar "bairro não configurado".
+        .catch(() => {});
+    }, 600);
+    return () => clearTimeout(timer);
   }, [bounds]);
 
   useEffect(() => {
@@ -221,15 +250,41 @@ export default function MapScreen() {
     return withDist.slice(0, 4);
   }, [located, userCoords]);
 
+  // Ao tocar num símbolo de "pilha" no mapa (vários pins muito próximos —
+  // ver STACK_THRESHOLD em leafletHtml.ts), a seção "perto de você" abaixo
+  // do mapa troca pra listar só os posts daquele grupo, em vez de abrir um
+  // post qualquer sem o usuário poder escolher qual.
+  const [selectedStackIds, setSelectedStackIds] = useState<string[] | null>(null);
+  const stackedPosts = useMemo(() => {
+    if (!selectedStackIds) return [];
+    const idSet = new Set(selectedStackIds);
+    return located
+      .filter((p) => idSet.has(p.id))
+      .map((post) => ({
+        post,
+        meters: userCoords
+          ? haversineMeters(userCoords, { latitude: post.latitude!, longitude: post.longitude! })
+          : null,
+      }));
+  }, [located, selectedStackIds, userCoords]);
+  const nearbySectionItems = selectedStackIds ? stackedPosts : nearby;
+
   return (
-    <FeedLayout>
+    <FeedLayout showMobileMenu={false}>
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
         {/* Header — padrão claro, uniforme com as demais telas (mobile e desktop) */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>{t('map.title')}</Text>
-          <View style={styles.headerSub}>
-            <Ionicons name="location" size={14} color={Colors.primary} />
-            <Text style={styles.headerSubText}>{user?.neighborhood || t('map.neighborhoodNotSet')}</Text>
+          <View style={styles.headerTop}>
+            <View style={styles.headerTexts}>
+              <Text style={styles.headerTitle}>{t('map.title')}</Text>
+              <View style={styles.headerSub}>
+                <Ionicons name="location" size={14} color={Colors.primary} />
+                <Text style={styles.headerSubText}>
+                  {viewportNeighborhood || user?.neighborhood || t('map.neighborhoodNotSet')}
+                </Text>
+              </View>
+            </View>
+            {!isWide && <MobileMenu inline />}
           </View>
         </View>
 
@@ -241,6 +296,7 @@ export default function MapScreen() {
             markers={markers}
             focusId={params.focus}
             onBoundsChange={handleBoundsChange}
+            onSelectStack={setSelectedStackIds}
             onSelectMarker={(id) => {
               const clickedAd = adsInBounds.find((a) => `ad-${a.id}` === id);
               if (clickedAd) {
@@ -275,20 +331,31 @@ export default function MapScreen() {
           </View>
         </View>
 
-        {/* Nearby section */}
+        {/* Nearby section (ou os posts do grupo de pins tocado no mapa) */}
         <View style={styles.nearbySection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('map.nearYou')}</Text>
+            <Text style={styles.sectionTitle}>
+              {selectedStackIds ? t('map.stackTitle', { count: selectedStackIds.length }) : t('map.nearYou')}
+            </Text>
+            {selectedStackIds && (
+              <TouchableOpacity
+                onPress={() => setSelectedStackIds(null)}
+                hitSlop={8}
+                accessibilityLabel={t('map.backToNearby')}
+              >
+                <Ionicons name="close" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {nearby.length === 0 ? (
+          {nearbySectionItems.length === 0 ? (
             <View style={styles.emptyBox}>
               <Ionicons name="map-outline" size={28} color={Colors.textTertiary} />
               <Text style={styles.emptyText}>{t('map.noLocatedPosts')}</Text>
             </View>
           ) : (
             <View style={styles.nearbyList}>
-              {nearby.map(({ post, meters }) => {
+              {nearbySectionItems.map(({ post, meters }) => {
                 const catColor = post.important
                   ? Colors.error
                   : Colors.category[post.category] ?? Colors.primary;
@@ -357,6 +424,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
+  headerTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerTexts: { flex: 1 },
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',

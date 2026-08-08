@@ -75,16 +75,26 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     --shadow: ${appearance === 'dark' ? 'rgba(0,0,0,.48)' : 'rgba(15,23,42,.16)'};
   }
   html, body, #map { height: 100%; width: 100%; margin: 0; background: ${appearance === 'dark' ? '#0B1220' : '#EDF5EF'}; font-family: "Bricolage Grotesque", system-ui, sans-serif; }
-  .maplibregl-popup-content { padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: 0 8px 24px var(--shadow); overflow: hidden; width: 220px; }
-  .maplibregl-popup-tip { border-right-color: var(--surface) !important; }
-  .daqui-card-img { width: 100%; height: 96px; object-fit: cover; display: block; background: var(--border); }
-  .daqui-card-body { padding: 10px 12px; }
-  .daqui-card-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .daqui-card-desc { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .daqui-card-author { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .maplibregl-popup { z-index: 5; }
+  .maplibregl-popup-content { padding: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: 0 12px 32px var(--shadow); overflow: hidden; width: 224px; cursor: pointer; }
+  /* Cobre a seta em qualquer orientação (o popup agora fica sempre ao lado
+     do pin, mas o MapLibre pode escolher left/right/top/bottom conforme o
+     espaço disponível perto das bordas do mapa). */
+  .maplibregl-popup-tip {
+    border-top-color: var(--surface) !important;
+    border-bottom-color: var(--surface) !important;
+    border-left-color: var(--surface) !important;
+    border-right-color: var(--surface) !important;
+    filter: drop-shadow(0 2px 3px var(--shadow));
+  }
+  .daqui-card-img { width: 100%; height: 104px; object-fit: cover; display: block; background: var(--border); }
+  .daqui-card-body { padding: 12px 14px; }
+  .daqui-card-title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .daqui-card-desc { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .daqui-card-author { display: flex; align-items: center; gap: 6px; margin-top: 9px; }
   .daqui-card-avatar { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; background: var(--border); }
   .daqui-card-name { font-size: 12px; font-weight: 600; color: var(--muted); }
-  .daqui-card-hint { font-size: 11px; font-weight: 700; color: var(--green); margin-top: 8px; }
+  .daqui-card-hint { font-size: 11px; font-weight: 700; color: var(--green); margin-top: 9px; display: flex; align-items: center; gap: 3px; }
   .maplibregl-ctrl-group { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 2px 8px var(--shadow); }
   .maplibregl-ctrl-group button + button { border-top-color: var(--border); }
   .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: ${appearance === 'dark' ? 'invert(1) brightness(1.35)' : 'none'}; }
@@ -101,7 +111,13 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
   var markerById = {};
   var hoverPopup = null;
   var pickMarker = null;
-  var hoveredPinId = null;
+  // Pin "ativo": tem o balão aberto e fica no tamanho normal (ignora o
+  // encolhimento por idade) — no mouse é o pin em hover, no touch é o pin
+  // tocado (ver IS_TOUCH mais abaixo).
+  var activePinId = null;
+  // Pointer grosso (dedo) = trata como touch: mostra o balão ao tocar em vez
+  // de ao passar o mouse, e só navega num segundo toque (no pin ou no balão).
+  var IS_TOUCH = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 
   function post(payload) {
     payload.type = '${MAP_MESSAGE_TYPE}';
@@ -123,23 +139,94 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     var ratio = Math.min(1, Math.max(0, age / m.maxAgeDays));
     return 1 - (1 - MIN_PIN_SCALE) * ratio;
   }
+
+  // Pins muito próximos (mesmo endereço/POI, por exemplo) colidiriam e
+  // ficariam ilegíveis. Agrupa por proximidade geográfica (algoritmo simples:
+  // O(n²), de sobra pra dezenas/poucas centenas de pins por viewport) e
+  // decide como representar cada grupo — ver features() abaixo.
+  var NEARBY_METERS = 12; // abaixo disso, dois pins "colidem"
+  var FAN_METERS = 6; // raio do leque quando poucos pins colidem
+  var STACK_THRESHOLD = 6; // acima disso, vira símbolo de pilha em vez de leque
+  function metersToDegrees(meters, lat) {
+    return {
+      lat: meters / 111320,
+      lng: meters / (111320 * Math.cos((lat * Math.PI) / 180) || 1),
+    };
+  }
+  function groupMarkers(markers) {
+    var groups = [];
+    var used = new Array(markers.length).fill(false);
+    for (var i = 0; i < markers.length; i++) {
+      if (used[i]) continue;
+      var group = [markers[i]];
+      used[i] = true;
+      var deg = metersToDegrees(NEARBY_METERS, markers[i].latitude);
+      for (var j = i + 1; j < markers.length; j++) {
+        if (used[j]) continue;
+        if (Math.abs(markers[j].latitude - markers[i].latitude) <= deg.lat &&
+            Math.abs(markers[j].longitude - markers[i].longitude) <= deg.lng) {
+          group.push(markers[j]);
+          used[j] = true;
+        }
+      }
+      groups.push(group);
+    }
+    return groups;
+  }
+  function groupCentroid(group) {
+    var lat = 0, lng = 0;
+    group.forEach(function (m) { lat += m.latitude; lng += m.longitude; });
+    return { latitude: lat / group.length, longitude: lng / group.length };
+  }
+
   function features(markers) {
     markerById = {};
-    return markers.map(function (m) {
-      markerById[String(m.id)] = m;
-      // Enquanto o mouse está em cima, ignora o encolhimento por idade —
-      // mesmo efeito do :hover do pin em CSS na versão Leaflet antiga.
-      // icon-size é layout (não paint), então feature-state não é uma opção
-      // aqui (só funciona em paint properties); a saída mais simples é
-      // recalcular o scale desse marker e re-mandar pro source via setData
-      // (ver mouseenter/mouseleave de daqui-pins).
-      var scale = String(m.id) === hoveredPinId ? 1 : pinScale(m);
-      return {
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [m.longitude, m.latitude] },
-        properties: { id: String(m.id), color: m.color, scale: scale },
-      };
+    var out = [];
+    groupMarkers(markers || []).forEach(function (group) {
+      group.forEach(function (m) { markerById[String(m.id)] = m; });
+      // Grupo grande demais pro leque de pins individuais couber: vira um
+      // símbolo de "pilha" só — ao tocar, a tela do mapa lista os posts
+      // agrupados em vez de abrir um deles direto (ver daqui-stacks abaixo).
+      if (group.length > STACK_THRESHOLD) {
+        var centroid = groupCentroid(group);
+        var ids = group.map(function (m) { return String(m.id); });
+        out.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [centroid.longitude, centroid.latitude] },
+          properties: {
+            kind: 'stack', id: 'stack-' + ids.join('-'), color: group[0].color,
+            count: group.length, ids: JSON.stringify(ids),
+          },
+        });
+        return;
+      }
+      // Poucos pins colidindo: espalha num pequeno leque ao redor do centro
+      // do grupo (offset geográfico — na direção "disponível" de cada um,
+      // repartida em ângulos iguais). Cada um continua um pin individual
+      // normal, só a coordenada de desenho muda.
+      var fanDeg = group.length > 1 ? metersToDegrees(FAN_METERS, group[0].latitude) : null;
+      group.forEach(function (m, idx) {
+        var lat = m.latitude, lng = m.longitude;
+        if (fanDeg) {
+          var angle = (2 * Math.PI * idx) / group.length;
+          lat += Math.sin(angle) * fanDeg.lat;
+          lng += Math.cos(angle) * fanDeg.lng;
+        }
+        // Enquanto ativo (hover no mouse, ou tocado no touch), ignora o
+        // encolhimento por idade — mesmo efeito do :hover do pin em CSS na
+        // versão Leaflet antiga. icon-size é layout (não paint), então
+        // feature-state não é uma opção aqui (só funciona em paint
+        // properties); a saída mais simples é recalcular o scale desse
+        // marker e re-mandar pro source via setData (ver setActivePin).
+        var scale = String(m.id) === activePinId ? 1 : pinScale(m);
+        out.push({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lng, lat] },
+          properties: { kind: 'pin', id: String(m.id), color: m.color, scale: scale },
+        });
+      });
     });
+    return out;
   }
   function geojson(markers) {
     return { type: 'FeatureCollection', features: features(markers || []) };
@@ -175,15 +262,9 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
   // não desenha essa forma via paint property (só o Leaflet fazia isso com
   // CSS/border-radius), então geramos um ícone SVG por cor sob demanda e
   // registramos com map.addImage — o symbol layer referencia pelo nome.
-  var pinIconPromises = {};
-  function iconNameFor(color) { return 'pin-' + String(color).replace('#', ''); }
-  function ensureIcon(color) {
-    var name = iconNameFor(color);
-    if (pinIconPromises[name]) return pinIconPromises[name];
-    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="64" viewBox="0 0 384 512">' +
-      '<path d="M215.7 499.2C267 435 384 279.4 384 192C384 86 298 0 192 0S0 86 0 192c0 87.4 117 243 168.3 307.2c12.3 15.3 35.1 15.3 47.4 0z" fill="' + color + '" stroke="#fff" stroke-width="18"/>' +
-      '<circle cx="192" cy="190" r="72" fill="rgba(255,255,255,0.92)"/>' +
-      '</svg>';
+  var iconPromises = {};
+  function loadSvgIcon(name, svg) {
+    if (iconPromises[name]) return iconPromises[name];
     var img = new Image();
     var promise = new Promise(function (resolve) {
       img.onload = function () {
@@ -192,13 +273,36 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
       };
     });
     img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-    pinIconPromises[name] = promise;
+    iconPromises[name] = promise;
     return promise;
+  }
+  function pinIconNameFor(color) { return 'pin-' + String(color).replace('#', ''); }
+  function ensurePinIcon(color) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="64" viewBox="0 0 384 512">' +
+      '<path d="M215.7 499.2C267 435 384 279.4 384 192C384 86 298 0 192 0S0 86 0 192c0 87.4 117 243 168.3 307.2c12.3 15.3 35.1 15.3 47.4 0z" fill="' + color + '" stroke="#fff" stroke-width="18"/>' +
+      '<circle cx="192" cy="190" r="72" fill="rgba(255,255,255,0.92)"/>' +
+      '</svg>';
+    return loadSvgIcon(pinIconNameFor(color), svg);
+  }
+  // Símbolo de "pilha": forma de crachá arredondado (bem diferente da gota
+  // do pin e do círculo do cluster) pra sinalizar "vários pins aqui" — o
+  // número por cima é um symbol layer de texto à parte (ver daqui-stack-count),
+  // do mesmo jeito que o contador do cluster, então não precisa de um ícone
+  // por combinação de cor+contagem.
+  function stackIconNameFor(color) { return 'stack-' + String(color).replace('#', ''); }
+  function ensureStackIcon(color) {
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56">' +
+      '<rect x="5" y="5" width="46" height="46" rx="15" fill="' + color + '" stroke="#fff" stroke-width="3.5"/>' +
+      '</svg>';
+    return loadSvgIcon(stackIconNameFor(color), svg);
   }
   function ensureIconsFor(markers) {
     var seen = {};
     markers.forEach(function (m) { seen[m.color] = true; });
-    Object.keys(seen).forEach(ensureIcon);
+    Object.keys(seen).forEach(function (color) {
+      ensurePinIcon(color);
+      ensureStackIcon(color);
+    });
   }
 
   var map = new maplibregl.Map({
@@ -209,6 +313,12 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     center: CFG.center,
     zoom: CFG.zoom,
     interactive: CFG.interactive,
+    // No touch, tocar duas vezes NO MESMO pin é o gesto que confirma e
+    // navega (ver addMarkerLayers). Isso colide com o double-tap-to-zoom
+    // padrão do MapLibre: com ele ligado, o segundo toque é interpretado
+    // como parte de um double-click e o evento 'click' do 2º toque nunca
+    // chega nos handlers por pin — desligar aqui evita essa disputa.
+    doubleClickZoom: !IS_TOUCH,
     attributionControl: false,
   });
   map.addControl(new maplibregl.AttributionControl({ compact: true }));
@@ -259,6 +369,55 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     }, firstLine && firstLine.id);
   }
 
+  // O popup agora sempre abre AO LADO do pin (nunca em cima — ficava cortado
+  // pela gota, que é bem mais alta que o offset antigo previa). Escolhe
+  // left/right conforme o pin estiver na metade esquerda/direita da tela,
+  // pra não estourar a borda do mapa.
+  function popupAnchorFor(lngLat) {
+    var point = map.project(lngLat);
+    var width = map.getCanvas().clientWidth;
+    return point.x > width / 2 ? 'right' : 'left';
+  }
+  function setActivePin(id) {
+    if (activePinId === id) return;
+    activePinId = id;
+    if (map.getSource('daqui-markers')) map.getSource('daqui-markers').setData(geojson(CFG.markers));
+  }
+  function hidePinPopup() {
+    if (hoverPopup) { hoverPopup.remove(); hoverPopup = null; }
+  }
+  // O balão vive num elemento à parte do pin (fora do canvas), então sair do
+  // pin em direção ao balão já dispara mouseleave do pin antes do cursor
+  // chegar lá — sem isso, nunca dava tempo de tocar no balão com o mouse.
+  // Um pequeno atraso cancelável (mesmo truque de "hover intent" de qualquer
+  // menu com submenu) resolve: só fecha de verdade se o cursor não aparecer
+  // nem no pin nem no balão dentro da folga.
+  var hideTimer = null;
+  function cancelHidePopup() {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+  }
+  function scheduleHidePopup() {
+    cancelHidePopup();
+    hideTimer = setTimeout(function () { setActivePin(null); hidePinPopup(); }, 150);
+  }
+  function showPinPopup(id, coordinates) {
+    var marker = markerById[id]; if (!marker) return;
+    hidePinPopup();
+    var card = buildCard(marker);
+    // Tocar/clicar no balão também navega pro post — vale tanto no touch
+    // (onde é a única forma de confirmar, já que o 1º toque só abre o balão)
+    // quanto no mouse (atalho a mais, sem contradizer o clique direto no pin).
+    card.addEventListener('click', function () { post({ id: id }); });
+    if (!IS_TOUCH) {
+      card.addEventListener('mouseenter', cancelHidePopup);
+      card.addEventListener('mouseleave', scheduleHidePopup);
+    }
+    hoverPopup = new maplibregl.Popup({
+      closeButton: false, closeOnClick: false, anchor: popupAnchorFor(coordinates),
+      offset: { left: [12, -20], right: [-12, -20] },
+    }).setLngLat(coordinates).setDOMContent(card).addTo(map);
+  }
+
   function addMarkerLayers() {
     ensureIconsFor(CFG.markers);
     map.addSource('daqui-markers', {
@@ -279,13 +438,25 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     map.addLayer({ id: 'daqui-cluster-count', type: 'symbol', source: 'daqui-markers', filter: ['has', 'point_count'], layout: {
       'text-field': ['get', 'point_count_abbreviated'], 'text-font': ['Noto Sans Bold'], 'text-size': 12,
     }, paint: { 'text-color': '#FFFFFF' }});
-    map.addLayer({ id: 'daqui-pins', type: 'symbol', source: 'daqui-markers', filter: ['!', ['has', 'point_count']], layout: {
+    map.addLayer({ id: 'daqui-pins', type: 'symbol', source: 'daqui-markers', filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'kind'], 'pin']], layout: {
       'icon-image': ['concat', 'pin-', ['slice', ['get', 'color'], 1]],
       'icon-size': ['get', 'scale'],
       'icon-anchor': 'bottom',
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
     }});
+    // "Pilha": vários pins colidindo no mesmo lugar (ver STACK_THRESHOLD em
+    // features()) — crachá arredondado (não gota, não círculo) com o total.
+    map.addLayer({ id: 'daqui-stacks', type: 'symbol', source: 'daqui-markers', filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'kind'], 'stack']], layout: {
+      'icon-image': ['concat', 'stack-', ['slice', ['get', 'color'], 1]],
+      'icon-anchor': 'center',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    }});
+    map.addLayer({ id: 'daqui-stack-count', type: 'symbol', source: 'daqui-markers', filter: ['all', ['!', ['has', 'point_count']], ['==', ['get', 'kind'], 'stack']], layout: {
+      'text-field': ['get', 'count'], 'text-font': ['Noto Sans Bold'], 'text-size': 13,
+      'text-allow-overlap': true, 'text-ignore-placement': true,
+    }, paint: { 'text-color': '#FFFFFF' }});
 
     // Clica no cluster: em vez de só pular pro "próximo zoom onde ele se
     // separa" (podia deixar pins de fora se estivessem espalhados), busca
@@ -299,29 +470,46 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
       leaves.forEach(function (leaf) { bounds.extend(leaf.geometry.coordinates); });
       map.fitBounds(bounds, { padding: 60, maxZoom: 18, duration: 500 });
     });
-    map.on('click', 'daqui-pins', function (e) {
-      var feature = e.features && e.features[0]; if (feature) post({ id: String(feature.properties.id) });
-    });
-    map.on('mouseenter', 'daqui-pins', function (e) {
-      map.getCanvas().style.cursor = 'pointer';
+    // Clica na pilha: não dá pra abrir um post só (são vários no mesmo
+    // lugar) — manda a lista de ids pro app mostrar embaixo do mapa.
+    map.on('click', 'daqui-stacks', function (e) {
       var feature = e.features && e.features[0]; if (!feature) return;
-      hoveredPinId = String(feature.properties.id);
-      map.getSource('daqui-markers').setData(geojson(CFG.markers));
-      var marker = markerById[hoveredPinId]; if (!marker) return;
-      if (hoverPopup) hoverPopup.remove();
-      hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 14 })
-        .setLngLat(feature.geometry.coordinates).setDOMContent(buildCard(marker)).addTo(map);
+      var ids; try { ids = JSON.parse(feature.properties.ids || '[]'); } catch (_) { ids = []; }
+      post({ stackIds: ids });
     });
-    map.on('mouseleave', 'daqui-pins', function () {
-      map.getCanvas().style.cursor = '';
-      if (hoveredPinId !== null) {
-        hoveredPinId = null;
-        map.getSource('daqui-markers').setData(geojson(CFG.markers));
-      }
-      if (hoverPopup) { hoverPopup.remove(); hoverPopup = null; }
-    });
+    map.on('mouseenter', 'daqui-stacks', function () { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', 'daqui-stacks', function () { map.getCanvas().style.cursor = ''; });
     map.on('mouseenter', 'daqui-clusters', function () { map.getCanvas().style.cursor = 'pointer'; });
     map.on('mouseleave', 'daqui-clusters', function () { map.getCanvas().style.cursor = ''; });
+
+    if (IS_TOUCH) {
+      // Touch: 1º toque no pin abre o balão (não navega ainda); tocar de
+      // novo no MESMO pin (ou no balão) navega; tocar fora fecha o balão
+      // (ver o map.on('click') geral, mais abaixo).
+      map.on('click', 'daqui-pins', function (e) {
+        var feature = e.features && e.features[0]; if (!feature) return;
+        var id = String(feature.properties.id);
+        if (activePinId === id) { post({ id: id }); return; }
+        setActivePin(id);
+        showPinPopup(id, feature.geometry.coordinates);
+      });
+    } else {
+      map.on('mouseenter', 'daqui-pins', function (e) {
+        map.getCanvas().style.cursor = 'pointer';
+        cancelHidePopup();
+        var feature = e.features && e.features[0]; if (!feature) return;
+        var id = String(feature.properties.id);
+        setActivePin(id);
+        showPinPopup(id, feature.geometry.coordinates);
+      });
+      map.on('mouseleave', 'daqui-pins', function () {
+        map.getCanvas().style.cursor = '';
+        scheduleHidePopup();
+      });
+      map.on('click', 'daqui-pins', function (e) {
+        var feature = e.features && e.features[0]; if (feature) post({ id: String(feature.properties.id) });
+      });
+    }
   }
 
   function placePicked(lng, lat, notify) {
@@ -336,20 +524,34 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
   map.on('load', function () {
     recolorStyle();
     addRelief();
+    // Já marca o pin de foco como ativo (tamanho normal) antes do source
+    // nascer, senão ele apareceria encolhido por idade num primeiro frame.
+    // markerById só é populado dentro de addMarkerLayers → geojson →
+    // features(), então nesse ponto ainda não dá pra confirmar que o id
+    // existe de fato — inofensivo se não existir (activePinId só compara).
+    if (CFG.focusId) activePinId = String(CFG.focusId);
     addMarkerLayers();
     if (CFG.pickable && CFG.pickedLocation) placePicked(CFG.pickedLocation.longitude, CFG.pickedLocation.latitude, false);
     if (CFG.focusId && markerById[String(CFG.focusId)]) {
       var focused = markerById[String(CFG.focusId)];
       map.easeTo({ center: [focused.longitude, focused.latitude], zoom: Math.max(map.getZoom(), 17) });
-      hoverPopup = new maplibregl.Popup({ closeButton: false, offset: 14 }).setLngLat([focused.longitude, focused.latitude]).setDOMContent(buildCard(focused)).addTo(map);
+      showPinPopup(String(CFG.focusId), [focused.longitude, focused.latitude]);
     }
     sendBounds();
   });
   map.on('moveend', sendBounds);
   map.on('click', function (e) {
-    if (!CFG.pickable) return;
-    var hits = map.queryRenderedFeatures(e.point, { layers: ['daqui-pins', 'daqui-clusters'] });
-    if (!hits.length) placePicked(e.lngLat.lng, e.lngLat.lat, true);
+    if (CFG.pickable) {
+      var hits = map.queryRenderedFeatures(e.point, { layers: ['daqui-pins', 'daqui-clusters', 'daqui-stacks'] });
+      if (!hits.length) placePicked(e.lngLat.lng, e.lngLat.lat, true);
+      return;
+    }
+    // Touch: tocar fora do pin ativo (e fora do próprio balão, que não faz
+    // parte do canvas e por isso nunca dispara esse clique) fecha o balão.
+    if (IS_TOUCH && activePinId !== null) {
+      var pinHits = map.queryRenderedFeatures(e.point, { layers: ['daqui-pins'] });
+      if (!pinHits.length) { activePinId = null; map.getSource('daqui-markers').setData(geojson(CFG.markers)); hidePinPopup(); }
+    }
   });
 
   window.daquiSetMarkers = function (markers) {

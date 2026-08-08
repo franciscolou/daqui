@@ -1756,7 +1756,9 @@
     "inNeighborhood": "in the neighborhood",
     "sponsoredAuthor": "Ad",
     "activityTitle": "Neighborhood activity",
-    "activityStats": "{{posts}} posts · {{neighbors}} neighbors"
+    "activityStats": "{{posts}} posts · {{neighbors}} neighbors",
+    "stackTitle": "{{count}} posts at this spot",
+    "backToNearby": "Back to near you"
   },
   "rightSidebar": {
     "noLocation": "No location",
