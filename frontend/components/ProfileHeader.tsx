@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
@@ -13,6 +13,7 @@ interface ProfileHeaderProps {
   isWide: boolean;
   onBack?: () => void;
   onMenu?: () => void;
+  onSearchChange?: (query: string) => void;
   actions?: ReactNode;
 }
 
@@ -23,11 +24,31 @@ const AVATAR_SIZE = 84;
  * alinhada à esquerda, e as informações seguem abaixo dela em ordem de
  * importância (nome, @usuário, bio, localização, estatísticas). Compartilhado
  * entre a aba "Perfil" e a tela de perfil de outro usuário. */
-export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }: ProfileHeaderProps) {
+export default function ProfileHeader({
+  user,
+  isWide,
+  onBack,
+  onMenu,
+  onSearchChange,
+  actions,
+}: ProfileHeaderProps) {
   const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [avatarVisible, setAvatarVisible] = useState(false);
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const closeSearch = () => {
+    setSearchVisible(false);
+    setSearchQuery('');
+    onSearchChange?.('');
+  };
+
+  const updateSearch = (query: string) => {
+    setSearchQuery(query);
+    onSearchChange?.(query);
+  };
 
   const location = user.locked
     ? t('profile.otherNeighborhoodNeighbor')
@@ -50,7 +71,7 @@ export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }:
             />
           )}
 
-          {(onBack || onMenu) && (
+          {(onBack || onMenu || onSearchChange) && (
             <View style={styles.topRow} pointerEvents="box-none">
               {onBack ? (
                 <TouchableOpacity style={styles.iconBtn} onPress={onBack} hitSlop={6}>
@@ -59,13 +80,24 @@ export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }:
               ) : (
                 <View style={styles.iconBtn} />
               )}
-              {onMenu ? (
-                <TouchableOpacity style={styles.iconBtn} onPress={onMenu} hitSlop={6}>
-                  <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.iconBtn} />
-              )}
+              <View style={styles.topActions}>
+                {!!onSearchChange && (
+                  <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => (searchVisible ? closeSearch() : setSearchVisible(true))}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('profile.search')}
+                  >
+                    <Ionicons name={searchVisible ? 'close' : 'search'} size={20} color="#fff" />
+                  </TouchableOpacity>
+                )}
+                {!!onMenu && (
+                  <TouchableOpacity style={styles.iconBtn} onPress={onMenu} hitSlop={6}>
+                    <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           )}
         </View>
@@ -118,6 +150,27 @@ export default function ProfileHeader({ user, isWide, onBack, onMenu, actions }:
         </View>
       </View>
 
+      {searchVisible && (
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={18} color={Colors.textSecondary} />
+          <TextInput
+            autoFocus
+            value={searchQuery}
+            onChangeText={updateSearch}
+            placeholder={t('profile.searchPlaceholder')}
+            placeholderTextColor={Colors.textTertiary}
+            style={styles.searchInput}
+            returnKeyType="search"
+            accessibilityLabel={t('profile.search')}
+          />
+          {!!searchQuery && (
+            <TouchableOpacity onPress={() => updateSearch('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       <ImageViewerModal
         media={[{ url: user.avatar, type: 'image' }]}
         visible={avatarVisible}
@@ -161,6 +214,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn: {
     width: 36,
     height: 36,
@@ -217,4 +271,18 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: 16, marginTop: 4 },
   statText: { fontSize: 13, color: Colors.textSecondary },
   statNum: { fontWeight: '800', color: Colors.text },
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 12,
+    minHeight: 42,
+    borderRadius: 12,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  searchInput: { flex: 1, paddingVertical: 9, fontSize: 14, color: Colors.text },
 });

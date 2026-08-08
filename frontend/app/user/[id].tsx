@@ -26,6 +26,9 @@ import ActionMenu from '../../components/ActionMenu';
 import ReportModal from '../../components/ReportModal';
 import { useT } from '../../lib/i18n';
 
+const normalizeSearch = (value: string) =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
+
 export default function UserScreen() {
   const { t } = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,6 +47,7 @@ export default function UserScreen() {
   const [loading, setLoading] = useState(true);
   const [menuVisible, setMenuVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isMe = !!me && me.id === id;
 
@@ -52,15 +56,17 @@ export default function UserScreen() {
   }, []);
 
   const timelineItems = useMemo(() => {
-    const items: { key: string; date: string; node: React.ReactNode }[] = [
+    const items: { key: string; date: string; searchText: string; node: React.ReactNode }[] = [
       ...userPosts.map((post) => ({
         key: postListKey(post),
         date: post.createdAt,
+        searchText: [post.title, post.content, post.location, post.category].filter(Boolean).join(' '),
         node: <PostCard key={postListKey(post)} post={post} onDeleted={handlePostDeleted} />,
       })),
       ...linkedAds.map((ad) => ({
         key: `ad-${ad.id}`,
         date: ad.createdAt ?? '',
+        searchText: [ad.title, ad.content].filter(Boolean).join(' '),
         node: (
           <AdPostCard
             key={`ad-${ad.id}`}
@@ -74,6 +80,12 @@ export default function UserScreen() {
     ];
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [userPosts, linkedAds, me?.id, handlePostDeleted]);
+
+  const visibleTimelineItems = useMemo(() => {
+    const query = normalizeSearch(searchQuery);
+    if (!query) return timelineItems;
+    return timelineItems.filter((item) => normalizeSearch(item.searchText).includes(query));
+  }, [timelineItems, searchQuery]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -129,6 +141,7 @@ export default function UserScreen() {
         isWide={isWide}
         onBack={() => goBack('/')}
         onMenu={!isMe ? () => setMenuVisible(true) : undefined}
+        onSearchChange={!user.locked ? setSearchQuery : undefined}
         actions={
           !user.locked ? (
             isMe ? (
@@ -184,13 +197,19 @@ export default function UserScreen() {
             <Text style={styles.timelineTitle}>
               {isMe ? t('profile.myPosts') : t('profile.posts')}
             </Text>
-            {timelineItems.length === 0 ? (
+            {visibleTimelineItems.length === 0 ? (
               <View style={styles.noPosts}>
-                <Ionicons name="document-text-outline" size={32} color={Colors.textTertiary} />
-                <Text style={styles.noPostsText}>{t('profile.noPosts')}</Text>
+                <Ionicons
+                  name={searchQuery ? 'search-outline' : 'document-text-outline'}
+                  size={32}
+                  color={Colors.textTertiary}
+                />
+                <Text style={styles.noPostsText}>
+                  {searchQuery ? t('profile.noSearchResults') : t('profile.noPosts')}
+                </Text>
               </View>
             ) : (
-              timelineItems.map((item) => item.node)
+              visibleTimelineItems.map((item) => item.node)
             )}
           </View>
         </>

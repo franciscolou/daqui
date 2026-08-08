@@ -23,6 +23,8 @@ import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useT } from '../../lib/i18n';
 
 const WIDE = 900;
+const normalizeSearch = (value: string) =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
 
 export default function ProfileScreen() {
   const { t } = useT();
@@ -35,6 +37,7 @@ export default function ProfileScreen() {
   // Posts de campanhas de anúncio expiradas vinculadas à própria conta —
   // deixam de ser impulsionadas e "assentam" na timeline como post normal.
   const [linkedAds, setLinkedAds] = useState<Ad[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
   useRegisterScrollToTop('profile', () => {
@@ -54,15 +57,17 @@ export default function ProfileScreen() {
   }, []);
 
   const timelineItems = useMemo(() => {
-    const items: { key: string; date: string; node: React.ReactNode }[] = [
+    const items: { key: string; date: string; searchText: string; node: React.ReactNode }[] = [
       ...myPosts.map((post) => ({
         key: postListKey(post),
         date: post.createdAt,
+        searchText: [post.title, post.content, post.location, post.category].filter(Boolean).join(' '),
         node: <PostCard key={postListKey(post)} post={post} onDeleted={handlePostDeleted} />,
       })),
       ...linkedAds.map((ad) => ({
         key: `ad-${ad.id}`,
         date: ad.createdAt ?? '',
+        searchText: [ad.title, ad.content].filter(Boolean).join(' '),
         node: (
           <AdPostCard
             key={`ad-${ad.id}`}
@@ -77,6 +82,12 @@ export default function ProfileScreen() {
     return items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [myPosts, linkedAds, user?.id, handlePostDeleted]);
 
+  const visibleTimelineItems = useMemo(() => {
+    const query = normalizeSearch(searchQuery);
+    if (!query) return timelineItems;
+    return timelineItems.filter((item) => normalizeSearch(item.searchText).includes(query));
+  }, [timelineItems, searchQuery]);
+
   if (!user) return null;
 
   const content = (
@@ -84,6 +95,7 @@ export default function ProfileScreen() {
       <ProfileHeader
         user={user}
         isWide={isWide}
+        onSearchChange={setSearchQuery}
         actions={
           <TouchableOpacity
             style={styles.editBtn}
@@ -99,13 +111,19 @@ export default function ProfileScreen() {
       {/* My posts — timeline */}
       <View style={styles.timelineSection}>
         <Text style={styles.timelineTitle}>{t('profile.myPosts')}</Text>
-        {timelineItems.length === 0 ? (
+        {visibleTimelineItems.length === 0 ? (
           <View style={styles.noPosts}>
-            <Ionicons name="document-text-outline" size={32} color={Colors.textTertiary} />
-            <Text style={styles.noPostsText}>{t('profile.noOwnPosts')}</Text>
+            <Ionicons
+              name={searchQuery ? 'search-outline' : 'document-text-outline'}
+              size={32}
+              color={Colors.textTertiary}
+            />
+            <Text style={styles.noPostsText}>
+              {searchQuery ? t('profile.noSearchResults') : t('profile.noOwnPosts')}
+            </Text>
           </View>
         ) : (
-          timelineItems.map((item) => item.node)
+          visibleTimelineItems.map((item) => item.node)
         )}
       </View>
 

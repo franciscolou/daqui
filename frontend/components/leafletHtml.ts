@@ -341,9 +341,20 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
         if (layer.type === 'fill' && /water|ocean|lake|river/.test(key)) map.setPaintProperty(layer.id, 'fill-color', colors.water);
         if (layer.type === 'line' && /water|river|stream|canal/.test(key)) map.setPaintProperty(layer.id, 'line-color', colors.waterLine);
         if (layer.type === 'fill' && /park|grass|wood|forest|landcover/.test(key)) map.setPaintProperty(layer.id, 'fill-color', colors.park);
-        if (layer.type === 'line' && /motorway|freeway|trunk/.test(key)) map.setPaintProperty(layer.id, 'line-color', colors.motorway);
-        else if (layer.type === 'line' && /primary/.test(key)) map.setPaintProperty(layer.id, 'line-color', colors.primary);
-        else if (layer.type === 'line' && /secondary|tertiary/.test(key)) map.setPaintProperty(layer.id, 'line-color', colors.secondary);
+        // line-opacity bem abaixo de 1: a cor cheia (principalmente a de via
+        // principal, mais saturada) competia com o nome da rua escrito por
+        // cima, poluindo o mapa e prejudicando a leitura do label. 0.75/0.8
+        // ainda ficou forte demais — cortado bem mais.
+        if (layer.type === 'line' && /motorway|freeway|trunk/.test(key)) {
+          map.setPaintProperty(layer.id, 'line-color', colors.motorway);
+          map.setPaintProperty(layer.id, 'line-opacity', 0.45);
+        } else if (layer.type === 'line' && /primary/.test(key)) {
+          map.setPaintProperty(layer.id, 'line-color', colors.primary);
+          map.setPaintProperty(layer.id, 'line-opacity', 0.45);
+        } else if (layer.type === 'line' && /secondary|tertiary/.test(key)) {
+          map.setPaintProperty(layer.id, 'line-color', colors.secondary);
+          map.setPaintProperty(layer.id, 'line-opacity', 0.55);
+        }
       } catch (_) {}
     });
   }
