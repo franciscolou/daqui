@@ -160,6 +160,7 @@ export default function FeedScreen() {
   // (senão ela apareceria colada num feed que já é de outro contexto).
   const feedSeq = useRef(0);
   const loadingMorePostsRef = useRef(false);
+  const noMorePostsRef = useRef(false);
 
   const load = useCallback(async () => {
     if (initialViewLoading) return;
@@ -167,6 +168,7 @@ export default function FeedScreen() {
     try {
       setLoading(true);
       setError(null);
+      noMorePostsRef.current = false;
       const params = feedParams(1);
       if (!params) {
         setPosts([]);
@@ -179,6 +181,7 @@ export default function FeedScreen() {
       setPosts(feed.items);
       setTotalPosts(feed.total);
       setPage(1);
+      if (feed.items.length === 0) noMorePostsRef.current = true;
     } catch {
       if (seq !== feedSeq.current) return;
       setError(t('feed.errors.load'));
@@ -188,7 +191,7 @@ export default function FeedScreen() {
   }, [feedParams, initialViewLoading, t]);
 
   const loadMorePosts = useCallback(() => {
-    if (loadingMorePostsRef.current || posts.length >= totalPosts) return;
+    if (loadingMorePostsRef.current || noMorePostsRef.current || posts.length >= totalPosts) return;
     const nextPage = page + 1;
     const params = feedParams(nextPage);
     if (!params) return;
@@ -199,9 +202,18 @@ export default function FeedScreen() {
       .getFeed(params)
       .then((feed) => {
         if (seq !== feedSeq.current) return;
+        // Uma página vazia é o único sinal confiável de "acabou": `total` conta
+        // reposts como itens distintos (mesmo `id` do post original), então
+        // `posts.length` (deduplicado por postListKey) pode nunca alcançar
+        // `totalPosts` mesmo depois de esgotar as páginas — sem essa guarda,
+        // loadMorePosts fica reativando por sempre (flicker no fim do feed).
+        if (feed.items.length === 0) {
+          noMorePostsRef.current = true;
+        }
         setPosts((prev) => {
-          const seen = new Set(prev.map((p) => p.id));
-          const fresh = feed.items.filter((p) => !seen.has(p.id));
+          const seen = new Set(prev.map(postListKey));
+          const fresh = feed.items.filter((p) => !seen.has(postListKey(p)));
+          if (fresh.length === 0) noMorePostsRef.current = true;
           return fresh.length ? [...prev, ...fresh] : prev;
         });
         setTotalPosts(feed.total);
