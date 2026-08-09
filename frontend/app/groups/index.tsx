@@ -50,7 +50,7 @@ export default function GroupsDiscoverScreen() {
       } else {
         // Some da lista de "não explorados" e abre o chat (já vira conversa em Mensagens).
         setGroups((prev) => prev.filter((x) => x.id !== g.id));
-        router.push(`/groups/${g.id}` as any);
+        router.push(`/groups/${g.publicId}` as any);
       }
     } catch {
       // ignora

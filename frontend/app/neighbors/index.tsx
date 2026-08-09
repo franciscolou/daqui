@@ -75,7 +75,7 @@ export default function NeighborsScreen() {
           <TouchableOpacity
             style={styles.card}
             activeOpacity={0.85}
-            onPress={() => router.push(`/user/${item.id}` as any)}
+            onPress={() => router.push(`/user/${item.username}` as any)}
           >
             <Image source={{ uri: item.avatar }} style={styles.avatar} />
             <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
@@ -83,7 +83,7 @@ export default function NeighborsScreen() {
             <TouchableOpacity
               style={styles.msgBtn}
               activeOpacity={0.85}
-              onPress={() => router.push(`/messages/${item.id}` as any)}
+              onPress={() => router.push(`/messages/${item.username}` as any)}
             >
               <Ionicons name="chatbubble-outline" size={15} color="#fff" />
               <Text style={styles.msgBtnText}>{t('neighbors.message')}</Text>

@@ -12,6 +12,7 @@ import { Reports } from './Reports';
 import { Reviews } from './Reviews';
 import { Staff } from './Staff';
 import { Tickets } from './Tickets';
+import { Trash } from './Trash';
 import { Users } from './Users';
 
 // Casca do painel: navegação lateral + seção ativa. Novas filas de moderação
@@ -53,6 +54,13 @@ const BASE_SECTIONS: Section[] = [
     icon: 'users',
     title: 'Usuários',
     subtitle: 'Busca, conteúdo e suspensão de contas',
+  },
+  {
+    key: 'trash',
+    label: 'Lixeira',
+    icon: 'trash',
+    title: 'Lixeira da moderação',
+    subtitle: 'Posts e comentários restauráveis por 60 dias',
   },
   {
     key: 'audit',
@@ -113,6 +121,8 @@ export function Shell() {
         return <Tickets />;
       case 'users':
         return <Users key={target?.nonce ?? 0} userId={target?.id ?? null} />;
+      case 'trash':
+        return <Trash />;
       case 'audit':
         return <Audit />;
       case 'staff':

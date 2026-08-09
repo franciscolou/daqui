@@ -34,6 +34,8 @@ def create_tables():
 
 def _ensure_columns():
     """Migrações leves para colunas adicionadas a tabelas já existentes (SQLite)."""
+    import secrets
+
     from sqlalchemy import inspect, text
 
     inspector = inspect(engine)
@@ -148,6 +150,13 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE comments ADD COLUMN reposts_count INTEGER DEFAULT 0 NOT NULL"))
             if "image_url" not in columns:
                 conn.execute(text("ALTER TABLE comments ADD COLUMN image_url VARCHAR(500)"))
+            if "moderation_deleted_at" not in columns:
+                conn.execute(text("ALTER TABLE comments ADD COLUMN moderation_deleted_at DATETIME"))
+            if "moderation_deleted_by_id" not in columns:
+                conn.execute(text("ALTER TABLE comments ADD COLUMN moderation_deleted_by_id INTEGER REFERENCES users(id)"))
+            if "moderation_deleted_root_id" not in columns:
+                conn.execute(text("ALTER TABLE comments ADD COLUMN moderation_deleted_root_id INTEGER"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_comments_moderation_deleted_at ON comments (moderation_deleted_at)"))
 
     if "group_messages" in tables:
         columns = {c["name"] for c in inspector.get_columns("group_messages")}
@@ -199,6 +208,22 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE posts ADD COLUMN quoted_comment_id INTEGER REFERENCES comments(id)"))
             if "quoted_ad_id" not in columns:
                 conn.execute(text("ALTER TABLE posts ADD COLUMN quoted_ad_id INTEGER"))
+            if "public_id" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN public_id VARCHAR(16)"))
+                # Backfill: cada post existente ganha um identificador de URL
+                # próprio (não dá pra usar um DEFAULT único do SQLite aqui).
+                rows = conn.execute(text("SELECT id FROM posts WHERE public_id IS NULL")).fetchall()
+                for (existing_id,) in rows:
+                    conn.execute(
+                        text("UPDATE posts SET public_id = :pid WHERE id = :id"),
+                        {"pid": secrets.token_urlsafe(8), "id": existing_id},
+                    )
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_posts_public_id ON posts (public_id)"))
+            if "moderation_deleted_at" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN moderation_deleted_at DATETIME"))
+            if "moderation_deleted_by_id" not in columns:
+                conn.execute(text("ALTER TABLE posts ADD COLUMN moderation_deleted_by_id INTEGER REFERENCES users(id)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_posts_moderation_deleted_at ON posts (moderation_deleted_at)"))
 
     if "groups" in tables:
         columns = {c["name"] for c in inspector.get_columns("groups")}
@@ -214,6 +239,17 @@ def _ensure_columns():
                 )
             if "is_open" in columns:
                 conn.execute(text("ALTER TABLE groups DROP COLUMN is_open"))
+            if "public_id" not in columns:
+                conn.execute(text("ALTER TABLE groups ADD COLUMN public_id VARCHAR(16)"))
+                # Backfill: cada grupo existente ganha um identificador de URL
+                # próprio (não dá pra usar um DEFAULT único do SQLite aqui).
+                rows = conn.execute(text("SELECT id FROM groups WHERE public_id IS NULL")).fetchall()
+                for (existing_id,) in rows:
+                    conn.execute(
+                        text("UPDATE groups SET public_id = :pid WHERE id = :id"),
+                        {"pid": secrets.token_urlsafe(8), "id": existing_id},
+                    )
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_groups_public_id ON groups (public_id)"))
 
     if "support_tickets" in tables:
         columns = {c["name"] for c in inspector.get_columns("support_tickets")}

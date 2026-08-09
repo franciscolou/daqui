@@ -15,6 +15,7 @@ def list_for_post(db: Session, post_id: int) -> list[Comment]:
             func.count(Comment.id).label("replies_count"),
         )
         .filter(Comment.parent_id.is_not(None))
+        .filter(Comment.moderation_deleted_at.is_(None))
         .group_by(Comment.parent_id)
         .subquery()
     )
@@ -22,7 +23,7 @@ def list_for_post(db: Session, post_id: int) -> list[Comment]:
     return (
         db.query(Comment)
         .outerjoin(replies, replies.c.parent_id == Comment.id)
-        .filter(Comment.post_id == post_id, Comment.parent_id.is_(None))
+        .filter(Comment.post_id == post_id, Comment.parent_id.is_(None), Comment.moderation_deleted_at.is_(None))
         .order_by(desc(popularity), desc(Comment.created_at), desc(Comment.id))
         .all()
     )
@@ -32,7 +33,7 @@ def list_replies(db: Session, parent_id: int) -> list[Comment]:
     # Respostas diretas de um comentário, mais recentes primeiro.
     return (
         db.query(Comment)
-        .filter(Comment.parent_id == parent_id)
+        .filter(Comment.parent_id == parent_id, Comment.moderation_deleted_at.is_(None))
         .order_by(desc(Comment.created_at))
         .all()
     )
@@ -44,7 +45,7 @@ def reply_counts(db: Session, parent_ids: list[int]) -> dict[int, int]:
         return {}
     rows = (
         db.query(Comment.parent_id, func.count(Comment.id))
-        .filter(Comment.parent_id.in_(parent_ids))
+        .filter(Comment.parent_id.in_(parent_ids), Comment.moderation_deleted_at.is_(None))
         .group_by(Comment.parent_id)
         .all()
     )
@@ -52,13 +53,27 @@ def reply_counts(db: Session, parent_ids: list[int]) -> dict[int, int]:
 
 
 def get_by_id(db: Session, comment_id: int) -> Comment | None:
+    return (
+        db.query(Comment)
+        .join(Post, Post.id == Comment.post_id)
+        .filter(
+            Comment.id == comment_id,
+            Comment.moderation_deleted_at.is_(None),
+            Post.moderation_deleted_at.is_(None),
+        )
+        .first()
+    )
+
+
+def get_by_id_including_deleted(db: Session, comment_id: int) -> Comment | None:
     return db.get(Comment, comment_id)
 
 
 def list_by_author(db: Session, author_id: int) -> list[Comment]:
     return (
         db.query(Comment)
-        .filter(Comment.author_id == author_id)
+        .join(Post, Post.id == Comment.post_id)
+        .filter(Comment.author_id == author_id, Comment.moderation_deleted_at.is_(None), Post.moderation_deleted_at.is_(None))
         .order_by(desc(Comment.created_at))
         .all()
     )
@@ -92,11 +107,12 @@ def delete(db: Session, comment: Comment) -> None:
 
 
 def count_for_post(db: Session, post_id: int) -> int:
-    return db.query(Comment).filter(Comment.post_id == post_id).count()
+    return db.query(Comment).filter(Comment.post_id == post_id, Comment.moderation_deleted_at.is_(None)).count()
 
 
 def count_by_author(db: Session, author_id: int) -> int:
-    return db.query(Comment).filter(Comment.author_id == author_id).count()
+    return (db.query(Comment).join(Post, Post.id == Comment.post_id)
+            .filter(Comment.author_id == author_id, Comment.moderation_deleted_at.is_(None), Post.moderation_deleted_at.is_(None)).count())
 
 
 # ── Curtidas ──────────────────────────────────────────────────────────

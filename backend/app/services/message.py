@@ -168,7 +168,9 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
             receiver.id,
             user.name,
             _preview_text(msg),
-            data={"type": "dm", "userId": user.id},
+            # `username` é o que o app usa pra montar o deep link
+            # `/messages/{username}` sem expor o id sequencial (ver lib/push.ts).
+            data={"type": "dm", "userId": user.id, "username": user.username},
         )
     return msg
 

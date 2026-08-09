@@ -74,12 +74,12 @@ export async function unregisterPushToken(): Promise<void> {
 export function addNotificationTapListener(): () => void {
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data as
-      | { type?: string; userId?: number; groupId?: number }
+      | { type?: string; userId?: number; username?: string; groupId?: number; publicId?: string }
       | undefined;
-    if (data?.type === 'dm' && data.userId != null) {
-      router.push(`/messages/${data.userId}` as any);
-    } else if (data?.type === 'group' && data.groupId != null) {
-      router.push(`/groups/${data.groupId}` as any);
+    if (data?.type === 'dm' && data.username) {
+      router.push(`/messages/${data.username}` as any);
+    } else if (data?.type === 'group' && data.publicId) {
+      router.push(`/groups/${data.publicId}` as any);
     } else {
       router.push('/(tabs)/notifications' as any);
     }

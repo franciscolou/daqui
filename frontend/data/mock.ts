@@ -70,6 +70,9 @@ export interface PostMedia {
 
 export interface Post {
   id: string;
+  // Identificador de URL (estilo Twitter, opaco) — usado em /post/{username}/status/{publicId}
+  // no lugar de `id` pra não expor a posição sequencial do post.
+  publicId: string;
   author: User;
   authorIsResident?: boolean; // autor mora no bairro deste post (selo de Morador)
   category: PostCategory;
@@ -229,6 +232,7 @@ export const USERS: User[] = [
 export const POSTS: Post[] = [
   {
     id: 'p1',
+    publicId: 'p1',
     author: USERS[0],
     category: 'aviso',
     title: 'Atenção: Obra na Rua Harmonia',
@@ -246,6 +250,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 'p2',
+    publicId: 'p2',
     author: USERS[2],
     category: 'recomendacao',
     title: 'Padaria incrível na Vila Madalena!',
@@ -262,6 +267,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 'p3',
+    publicId: 'p3',
     author: USERS[1],
     category: 'seguranca',
     title: 'Cuidado com golpe do WhatsApp',
@@ -278,6 +284,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 'p4',
+    publicId: 'p4',
     author: USERS[4],
     category: 'pets',
     title: 'Cachorro desaparecido 😢',
@@ -295,6 +302,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 'p5',
+    publicId: 'p5',
     author: USERS[5],
     category: 'evento',
     title: 'Festa Junina da Rua Wisard',
@@ -310,6 +318,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 'p6',
+    publicId: 'p6',
     author: USERS[3],
     category: 'venda',
     title: 'Sofá 3 lugares — R$ 800',
@@ -326,6 +335,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 'p7',
+    publicId: 'p7',
     author: USERS[0],
     category: 'ajuda',
     title: 'Alguém tem escada de 3 metros?',
@@ -341,6 +351,7 @@ export const POSTS: Post[] = [
   },
   {
     id: 'p8',
+    publicId: 'p8',
     author: USERS[2],
     category: 'geral',
     title: 'Pôr do sol incrível hoje!',

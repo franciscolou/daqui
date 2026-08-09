@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Optional
@@ -26,6 +27,12 @@ class Post(Base):
     __tablename__ = "posts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    # Identificador de URL (estilo Twitter: opaco, não revela a posição
+    # sequencial do post) — gerado uma vez na criação, nunca muda. Usado no
+    # lugar de `id` em qualquer link público (ver GET /posts/by-public-id).
+    public_id: Mapped[str] = mapped_column(
+        String(16), unique=True, index=True, default=lambda: secrets.token_urlsafe(8)
+    )
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     category: Mapped[PostCategory] = mapped_column(String(30), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(200))
@@ -75,6 +82,15 @@ class Post(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    # Exclusões feitas pela moderação são reversíveis por 60 dias. Enquanto
+    # preenchido, o post é invisível no app comum, mas preserva todas as suas
+    # relações (comentários, curtidas, enquete e reposts) para restauração.
+    moderation_deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    moderation_deleted_by_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
 
     @property
     def image_urls(self) -> list[str]:
@@ -82,7 +98,9 @@ class Post(Base):
         vídeo — snapshot de moderação, prévia de encaminhamento, pin do mapa)."""
         return [m["url"] for m in (self.media or []) if m.get("type", "image") == "image"]
 
-    author: Mapped["User"] = relationship("User", back_populates="posts")  # noqa: F821
+    author: Mapped["User"] = relationship(  # noqa: F821
+        "User", back_populates="posts", foreign_keys=[author_id]
+    )
     likes: Mapped[list["PostLike"]] = relationship(
         "PostLike", back_populates="post", lazy="select", cascade="all, delete-orphan"
     )

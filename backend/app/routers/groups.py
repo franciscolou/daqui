@@ -17,6 +17,9 @@ router = APIRouter(prefix="/groups", tags=["groups"])
 router.post("/", response_model=GroupDetailOut, status_code=201)(group.create_group)
 router.get("/conversations", response_model=list[GroupConversationOut])(group.list_conversations)
 router.get("/discover", response_model=list[GroupOut])(group.discover)
+# Resolve a URL pública `/groups/{public_id}` do app pelo identificador opaco
+# (ver models/group.py::public_id) — estática, antes de "/{group_id}".
+router.get("/by-public-id/{public_id}", response_model=GroupDetailOut)(group.get_group_by_public_id)
 
 router.get("/{group_id}", response_model=GroupDetailOut)(group.get_group)
 router.patch("/{group_id}", response_model=GroupDetailOut)(group.update_group)

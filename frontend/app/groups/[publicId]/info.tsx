@@ -29,7 +29,7 @@ import NotificationMuteRow from '../../../components/NotificationMuteRow';
 const PRIVACY_OPTIONS: GroupPrivacy[] = ['public', 'request', 'closed'];
 
 export default function GroupInfoScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { publicId } = useLocalSearchParams<{ publicId: string }>();
   const { user: me } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -61,9 +61,9 @@ export default function GroupInfoScreen() {
   }, []);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!publicId) return;
     try {
-      const [g] = await Promise.all([api.getGroup(id)]);
+      const [g] = await Promise.all([api.getGroupByPublicId(publicId)]);
       apply(g);
       api.getNeighbors().then(setNeighbors).catch(() => {});
     } catch {
@@ -71,7 +71,7 @@ export default function GroupInfoScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, apply]);
+  }, [publicId, apply]);
 
   useEffect(() => {
     load();
@@ -256,7 +256,7 @@ export default function GroupInfoScreen() {
   return (
     <FeedLayout showMobileMenu={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => goBack(`/groups/${id}` as any)}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => goBack(`/groups/${publicId}` as any)}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('groupInfo.title')}</Text>
@@ -336,7 +336,7 @@ export default function GroupInfoScreen() {
           <TouchableOpacity
             style={styles.row}
             activeOpacity={0.7}
-            onPress={() => router.push(`/groups/${id}/media` as any)}
+            onPress={() => router.push(`/groups/${publicId}/media` as any)}
           >
             <View style={styles.iconWrap}>
               <Ionicons name="images-outline" size={18} color={Colors.primary} />
@@ -529,7 +529,7 @@ export default function GroupInfoScreen() {
                 key={m.user.id}
                 style={styles.memberRow}
                 activeOpacity={0.8}
-                onPress={() => router.push(`/user/${m.user.id}` as any)}
+                onPress={() => router.push(`/user/${m.user.username}` as any)}
               >
                 <Image source={{ uri: m.user.avatar }} style={styles.memberAvatar} />
                 <View style={styles.flex}>

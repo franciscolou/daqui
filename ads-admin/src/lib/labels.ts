@@ -72,10 +72,10 @@ export type GeoScope = (typeof GEO_SCOPES)[number]['key'];
 
 // Filtros predefinidos da Auditoria, separados em dois grupos (ver Audit.tsx):
 // i) gerenciamento do propósito da plataforma — campanhas/planos de anúncio —
-// e ii) contas do próprio painel (staff). "Todas" mora no primeiro grupo por
-// convenção (era a primeira opção da lista única, antes da separação).
+// e ii) contas do próprio painel (staff). Cada grupo tem seu próprio "Todos",
+// que limpa somente as seleções daquela categoria.
 export const AUDIT_ACTION_FILTERS_PLATFORM = [
-  { key: '', label: 'Todas' },
+  { key: '', label: 'Todos' },
   { key: 'campaign_pause', label: 'Campanha pausada' },
   { key: 'campaign_reactivate', label: 'Campanha reativada' },
   { key: 'campaign_mark_paid', label: 'Campanha marcada como paga' },
@@ -89,6 +89,7 @@ export const AUDIT_ACTION_FILTERS_PLATFORM = [
 ];
 
 export const AUDIT_ACTION_FILTERS_STAFF = [
+  { key: '', label: 'Todos' },
   { key: 'staff_invite', label: 'Convite de conta de staff' },
   { key: 'staff_invite_accepted', label: 'Ativação de conta de staff' },
   { key: 'staff_username_change', label: 'Troca de usuário de staff' },

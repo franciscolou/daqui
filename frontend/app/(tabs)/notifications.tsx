@@ -224,8 +224,9 @@ export default function NotificationsScreen() {
           const onPress = () => {
             if (REMOVED_TYPES.has(item.type) && item.snapshot) setRemovedPreview(item);
             else if (item.type === 'welcome') router.push('/help');
-            else if (item.postId) router.push(`/post/${item.postId}` as any);
-            else if (item.actor) router.push(`/user/${item.actor.id}` as any);
+            else if (item.postId && item.postAuthorUsername && item.postPublicId) {
+              router.push(`/${item.postAuthorUsername}/post/${item.postPublicId}` as any);
+            } else if (item.actor) router.push(`/user/${item.actor.username}` as any);
           };
           return (
             <TouchableOpacity

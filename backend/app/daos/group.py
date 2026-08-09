@@ -51,6 +51,10 @@ def get_by_id(db: Session, group_id: int) -> Group | None:
     return db.get(Group, group_id)
 
 
+def get_by_public_id(db: Session, public_id: str) -> Group | None:
+    return db.query(Group).filter(Group.public_id == public_id).first()
+
+
 def update_group(db: Session, group: Group, data: dict) -> Group:
     for field, value in data.items():
         setattr(group, field, value)

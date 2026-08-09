@@ -72,6 +72,48 @@ export function Tabs<T extends string>({
   );
 }
 
+/** Filtros em formato de pills que permitem várias escolhas. A opção com key
+ * vazia representa "Todos" e limpa somente as opções deste grupo. */
+export function MultiTabs({
+  values,
+  options,
+  onChange,
+}: {
+  values: string[];
+  options: { key: string; label: string }[];
+  onChange: (values: string[]) => void;
+}) {
+  const groupKeys = options.map((option) => option.key).filter(Boolean);
+  const groupSelected = groupKeys.filter((key) => values.includes(key));
+
+  const toggle = (key: string) => {
+    if (!key) {
+      onChange(values.filter((value) => !groupKeys.includes(value)));
+      return;
+    }
+    onChange(values.includes(key) ? values.filter((value) => value !== key) : [...values, key]);
+  };
+
+  return (
+    <div className="tabs">
+      {options.map((option) => {
+        const active = option.key ? values.includes(option.key) : groupSelected.length === 0;
+        return (
+          <button
+            key={option.key || 'all'}
+            type="button"
+            className={`tab${active ? ' active' : ''}`}
+            aria-pressed={active}
+            onClick={() => toggle(option.key)}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function Stat({ value, label }: { value: React.ReactNode; label: string }) {
   return (
     <div className="stat">

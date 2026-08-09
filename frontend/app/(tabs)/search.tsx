@@ -289,7 +289,7 @@ export default function SearchScreen() {
                   key={u.id}
                   style={styles.userRow}
                   activeOpacity={0.7}
-                  onPress={() => router.push(`/user/${u.id}` as any)}
+                  onPress={() => router.push(`/user/${u.username}` as any)}
                 >
                   <Image source={{ uri: u.avatar }} style={styles.userAvatar} />
                   <View style={styles.userInfo}>

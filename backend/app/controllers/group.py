@@ -52,6 +52,14 @@ def get_group(
     return group_service.get_group(db, current_user, group_id)
 
 
+def get_group_by_public_id(
+    public_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> GroupDetailOut:
+    return group_service.get_group_by_public_id(db, current_user, public_id)
+
+
 def update_group(
     group_id: int,
     payload: GroupUpdate,

@@ -54,7 +54,7 @@ export default function SharedPostPreview({ post, static: isStatic }: Props) {
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.85}
-      onPress={() => router.push(`/post/${post.id}` as any)}
+      onPress={() => router.push(`/${post.author.username}/post/${post.publicId}` as any)}
     >
       {body}
     </TouchableOpacity>

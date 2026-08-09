@@ -307,7 +307,10 @@ export default function MapScreen() {
                 Linking.openURL(clickedAd.targetUrl);
                 return;
               }
-              router.push(`/post/${id}` as any);
+              const clickedPost = located.find((p) => p.id === id);
+              if (clickedPost) {
+                router.push(`/${clickedPost.author.username}/post/${clickedPost.publicId}` as any);
+              }
             }}
             style={styles.map}
           />
@@ -363,7 +366,7 @@ export default function MapScreen() {
                     key={post.id}
                     style={styles.nearbyCard}
                     activeOpacity={0.9}
-                    onPress={() => router.push(`/post/${post.id}` as any)}
+                    onPress={() => router.push(`/${post.author.username}/post/${post.publicId}` as any)}
                   >
                     <View style={[styles.nearbyIconBox, { backgroundColor: catColor + '15' }]}>
                       <Ionicons name={CATEGORY_ICONS[post.category] as any} size={20} color={catColor} />

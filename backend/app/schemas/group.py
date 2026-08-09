@@ -26,6 +26,8 @@ class GroupJoinRequestOut(BaseModel):
 
 class GroupOut(BaseModel):
     id: int
+    # Identificador de URL (estilo Twitter, opaco) — ver models/group.py::public_id.
+    public_id: str
     name: str
     description: str
     avatar_url: Optional[str]

@@ -64,7 +64,7 @@ export default function NewGroupScreen() {
         privacy,
         memberIds: [...selected],
       });
-      router.replace(`/groups/${group.id}` as any);
+      router.replace(`/groups/${group.publicId}` as any);
     } catch (e: any) {
       setError(e?.message ?? t('groups.createError'));
       setCreating(false);

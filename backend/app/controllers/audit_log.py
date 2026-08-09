@@ -12,7 +12,7 @@ from app.services import audit_log as audit_log_service
 def list_audit_logs(
     moderator: str | None = Query(None, description="Filtra pelo nome/@usuário do moderador"),
     target_user: str | None = Query(None, description="Filtra pelo nome/@usuário do usuário afetado"),
-    action: AuditLogAction | None = Query(None, description="Filtra pelo tipo de ação"),
+    action: list[AuditLogAction] | None = Query(None, description="Filtra por um ou mais tipos de ação"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),

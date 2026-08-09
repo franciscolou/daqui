@@ -13,6 +13,8 @@ class SharedPostOut(BaseModel):
     """Prévia compacta de um post encaminhado em uma mensagem."""
 
     id: int
+    # Identificador de URL (estilo Twitter, opaco) — ver models/post.py::public_id.
+    public_id: str
     category: PostCategory
     title: str | None
     content: str
@@ -28,6 +30,11 @@ class SharedCommentOut(BaseModel):
 
     id: int
     post_id: int
+    # Post pai, pra montar o link `/post/{username}/status/{public_id}` da
+    # prévia sem expor `post_id` (ver models/comment.py). None no raro caso
+    # de post pai ausente.
+    post_public_id: str | None = None
+    post_author_username: str | None = None
     content: str
     created_at: datetime
     author: UserPublic

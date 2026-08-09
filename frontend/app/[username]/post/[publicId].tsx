@@ -16,33 +16,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import { Palette } from '../../constants/Colors';
-import { MAX_COMMENT_INDENT_DEPTH } from '../../constants/config';
-import { CATEGORY_ICONS, Post } from '../../data/mock';
-import { api, Comment } from '../../lib/api';
-import { Ad, adsApi } from '../../lib/adsApi';
-import { formatExactDateTime } from '../../lib/time';
-import { useAuth } from '../../lib/auth';
-import { goBack } from '../../lib/navigation';
-import { useTheme, useThemedStyles } from '../../lib/theme';
-import { submitOnEnter } from '../../lib/keyboard';
-import { useT } from '../../lib/i18n';
+import { Palette } from '../../../constants/Colors';
+import { MAX_COMMENT_INDENT_DEPTH } from '../../../constants/config';
+import { CATEGORY_ICONS, Post } from '../../../data/mock';
+import { api, Comment } from '../../../lib/api';
+import { Ad, adsApi } from '../../../lib/adsApi';
+import { formatExactDateTime } from '../../../lib/time';
+import { useAuth } from '../../../lib/auth';
+import { goBack } from '../../../lib/navigation';
+import { useTheme, useThemedStyles } from '../../../lib/theme';
+import { submitOnEnter } from '../../../lib/keyboard';
+import { useT } from '../../../lib/i18n';
 
-import WideLayout from '../../components/WideLayout';
-import PollBlock from '../../components/PollBlock';
-import ActionMenu from '../../components/ActionMenu';
-import HoverTime from '../../components/HoverTime';
-import ReportModal from '../../components/ReportModal';
-import ConfirmModal from '../../components/ConfirmModal';
-import PostMediaGallery from '../../components/PostMediaGallery';
-import ImageViewerModal from '../../components/ImageViewerModal';
-import ResidentBadge from '../../components/ResidentBadge';
-import SharedCommentPreview from '../../components/SharedCommentPreview';
-import SharedPostPreview from '../../components/SharedPostPreview';
-import SharedAdPreview from '../../components/SharedAdPreview';
-import MentionInput from '../../components/MentionInput';
-import MentionText from '../../components/MentionText';
-import LikersModal from '../../components/LikersModal';
+import WideLayout from '../../../components/WideLayout';
+import PollBlock from '../../../components/PollBlock';
+import ActionMenu from '../../../components/ActionMenu';
+import HoverTime from '../../../components/HoverTime';
+import ReportModal from '../../../components/ReportModal';
+import ConfirmModal from '../../../components/ConfirmModal';
+import PostMediaGallery from '../../../components/PostMediaGallery';
+import ImageViewerModal from '../../../components/ImageViewerModal';
+import ResidentBadge from '../../../components/ResidentBadge';
+import SharedCommentPreview from '../../../components/SharedCommentPreview';
+import SharedPostPreview from '../../../components/SharedPostPreview';
+import SharedAdPreview from '../../../components/SharedAdPreview';
+import MentionInput from '../../../components/MentionInput';
+import MentionText from '../../../components/MentionText';
+import LikersModal from '../../../components/LikersModal';
 
 // react-native-web repassa onMouseEnter/onMouseLeave pro elemento, mas os
 // tipos de View (focados no nativo) não os declaram (mesmo padrão de HoverTime.tsx).
@@ -62,7 +62,11 @@ const sortCommentsByPopularity = (comments: Comment[]) =>
 
 export default function PostDetailScreen() {
   const { t } = useT();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // URL pública estilo Twitter: `/{username}/post/{publicId}`. O
+  // `username` é decorativo (não precisa bater com o autor real) — a busca
+  // é sempre por `publicId`, o identificador opaco que não expõe a posição
+  // sequencial do post (ver lib/api.ts::getPostByPublicId).
+  const { publicId } = useLocalSearchParams<{ username: string; publicId: string }>();
   const { user } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -112,9 +116,12 @@ export default function PostDetailScreen() {
   }, [post?.quotedAdId]);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!publicId) return;
     try {
-      const [p, c] = await Promise.all([api.getPost(id), api.listComments(id)]);
+      // Resolve publicId → post (com id numérico interno) antes de buscar os
+      // comentários, que ainda usam o id interno (ver lib/api.ts::listComments).
+      const p = await api.getPostByPublicId(publicId);
+      const c = await api.listComments(p.id);
       setPost(p);
       setLiked(p.liked);
       setLikesCount(p.likesCount);
@@ -130,7 +137,7 @@ export default function PostDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [publicId]);
 
   useEffect(() => {
     load();
@@ -249,10 +256,10 @@ export default function PostDetailScreen() {
   const submit = async () => {
     const content = text.trim();
     const imageUrl = imageDraft?.url;
-    if ((!content && !imageUrl) || sending || !id || imageDraft?.uploading) return;
+    if ((!content && !imageUrl) || sending || !post || imageDraft?.uploading) return;
     setSending(true);
     try {
-      const created = await api.addComment(id, content, replyingTo?.id, imageUrl);
+      const created = await api.addComment(post.id, content, replyingTo?.id, imageUrl);
       setText('');
       setImageDraft(null);
       setCommentCount((n) => n + 1);
@@ -407,7 +414,7 @@ export default function PostDetailScreen() {
       setCommentCount((n) => Math.max(0, n - removed.size));
       setConfirmDeleteComment(null);
       // Reconcilia o total com o backend (cobre respostas não carregadas removidas em cascata).
-      if (id) api.getPost(id).then((p) => setCommentCount(p.commentsCount)).catch(() => {});
+      if (post) api.getPost(post.id).then((p) => setCommentCount(p.commentsCount)).catch(() => {});
     } catch {
       // mantém o modal aberto para nova tentativa
     } finally {
@@ -446,7 +453,7 @@ export default function PostDetailScreen() {
         <View style={[styles.comment, { paddingLeft: 16 + indent }]}>
           <TouchableOpacity
             style={styles.commentAvatarBtn}
-            onPress={() => router.push(`/user/${comment.author.id}` as any)}
+            onPress={() => router.push(`/user/${comment.author.username}` as any)}
           >
             <Image source={{ uri: comment.author.avatar }} style={styles.commentAvatar} />
           </TouchableOpacity>
@@ -454,7 +461,7 @@ export default function PostDetailScreen() {
             <View style={styles.commentBubble}>
               <View style={styles.commentHead}>
                 <TouchableOpacity
-                  onPress={() => router.push(`/user/${comment.author.id}` as any)}
+                  onPress={() => router.push(`/user/${comment.author.username}` as any)}
                   activeOpacity={0.7}
                   focusable={false}
                 >
@@ -576,7 +583,7 @@ export default function PostDetailScreen() {
         <View style={styles.authorRow}>
           <TouchableOpacity
             style={styles.authorRowLeft}
-            onPress={() => router.push(`/user/${post.author.id}` as any)}
+            onPress={() => router.push(`/user/${post.author.username}` as any)}
             activeOpacity={0.8}
             focusable={false}
           >

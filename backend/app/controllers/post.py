@@ -78,6 +78,14 @@ def get_post(
     return post.get_post(db, post_id, current_user)
 
 
+def get_post_by_public_id(
+    public_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PostOut:
+    return post.get_post_by_public_id(db, public_id, current_user)
+
+
 def upload_media(
     request: Request,
     file: UploadFile = File(...),

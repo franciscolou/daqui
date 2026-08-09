@@ -62,16 +62,18 @@ export const CATEGORY_LABEL: Record<string, string> = {
 
 // Filtros predefinidos da Auditoria, separados em dois grupos (ver Audit.tsx):
 // i) gerenciamento do propósito da plataforma — contas/conteúdo do Daqui —
-// e ii) contas da própria moderação (staff). "Todas" mora no primeiro grupo
-// por convenção (era a primeira opção da lista única, antes da separação).
+// e ii) contas da própria moderação (staff). Cada grupo tem seu próprio
+// "Todos", que limpa somente as seleções daquela categoria.
 export const AUDIT_ACTION_FILTERS_PLATFORM = [
-  { key: '', label: 'Todas' },
+  { key: '', label: 'Todos' },
   { key: 'review_delete', label: 'Exclusão de avaliação' },
   { key: 'report_resolve', label: 'Denúncia resolvida' },
   { key: 'report_dismiss', label: 'Denúncia descartada' },
   { key: 'report_delete', label: 'Exclusão de denúncia' },
   { key: 'post_delete', label: 'Exclusão de post' },
   { key: 'comment_delete', label: 'Exclusão de comentário' },
+  { key: 'post_restore', label: 'Restauração de post' },
+  { key: 'comment_restore', label: 'Restauração de comentário' },
   { key: 'user_suspend', label: 'Suspensão de conta' },
   { key: 'user_unsuspend', label: 'Reativação de conta' },
   { key: 'user_delete', label: 'Exclusão de conta' },
@@ -79,6 +81,7 @@ export const AUDIT_ACTION_FILTERS_PLATFORM = [
 ];
 
 export const AUDIT_ACTION_FILTERS_STAFF = [
+  { key: '', label: 'Todos' },
   { key: 'staff_invite', label: 'Convite de conta de staff' },
   { key: 'staff_invite_accepted', label: 'Ativação de conta de staff' },
   { key: 'staff_username_change', label: 'Troca de usuário de staff' },
@@ -105,6 +108,8 @@ export const AUDIT_ACTION_VERB: Record<string, string> = {
   report_delete: 'excluiu uma denúncia sobre',
   post_delete: 'excluiu um post de',
   comment_delete: 'excluiu um comentário de',
+  post_restore: 'restaurou um post de',
+  comment_restore: 'restaurou um comentário de',
   user_suspend: 'suspendeu a conta de',
   user_unsuspend: 'reativou a conta de',
   user_delete: 'excluiu a conta de',

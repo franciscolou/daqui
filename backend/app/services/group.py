@@ -141,6 +141,18 @@ def get_group(db: Session, user: User, group_id: int) -> GroupDetailOut:
     return _detail_out(db, group, user, member.role if member else None)
 
 
+def get_group_by_public_id(db: Session, user: User, public_id: str) -> GroupDetailOut:
+    """Resolve a URL pública `/groups/{public_id}` pelo identificador opaco
+    (ver models/group.py::public_id), sem expor o id sequencial."""
+    group = group_dao.get_by_public_id(db, public_id)
+    if not group:
+        raise HTTPException(status_code=404, detail="Grupo não encontrado")
+    member = group_dao.get_membership(db, group.id, user.id)
+    if member is None and group.privacy == GroupPrivacy.CLOSED:
+        raise HTTPException(status_code=403, detail="Grupo fechado")
+    return _detail_out(db, group, user, member.role if member else None)
+
+
 def update_group(
     db: Session, user: User, group_id: int, payload: GroupUpdate
 ) -> GroupDetailOut:
@@ -379,7 +391,9 @@ def send_message(
             other_member.user_id,
             group.name,
             f"{user.name}: {notify_text}",
-            data={"type": "group", "groupId": group.id},
+            # `publicId` é o que o app usa pra montar o deep link
+            # `/groups/{publicId}` sem expor o id sequencial (ver lib/push.ts).
+            data={"type": "group", "groupId": group.id, "publicId": group.public_id},
         )
 
     return GroupMessageOut.model_validate(msg)

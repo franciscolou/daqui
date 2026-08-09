@@ -17,6 +17,8 @@ class AuditLogAction(StrEnum):
     REPORT_DELETE = "report_delete"
     POST_DELETE = "post_delete"
     COMMENT_DELETE = "comment_delete"
+    POST_RESTORE = "post_restore"
+    COMMENT_RESTORE = "comment_restore"
     USER_SUSPEND = "user_suspend"
     USER_UNSUSPEND = "user_unsuspend"
     USER_DELETE = "user_delete"

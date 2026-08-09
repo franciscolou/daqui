@@ -42,6 +42,14 @@ router.post(
     status_code=201,
 )(post.create_post)
 
+# Estático antes de "/{post_id}" — resolve a URL pública
+# `/post/{username}/status/{public_id}` do app pelo identificador opaco
+# (ver models/post.py::public_id), sem expor o id sequencial.
+router.get(
+    "/by-public-id/{public_id}",
+    response_model=PostOut,
+)(post.get_post_by_public_id)
+
 router.get(
     "/{post_id}",
     response_model=PostOut,

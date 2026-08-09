@@ -17,6 +17,11 @@ class CommentCreate(BaseModel):
 class CommentOut(BaseModel):
     id: int
     post_id: int
+    # Post pai, pra montar o link `/post/{username}/status/{public_id}` sem
+    # expor `post_id` (ver models/comment.py) — usado ao encaminhar/citar
+    # este comentário. None no raro caso de post pai ausente.
+    post_public_id: str | None = None
+    post_author_username: str | None = None
     parent_id: int | None = None
     content: str
     image_url: str | None = None

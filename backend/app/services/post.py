@@ -81,6 +81,7 @@ def _to_schema(
     )
     return PostOut(
         id=post.id,
+        public_id=post.public_id,
         category=post.category,
         title=post.title,
         content=post.content,
@@ -208,6 +209,16 @@ def get_post(db: Session, post_id: int, viewer: User) -> PostOut:
     post = post_dao.get_by_id(db, post_id)
     # Qualquer usuário pode abrir qualquer post — o isolamento fica só no feed,
     # que não exibe posts de outros bairros espontaneamente.
+    if not post:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+    return _to_schema(post, viewer, db)
+
+
+def get_post_by_public_id(db: Session, public_id: str, viewer: User) -> PostOut:
+    """Resolve a URL pública `/post/{username}/status/{public_id}` — o
+    `username` no path é só decorativo (estilo Twitter), a busca é só pelo
+    `public_id`, que já identifica o post de forma única."""
+    post = post_dao.get_by_public_id(db, public_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post não encontrado")
     return _to_schema(post, viewer, db)
@@ -739,9 +750,18 @@ def admin_delete_post(db: Session, post_id: int, moderator: User) -> None:
         "created_at": post.created_at.isoformat(),
     }
     author = user_dao.get_by_id(db, author_id)
-    post_dao.delete(db, post)
+    post.moderation_deleted_at = datetime.now(timezone.utc)
+    post.moderation_deleted_by_id = moderator.id
+    db.flush()
     if author:
-        user_dao.update(db, author, {"posts_count": post_dao.count_by_author(db, author.id)})
+        author.posts_count = post_dao.count_by_author(db, author.id)
+    # Comentários do post também ficam invisíveis enquanto ele está na lixeira.
+    # Atualiza os contadores públicos de todos os autores afetados.
+    for comment_author_id in {comment.author_id for comment in post.comments}:
+        comment_author = user_dao.get_by_id(db, comment_author_id)
+        if comment_author:
+            comment_author.comments_count = comment_dao.count_by_author(db, comment_author_id)
+    db.commit()
     notification_service.notify(
         db,
         user_id=author_id,

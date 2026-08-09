@@ -15,7 +15,15 @@ from app.models.user import User
 
 
 def get_by_id(db: Session, post_id: int) -> Post | None:
+    return db.query(Post).filter(Post.id == post_id, Post.moderation_deleted_at.is_(None)).first()
+
+
+def get_by_id_including_deleted(db: Session, post_id: int) -> Post | None:
     return db.get(Post, post_id)
+
+
+def get_by_public_id(db: Session, public_id: str) -> Post | None:
+    return db.query(Post).filter(Post.public_id == public_id, Post.moderation_deleted_at.is_(None)).first()
 
 
 def list_feed(
@@ -25,7 +33,7 @@ def list_feed(
     offset: int,
     limit: int,
 ) -> list[Post]:
-    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods))
+    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods), Post.moderation_deleted_at.is_(None))
     if category:
         q = q.filter(Post.category == category)
     return (
@@ -39,7 +47,7 @@ def list_feed(
 def list_feed_all(db: Session, neighborhoods: list[str], category: PostCategory | None) -> list[Post]:
     """Mesma query de `list_feed`, sem paginação — usada por `get_feed` pra
     mesclar com reposts em Python antes de paginar (ver `list_reposts_for_feed`)."""
-    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods))
+    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods), Post.moderation_deleted_at.is_(None))
     if category:
         q = q.filter(Post.category == category)
     return q.order_by(desc(Post.pinned), desc(Post.created_at)).all()
@@ -59,6 +67,7 @@ def list_reposts_for_feed(
         .join(PostRepost, PostRepost.post_id == Post.id)
         .join(User, User.id == PostRepost.user_id)
         .filter(User.neighborhood.in_(neighborhoods), Post.author_id != PostRepost.user_id)
+        .filter(Post.moderation_deleted_at.is_(None))
     )
     if category:
         q = q.filter(Post.category == category)
@@ -68,7 +77,7 @@ def list_reposts_for_feed(
 def top_important(db: Session, neighborhood: str) -> Post | None:
     return (
         db.query(Post)
-        .filter(Post.neighborhood == neighborhood, Post.important.is_(True))
+        .filter(Post.neighborhood == neighborhood, Post.important.is_(True), Post.moderation_deleted_at.is_(None))
         .order_by(
             desc(Post.likes_count + Post.comments_count + Post.shares_count),
             desc(Post.created_at),
@@ -84,6 +93,7 @@ def search(db: Session, neighborhood: str, query: str, limit: int = 30) -> list[
         .join(User, Post.author_id == User.id)
         .filter(
             Post.neighborhood == neighborhood,
+            Post.moderation_deleted_at.is_(None),
             or_(
                 Post.title.ilike(like),
                 Post.content.ilike(like),
@@ -115,6 +125,7 @@ def list_map(
         db.query(Post)
         .filter(
             Post.latitude.isnot(None),
+            Post.moderation_deleted_at.is_(None),
             Post.latitude.between(min_lat, max_lat),
             Post.longitude.between(min_lng, max_lng),
         )
@@ -127,14 +138,14 @@ def list_map(
 def list_by_author(db: Session, author_id: int) -> list[Post]:
     return (
         db.query(Post)
-        .filter(Post.author_id == author_id)
+        .filter(Post.author_id == author_id, Post.moderation_deleted_at.is_(None))
         .order_by(desc(Post.created_at))
         .all()
     )
 
 
 def count_by_author(db: Session, author_id: int) -> int:
-    return db.query(Post).filter(Post.author_id == author_id).count()
+    return db.query(Post).filter(Post.author_id == author_id, Post.moderation_deleted_at.is_(None)).count()
 
 
 def list_reposted_by_author(db: Session, author_id: int) -> list[tuple[Post, datetime]]:
@@ -145,7 +156,7 @@ def list_reposted_by_author(db: Session, author_id: int) -> list[tuple[Post, dat
     rows = (
         db.query(Post, PostRepost.created_at)
         .join(PostRepost, PostRepost.post_id == Post.id)
-        .filter(PostRepost.user_id == author_id, Post.author_id != author_id)
+        .filter(PostRepost.user_id == author_id, Post.author_id != author_id, Post.moderation_deleted_at.is_(None))
         .order_by(desc(PostRepost.created_at))
         .all()
     )
@@ -161,13 +172,14 @@ def count_important_since(db: Session, author_id: int, since: datetime) -> int:
             Post.author_id == author_id,
             Post.important.is_(True),
             Post.created_at >= since,
+            Post.moderation_deleted_at.is_(None),
         )
         .count()
     )
 
 
 def count_feed(db: Session, neighborhoods: list[str], category: PostCategory | None) -> int:
-    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods))
+    q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods), Post.moderation_deleted_at.is_(None))
     if category:
         q = q.filter(Post.category == category)
     return q.count()

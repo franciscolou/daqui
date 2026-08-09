@@ -29,6 +29,7 @@ import SharedAdPreview from '../../components/SharedAdPreview';
 function toSharedPost(p: Post): SharedPost {
   return {
     id: p.id,
+    publicId: p.publicId,
     category: p.category,
     title: p.title,
     content: p.content,
@@ -42,6 +43,8 @@ function toSharedComment(c: Comment): SharedComment {
   return {
     id: c.id,
     postId: c.postId,
+    postPublicId: c.postPublicId,
+    postAuthorUsername: c.postAuthorUsername,
     content: c.content,
     createdAt: c.createdAt,
     author: c.author,
@@ -155,6 +158,15 @@ export default function ForwardScreen() {
 
   const notFound = forwardingAd ? !ad : forwardingComment ? !comment : !post;
 
+  // Alvo do "voltar": post pai do comentário citado, ou o próprio post —
+  // ambos com a URL pública `/post/{username}/status/{publicId}`.
+  const postBackHref =
+    forwardingComment && comment?.postAuthorUsername && comment?.postPublicId
+      ? `/${comment.postAuthorUsername}/post/${comment.postPublicId}`
+      : !forwardingComment && post
+        ? `/${post.author.username}/post/${post.publicId}`
+        : '/';
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <WideLayout>
@@ -162,7 +174,7 @@ export default function ForwardScreen() {
           <View style={styles.topBar}>
             <TouchableOpacity
               style={styles.topBarIconBtn}
-              onPress={() => goBack((forwardingAd ? `/ad/${postId}` : `/post/${postId}`) as any)}
+              onPress={() => goBack((forwardingAd ? `/ad/${postId}` : postBackHref) as any)}
               hitSlop={10}
             >
               <Ionicons name="chevron-back" size={22} color={Colors.text} />

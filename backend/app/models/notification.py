@@ -60,3 +60,15 @@ class Notification(Base):
 
     actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[actor_id])  # noqa: F821
     extra_actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[extra_actor_id])  # noqa: F821
+    # Só leitura (sem back_populates) — usada pelas properties abaixo pra
+    # montar o link `/post/{username}/status/{public_id}` do post alvo sem
+    # expor o `post_id` sequencial em NotificationOut.
+    post: Mapped[Optional["Post"]] = relationship("Post", foreign_keys=[post_id])  # noqa: F821
+
+    @property
+    def post_public_id(self) -> str | None:
+        return self.post.public_id if self.post else None
+
+    @property
+    def post_author_username(self) -> str | None:
+        return self.post.author.username if self.post else None

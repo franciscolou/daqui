@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Optional
@@ -40,6 +41,13 @@ class Group(Base):
     __tablename__ = "groups"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    # Identificador de URL (estilo Twitter, opaco: não revela a posição
+    # sequencial do grupo nem a contagem de grupos criados) — gerado uma vez
+    # na criação, nunca muda. Ver GET /groups/by-public-id (mesmo padrão de
+    # Post.public_id).
+    public_id: Mapped[str] = mapped_column(
+        String(16), unique=True, index=True, default=lambda: secrets.token_urlsafe(8)
+    )
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
     avatar_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

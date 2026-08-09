@@ -11,14 +11,14 @@ import {
 import { AuditLog } from '../lib/types';
 import { useAsync } from '../lib/useAsync';
 import { UserLink } from '../ui/moderation';
-import { EmptyState, LoadingState, Tabs } from '../ui/primitives';
+import { EmptyState, LoadingState, MultiTabs } from '../ui/primitives';
 
 // Registro de toda ação da moderação: exclusões, denúncias resolvidas/
 // descartadas e suspensões. Pesquisável por moderador, usuário afetado e
 // tipo de ação.
 
 export function Audit() {
-  const [action, setAction] = useState('');
+  const [actions, setActions] = useState<string[]>([]);
   const [draft, setDraft] = useState({ moderator: '', targetUser: '' });
   const [applied, setApplied] = useState(draft);
 
@@ -26,10 +26,10 @@ export function Audit() {
     const params = new URLSearchParams();
     if (applied.moderator) params.set('moderator', applied.moderator);
     if (applied.targetUser) params.set('target_user', applied.targetUser);
-    if (action) params.set('action', action);
+    actions.forEach((action) => params.append('action', action));
     const qs = params.toString();
     return api.get<AuditLog[]>(`/admin/audit-logs${qs ? `?${qs}` : ''}`);
-  }, [applied, action]);
+  }, [applied, actions]);
 
   const submitSearch = () => setApplied({ ...draft });
 
@@ -63,12 +63,12 @@ export function Audit() {
       <div className="eyebrow" style={{ marginBottom: 6 }}>
         Gerenciamento do Daqui
       </div>
-      <Tabs value={action} options={AUDIT_ACTION_FILTERS_PLATFORM} onChange={setAction} />
+      <MultiTabs values={actions} options={AUDIT_ACTION_FILTERS_PLATFORM} onChange={setActions} />
 
       <div className="eyebrow" style={{ marginBottom: 6 }}>
         Contas da equipe
       </div>
-      <Tabs value={action} options={AUDIT_ACTION_FILTERS_STAFF} onChange={setAction} />
+      <MultiTabs values={actions} options={AUDIT_ACTION_FILTERS_STAFF} onChange={setActions} />
 
       {loading && <LoadingState />}
       {!loading && error && <EmptyState>{error}</EmptyState>}

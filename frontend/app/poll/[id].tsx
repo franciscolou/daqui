@@ -46,6 +46,8 @@ export default function EditPollScreen() {
   const [draft, setDraft] = useState<PollDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Guarda a URL pública do post pra voltar depois de salvar (ver `save`/goBack abaixo).
+  const [postHref, setPostHref] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -55,6 +57,7 @@ export default function EditPollScreen() {
         setNotAllowed(true);
         return;
       }
+      setPostHref(`/${post.author.username}/post/${post.publicId}`);
       const { date, time } = splitLocal(post.poll.closesAt);
       setQuestion(post.content);
       setDraft({
@@ -89,7 +92,7 @@ export default function EditPollScreen() {
           closes_at: buildClosesAt(draft.date, draft.time)!,
         },
       });
-      goBack(`/post/${id}` as any);
+      goBack((postHref ?? '/') as any);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('pollEdit.saveError'));
       setSaving(false);
@@ -100,7 +103,7 @@ export default function EditPollScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <WideLayout showMobileMenu={false}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack(`/post/${id}` as any)} hitSlop={10}>
+          <TouchableOpacity style={styles.topBarIconBtn} onPress={() => goBack((postHref ?? '/') as any)} hitSlop={10}>
             <Ionicons name="chevron-back" size={22} color={Colors.text} />
           </TouchableOpacity>
           <Text style={styles.topBarTitle}>{t('pollEdit.title')}</Text>

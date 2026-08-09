@@ -188,7 +188,7 @@ export default function AdDetailScreen() {
       <View style={styles.comment}>
         <TouchableOpacity
           style={styles.commentAvatarBtn}
-          onPress={() => author && router.push(`/user/${author.id}` as any)}
+          onPress={() => author && router.push(`/user/${author.username}` as any)}
         >
           {author ? (
             <Image source={{ uri: author.avatar }} style={styles.commentAvatar} />
@@ -200,7 +200,7 @@ export default function AdDetailScreen() {
           <View style={styles.commentBubble}>
             <View style={styles.commentHead}>
               <TouchableOpacity
-                onPress={() => author && router.push(`/user/${author.id}` as any)}
+                onPress={() => author && router.push(`/user/${author.username}` as any)}
                 activeOpacity={0.7}
                 focusable={false}
               >
@@ -236,7 +236,7 @@ export default function AdDetailScreen() {
           <View style={styles.headerRow}>
             <TouchableOpacity
               style={styles.headerRowLeft}
-              onPress={() => router.push(`/user/${linkedUser.id}` as any)}
+              onPress={() => router.push(`/user/${linkedUser.username}` as any)}
               activeOpacity={0.8}
             >
               <Image source={{ uri: linkedUser.avatar }} style={styles.avatar} />

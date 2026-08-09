@@ -105,6 +105,18 @@ export interface UserComment {
   created_at: string;
 }
 
+export interface TrashItem {
+  id: number;
+  type: 'post' | 'comment';
+  title?: string | null;
+  content: string;
+  created_at: string;
+  deleted_at: string;
+  expires_at: string;
+  author: UserRef;
+  deleted_by: UserRef;
+}
+
 export interface StaffAccount {
   id: number;
   username: string;

@@ -138,7 +138,7 @@ function MessageBubble({
         {showSender && (
           <TouchableOpacity
             style={styles.senderAvatarBtn}
-            onPress={() => router.push(`/user/${msg.sender.id}` as any)}
+            onPress={() => router.push(`/user/${msg.sender.username}` as any)}
           >
             <Image source={{ uri: msg.sender.avatar }} style={styles.senderAvatar} />
           </TouchableOpacity>
@@ -646,8 +646,8 @@ export default function ChatView({
   // Abre as configurações da conversa/grupo (inclui "Notificações" — ver
   // NotificationMuteRow) em vez de ir direto pro perfil do destinatário.
   const openInfo = () => {
-    if (kind === 'dm' && other) router.push(`/messages/${other.id}/info` as any);
-    else if (kind === 'group' && group) router.push(`/groups/${group.id}/info` as any);
+    if (kind === 'dm' && other) router.push(`/messages/${other.username}/info` as any);
+    else if (kind === 'group' && group) router.push(`/groups/${group.publicId}/info` as any);
   };
 
   const headerName = kind === 'dm' ? other?.name : group?.name;

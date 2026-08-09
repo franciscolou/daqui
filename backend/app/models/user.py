@@ -125,7 +125,9 @@ class User(Base):
         """Engajamento do vizinho: posts + comentários feitos."""
         return self.posts_count + self.comments_count
 
-    posts: Mapped[list["Post"]] = relationship("Post", back_populates="author", lazy="select")  # noqa: F821
+    posts: Mapped[list["Post"]] = relationship(  # noqa: F821
+        "Post", back_populates="author", foreign_keys="Post.author_id", lazy="select"
+    )
     sent_messages: Mapped[list["Message"]] = relationship(  # noqa: F821
         "Message", foreign_keys="Message.sender_id", back_populates="sender", lazy="select"
     )

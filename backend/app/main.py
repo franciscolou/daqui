@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import UPLOAD_DIR
 from app.database import create_tables
+from app.services import trash as trash_service
 from app.routers import (
     audit_log,
     auth,
@@ -21,6 +22,7 @@ from app.routers import (
     search,
     staff,
     support_tickets,
+    trash,
     users,
     ws,
 )
@@ -29,6 +31,11 @@ from app.routers import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
+    # Garante a retenção mesmo que ninguém abra a tela da lixeira após o prazo.
+    from app.database import SessionLocal
+
+    with SessionLocal() as db:
+        trash_service.purge_expired(db)
     yield
 
 
@@ -69,6 +76,7 @@ app.include_router(geo.router, prefix="/api/v1")
 app.include_router(ws.router, prefix="/api/v1")
 app.include_router(audit_log.admin_router, prefix="/api/v1")
 app.include_router(staff.admin_router, prefix="/api/v1")
+app.include_router(trash.admin_router, prefix="/api/v1")
 
 # Arquivos enviados (ex.: fotos de perfil) servidos em /uploads
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

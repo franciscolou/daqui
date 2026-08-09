@@ -25,11 +25,32 @@ class Comment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
+    moderation_deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    moderation_deleted_by_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    # Todas as respostas ocultadas junto com um comentário apontam para a raiz.
+    # Assim a lixeira exibe um único item e restaura a subárvore inteira.
+    moderation_deleted_root_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
-    author: Mapped["User"] = relationship("User")  # noqa: F821
+    author: Mapped["User"] = relationship("User", foreign_keys=[author_id])  # noqa: F821
     post: Mapped["Post"] = relationship(  # noqa: F821
         "Post", back_populates="comments", foreign_keys=[post_id]
     )
+
+    @property
+    def post_public_id(self) -> str | None:
+        """Identificador de URL do post pai — usada por SharedCommentOut pra
+        montar o link `/post/{username}/status/{public_id}` de uma prévia de
+        comentário encaminhada, sem expor o `post_id` sequencial. None no
+        raro caso de post pai ausente (mesma defesa de services/comment.py::_to_schema)."""
+        return self.post.public_id if self.post else None
+
+    @property
+    def post_author_username(self) -> str | None:
+        return self.post.author.username if self.post else None
     # Respostas: apagar um comentário apaga a sub-thread inteira (cascade).
     replies: Mapped[list["Comment"]] = relationship(
         "Comment",

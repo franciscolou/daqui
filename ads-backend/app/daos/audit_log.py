@@ -27,7 +27,7 @@ def create(
 def list_all(
     db: Session,
     actor: str | None,
-    action: AdAuditLogAction | None,
+    action: list[AdAuditLogAction] | None,
     offset: int,
     limit: int,
 ) -> list[AdAuditLog]:
@@ -39,5 +39,5 @@ def list_all(
             or_(Actor.username.ilike(like), Actor.email.ilike(like))
         )
     if action:
-        q = q.filter(AdAuditLog.action == action)
+        q = q.filter(AdAuditLog.action.in_(action))
     return q.order_by(desc(AdAuditLog.created_at)).offset(offset).limit(limit).all()

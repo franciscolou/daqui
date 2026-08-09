@@ -123,7 +123,7 @@ export default function RightSidebar() {
               key={u.id}
               style={styles.neighborRow}
               activeOpacity={0.7}
-              onPress={() => router.push(`/user/${u.id}` as any)}
+              onPress={() => router.push(`/user/${u.username}` as any)}
             >
               <Image source={{ uri: u.avatar }} style={styles.neighborAvatar} />
               <View style={styles.neighborInfo}>
@@ -144,7 +144,7 @@ export default function RightSidebar() {
           style={[styles.alertCard, alertHovered && styles.alertCardHovered]}
           onHoverIn={() => setAlertHovered(true)}
           onHoverOut={() => setAlertHovered(false)}
-          onPress={() => router.push(`/post/${importantPost.id}` as any)}
+          onPress={() => router.push(`/${importantPost.author.username}/post/${importantPost.publicId}` as any)}
         >
           <View style={styles.alertBadge}>
             <Ionicons name="alert-circle" size={12} color="#fff" />

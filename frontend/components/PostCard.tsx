@@ -58,7 +58,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
     adsApi.getAdById(post.quotedAdId).then(setQuotedAd).catch(() => setQuotedAd(null));
   }, [post.quotedAdId]);
 
-  const openPost = () => router.push(`/post/${post.id}` as any);
+  const openPost = () => router.push(`/${post.author.username}/post/${post.publicId}` as any);
 
   const toggleLike = async () => {
     if (busy) return;
@@ -108,7 +108,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
     if (post.repostedBy) {
       (onPress ?? openPost)();
     } else {
-      router.push(`/user/${post.author.id}` as any);
+      router.push(`/user/${post.author.username}` as any);
     }
   };
 
@@ -137,7 +137,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
       {!!post.repostedBy && (
         <TouchableOpacity
           style={styles.repostBanner}
-          onPress={() => router.push(`/user/${post.repostedBy!.id}` as any)}
+          onPress={() => router.push(`/user/${post.repostedBy!.username}` as any)}
           activeOpacity={0.7}
           focusable={false}
         >

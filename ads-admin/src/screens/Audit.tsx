@@ -10,7 +10,7 @@ import {
 } from '../lib/labels';
 import { AdAuditLog, StaffAccount } from '../lib/types';
 import { useAsync } from '../lib/useAsync';
-import { Avatar, EmptyState, LoadingState, Tabs } from '../ui/primitives';
+import { Avatar, EmptyState, LoadingState, MultiTabs } from '../ui/primitives';
 
 // Registro de toda ação do painel de anúncios: campanhas pausadas/reativadas,
 // planos e propostas manuais criados, e movimentações de conta de staff.
@@ -28,17 +28,17 @@ function ActorTag({ account }: { account: StaffAccount }) {
 }
 
 export function Audit() {
-  const [action, setAction] = useState('');
+  const [actions, setActions] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
   const [applied, setApplied] = useState('');
 
   const { data, loading, error } = useAsync<AdAuditLog[]>(() => {
     const params = new URLSearchParams();
     if (applied) params.set('actor', applied);
-    if (action) params.set('action', action);
+    actions.forEach((action) => params.append('action', action));
     const qs = params.toString();
     return api.get<AdAuditLog[]>(`/admin/audit-logs${qs ? `?${qs}` : ''}`);
-  }, [applied, action]);
+  }, [applied, actions]);
 
   const submitSearch = () => setApplied(draft);
 
@@ -64,12 +64,12 @@ export function Audit() {
       <div className="eyebrow" style={{ marginBottom: 6 }}>
         Gerenciamento de anúncios
       </div>
-      <Tabs value={action} options={AUDIT_ACTION_FILTERS_PLATFORM} onChange={setAction} />
+      <MultiTabs values={actions} options={AUDIT_ACTION_FILTERS_PLATFORM} onChange={setActions} />
 
       <div className="eyebrow" style={{ marginBottom: 6 }}>
         Contas da equipe
       </div>
-      <Tabs value={action} options={AUDIT_ACTION_FILTERS_STAFF} onChange={setAction} />
+      <MultiTabs values={actions} options={AUDIT_ACTION_FILTERS_STAFF} onChange={setActions} />
 
       {loading && <LoadingState />}
       {!loading && error && <EmptyState>{error}</EmptyState>}

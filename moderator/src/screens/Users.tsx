@@ -377,9 +377,9 @@ function UserContent({ userId }: { userId: number }) {
   }, [userId]);
 
   const deletePost = async (id: number) => {
-    const ok = await dialogs.confirm('Excluir este post? Esta ação não pode ser desfeita.', {
-      title: 'Excluir post',
-      confirmLabel: 'Excluir',
+    const ok = await dialogs.confirm('Mover este post para a lixeira por 60 dias?', {
+      title: 'Mover post para a lixeira',
+      confirmLabel: 'Mover para a lixeira',
     });
     if (!ok) return;
     try {
@@ -391,9 +391,9 @@ function UserContent({ userId }: { userId: number }) {
   };
 
   const deleteComment = async (id: number) => {
-    const ok = await dialogs.confirm('Excluir este comentário? Esta ação não pode ser desfeita.', {
-      title: 'Excluir comentário',
-      confirmLabel: 'Excluir',
+    const ok = await dialogs.confirm('Mover este comentário e suas respostas para a lixeira por 60 dias?', {
+      title: 'Mover comentário para a lixeira',
+      confirmLabel: 'Mover para a lixeira',
     });
     if (!ok) return;
     try {

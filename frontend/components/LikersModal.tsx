@@ -58,7 +58,7 @@ export default function LikersModal({
 
   const goToProfile = (user: User) => {
     onClose();
-    router.push(`/user/${user.id}` as any);
+    router.push(`/user/${user.username}` as any);
   };
 
   return (

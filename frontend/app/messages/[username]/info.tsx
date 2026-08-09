@@ -27,7 +27,7 @@ import VerifiedBadge from '../../../components/VerifiedBadge';
 // pro perfil do destinatário. O perfil continua a um toque de distância
 // (linha "Ver perfil completo" abaixo).
 export default function DmInfoScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { username } = useLocalSearchParams<{ username: string }>();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { t } = useT();
@@ -37,16 +37,16 @@ export default function DmInfoScreen() {
   const [avatarVisible, setAvatarVisible] = useState(false);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!username) return;
     setLoading(true);
     try {
-      setOther(await api.getUser(id));
+      setOther(await api.getUserByUsername(username));
     } catch {
       setOther(null);
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [username]);
 
   useEffect(() => {
     load();
@@ -55,7 +55,7 @@ export default function DmInfoScreen() {
   return (
     <FeedLayout showMobileMenu={false}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => goBack(`/messages/${id}` as any)}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => goBack(`/messages/${username}` as any)}>
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('conversationInfo.title')}</Text>
@@ -66,7 +66,7 @@ export default function DmInfoScreen() {
         <View style={styles.center}>
           <ActivityIndicator color={Colors.primary} size="large" />
         </View>
-      ) : !other || !id ? (
+      ) : !other || !username ? (
         <View style={styles.center}>
           <Text style={styles.emptyDesc}>{t('conversationInfo.notFound')}</Text>
         </View>
@@ -101,7 +101,7 @@ export default function DmInfoScreen() {
           <TouchableOpacity
             style={styles.row}
             activeOpacity={0.7}
-            onPress={() => router.push(`/user/${other.id}` as any)}
+            onPress={() => router.push(`/user/${other.username}` as any)}
           >
             <View style={styles.iconWrap}>
               <Ionicons name="person-outline" size={18} color={Colors.primary} />
@@ -114,7 +114,7 @@ export default function DmInfoScreen() {
           <TouchableOpacity
             style={[styles.row, styles.rowSpacing]}
             activeOpacity={0.7}
-            onPress={() => router.push(`/messages/${id}/media` as any)}
+            onPress={() => router.push(`/messages/${username}/media` as any)}
           >
             <View style={styles.iconWrap}>
               <Ionicons name="images-outline" size={18} color={Colors.primary} />

@@ -50,8 +50,10 @@ function splitInteractiveText(text: string, mentionsEnabled: boolean): Part[] {
 
 async function openMention(handle: string) {
   try {
+    // Confirma que a conta existe antes de navegar; usa o username canônico
+    // devolvido pelo backend (normalizado), não o texto digitado na menção.
     const u = await api.getUserByUsername(handle);
-    router.push(`/user/${u.id}` as any);
+    router.push(`/user/${u.username}` as any);
   } catch {
     // handle sem conta correspondente — não faz nada.
   }

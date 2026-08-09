@@ -27,7 +27,7 @@ def _out(entry: AdAuditLog) -> AdAuditLogOut:
 def admin_list(
     db: Session,
     actor: str | None,
-    action: AdAuditLogAction | None,
+    action: list[AdAuditLogAction] | None,
     page: int,
     page_size: int,
 ) -> list[AdAuditLogOut]:

@@ -225,6 +225,8 @@ interface BackendPostMedia {
 
 interface BackendPost {
   id: number;
+  // Identificador de URL (estilo Twitter, opaco) — ver backend models/post.py::public_id.
+  public_id: string;
   category: string;
   title: string | null;
   content: string;
@@ -256,6 +258,8 @@ interface BackendPost {
 interface BackendComment {
   id: number;
   post_id: number;
+  post_public_id: string | null;
+  post_author_username: string | null;
   parent_id: number | null;
   content: string;
   image_url: string | null;
@@ -279,6 +283,10 @@ interface BackendSession {
 export interface Comment {
   id: string;
   postId: string;
+  // Post pai, pra montar o link `/{username}/post/{postPublicId}` sem
+  // expor `postId` (ausentes no raro caso de post pai já apagado).
+  postPublicId?: string;
+  postAuthorUsername?: string;
   parentId?: string; // comentário respondido (thread); ausente = comentário de topo
   content: string;
   imageUrl?: string; // foto anexada (opcional; comentário pode ser só imagem)
@@ -310,6 +318,7 @@ interface BackendConversation {
 
 interface BackendSharedPost {
   id: number;
+  public_id: string;
   category: string;
   title: string | null;
   content: string;
@@ -321,6 +330,8 @@ interface BackendSharedPost {
 interface BackendSharedComment {
   id: number;
   post_id: number;
+  post_public_id: string | null;
+  post_author_username: string | null;
   content: string;
   created_at: string;
   author: BackendUser;
@@ -356,6 +367,8 @@ interface BackendMessageResult {
 
 interface BackendGroup {
   id: number;
+  // Identificador de URL (estilo Twitter, opaco) — ver backend models/group.py::public_id.
+  public_id: string;
   name: string;
   description: string;
   avatar_url: string | null;
@@ -437,6 +450,8 @@ interface BackendNotification {
   target_text: string | null;
   read: boolean;
   post_id: number | null;
+  post_public_id: string | null;
+  post_author_username: string | null;
   snapshot: BackendRemovedSnapshot | null;
   created_at: string;
   actor: BackendUser | null;
@@ -485,6 +500,7 @@ function mapMuteStatus(m: BackendMuteStatus): MuteStatus {
 // Prévia de um post encaminhado dentro de uma mensagem (estilo Twitter).
 export interface SharedPost {
   id: string;
+  publicId: string;
   category: PostCategory;
   title?: string;
   content: string;
@@ -497,6 +513,11 @@ export interface SharedPost {
 export interface SharedComment {
   id: string;
   postId: string;
+  // Post pai, pra montar o link `/{username}/post/{publicId}` sem
+  // expor `postId` (ver backend models/comment.py). Ausentes no raro caso
+  // de post pai já apagado.
+  postPublicId?: string;
+  postAuthorUsername?: string;
   content: string;
   createdAt: string;
   author: User;
@@ -615,6 +636,9 @@ export type GroupPrivacy = 'public' | 'request' | 'closed';
 
 export interface Group {
   id: string;
+  // Identificador de URL (estilo Twitter, opaco) — usado em /groups/{publicId}
+  // no lugar de `id` pra não expor a posição sequencial do grupo.
+  publicId: string;
   name: string;
   description: string;
   avatar?: string;
@@ -693,6 +717,10 @@ export interface AppNotification {
   time: string;
   read: boolean;
   postId?: string;
+  // Post alvo, pra montar o link `/{username}/post/{publicId}` sem
+  // expor `postId` — ausentes quando não há post (ou já foi apagado).
+  postPublicId?: string;
+  postAuthorUsername?: string;
   actor?: User;
   snapshot?: RemovedContentSnapshot;
   // Só presentes na notificação mesclada de curtidas (mais de 3 curtidores):
@@ -772,6 +800,7 @@ function mapPost(p: BackendPost): Post {
   const d = p.details ?? {};
   return {
     id: String(p.id),
+    publicId: p.public_id,
     author: mapUser(p.author),
     authorIsResident: p.author_is_resident,
     category: p.category as PostCategory,
@@ -811,6 +840,8 @@ function mapComment(c: BackendComment): Comment {
   return {
     id: String(c.id),
     postId: String(c.post_id),
+    postPublicId: c.post_public_id ?? undefined,
+    postAuthorUsername: c.post_author_username ?? undefined,
     parentId: c.parent_id != null ? String(c.parent_id) : undefined,
     content: c.content,
     imageUrl: c.image_url ?? undefined,
@@ -848,6 +879,7 @@ function mapConversation(c: BackendConversation): Conversation {
 function mapSharedPost(p: BackendSharedPost): SharedPost {
   return {
     id: String(p.id),
+    publicId: p.public_id,
     category: p.category as PostCategory,
     title: p.title ?? undefined,
     content: p.content,
@@ -861,6 +893,8 @@ function mapSharedComment(c: BackendSharedComment): SharedComment {
   return {
     id: String(c.id),
     postId: String(c.post_id),
+    postPublicId: c.post_public_id ?? undefined,
+    postAuthorUsername: c.post_author_username ?? undefined,
     content: c.content,
     createdAt: c.created_at,
     author: mapUser(c.author),
@@ -900,6 +934,7 @@ function mapMessageResult(m: BackendMessageResult): MessageResult {
 function mapGroup(g: BackendGroup): Group {
   return {
     id: String(g.id),
+    publicId: g.public_id,
     name: g.name,
     description: g.description,
     avatar: g.avatar_url ?? undefined,
@@ -962,6 +997,8 @@ function mapNotification(n: BackendNotification): AppNotification {
     time: n.created_at, // ISO — formatado na renderização (lib/time)
     read: n.read,
     postId: n.post_id != null ? String(n.post_id) : undefined,
+    postPublicId: n.post_public_id ?? undefined,
+    postAuthorUsername: n.post_author_username ?? undefined,
     actor: n.actor ? mapUser(n.actor) : undefined,
     extraActor: n.extra_actor ? mapUser(n.extra_actor) : undefined,
     groupCount: n.group_count ?? undefined,
@@ -1241,6 +1278,12 @@ export const api = {
 
   async getPost(id: string): Promise<Post> {
     return mapPost(await request<BackendPost>(`/posts/${id}`));
+  },
+
+  // Resolve a URL pública `/{username}/post/{publicId}` — o
+  // `username` no path é decorativo, a busca é só pelo `publicId`.
+  async getPostByPublicId(publicId: string): Promise<Post> {
+    return mapPost(await request<BackendPost>(`/posts/by-public-id/${encodeURIComponent(publicId)}`));
   },
 
   async search(
@@ -1665,6 +1708,13 @@ export const api = {
 
   async getGroup(id: string): Promise<GroupDetail> {
     return mapGroupDetail(await request<BackendGroupDetail>(`/groups/${id}`));
+  },
+
+  // Resolve a URL pública `/groups/{publicId}` pelo identificador opaco.
+  async getGroupByPublicId(publicId: string): Promise<GroupDetail> {
+    return mapGroupDetail(
+      await request<BackendGroupDetail>(`/groups/by-public-id/${encodeURIComponent(publicId)}`),
+    );
   },
 
   async updateGroup(

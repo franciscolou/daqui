@@ -32,6 +32,7 @@ import { useT } from '../../lib/i18n';
 function toSharedPost(p: Post): SharedPost {
   return {
     id: p.id,
+    publicId: p.publicId,
     category: p.category,
     title: p.title,
     content: p.content,
@@ -45,6 +46,8 @@ function toSharedComment(c: Comment): SharedComment {
   return {
     id: c.id,
     postId: c.postId,
+    postPublicId: c.postPublicId,
+    postAuthorUsername: c.postAuthorUsername,
     content: c.content,
     createdAt: c.createdAt,
     author: c.author,
@@ -101,6 +104,15 @@ export default function QuoteScreen() {
 
   const notFound = quotingAd ? !ad : quotingComment ? !comment : !post;
 
+  // Alvo do "voltar": post pai do comentário citado, ou o próprio post —
+  // ambos com a URL pública `/post/{username}/status/{publicId}`.
+  const postBackHref =
+    quotingComment && comment?.postAuthorUsername && comment?.postPublicId
+      ? `/${comment.postAuthorUsername}/post/${comment.postPublicId}`
+      : !quotingComment && post
+        ? `/${post.author.username}/post/${post.publicId}`
+        : '/';
+
   const publish = async () => {
     if (posting || notFound) return;
     setError(null);
@@ -121,7 +133,7 @@ export default function QuoteScreen() {
           .toggleAdRepost(Number(postId), { userId: Number(user.id), creativeId: ad.creativeId })
           .catch(() => {});
       }
-      router.replace(`/post/${created.id}` as any);
+      router.replace(`/${created.author.username}/post/${created.publicId}` as any);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('quote.error'));
       setPosting(false);
@@ -138,7 +150,7 @@ export default function QuoteScreen() {
           <View style={styles.topBar}>
             <TouchableOpacity
               style={styles.topBarIconBtn}
-              onPress={() => goBack((quotingAd ? `/ad/${postId}` : `/post/${postId}`) as any)}
+              onPress={() => goBack((quotingAd ? `/ad/${postId}` : postBackHref) as any)}
               hitSlop={10}
             >
               <Ionicons name="close" size={22} color={Colors.text} />

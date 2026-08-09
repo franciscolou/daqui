@@ -28,7 +28,7 @@ def admin_list(
     db: Session,
     moderator: str | None,
     target_user: str | None,
-    action: AuditLogAction | None,
+    action: list[AuditLogAction] | None,
     page: int,
     page_size: int,
 ) -> list[AuditLogOut]:

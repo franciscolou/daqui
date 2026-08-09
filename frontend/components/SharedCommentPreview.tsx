@@ -19,6 +19,9 @@ export default function SharedCommentPreview({ comment, static: isStatic }: Prop
   const { t } = useT();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  // Post pai já apagado (raro): sem `postPublicId`/`postAuthorUsername` não
+  // há link válido pra montar — a prévia cai pro card estático.
+  const canOpen = !!comment.postAuthorUsername && !!comment.postPublicId;
 
   const body = (
     <>
@@ -38,7 +41,7 @@ export default function SharedCommentPreview({ comment, static: isStatic }: Prop
 
       {!!comment.content && <MentionText style={styles.body} numberOfLines={4}>{comment.content}</MentionText>}
 
-      {!isStatic && (
+      {!isStatic && canOpen && (
         <View style={styles.footer}>
           <Ionicons name="open-outline" size={12} color={Colors.textTertiary} />
           <Text style={styles.footerText}>{t('shared.viewInPost')}</Text>
@@ -47,13 +50,13 @@ export default function SharedCommentPreview({ comment, static: isStatic }: Prop
     </>
   );
 
-  if (isStatic) return <View style={styles.card}>{body}</View>;
+  if (isStatic || !canOpen) return <View style={styles.card}>{body}</View>;
 
   return (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.85}
-      onPress={() => router.push(`/post/${comment.postId}` as any)}
+      onPress={() => router.push(`/${comment.postAuthorUsername}/post/${comment.postPublicId}` as any)}
     >
       {body}
     </TouchableOpacity>

@@ -94,6 +94,8 @@ class PostUpdate(BaseModel):
 
 class PostOut(BaseModel):
     id: int
+    # Identificador de URL (estilo Twitter, opaco) — ver models/post.py::public_id.
+    public_id: str
     category: PostCategory
     title: Optional[str]
     content: str

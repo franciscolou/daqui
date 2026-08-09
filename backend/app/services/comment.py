@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -44,6 +46,8 @@ def _to_schema(
     return CommentOut(
         id=comment.id,
         post_id=comment.post_id,
+        post_public_id=comment.post_public_id,
+        post_author_username=comment.post_author_username,
         parent_id=comment.parent_id,
         content=comment.content,
         image_url=comment.image_url,
@@ -223,14 +227,27 @@ def admin_delete(db: Session, comment_id: int, moderator: User) -> None:
     author_id = comment.author_id
     content_preview = comment.content[:200]
     snapshot = {"content": comment.content, "created_at": comment.created_at.isoformat()}
-    comment_dao.delete(db, comment)
+    deleted_at = datetime.now(timezone.utc)
+
+    def mark_subtree(node: Comment) -> set[int]:
+        authors = {node.author_id}
+        node.moderation_deleted_at = deleted_at
+        node.moderation_deleted_by_id = moderator.id
+        node.moderation_deleted_root_id = comment.id
+        for reply in node.replies:
+            authors.update(mark_subtree(reply))
+        return authors
+
+    affected_authors = mark_subtree(comment)
+    db.flush()
 
     post = post_dao.get_by_id(db, post_id)
     if post:
         post.comments_count = comment_dao.count_for_post(db, post_id)
-    author = user_dao.get_by_id(db, author_id)
-    if author:
-        author.comments_count = comment_dao.count_by_author(db, author_id)
+    for affected_author_id in affected_authors:
+        author = user_dao.get_by_id(db, affected_author_id)
+        if author:
+            author.comments_count = comment_dao.count_by_author(db, affected_author_id)
     db.commit()
 
     notification_service.notify(

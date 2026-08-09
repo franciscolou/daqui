@@ -32,7 +32,7 @@ const normalizeSearch = (value: string) =>
 
 export default function UserScreen() {
   const { t } = useT();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { username } = useLocalSearchParams<{ username: string }>();
   const { width } = useWindowDimensions();
   const isWide = width >= DESKTOP_BREAKPOINT;
   const { user: me } = useAuth();
@@ -50,7 +50,7 @@ export default function UserScreen() {
   const [reportVisible, setReportVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const isMe = !!me && me.id === id;
+  const isMe = !!me && me.username === username;
 
   const handlePostDeleted = useCallback((postId: string) => {
     setUserPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -89,13 +89,15 @@ export default function UserScreen() {
   }, [timelineItems, searchQuery]);
 
   const load = useCallback(async () => {
-    if (!id) return;
+    if (!username) return;
     setLoading(true);
     try {
-      const [u, posts, ads] = await Promise.all([
-        api.getUser(id),
-        api.getUserPosts(id).catch(() => [] as Post[]),
-        adsApi.getLinkedPosts(id, me?.id).catch(() => [] as Ad[]),
+      // Resolve username → usuário (com id numérico interno) antes de buscar
+      // os posts/anúncios vinculados, que ainda usam o id interno.
+      const u = await api.getUserByUsername(username);
+      const [posts, ads] = await Promise.all([
+        api.getUserPosts(u.id).catch(() => [] as Post[]),
+        adsApi.getLinkedPosts(u.id, me?.id).catch(() => [] as Ad[]),
       ]);
       setUser(u);
       setUserPosts(posts);
@@ -105,7 +107,7 @@ export default function UserScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, me?.id]);
+  }, [username, me?.id]);
 
   useEffect(() => {
     load();
@@ -158,7 +160,7 @@ export default function UserScreen() {
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnPrimary]}
                 activeOpacity={0.85}
-                onPress={() => router.push(`/messages/${user.id}` as any)}
+                onPress={() => router.push(`/messages/${user.username}` as any)}
               >
                 <Ionicons name="chatbubble-outline" size={16} color="#fff" />
                 <Text style={styles.actionBtnPrimaryText}>{t('profile.sendMessage')}</Text>
@@ -184,7 +186,7 @@ export default function UserScreen() {
             <TouchableOpacity
               style={styles.lockedMessageBtn}
               activeOpacity={0.85}
-              onPress={() => router.push(`/messages/${user.id}` as any)}
+              onPress={() => router.push(`/messages/${user.username}` as any)}
             >
               <Ionicons name="chatbubble-outline" size={16} color="#fff" />
               <Text style={styles.lockedMessageBtnText}>{t('profile.sendMessage')}</Text>
