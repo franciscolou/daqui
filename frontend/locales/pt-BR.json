@@ -1393,7 +1393,9 @@
     "welcomeHighlight": "Ajuda e suporte",
     "welcomeAfter": " pra aprender a usar o app.",
     "postRemovedText": "Seu post foi removido pela moderação por não seguir as diretrizes da comunidade.",
-    "commentRemovedText": "Seu comentário foi removido pela moderação por não seguir as diretrizes da comunidade."
+    "commentRemovedText": "Seu comentário foi removido pela moderação por não seguir as diretrizes da comunidade.",
+    "postRestoredText": "Após reanálise da moderação, seu post foi reanalisado e restaurado..",
+    "commentRestoredText": "Após reanálise da moderação, seu comentário foi reanalisado e restaurado.."
   },
   "search": {
     "filterAll": "Tudo",

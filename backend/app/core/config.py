@@ -17,11 +17,11 @@ LIKE_MERGE_THRESHOLD = 3
 MAX_MEDIA_ITEMS = 10
 
 # Denúncias e chamados de suporte (ver schemas/{attachment,report,support_ticket}.py)
-MAX_ATTACHMENTS = 3
-MAX_COMMENT_LENGTH = 3000  # denúncias
-MAX_SUBJECT_LENGTH = 120  # chamado de suporte
-MAX_MESSAGE_LENGTH = 2000  # chamado de suporte
-MAX_RESPONSE_LENGTH = 2000  # resposta do moderador ao chamado
+TICKET_MAX_ATTACHMENTS = 3
+TICKET_MAX_SUBJECT_LENGTH = 120  # chamado de suporte
+TICKET_MAX_MESSAGE_LENGTH = 2000  # chamado de suporte
+TICKET_MAX_RESPONSE_LENGTH = 2000  # resposta do moderador ao chamado
+REPORT_MAX_COMMENT_LENGTH = 3000  # denúncias
 
 # Realtime (ver core/typing_registry.py, routers/ws.py)
 # Uma entrada de "digitando" expira sozinha após TYPING_TTL_SECONDS sem novo

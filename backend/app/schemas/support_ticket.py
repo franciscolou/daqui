@@ -1,13 +1,13 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
 from app.core.config import (
-    MAX_ATTACHMENTS,
-    MAX_MESSAGE_LENGTH,
-    MAX_RESPONSE_LENGTH,
-    MAX_SUBJECT_LENGTH,
+    TICKET_MAX_ATTACHMENTS,
+    TICKET_MAX_MESSAGE_LENGTH,
+    TICKET_MAX_RESPONSE_LENGTH,
+    TICKET_MAX_SUBJECT_LENGTH,
+    REPORT_MAX_COMMENT_LENGTH,
 )
 from app.models.support_ticket import SupportTicketStatus
 from app.schemas.attachment import AttachmentItem
@@ -26,8 +26,10 @@ class SupportTicketCreate(BaseModel):
         v = (v or "").strip()
         if not v:
             raise ValueError("O assunto não pode ficar vazio")
-        if len(v) > MAX_SUBJECT_LENGTH:
-            raise ValueError(f"O assunto deve ter no máximo {MAX_SUBJECT_LENGTH} caracteres")
+        if len(v) > TICKET_MAX_SUBJECT_LENGTH:
+            raise ValueError(
+                f"O assunto deve ter no máximo {TICKET_MAX_SUBJECT_LENGTH} caracteres"
+            )
         return v
 
     @field_validator("message")
@@ -36,15 +38,17 @@ class SupportTicketCreate(BaseModel):
         v = (v or "").strip()
         if not v:
             raise ValueError("A mensagem não pode ficar vazia")
-        if len(v) > MAX_MESSAGE_LENGTH:
-            raise ValueError(f"A mensagem deve ter no máximo {MAX_MESSAGE_LENGTH} caracteres")
+        if len(v) > TICKET_MAX_MESSAGE_LENGTH:
+            raise ValueError(
+                f"A mensagem deve ter no máximo {TICKET_MAX_MESSAGE_LENGTH} caracteres"
+            )
         return v
 
     @field_validator("attachments")
     @classmethod
     def check_attachments(cls, v: list[AttachmentItem]) -> list[AttachmentItem]:
-        if len(v) > MAX_ATTACHMENTS:
-            raise ValueError(f"No máximo {MAX_ATTACHMENTS} anexos por chamado")
+        if len(v) > TICKET_MAX_ATTACHMENTS:
+            raise ValueError(f"No máximo {TICKET_MAX_ATTACHMENTS} anexos por chamado")
         return v
 
 
@@ -54,8 +58,8 @@ class SupportTicketOut(BaseModel):
     message: str
     attachments: list[AttachmentItem] = []
     status: SupportTicketStatus
-    response: Optional[str] = None
-    responded_at: Optional[datetime] = None
+    response: str | None = None
+    responded_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -74,8 +78,10 @@ class SupportTicketReply(BaseModel):
         v = (v or "").strip()
         if not v:
             raise ValueError("A resposta não pode ficar vazia")
-        if len(v) > MAX_RESPONSE_LENGTH:
-            raise ValueError(f"A resposta deve ter no máximo {MAX_RESPONSE_LENGTH} caracteres")
+        if len(v) > TICKET_MAX_RESPONSE_LENGTH:
+            raise ValueError(
+                f"A resposta deve ter no máximo {TICKET_MAX_RESPONSE_LENGTH} caracteres"
+            )
         return v
 
 

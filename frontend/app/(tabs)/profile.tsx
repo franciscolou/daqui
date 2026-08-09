@@ -20,6 +20,7 @@ import FeedLayout from '../../components/FeedLayout';
 import PostCard from '../../components/PostCard';
 import AdPostCard from '../../components/AdPostCard';
 import ProfileHeader from '../../components/ProfileHeader';
+import MobileMenu from '../../components/MobileMenu';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useT } from '../../lib/i18n';
 
@@ -133,7 +134,21 @@ export default function ProfileScreen() {
   );
 
   return (
-    <FeedLayout>
+    <FeedLayout showMobileMenu={false}>
+      {!isWide && (
+        <View style={styles.mobileHeader}>
+          <TouchableOpacity
+            style={styles.mobileHeaderButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name="chevron-back" size={24} color={Colors.text} />
+          </TouchableOpacity>
+          <MobileMenu inline />
+        </View>
+      )}
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -146,6 +161,23 @@ export default function ProfileScreen() {
 }
 
 const makeStyles = (Colors: Palette) => StyleSheet.create({
+  mobileHeader: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  mobileHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',

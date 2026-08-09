@@ -1,9 +1,8 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
-from app.core.config import MAX_ATTACHMENTS, MAX_COMMENT_LENGTH
+from app.core.config import REPORT_MAX_COMMENT_LENGTH, TICKET_MAX_ATTACHMENTS
 from app.models.report import (
     ReportReason,
     ReportStatus,
@@ -27,15 +26,17 @@ class ReportCreate(BaseModel):
     @classmethod
     def check_comment(cls, v: str) -> str:
         v = (v or "").strip()
-        if len(v) > MAX_COMMENT_LENGTH:
-            raise ValueError(f"O comentário deve ter no máximo {MAX_COMMENT_LENGTH} caracteres")
+        if len(v) > REPORT_MAX_COMMENT_LENGTH:
+            raise ValueError(
+                f"O comentário deve ter no máximo {REPORT_MAX_COMMENT_LENGTH} caracteres"
+            )
         return v
 
     @field_validator("attachments")
     @classmethod
     def check_attachments(cls, v: list[AttachmentItem]) -> list[AttachmentItem]:
-        if len(v) > MAX_ATTACHMENTS:
-            raise ValueError(f"No máximo {MAX_ATTACHMENTS} anexos por denúncia")
+        if len(v) > TICKET_MAX_ATTACHMENTS:
+            raise ValueError(f"No máximo {TICKET_MAX_ATTACHMENTS} anexos por denúncia")
         return v
 
 
@@ -53,9 +54,9 @@ class ReportOut(BaseModel):
 
 class ReportAdminOut(ReportOut):
     reporter: UserPublic
-    post: Optional[PostOut] = None
-    comment_target: Optional[CommentOut] = None
-    reported_user: Optional[UserPublic] = None
+    post: PostOut | None = None
+    comment_target: CommentOut | None = None
+    reported_user: UserPublic | None = None
 
 
 class ReportStatusUpdate(BaseModel):

@@ -23,6 +23,9 @@ class NotificationType(StrEnum):
     # Avisos de moderação: post/comentário do usuário removido pela moderação.
     POST_REMOVED = "post_removed"
     COMMENT_REMOVED = "comment_removed"
+    # Avisos de moderação: post/comentário do usuário restaurado da lixeira.
+    POST_RESTORED = "post_restored"
+    COMMENT_RESTORED = "comment_restored"
     # Menção: alguém citou @usuario num post ou comentário.
     MENTION = "mention"
     # Aviso do bairro: post novo em categoria "aviso"/"segurança" no seu bairro.

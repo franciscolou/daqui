@@ -1,11 +1,10 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Optional
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.config import MAX_SUBJECT_LENGTH
+from app.core.config import TICKET_MAX_SUBJECT_LENGTH
 from app.database import Base
 
 
@@ -26,17 +25,23 @@ class SupportTicket(Base):
     __tablename__ = "support_tickets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    subject: Mapped[str] = mapped_column(String(MAX_SUBJECT_LENGTH), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, index=True
+    )
+    subject: Mapped[str] = mapped_column(
+        String(TICKET_MAX_SUBJECT_LENGTH), nullable=False
+    )
     message: Mapped[str] = mapped_column(Text, nullable=False)
     # Até MAX_ATTACHMENTS (ver core/config.py) imagens/vídeos anexados
     # pelo usuário: [{"url": ..., "type": "image"|"video"}, ...].
-    attachments: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
+    attachments: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[SupportTicketStatus] = mapped_column(
         String(20), default=SupportTicketStatus.PENDING, index=True
     )
-    response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    response: Mapped[str | None] = mapped_column(Text, nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
     )

@@ -1739,7 +1739,9 @@
     "welcomeHighlight": "Help & support",
     "welcomeAfter": " section to learn how to use the app.",
     "postRemovedText": "Your post was removed by moderation for not following community guidelines.",
-    "commentRemovedText": "Your comment was removed by moderation for not following community guidelines."
+    "commentRemovedText": "Your comment was removed by moderation for not following community guidelines.",
+    "postRestoredText": "After a review from staff, your post was restored.",
+    "commentRestoredText": "After a review from staff, your comment was restored."
   },
   "search": {
     "filterAll": "All",

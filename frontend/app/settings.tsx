@@ -142,6 +142,18 @@ export default function SettingsScreen() {
         </View>
       ) : (
         <View style={styles.mobileBody}>
+          <View style={styles.mobileHeader}>
+            <TouchableOpacity
+              style={styles.mobileHeaderButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+            >
+              <Ionicons name="chevron-back" size={24} color={Colors.text} />
+            </TouchableOpacity>
+            <MobileMenu inline />
+          </View>
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={detailOpen ? styles.detailContent : styles.topicListContent}
@@ -150,7 +162,6 @@ export default function SettingsScreen() {
           </ScrollView>
         </View>
       )}
-      {!isWide && <MobileMenu />}
     </SafeAreaView>
   );
 }
@@ -1283,6 +1294,23 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   detailCol: { width: DETAIL_W, flexShrink: 1, minWidth: 0, backgroundColor: Colors.background },
   mobileBody: { flex: 1, backgroundColor: Colors.surface },
+  mobileHeader: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+  },
+  mobileHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   // Lista de tópicos
   topicListContent: { padding: 12 },

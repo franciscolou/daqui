@@ -8,10 +8,12 @@ from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.audit_log import AuditLogAction
 from app.models.comment import Comment
+from app.models.notification import NotificationType
 from app.models.post import Post
 from app.models.user import User
 from app.schemas.trash import TrashItemOut
 from app.services import audit_log as audit_log_service
+from app.services import notification as notification_service
 
 RETENTION_DAYS = 60
 
@@ -137,4 +139,26 @@ def restore(db: Session, item_type: str, item_id: int, moderator: User) -> None:
             post.comments_count = comment_dao.count_for_post(db, post.id)
     _recount_users(db, affected_authors)
     db.commit()
+    if item_type == "post":
+        notification_service.notify(
+            db,
+            user_id=author_id,
+            type_=NotificationType.POST_RESTORED,
+            content="Seu post foi restaurado pela moderação.",
+            target_text=detail,
+            post_id=post.id,
+            push_title="Aviso da moderação",
+            push_body="Seu post foi restaurado pela moderação.",
+        )
+    else:
+        notification_service.notify(
+            db,
+            user_id=author_id,
+            type_=NotificationType.COMMENT_RESTORED,
+            content="Seu comentário foi restaurado pela moderação.",
+            target_text=detail,
+            post_id=root.post_id,
+            push_title="Aviso da moderação",
+            push_body="Seu comentário foi restaurado pela moderação.",
+        )
     audit_log_service.log(db, moderator, action, author_id, detail)
