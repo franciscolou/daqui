@@ -94,6 +94,7 @@ def search(db: Session, neighborhood: str, query: str, limit: int = 30) -> list[
         .filter(
             Post.neighborhood == neighborhood,
             Post.moderation_deleted_at.is_(None),
+            User.searchable.is_(True),
             or_(
                 Post.title.ilike(like),
                 Post.content.ilike(like),

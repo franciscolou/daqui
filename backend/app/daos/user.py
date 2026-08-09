@@ -88,7 +88,11 @@ def get_neighbors(
 ) -> list[User]:
     return (
         db.query(User)
-        .filter(User.neighborhood == neighborhood, User.id != exclude_id)
+        .filter(
+            User.neighborhood == neighborhood,
+            User.id != exclude_id,
+            User.searchable.is_(True),
+        )
         .limit(limit)
         .all()
     )
@@ -151,7 +155,11 @@ def get_popular(
     # Popularidade = engajamento do vizinho (posts + comentários), dentro do bairro.
     return (
         db.query(User)
-        .filter(User.neighborhood == neighborhood, User.id != exclude_id)
+        .filter(
+            User.neighborhood == neighborhood,
+            User.id != exclude_id,
+            User.searchable.is_(True),
+        )
         .order_by(desc(User.posts_count + User.comments_count), desc(User.verified))
         .limit(limit)
         .all()
