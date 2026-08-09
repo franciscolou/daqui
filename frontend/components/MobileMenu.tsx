@@ -1,7 +1,7 @@
-import { TouchableOpacity, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Animated, TouchableOpacity, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../constants/Colors';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import LeftSidebar from './LeftSidebar';
@@ -24,6 +24,9 @@ interface Props {
   onIncludeNearbyChange?: (value: boolean) => void;
 }
 
+const PANEL_WIDTH = 220;
+const DRAWER_DURATION_MS = 180;
+
 export default function MobileMenu({
   inline = false,
   activeCategory,
@@ -37,6 +40,44 @@ export default function MobileMenu({
   const insets = useSafeAreaInsets();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const [slideX] = useState(() => new Animated.Value(PANEL_WIDTH));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (!open) return;
+
+    slideX.setValue(PANEL_WIDTH);
+    overlayOpacity.setValue(0);
+    Animated.parallel([
+      Animated.timing(slideX, {
+        toValue: 0,
+        duration: DRAWER_DURATION_MS,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: DRAWER_DURATION_MS,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [open, overlayOpacity, slideX]);
+
+  const close = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(slideX, {
+        toValue: PANEL_WIDTH,
+        duration: DRAWER_DURATION_MS,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: DRAWER_DURATION_MS,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) setOpen(false);
+    });
+  }, [overlayOpacity, slideX]);
 
   return (
     <>
@@ -48,12 +89,18 @@ export default function MobileMenu({
         <Ionicons name="menu" size={22} color={Colors.text} />
       </TouchableOpacity>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)} tabIndex={-1}>
-          <Pressable style={[styles.panel, { paddingTop: insets.top }]} onPress={() => {}} tabIndex={-1}>
+      <Modal visible={open} transparent animationType="none" onRequestClose={close}>
+        <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={close} tabIndex={-1} />
+          <Animated.View
+            style={[
+              styles.panel,
+              { paddingTop: insets.top, transform: [{ translateX: slideX }] },
+            ]}
+          >
             <ScrollView showsVerticalScrollIndicator={false}>
               <LeftSidebar
-                onNavigate={() => setOpen(false)}
+                onNavigate={close}
                 activeCategory={activeCategory}
                 onCategoryChange={onCategoryChange}
                 importantOnly={importantOnly}
@@ -62,8 +109,8 @@ export default function MobileMenu({
                 onIncludeNearbyChange={onIncludeNearbyChange}
               />
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </Animated.View>
+        </Animated.View>
       </Modal>
     </>
   );
@@ -94,7 +141,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   overlay: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.45)' },
   panel: {
-    width: 220,
+    width: PANEL_WIDTH,
     backgroundColor: Colors.background,
     borderLeftWidth: StyleSheet.hairlineWidth,
     borderLeftColor: Colors.border,

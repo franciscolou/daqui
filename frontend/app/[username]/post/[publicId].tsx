@@ -27,6 +27,7 @@ import { goBack } from '../../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../../lib/theme';
 import { submitOnEnter } from '../../../lib/keyboard';
 import { useT } from '../../../lib/i18n';
+import { isDesktopBrowser } from '../../../lib/platform';
 
 import WideLayout from '../../../components/WideLayout';
 import PollBlock from '../../../components/PollBlock';
@@ -62,6 +63,7 @@ const sortCommentsByPopularity = (comments: Comment[]) =>
 
 export default function PostDetailScreen() {
   const { t } = useT();
+  const isDesktopWeb = isDesktopBrowser();
   // URL pública estilo Twitter: `/{username}/post/{publicId}`. O
   // `username` é decorativo (não precisa bater com o autor real) — a busca
   // é sempre por `publicId`, o identificador opaco que não expõe a posição
@@ -244,12 +246,14 @@ export default function PostDetailScreen() {
     }
   };
 
-  // Sempre oferece câmera e galeria — no web, expo-image-picker abre o
-  // seletor de arquivo com o atributo `capture` (câmera no navegador do
-  // celular; desktops com webcam também costumam expor a opção "Usar
-  // câmera" no próprio diálogo do sistema).
+  // No desktop web, abre o seletor diretamente: o atributo `capture` usado
+  // pelo expo-image-picker não garante acesso à webcam nesses navegadores.
   const openAttach = () => {
     setImageError(null);
+    if (isDesktopWeb) {
+      void pickCommentImage('library');
+      return;
+    }
     setAttachMenuVisible(true);
   };
 

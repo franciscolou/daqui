@@ -138,6 +138,12 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE messages ADD COLUMN media_url VARCHAR(500)"))
             if "media_type" not in columns:
                 conn.execute(text("ALTER TABLE messages ADD COLUMN media_type VARCHAR(10)"))
+            if "media" not in columns:
+                conn.execute(text("ALTER TABLE messages ADD COLUMN media JSON"))
+                conn.execute(text(
+                    "UPDATE messages SET media = json_array(json_object('url', media_url, 'type', media_type)) "
+                    "WHERE media_url IS NOT NULL"
+                ))
 
     if "comments" in tables:
         columns = {c["name"] for c in inspector.get_columns("comments")}
@@ -169,6 +175,12 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE group_messages ADD COLUMN media_url VARCHAR(500)"))
             if "media_type" not in columns:
                 conn.execute(text("ALTER TABLE group_messages ADD COLUMN media_type VARCHAR(10)"))
+            if "media" not in columns:
+                conn.execute(text("ALTER TABLE group_messages ADD COLUMN media JSON"))
+                conn.execute(text(
+                    "UPDATE group_messages SET media = json_array(json_object('url', media_url, 'type', media_type)) "
+                    "WHERE media_url IS NOT NULL"
+                ))
 
     if "posts" in tables:
         columns = {c["name"] for c in inspector.get_columns("posts")}

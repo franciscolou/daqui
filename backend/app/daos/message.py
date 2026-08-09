@@ -124,6 +124,7 @@ def create(
     shared_ad_id: int | None = None,
     media_url: str | None = None,
     media_type: str | None = None,
+    media: list[dict] | None = None,
 ) -> Message:
     msg = Message(
         sender_id=sender_id,
@@ -131,6 +132,7 @@ def create(
         content=content,
         media_url=media_url,
         media_type=media_type,
+        media=media,
         shared_post_id=shared_post_id,
         shared_comment_id=shared_comment_id,
         reply_to_id=reply_to_id,

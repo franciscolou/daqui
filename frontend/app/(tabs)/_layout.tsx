@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, TouchableOpacity, Pressable, Platform, useWindowDimensions } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Pressable, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,7 +26,11 @@ const TAB_ITEMS = [
   { name: 'messages', labelKey: 'nav.messages', icon: 'chatbubbles-outline', iconActive: 'chatbubbles' },
 ] as const;
 
-function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+function CustomTabBar({
+  state,
+  navigation,
+  onTabChange,
+}: BottomTabBarProps & { onTabChange: () => void }) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const Colors = useTheme();
@@ -48,6 +53,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
     });
     if (event.defaultPrevented) return;
     if (activeName !== name) {
+      onTabChange();
       navigation.navigate(name);
     } else {
       trigger(name);
@@ -119,23 +125,47 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabsLayout() {
+  const { width } = useWindowDimensions();
+  const Colors = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const [animateTabChange, setAnimateTabChange] = useState(false);
+  const enableTabAnimation = useCallback(() => setAnimateTabChange(true), []);
+  const disableTabAnimation = useCallback(() => setAnimateTabChange(false), []);
+  const isMobile = width < DESKTOP_BREAKPOINT;
+
   return (
-    <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tabs.Screen name="index" />
-      <Tabs.Screen name="search" />
-      <Tabs.Screen name="publish" />
-      <Tabs.Screen name="notifications" />
-      <Tabs.Screen name="messages" />
-      <Tabs.Screen name="map" options={{ href: null }} />
-      <Tabs.Screen name="profile" options={{ href: null }} />
-    </Tabs>
+    <View style={[styles.navigatorBackground, { backgroundColor: Colors.surface }]}>
+      <Tabs
+        tabBar={(props) => <CustomTabBar {...props} onTabChange={enableTabAnimation} />}
+        screenListeners={{ transitionEnd: disableTabAnimation }}
+        screenOptions={{
+          headerShown: false,
+          // Expo Router's shift preset uses the tab order to choose the most
+          // natural side: forward tabs enter from the right, reverse tabs from
+          // the left. It also moves/fades the outgoing scene in the opposite
+          // direction. Keep it exclusive to mobile bottom-bar selections.
+          animation: isMobile && animateTabChange ? 'shift' : 'none',
+          transitionSpec: isMobile && animateTabChange
+            ? { animation: 'timing', config: { duration: 170 } }
+            : { animation: 'timing', config: { duration: 0 } },
+        }}
+      >
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="search" />
+        <Tabs.Screen name="publish" />
+        <Tabs.Screen name="notifications" />
+        <Tabs.Screen name="messages" />
+        <Tabs.Screen name="map" options={{ href: null }} />
+        <Tabs.Screen name="profile" options={{ href: null }} />
+      </Tabs>
+    </View>
   );
 }
 
 const makeStyles = (Colors: Palette) => StyleSheet.create({
+  navigatorBackground: {
+    flex: 1,
+  },
   tabBarContainer: {
     backgroundColor: Colors.surface,
     borderTopWidth: 1,

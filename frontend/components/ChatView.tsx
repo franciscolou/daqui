@@ -3,6 +3,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   Pressable,
   Image,
@@ -44,6 +45,17 @@ import ImageViewerModal, { MediaItem } from './ImageViewerModal';
 import VideoPlayer from './VideoPlayer';
 import { useT } from '../lib/i18n';
 import { Ad, adsApi } from '../lib/adsApi';
+import { isDesktopBrowser } from '../lib/platform';
+
+const MAX_MESSAGE_MEDIA = 10;
+
+type MediaDraft = {
+  id: string;
+  localUri: string;
+  type: 'image' | 'video';
+  url?: string;
+  uploading: boolean;
+};
 
 export type ChatTarget = { kind: 'dm' | 'group'; id: string };
 
@@ -94,7 +106,7 @@ function MessageBubble({
   const hasShared = !!msg.sharedPost || !!msg.sharedComment || !!msg.sharedAdId;
   // Foto/vídeo anexado tem o mesmo tratamento visual: sem fundo/padding do
   // balão (a própria mídia preenche o espaço).
-  const hasMedia = !!msg.mediaUrl;
+  const hasMedia = msg.media.length > 0;
   const hasRich = hasShared || hasMedia;
   // Anúncio encaminhado só traz o id (ver lib/api.ts::ChatMessage.sharedAdId)
   // — o próprio ads-backend é quem tem os dados, então resolve no client.
@@ -205,18 +217,23 @@ function MessageBubble({
               <SharedAdPreview ad={sharedAd} />
             </View>
           )}
-          {!!msg.mediaUrl && (
-            <Pressable
-              nativeID={`chat-media-no-hover-${msg.id}`}
-              onPress={() => onViewMedia(msg)}
-              style={styles.mediaWrap}
-            >
-              {msg.mediaType === 'video' ? (
-                <VideoPlayer uri={msg.mediaUrl} style={styles.messageMedia} contentFit="cover" />
-              ) : (
-                <Image source={{ uri: msg.mediaUrl }} style={styles.messageMedia} resizeMode="cover" />
-              )}
-            </Pressable>
+          {msg.media.length > 0 && (
+            <View style={[styles.mediaWrap, msg.media.length > 1 && styles.messageMediaGrid]}>
+              {msg.media.map((item, index) => (
+                <Pressable
+                  key={`${item.url}-${index}`}
+                  nativeID={`chat-media-no-hover-${msg.id}-${index}`}
+                  onPress={() => onViewMedia({ ...msg, media: msg.media.slice(index).concat(msg.media.slice(0, index)) })}
+                  style={msg.media.length > 1 ? styles.messageMediaCell : undefined}
+                >
+                  {item.type === 'video' ? (
+                    <VideoPlayer uri={item.url} style={[styles.messageMedia, msg.media.length > 1 && styles.messageMediaGridItem]} contentFit="cover" />
+                  ) : (
+                    <Image source={{ uri: item.url }} style={[styles.messageMedia, msg.media.length > 1 && styles.messageMediaGridItem]} resizeMode="cover" />
+                  )}
+                </Pressable>
+              ))}
+            </View>
           )}
           {!!msg.content && (
             <MentionText
@@ -331,6 +348,7 @@ export default function ChatView({
   onActivity?: () => void; // avisa o pai para recarregar a lista de conversas
 }) {
   const { t } = useT();
+  const isDesktopWeb = isDesktopBrowser();
   const { kind, id } = target;
   const { user: me } = useAuth();
   const { subscribeMessages, refreshUnreadCounts, typingDmUserIds, typingGroupUserIds, pingTyping } =
@@ -352,11 +370,13 @@ export default function ChatView({
   const [enteringIds, setEnteringIds] = useState<Set<string>>(new Set());
   // mensagem marcada (duplo clique) para responder — some ao enviar ou cancelar
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
-  // Foto/vídeo anexado à mensagem em digitação (câmera ou galeria) — só em DM.
-  const [mediaDraft, setMediaDraft] = useState<{ localUri: string; type: 'image' | 'video'; url?: string; uploading: boolean } | null>(null);
+  // Fotos/vídeos preparados antes do envio, compartilhados por DM ou grupo.
+  const [mediaDrafts, setMediaDrafts] = useState<MediaDraft[]>([]);
+  const [hoveredDraftId, setHoveredDraftId] = useState<string | null>(null);
+  const composerFocusedRef = useRef(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [attachMenuVisible, setAttachMenuVisible] = useState(false);
-  const [viewerMedia, setViewerMedia] = useState<MediaItem | null>(null);
+  const [viewerMedia, setViewerMedia] = useState<{ media: MediaItem[]; index: number } | null>(null);
 
   const listRef = useRef<FlatList<ChatItem>>(null);
   const didScrollRef = useRef(false);
@@ -442,8 +462,52 @@ export default function ChatView({
     [subscribeMessages, kind, id, refreshQuiet],
   );
 
-  // Anexa foto/vídeo à mensagem em digitação (câmera no nativo, galeria em
-  // qualquer plataforma — expo-image-picker não suporta câmera na web).
+  const addMediaAssets = useCallback(async (assets: {
+    uri: string;
+    type?: string | null;
+    mimeType?: string | null;
+    fileName?: string | null;
+  }[]) => {
+    const available = Math.max(0, MAX_MESSAGE_MEDIA - mediaDrafts.length);
+    const selected = assets.slice(0, available);
+    if (!selected.length) return;
+
+    const drafts = selected.map((asset, index): MediaDraft => ({
+      id: `${Date.now()}-${index}-${Math.random()}`,
+      localUri: asset.uri,
+      type: asset.type === 'video' ? 'video' : 'image',
+      uploading: true,
+    }));
+    setMediaDrafts((current) => [...current, ...drafts]);
+
+    await Promise.all(selected.map(async (asset, index) => {
+      const draft = drafts[index];
+      try {
+        const uploaded = kind === 'dm'
+          ? await api.uploadMessageAttachment({
+              uri: asset.uri,
+              mimeType: asset.mimeType ?? undefined,
+              fileName: asset.fileName ?? undefined,
+            })
+          : await api.uploadGroupMessageAttachment(id, {
+              uri: asset.uri,
+              mimeType: asset.mimeType ?? undefined,
+              fileName: asset.fileName ?? undefined,
+            });
+        setMediaDrafts((current) => current.map((item) =>
+          item.id === draft.id
+            ? { ...item, type: uploaded.type, url: uploaded.url, uploading: false }
+            : item,
+        ));
+      } catch {
+        setMediaDrafts((current) => current.filter((item) => item.id !== draft.id));
+        setMediaError(t('messages.chat.mediaUploadError'));
+      }
+    }));
+  }, [id, kind, mediaDrafts.length, t]);
+
+  // Anexa mídia escolhida pela câmera/galeria. A biblioteca aceita seleção
+  // múltipla; câmera permanece uma captura por vez.
   const pickMessageMedia = useCallback(async (source: 'camera' | 'library') => {
     setMediaError(null);
     try {
@@ -460,68 +524,82 @@ export default function ChatView({
       const res =
         source === 'camera'
           ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.7 })
-          : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 0.7 });
+          : await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images', 'videos'],
+              quality: 0.7,
+              allowsMultipleSelection: true,
+              selectionLimit: Math.max(1, MAX_MESSAGE_MEDIA - mediaDrafts.length),
+            });
       if (res.canceled) return;
-
-      const asset = res.assets[0];
-      const type: 'image' | 'video' = asset.type === 'video' ? 'video' : 'image';
-      const localUri = asset.uri;
-      setMediaDraft({ localUri, type, uploading: true });
-      try {
-        const pickedAsset = {
-          uri: asset.uri,
-          mimeType: asset.mimeType ?? undefined,
-          fileName: asset.fileName ?? undefined,
-        };
-        const uploaded =
-          kind === 'dm'
-            ? await api.uploadMessageAttachment(pickedAsset)
-            : await api.uploadGroupMessageAttachment(id, pickedAsset);
-        setMediaDraft({ localUri, type: uploaded.type, url: uploaded.url, uploading: false });
-      } catch {
-        setMediaDraft(null);
-        setMediaError(t('messages.chat.mediaUploadError'));
-      }
+      await addMediaAssets(res.assets);
     } catch {
       setMediaError(t('messages.chat.mediaLoadError'));
     }
-  }, [t, kind, id]);
+  }, [t, mediaDrafts.length, addMediaAssets]);
 
-  // Sempre oferece câmera e galeria — no web, expo-image-picker abre o
-  // seletor de arquivo com o atributo `capture` (câmera no navegador do
-  // celular; desktops com webcam também costumam expor a opção "Usar
-  // câmera" no próprio diálogo do sistema).
+  // O React Native Web não encaminha arquivos colados pelo onChangeText.
+  // Lemos o ClipboardEvent enquanto o composer está focado e transformamos
+  // cada imagem em uma URL local compatível com o upload existente.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const onPaste = (event: ClipboardEvent) => {
+      if (!composerFocusedRef.current) return;
+      const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
+        file.type.startsWith('image/'),
+      );
+      if (!files.length) return;
+      event.preventDefault();
+      void addMediaAssets(files.map((file) => ({
+        uri: URL.createObjectURL(file),
+        type: 'image' as const,
+        mimeType: file.type,
+        fileName: file.name || 'clipboard-image',
+      })));
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [addMediaAssets]);
+
+  // No desktop web, abre o seletor diretamente: o atributo `capture` usado
+  // pelo expo-image-picker não garante acesso à webcam nesses navegadores.
   const openAttach = useCallback(() => {
     setMediaError(null);
+    if (isDesktopWeb) {
+      void pickMessageMedia('library');
+      return;
+    }
     setAttachMenuVisible(true);
-  }, []);
+  }, [isDesktopWeb, pickMessageMedia]);
 
   const send = useCallback(async () => {
     const content = input.trim();
-    const media = mediaDraft?.url ? { url: mediaDraft.url, type: mediaDraft.type } : undefined;
-    if ((!content && !media) || !id || sending || mediaDraft?.uploading) return;
+    const media = mediaDrafts.flatMap((draft) =>
+      draft.url ? [{ url: draft.url, type: draft.type }] : [],
+    );
+    const uploading = mediaDrafts.some((draft) => draft.uploading);
+    if ((!content && !media.length) || !id || sending || uploading) return;
     const replyToId = replyingTo?.id;
     setSending(true);
     setInput('');
     setInputHeight(CHAT_INPUT_MIN_HEIGHT);
     setReplyingTo(null);
-    setMediaDraft(null);
+    setMediaDrafts([]);
     try {
       const msg =
         kind === 'dm'
-          ? await api.sendMessage(id, content, undefined, replyToId, undefined, undefined, media?.url, media?.type)
-          : await api.sendGroupMessage(id, content, replyToId, media?.url, media?.type);
+          ? await api.sendMessage(id, content, undefined, replyToId, undefined, undefined, undefined, undefined, media)
+          : await api.sendGroupMessage(id, content, replyToId, undefined, undefined, media);
       setMessages((prev) => [...prev, msg]);
       animateEntrance([msg.id]);
       onActivity?.();
     } catch {
       setInput(content);
       setReplyingTo(replyingTo ?? null);
-      setMediaDraft(mediaDraft);
+      setMediaDrafts(mediaDrafts);
     } finally {
       setSending(false);
     }
-  }, [input, id, kind, sending, onActivity, animateEntrance, replyingTo, mediaDraft]);
+  }, [input, id, kind, sending, onActivity, animateEntrance, replyingTo, mediaDrafts]);
 
   // Na web, o scrollHeight de um textarea nunca fica menor que a altura já
   // aplicada via CSS — por isso, para encolher ao apagar texto, é preciso
@@ -750,7 +828,7 @@ export default function ChatView({
                   onReply={setReplyingTo}
                   onJumpTo={jumpToMessage}
                   onViewMedia={(m) =>
-                    m.mediaUrl && setViewerMedia({ url: m.mediaUrl, type: m.mediaType ?? 'image' })
+                    setViewerMedia({ media: m.media, index: 0 })
                   }
                   styles={styles}
                 />
@@ -786,39 +864,62 @@ export default function ChatView({
             </View>
           )}
 
-          {/* Preview da foto/vídeo anexado — some ao enviar ou remover. */}
-          {!!mediaDraft && (
-            <View style={styles.mediaPreviewRow}>
-              <View style={styles.mediaPreviewWrap}>
-                {mediaDraft.type === 'video' ? (
-                  <View style={[styles.mediaPreview, styles.mediaPreviewVideo]}>
-                    <Ionicons name="videocam" size={20} color="#fff" />
-                  </View>
-                ) : (
-                  <Image source={{ uri: mediaDraft.localUri }} style={styles.mediaPreview} resizeMode="cover" />
-                )}
-                {mediaDraft.uploading && (
-                  <View style={styles.mediaPreviewOverlay}>
-                    <ActivityIndicator color="#fff" size="small" />
-                  </View>
-                )}
-                {/* O position:absolute vive num View simples (não no
-                    Pressable): num Pressable/TouchableOpacity, nesta build,
-                    as classes internas de estado (cursor/touchAction) empatam
-                    em especificidade com "position: absolute" e vencem por
-                    ordem de inserção — o botão caía dentro do fluxo normal
-                    (canto errado) em vez de flutuar no canto. */}
-                <View style={styles.mediaPreviewRemoveWrap}>
-                  <Pressable
-                    style={styles.mediaPreviewRemove}
-                    onPress={() => !mediaDraft.uploading && setMediaDraft(null)}
-                    hitSlop={8}
+          {/* Prévia das mídias preparadas — clicáveis no mesmo visualizador
+              usado pelas mensagens já enviadas. */}
+          {mediaDrafts.length > 0 && (
+            <ScrollView
+              horizontal
+              style={styles.mediaPreviewScroller}
+              contentContainerStyle={styles.mediaPreviewRow}
+              showsHorizontalScrollIndicator={false}
+            >
+              {mediaDrafts.map((draft, index) => (
+                <Pressable
+                  key={draft.id}
+                  style={styles.mediaPreviewWrap}
+                  onPress={() => !draft.uploading && setViewerMedia({
+                    media: mediaDrafts.map((item) => ({ url: item.localUri, type: item.type })),
+                    index,
+                  })}
+                  onHoverIn={() => setHoveredDraftId(draft.id)}
+                  onHoverOut={() => setHoveredDraftId(null)}
+                >
+                  {draft.type === 'video' ? (
+                    <View style={[styles.mediaPreview, styles.mediaPreviewVideo]}>
+                      <Ionicons name="videocam" size={20} color="#fff" />
+                    </View>
+                  ) : (
+                    <Image source={{ uri: draft.localUri }} style={styles.mediaPreview} resizeMode="cover" />
+                  )}
+                  {draft.uploading && (
+                    <View style={styles.mediaPreviewOverlay}>
+                      <ActivityIndicator color="#fff" size="small" />
+                    </View>
+                  )}
+                  <View
+                    style={[
+                      styles.mediaPreviewRemoveWrap,
+                      Platform.OS === 'web' && hoveredDraftId !== draft.id && styles.mediaPreviewRemoveHidden,
+                    ]}
+                    pointerEvents="box-none"
                   >
-                    <Ionicons name="close" size={12} color="#fff" />
-                  </Pressable>
-                </View>
-              </View>
-            </View>
+                    <Pressable
+                      style={styles.mediaPreviewRemove}
+                      onHoverIn={() => setHoveredDraftId(draft.id)}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        if (!draft.uploading) {
+                          setMediaDrafts((items) => items.filter((item) => item.id !== draft.id));
+                        }
+                      }}
+                      hitSlop={4}
+                    >
+                      <Ionicons name="close" size={15} color="#fff" />
+                    </Pressable>
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
           )}
           {!!mediaError && <Text style={styles.mediaErrorText}>{mediaError}</Text>}
 
@@ -836,6 +937,8 @@ export default function ChatView({
                 placeholderTextColor={Colors.textTertiary}
                 value={input}
                 onChangeText={onChangeInput}
+                onFocus={() => { composerFocusedRef.current = true; }}
+                onBlur={() => { composerFocusedRef.current = false; }}
                 multiline
                 onContentSizeChange={onInputContentSizeChange}
                 onKeyPress={submitOnEnter(send)}
@@ -849,6 +952,8 @@ export default function ChatView({
                 placeholderTextColor={Colors.textTertiary}
                 value={input}
                 onChangeText={onChangeInput}
+                onFocus={() => { composerFocusedRef.current = true; }}
+                onBlur={() => { composerFocusedRef.current = false; }}
                 multiline
                 onContentSizeChange={onInputContentSizeChange}
                 onKeyPress={submitOnEnter(send)}
@@ -861,10 +966,10 @@ export default function ChatView({
             <TouchableOpacity
               style={[
                 styles.sendBtn,
-                ((!input.trim() && !mediaDraft?.url) || sending || !!mediaDraft?.uploading) && styles.sendBtnDisabled,
+                ((!input.trim() && !mediaDrafts.some((draft) => draft.url)) || sending || mediaDrafts.some((draft) => draft.uploading)) && styles.sendBtnDisabled,
               ]}
               onPress={send}
-              disabled={(!input.trim() && !mediaDraft?.url) || sending || !!mediaDraft?.uploading}
+              disabled={(!input.trim() && !mediaDrafts.some((draft) => draft.url)) || sending || mediaDrafts.some((draft) => draft.uploading)}
               activeOpacity={0.85}
             >
               <Ionicons name="send" size={18} color="#fff" />
@@ -893,7 +998,8 @@ export default function ChatView({
       />
       <ImageViewerModal
         visible={!!viewerMedia}
-        media={viewerMedia ? [viewerMedia] : []}
+        media={viewerMedia?.media ?? []}
+        initialIndex={viewerMedia?.index ?? 0}
         onClose={() => setViewerMedia(null)}
       />
     </View>
@@ -969,7 +1075,10 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   sharedWrap: { marginBottom: 2 },
   mediaWrap: { marginBottom: 2 },
+  messageMediaGrid: { width: 220, flexDirection: 'row', flexWrap: 'wrap', gap: 3 },
+  messageMediaCell: { width: 108, height: 108 },
   messageMedia: { width: 220, height: 220, borderRadius: 14, backgroundColor: Colors.border },
+  messageMediaGridItem: { width: 108, height: 108, borderRadius: 10 },
   bubbleTimeShared: { color: Colors.textTertiary, marginRight: 2 },
   senderName: { fontSize: 12, fontWeight: '700', color: Colors.primary, marginBottom: 2 },
   bubbleMine: { backgroundColor: Colors.primaryDeep, borderBottomRightRadius: 4 },
@@ -1010,12 +1119,25 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   replyBarAccent: { width: 3, alignSelf: 'stretch', borderRadius: 2, backgroundColor: Colors.primary },
   replyBarSender: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   replyBarText: { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
+  mediaPreviewScroller: {
+    flexGrow: 0,
+    height: 84,
+    backgroundColor: Colors.surface,
+  },
   mediaPreviewRow: {
     paddingHorizontal: 12,
     paddingTop: 10,
-    backgroundColor: Colors.surface,
+    paddingBottom: 10,
+    gap: 8,
+    alignItems: 'center',
   },
-  mediaPreviewWrap: { position: 'relative', width: 64, height: 64 },
+  mediaPreviewWrap: {
+    position: 'relative',
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   mediaPreview: { width: 64, height: 64, borderRadius: 12, backgroundColor: Colors.border },
   mediaPreviewVideo: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E293B' },
   mediaPreviewOverlay: {
@@ -1026,12 +1148,19 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   } as any,
-  mediaPreviewRemoveWrap: { position: 'absolute', top: -6, right: -6, width: 20, height: 20 },
+  mediaPreviewRemoveWrap: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+  },
+  mediaPreviewRemoveHidden: { opacity: 0 },
   mediaPreviewRemove: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.error,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0,0,0,0.82)',
     alignItems: 'center',
     justifyContent: 'center',
   },

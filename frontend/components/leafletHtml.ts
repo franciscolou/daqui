@@ -340,21 +340,49 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
 
   function recolorStyle() {
     var dark = CFG.appearance === 'dark';
+    // Prédio, terreno, relevo e via no escuro são todos neutros (cinza puro,
+    // R≈G≈B) — o que separa um do outro é só o tom/intensidade, nunca matiz
+    // (nada de azul/verde tingindo). Terreno e relevo ficam próximos entre
+    // si de propósito (relevo é só "isso aqui não é navegável", não precisa
+    // se destacar como uma categoria totalmente à parte). Água/parque ficam
+    // de fora dessa regra — continuam com cor própria.
     var colors = {
-      motorway: dark ? '#22C55E' : '#15803D',
-      primary: dark ? '#4ADE80' : '#16A34A',
-      secondary: dark ? '#6EE7A0' : '#22C55E',
-      water: dark ? '#123E4A' : '#9EDFD8',
-      waterLine: dark ? '#287281' : '#55BFB6',
+      motorway: dark ? '#82878E' : '#15803D',
+      primary: dark ? '#696E75' : '#16A34A',
+      secondary: dark ? '#50545B' : '#22C55E',
+      water: dark ? '#1C333D' : '#9EDFD8',
+      waterLine: dark ? '#3A5866' : '#55BFB6',
       park: dark ? '#163D2B' : '#D5F5DE',
+      // "relief" (usado só em registerReliefProtocol, que roda fora deste
+      // escopo) mantém a mesma família neutra: rgb(35,37,39) ≈ #232527.
+      ground: '#15161A',
+      building: '#32353A',
+      buildingLine: '#4C5057',
+      textBright: '#F7F7F8',
+      textMuted: '#BABEC4',
     };
     (map.getStyle().layers || []).forEach(function (layer) {
       var key = (layer.id + ' ' + (layer['source-layer'] || '')).toLowerCase();
       try {
-        if (layer.type === 'background') map.setPaintProperty(layer.id, 'background-color', dark ? '#0B1220' : '#F4F8F5');
+        if (layer.type === 'background') map.setPaintProperty(layer.id, 'background-color', dark ? colors.ground : '#F4F8F5');
         if (layer.type === 'fill' && /water|ocean|lake|river/.test(key)) map.setPaintProperty(layer.id, 'fill-color', colors.water);
         if (layer.type === 'line' && /water|river|stream|canal/.test(key)) map.setPaintProperty(layer.id, 'line-color', colors.waterLine);
         if (layer.type === 'fill' && /park|grass|wood|forest|landcover/.test(key)) map.setPaintProperty(layer.id, 'fill-color', colors.park);
+        if (dark && layer.type === 'fill' && /landuse_residential|aeroway|pier/.test(key)) map.setPaintProperty(layer.id, 'fill-color', colors.ground);
+        if (dark && layer.type === 'fill' && /building/.test(key)) {
+          map.setPaintProperty(layer.id, 'fill-color', colors.building);
+          map.setPaintProperty(layer.id, 'fill-outline-color', colors.buildingLine);
+        }
+        // Labels do estilo "dark" vieram com texto cinza-escuro sobre fundo
+        // escuro (mesma paleta do tema claro, só que "invertida" ao pé da
+        // letra) — quase ilegível. Clareia todo texto; nomes de cidade/país
+        // (mais importantes na hierarquia visual) ficam num branco mais puro,
+        // o resto (bairro/rua/água) num claro mais discreto.
+        if (dark && layer.type === 'symbol' && layer.layout && layer.layout['text-field']) {
+          var prominent = /place_(city|country_major)/.test(key);
+          map.setPaintProperty(layer.id, 'text-color', prominent ? colors.textBright : colors.textMuted);
+          map.setPaintProperty(layer.id, 'text-halo-color', 'rgba(0,0,0,0.75)');
+        }
         // line-opacity bem abaixo de 1: a cor cheia (principalmente a de via
         // principal, mais saturada) competia com o nome da rua escrito por
         // cima, poluindo o mapa e prejudicando a leitura do label. 0.75/0.8
@@ -395,24 +423,69 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     });
   }
 
+  // O hillshade da Esri é uma imagem contínua em tons de cinza (plano
+  // ~244/255 "iluminado", relevo de verdade cai bem abaixo disso) — dava pra
+  // reescalar esse degradê via raster-contrast/opacity, mas nunca virava
+  // uma mancha DE VERDADE unicolor (sempre sobrava textura/gradiente de
+  // sombra, e forçar contraste alto lava o mapa inteiro, já visto antes).
+  // Pra virar flat sem gradiente, binariza pixel a pixel num protocolo
+  // customizado: abaixo do limiar vira 100% uma cor sólida só, acima vira
+  // 100% transparente — sem meio-termo, então "não navegável" vira um
+  // recorte de cor única em vez de sombra.
+  var RELIEF_THRESHOLD = 200;
+  var reliefRegistered = false;
+  function registerReliefProtocol() {
+    if (reliefRegistered) return;
+    reliefRegistered = true;
+    maplibregl.addProtocol('daqui-relief', function (params) {
+      var url = params.url.replace(
+        'daqui-relief://',
+        'https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/',
+      );
+      var dark = CFG.appearance === 'dark';
+      var fill = dark ? [35, 37, 39] : [216, 222, 218];
+      return fetch(url)
+        .then(function (resp) { return resp.blob(); })
+        .then(function (blob) { return createImageBitmap(blob); })
+        .then(function (bitmap) {
+          var canvas = document.createElement('canvas');
+          canvas.width = bitmap.width; canvas.height = bitmap.height;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(bitmap, 0, 0);
+          var img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          var d = img.data;
+          for (var i = 0; i < d.length; i += 4) {
+            if (d[i] < RELIEF_THRESHOLD) {
+              d[i] = fill[0]; d[i + 1] = fill[1]; d[i + 2] = fill[2]; d[i + 3] = 255;
+            } else {
+              d[i + 3] = 0;
+            }
+          }
+          ctx.putImageData(img, 0, 0);
+          return createImageBitmap(canvas);
+        })
+        .then(function (out) { return { data: out }; });
+    });
+  }
+
   function addRelief() {
+    registerReliefProtocol();
     var firstLine = (map.getStyle().layers || []).find(function (layer) { return layer.type === 'line'; });
     map.addSource('daqui-relief', {
       type: 'raster',
-      tiles: ['https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}'],
+      tiles: ['daqui-relief://{z}/{y}/{x}'],
       tileSize: 256,
       maxzoom: 16,
       attribution: 'Relief &copy; <a href="https://www.esri.com/">Esri</a>',
     });
+    // Opacidade abaixo de 1: a cor já é sólida (sem gradiente) pixel a
+    // pixel, isso só suaviza o quanto essa mancha compete com o resto do
+    // mapa — continua "unicolor", só não 100% opaco.
     map.addLayer({
       id: 'daqui-relief',
       type: 'raster',
       source: 'daqui-relief',
-      paint: {
-        'raster-opacity': CFG.appearance === 'dark' ? 0.16 : 0.11,
-        'raster-contrast': 0.2,
-        'raster-saturation': -1,
-      },
+      paint: { 'raster-opacity': 0.65 },
     }, firstLine && firstLine.id);
   }
 

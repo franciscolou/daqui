@@ -197,6 +197,7 @@ def send_message(
         payload.reply_to_id,
         media_url=payload.media_url,
         media_type=payload.media_type.value if payload.media_type else None,
+        media=payload.media,
     )
 
 

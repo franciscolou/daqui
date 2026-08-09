@@ -362,18 +362,24 @@ def send_message(
     reply_to_id: int | None = None,
     media_url: str | None = None,
     media_type: str | None = None,
+    media: list[AttachmentItem] | None = None,
 ) -> GroupMessageOut:
     group = _require_group(db, group_id)
     member = _require_membership(db, group, user)
     content = content.strip()
-    if not content and media_url is None:
+    if not content and media_url is None and not media:
         raise HTTPException(status_code=400, detail="Mensagem vazia")
     if reply_to_id is not None:
         replied = group_dao.get_message_by_id(db, reply_to_id)
         if not replied or replied.group_id != group.id:
             raise HTTPException(status_code=404, detail="Mensagem respondida não encontrada")
+    serialized_media = [item.model_dump(mode="json") for item in (media or [])]
+    first_media = serialized_media[0] if serialized_media else None
+    media_url = first_media["url"] if first_media else media_url
+    media_type = first_media["type"] if first_media else media_type
     msg = group_dao.create_message(
-        db, group.id, user.id, content, reply_to_id, media_url=media_url, media_type=media_type
+        db, group.id, user.id, content, reply_to_id, media_url=media_url,
+        media_type=media_type, media=serialized_media or None
     )
     group_dao.mark_read(db, member, msg.id)
 

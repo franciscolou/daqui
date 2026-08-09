@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.uploads import MediaType
 from app.models.group import GroupPrivacy, GroupRole
+from app.schemas.attachment import AttachmentItem
 from app.schemas.message import MessageReplyOut
 from app.schemas.user import UserPublic
 
@@ -90,6 +91,7 @@ class GroupMessageCreate(BaseModel):
     # Mensagem pode ser só mídia, sem texto.
     media_url: str | None = None
     media_type: MediaType | None = None
+    media: list[AttachmentItem] = Field(default_factory=list, max_length=10)
     reply_to_id: int | None = None
 
 
@@ -98,6 +100,7 @@ class GroupMessageOut(BaseModel):
     content: str
     media_url: str | None = None
     media_type: MediaType | None = None
+    media: list[AttachmentItem] | None = None
     created_at: datetime
     sender: UserPublic
     reply_to: MessageReplyOut | None = None

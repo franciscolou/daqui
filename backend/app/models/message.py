@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -17,6 +17,7 @@ class Message(Base):
     # Foto ou vídeo anexado à mensagem (opcional; mensagem pode ser só mídia, sem texto).
     media_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     media_type: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # "image" | "video"
+    media: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
     # Post encaminhado dentro da conversa (prévia estilo Twitter). Opcional.
     shared_post_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("posts.id"), nullable=True

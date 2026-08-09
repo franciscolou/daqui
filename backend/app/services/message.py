@@ -33,8 +33,9 @@ def list_media(db: Session, user: User, other_id: int) -> list[MediaGalleryItem]
     info (ver components/MediaGalleryView.tsx no frontend)."""
     messages = message_dao.get_media_thread(db, user.id, other_id)
     return [
-        MediaGalleryItem(id=m.id, url=m.media_url, type=m.media_type, created_at=m.created_at)
+        MediaGalleryItem(id=m.id, url=item["url"], type=item["type"], created_at=m.created_at)
         for m in messages
+        for item in (m.media or [{"url": m.media_url, "type": m.media_type}])
     ]
 
 
@@ -124,6 +125,7 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
     if (
         not content
         and payload.media_url is None
+        and not payload.media
         and payload.shared_post_id is None
         and payload.shared_comment_id is None
         and payload.shared_ad_id is None
@@ -150,6 +152,8 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         if not replied or {replied.sender_id, replied.receiver_id} != conversation_ids:
             raise HTTPException(status_code=404, detail="Mensagem respondida não encontrada")
 
+    media = [item.model_dump(mode="json") for item in payload.media]
+    first_media = media[0] if media else None
     msg = message_dao.create(
         db,
         user.id,
@@ -159,8 +163,9 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
         payload.reply_to_id,
         shared_comment_id=payload.shared_comment_id,
         shared_ad_id=payload.shared_ad_id,
-        media_url=payload.media_url,
-        media_type=payload.media_type.value if payload.media_type else None,
+        media_url=first_media["url"] if first_media else payload.media_url,
+        media_type=first_media["type"] if first_media else (payload.media_type.value if payload.media_type else None),
+        media=media or None,
     )
     if receiver.notify_messages and not mute_service.get_dm_status(db, receiver, user.id).is_muted:
         push_service.notify_user(

@@ -186,6 +186,7 @@ def create_message(
     reply_to_id: int | None = None,
     media_url: str | None = None,
     media_type: str | None = None,
+    media: list[dict] | None = None,
 ) -> GroupMessage:
     msg = GroupMessage(
         group_id=group_id,
@@ -194,6 +195,7 @@ def create_message(
         reply_to_id=reply_to_id,
         media_url=media_url,
         media_type=media_type,
+        media=media,
     )
     db.add(msg)
     db.commit()

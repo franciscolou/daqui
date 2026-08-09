@@ -4,6 +4,7 @@ from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     ForeignKey,
     Integer,
@@ -111,6 +112,7 @@ class GroupMessage(Base):
     # Foto ou vídeo anexado à mensagem (opcional; mensagem pode ser só mídia, sem texto).
     media_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     media_type: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # "image" | "video"
+    media: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
     # Mensagem respondida (marcada com duplo clique no app). Opcional.
     reply_to_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("group_messages.id"), nullable=True

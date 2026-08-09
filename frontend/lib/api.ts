@@ -348,6 +348,7 @@ interface BackendMessage {
   content: string;
   media_url: string | null;
   media_type: 'image' | 'video' | null;
+  media: { url: string; type: 'image' | 'video' }[] | null;
   read: boolean;
   created_at: string;
   sender: BackendUser;
@@ -411,6 +412,7 @@ interface BackendGroupMessage {
   content: string;
   media_url: string | null;
   media_type: 'image' | 'video' | null;
+  media: { url: string; type: 'image' | 'video' }[] | null;
   created_at: string;
   sender: BackendUser;
   reply_to: BackendMessageReply | null;
@@ -534,6 +536,7 @@ export interface ChatMessage {
   content: string;
   mediaUrl?: string; // foto ou vídeo anexado (opcional; mensagem pode ser só mídia)
   mediaType?: 'image' | 'video';
+  media: PostMedia[];
   read: boolean;
   createdAt: string;
   sender: User;
@@ -911,6 +914,9 @@ function mapMessage(m: BackendMessage): ChatMessage {
     content: m.content,
     mediaUrl: m.media_url ?? undefined,
     mediaType: m.media_type ?? undefined,
+    media: m.media?.length
+      ? m.media
+      : m.media_url ? [{ url: m.media_url, type: m.media_type ?? 'image' }] : [],
     read: m.read,
     createdAt: m.created_at,
     sender: mapUser(m.sender),
@@ -981,6 +987,9 @@ function mapGroupMessage(m: BackendGroupMessage): ChatMessage {
     content: m.content,
     mediaUrl: m.media_url ?? undefined,
     mediaType: m.media_type ?? undefined,
+    media: m.media?.length
+      ? m.media
+      : m.media_url ? [{ url: m.media_url, type: m.media_type ?? 'image' }] : [],
     read: true,
     createdAt: m.created_at,
     sender: mapUser(m.sender),
@@ -1656,6 +1665,7 @@ export const api = {
     sharedAdId?: number,
     mediaUrl?: string,
     mediaType?: 'image' | 'video',
+    media?: PostMedia[],
   ): Promise<ChatMessage> {
     return mapMessage(
       await request<BackendMessage>('/messages/', {
@@ -1669,6 +1679,7 @@ export const api = {
           shared_ad_id: sharedAdId,
           media_url: mediaUrl,
           media_type: mediaType,
+          media,
         },
       }),
     );
@@ -1816,6 +1827,7 @@ export const api = {
     replyToId?: string,
     mediaUrl?: string,
     mediaType?: 'image' | 'video',
+    media?: PostMedia[],
   ): Promise<ChatMessage> {
     return mapGroupMessage(
       await request<BackendGroupMessage>(`/groups/${id}/messages`, {
@@ -1825,6 +1837,7 @@ export const api = {
           reply_to_id: replyToId ? Number(replyToId) : undefined,
           media_url: mediaUrl,
           media_type: mediaType,
+          media,
         },
       }),
     );
