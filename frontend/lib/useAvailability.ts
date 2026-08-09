@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AVAILABILITY_DEBOUNCE_MS } from '../constants/config';
 import { Availability } from './api';
 
 export type AvailabilityStatus = 'idle' | 'checking' | 'ok' | 'error';
@@ -14,7 +15,7 @@ export function useAvailability(
   check: (v: string) => Promise<Availability>,
   opts: { ready?: (v: string) => boolean; debounceMs?: number } = {},
 ): AvailabilityState {
-  const { ready = (v) => v.trim().length > 0, debounceMs = 450 } = opts;
+  const { ready = (v) => v.trim().length > 0, debounceMs = AVAILABILITY_DEBOUNCE_MS } = opts;
   const [state, setState] = useState<AvailabilityState>({ status: 'idle', error: null });
 
   useEffect(() => {

@@ -3,6 +3,11 @@ from datetime import date, datetime, timezone
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core.config import (
+    LIKE_MERGE_THRESHOLD,
+    MAX_IMPORTANT_POSTS_PER_MONTH,
+    MAX_MEDIA_ITEMS,
+)
 from app.core.uploads import save_upload_media
 from app.daos import comment as comment_dao
 from app.daos import post as post_dao
@@ -13,7 +18,6 @@ from app.models.post import Post, PostCategory
 from app.models.user import User
 from app.schemas.message import SharedCommentOut, SharedPostOut
 from app.schemas.post import (
-    MAX_MEDIA_ITEMS,
     ImportantQuota,
     PollOptionOut,
     PollOut,
@@ -313,11 +317,6 @@ def upload_media(user: User, base_url: str, file: UploadFile) -> PostMediaItem:
     return PostMediaItem(url=url, type=media_type)
 
 
-# Post importante notifica todo o bairro (e redondezas) na hora — limite pra
-# não virar spam de notificação (ver contagem em create_post/get_important_quota).
-MAX_IMPORTANT_POSTS_PER_MONTH = 2
-
-
 def _current_month_bounds(now: datetime | None = None) -> tuple[datetime, datetime]:
     """(início do mês corrente, início do próximo mês), ambos em UTC."""
     now = now or datetime.now(timezone.utc)
@@ -596,12 +595,6 @@ def unvote_poll(db: Session, post_id: int, user: User) -> PostOut:
     db.commit()
     db.refresh(post)
     return _to_schema(post, user, db)
-
-
-# A partir do 4º curtidor (total > este limite), as notificações de curtida
-# de um mesmo post mesclam numa só, estilo Instagram (menos poluição na aba
-# de novidades). Abaixo disso cada curtida ainda gera sua própria notificação.
-LIKE_MERGE_THRESHOLD = 3
 
 
 def _like_notification_text(actor_name: str, extra_actor_name: str | None, total: int) -> str:

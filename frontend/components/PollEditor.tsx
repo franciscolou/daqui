@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useEffect, useMemo } from 'react';
 import { Palette } from '../constants/Colors';
+import { MAX_POLL_OPTIONS } from '../constants/config';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { useT } from '../lib/i18n';
 
@@ -18,8 +19,6 @@ LocaleConfig.locales['pt-br'] = LocaleConfig.locales['pt-br'] ?? {
   today: 'Hoje',
 };
 LocaleConfig.defaultLocale = 'pt-br';
-
-const MAX_OPTIONS = 10;
 
 export interface PollDraft {
   options: { id?: string; text: string }[];
@@ -92,7 +91,7 @@ export default function PollEditor({
     onChange({ ...value, options });
   };
   const addOption = () => {
-    if (value.options.length >= MAX_OPTIONS) return;
+    if (value.options.length >= MAX_POLL_OPTIONS) return;
     onChange({ ...value, options: [...value.options, { text: '' }] });
   };
   const removeOption = (i: number) => {
@@ -140,7 +139,7 @@ export default function PollEditor({
             </View>
           ))}
         </View>
-        {value.options.length < MAX_OPTIONS && (
+        {value.options.length < MAX_POLL_OPTIONS && (
           <TouchableOpacity style={styles.addOpt} onPress={addOption} activeOpacity={0.8}>
             <Ionicons name="add-circle-outline" size={18} color={accent} />
             <Text style={[styles.addOptText, { color: accent }]}>{t('pollEditor.addOption')}</Text>

@@ -3,13 +3,14 @@ from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
-from app.models.support_ticket import (
+from app.core.config import (
+    MAX_ATTACHMENTS,
     MAX_MESSAGE_LENGTH,
     MAX_RESPONSE_LENGTH,
     MAX_SUBJECT_LENGTH,
-    SupportTicketStatus,
 )
-from app.schemas.attachment import MAX_ATTACHMENTS, AttachmentItem
+from app.models.support_ticket import SupportTicketStatus
+from app.schemas.attachment import AttachmentItem
 from app.schemas.user import UserPublic
 
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
+import { MIN_QUERY_LENGTH, SEARCH_DEBOUNCE_MS } from '../constants/config';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { useT } from '../lib/i18n';
 import { GeoSearchResult, useGeo } from '../lib/geoProvider';
@@ -23,9 +24,6 @@ interface LocationAutocompleteInputProps {
   emptyHint?: string;
   validHint?: string;
 }
-
-const MIN_QUERY_LENGTH = 3;
-const DEBOUNCE_MS = 300;
 
 // Campo de local com autocomplete (tipo iFood/Uber): busca sugestões de
 // endereço conforme o usuário digita (debounced, já filtradas pro bairro dele
@@ -82,7 +80,7 @@ export default function LocationAutocompleteInput({
         .finally(() => {
           if (id === seq.current) { setLoading(false); setSearched(true); }
         });
-    }, DEBOUNCE_MS);
+    }, SEARCH_DEBOUNCE_MS);
     return () => { if (timer.current) clearTimeout(timer.current); };
   }, [value, status, searchAddress]);
 

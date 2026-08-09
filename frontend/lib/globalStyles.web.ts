@@ -1,3 +1,5 @@
+import { DESKTOP_BREAKPOINT } from '../constants/config';
+
 // Estilos globais só-web para os campos de texto.
 //
 // Problema: o browser desenha um outline retangular (azul/preto) ao focar
@@ -52,7 +54,7 @@ if (typeof document !== 'undefined') {
       }
 
       /* Scrollbar fino e discreto no lugar do padrão do navegador (Chrome/Safari/Edge),
-         só no desktop (mesmo breakpoint de WideLayout.tsx: WIDE = 900). No mobile web
+         só no desktop (mesmo DESKTOP_BREAKPOINT de constants/config.ts). No mobile web
          mantém o scrollbar nativo do sistema (que já é overlay/discreto por padrão).
          Só aparece quando o conteúdo realmente estoura o container — isso é o
          comportamento padrão do browser com overflow:auto, nenhuma regra extra precisa
@@ -92,7 +94,7 @@ if (typeof document !== 'undefined') {
          ::-webkit-scrollbar, cancela o 'none' do react-native-web com 'auto' (deixa o
          Chrome fora do modo nativo "thin") e controla espessura/cor só via pixel; só
          no ramo SEM suporte (Firefox) usa scrollbar-width, que ali é o único jeito. */
-      @media (min-width: 900px) {
+      @media (min-width: ${DESKTOP_BREAKPOINT}px) {
         @supports selector(::-webkit-scrollbar) {
           * {
             scrollbar-width: auto !important;

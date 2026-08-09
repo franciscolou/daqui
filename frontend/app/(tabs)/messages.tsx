@@ -33,7 +33,8 @@ import {
 } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
 import { useAdImpressionTracking } from '../../lib/useAdImpression';
-import { MESSAGES_AD_GAP, createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
+import { DESKTOP_BREAKPOINT as WIDE, MESSAGES_AD_GAP, SEARCH_DEBOUNCE_MS } from '../../constants/config';
+import { createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
 import { getOrCreateAdViewerId } from '../../lib/storage';
 import { formatConversationTime, formatPostTime } from '../../lib/time';
 import LeftSidebar from '../../components/LeftSidebar';
@@ -42,7 +43,6 @@ import ChatView, { ChatTarget } from '../../components/ChatView';
 import { CONTENT_MAX_W } from '../../components/WideLayout';
 import { useT } from '../../lib/i18n';
 
-const WIDE = 900;
 const LEFT_W = 220;
 const MIDDLE_W = 360;
 const DETAIL_W = 640;
@@ -212,7 +212,7 @@ export default function MessagesScreen() {
       setDiscoverLoading(false);
       return;
     }
-    timer.current = setTimeout(() => runSearch(v.trim()), 300);
+    timer.current = setTimeout(() => runSearch(v.trim()), SEARCH_DEBOUNCE_MS);
   };
 
   // Ao abrir uma conversa, zera o selo dela na hora (a leitura de verdade é

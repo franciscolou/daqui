@@ -1,3 +1,4 @@
+import type { AdGapConfig } from '../constants/config';
 import { Ad } from './adsApi';
 
 // Política de espaçamento/rotação de anúncios intercalados numa lista de
@@ -10,17 +11,11 @@ import { Ad } from './adsApi';
 // próximo slot. Cada slot é só uma OPORTUNIDADE: se não sobrar um anúncio
 // elegível e não visto há pouco, o slot fica vazio — nunca insiste item a
 // item nem repete o mesmo anúncio só pra preencher espaço.
+//
+// FEED_AD_GAP/MESSAGES_AD_GAP (os parâmetros de fato) ficam em
+// constants/config.ts — este arquivo é só o mecanismo.
 
-export interface AdGapConfig {
-  minGap: number;
-  maxGap: number;
-}
-
-// Feed e notificações: pelo menos 5 itens orgânicos entre anúncios.
-export const FEED_AD_GAP: AdGapConfig = { minGap: 5, maxGap: 12 };
-// Mensagens: intervalo mínimo maior — inbox costuma ser bem mais curto que o
-// feed, então pede mais espaço antes de abrir a próxima oportunidade.
-export const MESSAGES_AD_GAP: AdGapConfig = { minGap: 7, maxGap: 14 };
+export type { AdGapConfig };
 
 export function pickGapThreshold(gap: AdGapConfig, rand: () => number = Math.random): number {
   return gap.minGap + Math.round(rand() * (gap.maxGap - gap.minGap));

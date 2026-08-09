@@ -1,11 +1,10 @@
 import { View, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { Palette } from '../constants/Colors';
+import { DESKTOP_BREAKPOINT as WIDE } from '../constants/config';
 import { useThemedStyles } from '../lib/theme';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
 import MobileMenu from './MobileMenu';
-
-const WIDE = 900;
 // Largura de referência do bloco central (sidebar + conteúdo + widgets) usada
 // para calcular o recuo esquerdo — precisa bater com a mesma constante usada
 // em telas com colunas próprias (mensagens, configurações) para a barra

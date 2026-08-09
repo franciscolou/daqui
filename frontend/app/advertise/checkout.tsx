@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
+import { DESKTOP_BREAKPOINT } from '../../constants/config';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { goBack } from '../../lib/navigation';
 import { adsApi, AdFormat, AdObjective, AdvertiserType, AdsApiError, GeoScope } from '../../lib/adsApi';
@@ -54,7 +55,7 @@ export default function CheckoutScreen() {
   const prefill = useMemo(() => (params.prefill ? JSON.parse(params.prefill) : null), [params.prefill]);
 
   const { width } = useWindowDimensions();
-  const wide = width >= 900;
+  const wide = width >= DESKTOP_BREAKPOINT;
 
   const [advertiserType, setAdvertiserType] = useState<AdvertiserType>(prefill?.advertiserType ?? 'individual');
   const [advertiserName, setAdvertiserName] = useState(prefill?.advertiserName ?? '');

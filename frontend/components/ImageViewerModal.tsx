@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { IMAGE_VIEWER_SWIPE_THRESHOLD } from '../constants/config';
 import VideoPlayer from './VideoPlayer';
 
 export interface MediaItem {
@@ -26,8 +27,6 @@ interface ImageViewerModalProps {
   visible: boolean;
   onClose: () => void;
 }
-
-const SWIPE_THRESHOLD = 50;
 
 /** Visualizador de mídia em tela cheia (fotos e vídeos, mesma interface pros
  * dois). Troca de item por transposição simples (crossfade), não por slide —
@@ -77,10 +76,10 @@ export default function ImageViewerModal({ media, initialIndex = 0, visible, onC
     Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy);
 
   const handleSwipeRelease = (_: unknown, gesture: { dx: number }) => {
-    if (gesture.dx <= -SWIPE_THRESHOLD) {
+    if (gesture.dx <= -IMAGE_VIEWER_SWIPE_THRESHOLD) {
       suppressNextPressRef.current = true;
       goTo(index + 1);
-    } else if (gesture.dx >= SWIPE_THRESHOLD) {
+    } else if (gesture.dx >= IMAGE_VIEWER_SWIPE_THRESHOLD) {
       suppressNextPressRef.current = true;
       goTo(index - 1);
     }

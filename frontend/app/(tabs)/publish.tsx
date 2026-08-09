@@ -18,6 +18,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
+import { DESKTOP_BREAKPOINT, MAX_POST_MEDIA } from '../../constants/config';
 import { CATEGORIES, PostCategory } from '../../data/mock';
 import { api, ApiError, ImportantQuota } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
@@ -65,7 +66,6 @@ LocaleConfig.locales.en = {
 LocaleConfig.defaultLocale = 'pt-br';
 
 const CREATE_CATEGORIES = CATEGORIES.filter((c) => c.key !== 'todos');
-const MAX_MEDIA = 10;
 
 interface DraftMedia {
   localUri: string;
@@ -102,7 +102,7 @@ export default function PublishScreen() {
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);
   const { width } = useWindowDimensions();
-  const isWide = width >= 900;
+  const isWide = width >= DESKTOP_BREAKPOINT;
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -233,7 +233,7 @@ export default function PublishScreen() {
 
   const pickMedia = async () => {
     setError(null);
-    const remaining = MAX_MEDIA - media.length;
+    const remaining = MAX_POST_MEDIA - media.length;
     if (remaining <= 0) return;
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -594,7 +594,7 @@ export default function PublishScreen() {
           {!!selectedCategory && selectedCategory !== 'enquete' && (
             <View style={styles.section}>
               <FieldLabel styles={styles} optional>
-                {`${selectedCategory === 'venda' ? t('publish.media.product') : t('publish.media.label')} (${media.length}/${MAX_MEDIA})`}
+                {`${selectedCategory === 'venda' ? t('publish.media.product') : t('publish.media.label')} (${media.length}/${MAX_POST_MEDIA})`}
               </FieldLabel>
               {media.length === 0 ? (
                 <TouchableOpacity style={styles.imagePicker} onPress={pickMedia} activeOpacity={0.8}>
@@ -628,7 +628,7 @@ export default function PublishScreen() {
                       </View>
                     </View>
                   ))}
-                  {media.length < MAX_MEDIA && (
+                  {media.length < MAX_POST_MEDIA && (
                     <TouchableOpacity style={styles.addImageThumb} onPress={pickMedia} activeOpacity={0.8}>
                       <Ionicons name="add" size={26} color={Colors.primary} />
                     </TouchableOpacity>

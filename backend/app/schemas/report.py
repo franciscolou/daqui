@@ -3,13 +3,13 @@ from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
+from app.core.config import MAX_ATTACHMENTS, MAX_COMMENT_LENGTH
 from app.models.report import (
-    MAX_COMMENT_LENGTH,
     ReportReason,
     ReportStatus,
     ReportTargetType,
 )
-from app.schemas.attachment import MAX_ATTACHMENTS, AttachmentItem
+from app.schemas.attachment import AttachmentItem
 from app.schemas.comment import CommentOut
 from app.schemas.post import PostOut
 from app.schemas.user import UserPublic

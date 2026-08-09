@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
+import { RATE_COMMENT_MAX_LENGTH } from '../constants/config';
 import { useTheme, useThemedStyles } from '../lib/theme';
-import { MAX_COMMENT, RateForm as RateFormState } from '../lib/useRateForm';
+import { RateForm as RateFormState } from '../lib/useRateForm';
 import StarRating from './StarRating';
 import { useT } from '../lib/i18n';
 
@@ -58,11 +59,11 @@ export default function RateForm({ form, compact = false }: { form: RateFormStat
         placeholder={t('rate.placeholder')}
         placeholderTextColor={Colors.textTertiary}
         value={comment}
-        onChangeText={(t) => setComment(t.slice(0, MAX_COMMENT))}
+        onChangeText={(t) => setComment(t.slice(0, RATE_COMMENT_MAX_LENGTH))}
         multiline
-        maxLength={MAX_COMMENT}
+        maxLength={RATE_COMMENT_MAX_LENGTH}
       />
-      <Text style={styles.counter}>{comment.length}/{MAX_COMMENT}</Text>
+      <Text style={styles.counter}>{comment.length}/{RATE_COMMENT_MAX_LENGTH}</Text>
 
       {feedback && (
         <View style={[styles.feedbackBox, feedback.ok ? styles.feedbackOkBox : styles.feedbackErrBox]}>

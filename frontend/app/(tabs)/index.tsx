@@ -24,7 +24,8 @@ import { CATEGORIES, PostCategory, Post, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
 import { useAdImpressionTracking } from '../../lib/useAdImpression';
-import { FEED_AD_GAP, createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
+import { DESKTOP_BREAKPOINT as WIDE, FEED_AD_GAP, FEED_PAGE_SIZE } from '../../constants/config';
+import { createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
 import { getOrCreateAdViewerId } from '../../lib/storage';
 import { getDeviceCoords, LocationError, Coords } from '../../lib/location';
 import { useAuth } from '../../lib/auth';
@@ -40,8 +41,6 @@ import DaquiMark from '../../components/DaquiMark';
 type FilterKey = 'todos' | PostCategory;
 type ViewMode = 'meu' | 'perto';
 type FeedItem = { kind: 'post'; post: Post } | { kind: 'ad'; ad: Ad };
-
-const WIDE = 900;
 
 const normalizeNeighborhood = (value?: string | null) =>
   value
@@ -121,8 +120,6 @@ export default function FeedScreen() {
     }
   }, [t]);
 
-  const PAGE_SIZE = 20;
-
   // Monta os parâmetros de busca do feed pra visualização ativa, ou `null`
   // quando ainda falta pré-requisito (bairro configurado / localização
   // resolvida) — mesma checagem usada tanto na carga inicial quanto no "load
@@ -136,7 +133,7 @@ export default function FeedScreen() {
           latitude: user?.latitude,
           longitude: user?.longitude,
           page: pageNum,
-          pageSize: PAGE_SIZE,
+          pageSize: FEED_PAGE_SIZE,
         };
       }
       if (!pertoNeighborhood || !pertoCoords) return null;
@@ -146,7 +143,7 @@ export default function FeedScreen() {
         longitude: pertoCoords.longitude,
         includeNearby: nearbyPerto,
         page: pageNum,
-        pageSize: PAGE_SIZE,
+        pageSize: FEED_PAGE_SIZE,
       };
     },
     [viewMode, nearbyMeu, nearbyPerto, pertoCoords, pertoNeighborhood, user],

@@ -23,6 +23,7 @@ a campanha do zero no configurador. Com o preço derivado da engine, essa
 divergência vira uma única % previsível (o desconto de pacote), igual para
 todo plano."""
 
+from app.core.config import PLAN_DISCOUNT
 from app.daos import ad as ad_dao
 from app.database import SessionLocal, create_tables
 from app.models.ad import (
@@ -33,14 +34,6 @@ from app.models.ad import (
     default_targeting,
 )
 from app.services import ad_pricing
-
-# Desconto de pacote sobre o preço que a engine dinâmica cobraria pelos
-# mesmos parâmetros — mesma taxa do combo post+mapa (`POST_MAP_BUNDLE_DISCOUNT`
-# em `services/ad_pricing.py`), reaproveitada aqui só por consistência de
-# "número redondo já usado no sistema", não por acoplamento entre os dois.
-# Recompensa quem compra o pacote pronto em vez de configurar do zero, mas —
-# ao contrário do esquema anterior — na MESMA proporção pra todo plano.
-PLAN_DISCOUNT = 0.85
 
 
 def _plan_price(

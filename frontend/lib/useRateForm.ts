@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { api, ApiError } from './api';
 import { useT } from './i18n';
-export const MAX_COMMENT = 1000;
 
 /** Estado e ações do formulário de avaliação do app, compartilhados entre o modal (desktop) e a tela cheia (mobile). */
 export function useRateForm() {

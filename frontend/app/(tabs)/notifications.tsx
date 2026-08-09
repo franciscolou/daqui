@@ -20,7 +20,8 @@ import RemovedContentModal from '../../components/RemovedContentModal';
 import { api, AppNotification } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
 import { useAdImpressionTracking } from '../../lib/useAdImpression';
-import { FEED_AD_GAP, createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
+import { DESKTOP_BREAKPOINT as WIDE, FEED_AD_GAP } from '../../constants/config';
+import { createAdSpacingState, createAdRotationState, advanceAdSlot } from '../../lib/adSpacing';
 import { getOrCreateAdViewerId } from '../../lib/storage';
 import { useAuth } from '../../lib/auth';
 import { useRealtime } from '../../lib/realtime';
@@ -31,7 +32,6 @@ import { formatNotificationTime } from '../../lib/time';
 import FeedLayout from '../../components/FeedLayout';
 import MobileMenu from '../../components/MobileMenu';
 
-const WIDE = 900;
 const REMOVED_TYPES = new Set(['post_removed', 'comment_removed']);
 
 // Notificação sintética pro slot de anúncio (ver lib/adSpacing.ts) — `ad`

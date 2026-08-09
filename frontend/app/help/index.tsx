@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Palette } from '../../constants/Colors';
+import { MAX_TICKET_MESSAGE, MAX_TICKET_SUBJECT } from '../../constants/config';
 import { api, ApiError, SupportTicket } from '../../lib/api';
 import { goBack } from '../../lib/navigation';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -222,9 +223,6 @@ function FaqSection() {
 /* ------------------------------------------------------------------ */
 /* Meus chamados                                                        */
 /* ------------------------------------------------------------------ */
-
-const MAX_TICKET_SUBJECT = 120;
-const MAX_TICKET_MESSAGE = 2000;
 
 function TicketsSection() {
   const Colors = useTheme();

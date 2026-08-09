@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
+import { DESKTOP_BREAKPOINT } from '../constants/config';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { useT } from '../lib/i18n';
 import { CitySuggestion, reverseCity } from '../lib/geocode';
@@ -48,7 +49,7 @@ export default function CityMapPickerModal({
   const styles = useThemedStyles(makeStyles);
   const { t } = useT();
   const { width } = useWindowDimensions();
-  const isWide = width >= 900;
+  const isWide = width >= DESKTOP_BREAKPOINT;
 
   const [status, setStatus] = useState<PickStatus>('idle');
   const [pending, setPending] = useState<CitySuggestion | null>(null);

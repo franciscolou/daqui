@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../../constants/Colors';
+import { DESKTOP_BREAKPOINT as WIDE } from '../../constants/config';
 import { Post, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
 import { Ad, adsApi } from '../../lib/adsApi';
@@ -22,7 +23,6 @@ import ProfileHeader from '../../components/ProfileHeader';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useT } from '../../lib/i18n';
 
-const WIDE = 900;
 const normalizeSearch = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
 

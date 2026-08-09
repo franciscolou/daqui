@@ -1,7 +1,7 @@
 """Registro em memória das conexões WS abertas, para acordá-las fora do ciclo de polling.
 
 Mesma filosofia do `typing_registry`: sem infra de pub/sub externo, um único
-processo uvicorn. O loop de `routers/ws.py` dorme até `POLL_INTERVAL_SECONDS`
+processo uvicorn. O loop de `routers/ws.py` dorme até `WS_POLL_INTERVAL_SECONDS`
 ou até `wake(user_id)` ser chamado — o que vier primeiro — e então roda o
 ciclo de leitura mais cedo (ex.: notificação nova, conta suspensa). `wake`
 costuma ser chamado a partir de uma thread de worker (services síncronos

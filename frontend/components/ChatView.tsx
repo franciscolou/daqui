@@ -21,6 +21,12 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, withDelay, withRepeat, withSequence, Easing,
 } from 'react-native-reanimated';
 import { Palette } from '../constants/Colors';
+import {
+  CHAT_DOUBLE_TAP_MS,
+  CHAT_INPUT_LINE_HEIGHT,
+  CHAT_INPUT_MAX_HEIGHT,
+  CHAT_INPUT_MIN_HEIGHT,
+} from '../constants/config';
 import { User } from '../data/mock';
 import { api, ChatMessage, GroupDetail } from '../lib/api';
 import { formatDayDivider, formatMessageTime } from '../lib/time';
@@ -41,11 +47,6 @@ import { Ad, adsApi } from '../lib/adsApi';
 
 export type ChatTarget = { kind: 'dm' | 'group'; id: string };
 
-const INPUT_MIN_HEIGHT = 40;
-const INPUT_LINE_HEIGHT = 18;
-// 10 linhas de texto + padding vertical do input (10 em cima, 10 embaixo)
-const INPUT_MAX_HEIGHT = INPUT_LINE_HEIGHT * 10 + 20;
-
 type ChatItem =
   | { type: 'msg'; msg: ChatMessage }
   | { type: 'divider'; id: string; label: string }
@@ -53,7 +54,6 @@ type ChatItem =
 
 // Balão de mensagem. Definido no módulo (não dentro de ChatView) para não remontar
 // a cada render — assim a animação de entrada roda só uma vez, na mensagem recém-enviada.
-const DOUBLE_TAP_MS = 400;
 
 function MessageBubble({
   msg,
@@ -111,7 +111,7 @@ function MessageBubble({
   // marca ela como a que está sendo respondida.
   const handlePress = () => {
     const now = Date.now();
-    if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+    if (now - lastTapRef.current < CHAT_DOUBLE_TAP_MS) {
       lastTapRef.current = 0;
       onReply(msg);
     } else {
@@ -342,7 +342,7 @@ export default function ChatView({
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [inputHeight, setInputHeight] = useState(INPUT_MIN_HEIGHT);
+  const [inputHeight, setInputHeight] = useState(CHAT_INPUT_MIN_HEIGHT);
   const inputRef = useRef<TextInput>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -503,7 +503,7 @@ export default function ChatView({
     const replyToId = replyingTo?.id;
     setSending(true);
     setInput('');
-    setInputHeight(INPUT_MIN_HEIGHT);
+    setInputHeight(CHAT_INPUT_MIN_HEIGHT);
     setReplyingTo(null);
     setMediaDraft(null);
     try {
@@ -535,7 +535,7 @@ export default function ChatView({
     // 'auto', e o scrollHeight nunca reflete o conteúdo de fato
     node.rows = 1;
     node.style.height = 'auto';
-    const next = Math.min(Math.max(node.scrollHeight, INPUT_MIN_HEIGHT), INPUT_MAX_HEIGHT);
+    const next = Math.min(Math.max(node.scrollHeight, CHAT_INPUT_MIN_HEIGHT), CHAT_INPUT_MAX_HEIGHT);
     node.style.height = `${next}px`;
     setInputHeight(next);
     // `loading` nas deps: enquanto a tela mostra o spinner, o composer (e o
@@ -579,8 +579,8 @@ export default function ChatView({
       if (Platform.OS === 'web') return;
       setInputHeight(
         Math.min(
-          Math.max(e.nativeEvent.contentSize.height, INPUT_MIN_HEIGHT),
-          INPUT_MAX_HEIGHT,
+          Math.max(e.nativeEvent.contentSize.height, CHAT_INPUT_MIN_HEIGHT),
+          CHAT_INPUT_MAX_HEIGHT,
         ),
       );
     },
@@ -1059,7 +1059,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
     fontSize: 14,
-    lineHeight: INPUT_LINE_HEIGHT,
+    lineHeight: CHAT_INPUT_LINE_HEIGHT,
     color: Colors.text,
     outlineStyle: 'none',
   } as any,

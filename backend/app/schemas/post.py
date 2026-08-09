@@ -8,8 +8,6 @@ from app.models.post import PostCategory
 from app.schemas.message import SharedCommentOut, SharedPostOut
 from app.schemas.user import UserPublic
 
-MAX_MEDIA_ITEMS = 10
-
 
 class PostMediaItem(BaseModel):
     url: str
@@ -18,7 +16,7 @@ class PostMediaItem(BaseModel):
 
 class ImportantQuota(BaseModel):
     """Cota mensal de posts marcados como importantes (ver
-    services/post.py::MAX_IMPORTANT_POSTS_PER_MONTH) — usada pra desabilitar o
+    core/config.py::MAX_IMPORTANT_POSTS_PER_MONTH) — usada pra desabilitar o
     toggle "Marcar como importante" no app antes de o usuário tentar publicar."""
 
     used: int

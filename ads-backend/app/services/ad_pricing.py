@@ -9,6 +9,19 @@ contagem já pronta (calculada em `daos/ad.py::count_competing_campaigns`),
 então esta função continua pura e testável isoladamente.
 """
 
+from app.core.config import (
+    CITY_GROWTH_RATE,
+    CITYWIDE_EQUIVALENT_NEIGHBORHOODS,
+    COUNTRY_EQUIVALENT_CITIES,
+    DURATION_DISCOUNT_ANCHORS,
+    FORMAT_DAILY_RATE_CENTS,
+    NEIGHBORHOOD_GROWTH_RATE,
+    OBJECTIVE_MULTIPLIERS,
+    PEAK_HOURS,
+    POST_MAP_BUNDLE_DISCOUNT,
+    SPECIAL_DATES_MAX_PREMIUM,
+    SPECIAL_DATES_MIN_PREMIUM,
+)
 from app.models.ad import (
     AdFormat,
     AdObjective,
@@ -18,32 +31,7 @@ from app.models.ad import (
     UserRecency,
 )
 
-FORMAT_DAILY_RATE_CENTS = {
-    AdFormat.POST: 350,  # card no feed — a superfície de maior atenção
-    AdFormat.MAP: 350,  # pin no mapa do bairro — o diferencial do Daqui
-    AdFormat.NOTIFICATION: 300,
-    AdFormat.SEARCH_POSTER: 300,
-    AdFormat.CONVERSATION: 250,  # aba Mensagens — a superfície menos acessada
-}
-
-# Combo "post + mapa": os dois juntos saem 15% mais baratos que a soma dos
-# preços individuais (350 + 350 = 700 → 595/dia). O desconto incide SÓ sobre
-# a parcela desses dois formatos — os demais escolhidos na mesma campanha
-# continuam custando o preço cheio (ver `format_base`).
-POST_MAP_BUNDLE_DISCOUNT = 0.15
 BUNDLE_FACTOR_LABEL = "Combo post + mapa"
-
-OBJECTIVE_MULTIPLIERS = {
-    AdObjective.REACH: 0.9,
-    AdObjective.CLICKS: 1.0,
-    AdObjective.PROFILE_VISITS: 1.05,
-    AdObjective.MAP_OPENS: 1.05,
-    AdObjective.INSTAGRAM_OPENS: 1.1,
-    AdObjective.WHATSAPP_OPENS: 1.15,
-    AdObjective.WEBSITE_OPENS: 1.15,
-}
-
-PEAK_HOURS = set(range(18, 23))  # 18h-22h
 
 
 def format_base(formats: list[AdFormat]) -> tuple[int, float]:
@@ -64,26 +52,19 @@ def format_base(formats: list[AdFormat]) -> tuple[int, float]:
     return full_daily, (full_daily - bundle_daily * POST_MAP_BUNDLE_DISCOUNT) / full_daily
 
 
-NEIGHBORHOOD_GROWTH_RATE = 0.15
-CITY_GROWTH_RATE = 0.4
-
 # CITYWIDE/CITIES/COUNTRY costumavam ser multiplicadores soltos (3.0/-/12.0)
 # escolhidos à parte da fórmula de bairro. Isso subprecificava escopo largo:
 # CITYWIDE=3.0 equivalia, na prática, a comprar só ~15 bairros um a um
 # (1 + 0.15*14) — um desconto de volume que ninguém decidiu de propósito,
 # porque nenhuma cidade coberta pelo Daqui tem só ~15 bairros ativos.
 # Agora CITYWIDE ancora numa estimativa de quantos bairros ativos uma cidade
-# coberta costuma ter, e CITIES/COUNTRY continuam crescendo a partir desse
-# mesmo patamar — uma única curva, em vez de 3 números desconexos.
-#
-# São estimativas, não medições: o ads-backend não enxerga a contagem real
-# de bairros ativos por cidade (só recebe o nome via query param — ver
-# arquitetura em CLAUDE.md). Recalibrar com dado real assim que houver
-# telemetria de bairros ativos por cidade coberta.
-CITYWIDE_EQUIVALENT_NEIGHBORHOODS = 25
+# coberta costuma ter (CITYWIDE_EQUIVALENT_NEIGHBORHOODS, core/config.py), e
+# CITIES/COUNTRY continuam crescendo a partir desse mesmo patamar — uma única
+# curva, em vez de 3 números desconexos. São estimativas, não medições: o
+# ads-backend não enxerga a contagem real de bairros ativos por cidade (só
+# recebe o nome via query param — ver arquitetura em CLAUDE.md). Recalibrar
+# com dado real assim que houver telemetria de bairros ativos por cidade.
 CITYWIDE_MULTIPLIER = 1 + NEIGHBORHOOD_GROWTH_RATE * (CITYWIDE_EQUIVALENT_NEIGHBORHOODS - 1)  # 4.6
-
-COUNTRY_EQUIVALENT_CITIES = 20
 COUNTRY_MULTIPLIER = CITYWIDE_MULTIPLIER + CITY_GROWTH_RATE * (COUNTRY_EQUIVALENT_CITIES - 1)  # 12.2
 
 
@@ -118,10 +99,6 @@ def reach_multiplier(targeting: dict) -> float:
 
 def competition_multiplier(competing_count: int) -> float:
     return min(1 + 0.1 * competing_count, 1.5)
-
-
-SPECIAL_DATES_MAX_PREMIUM = 0.3
-SPECIAL_DATES_MIN_PREMIUM = 0.05
 
 
 def seasonality_multiplier(schedule: dict, duration_days: int = 1) -> float:
@@ -177,16 +154,6 @@ def frequency_multiplier(per_user_impression_cap: int | None) -> float:
         elif per_user_impression_cap <= 3:
             return 1.1
     return 1.0
-
-
-DURATION_DISCOUNT_ANCHORS = [
-    (1, 1.0),
-    (30, 0.95),
-    (90, 0.85),
-    (180, 0.78),
-    (365, 0.7),
-    (720, 0.6),
-]
 
 
 def duration_discount(duration_days: int) -> float:

@@ -9,6 +9,7 @@ import DaquiMark from './DaquiMark';
 import { router, usePathname } from 'expo-router';
 import { Palette } from '../constants/Colors';
 import { BRAND_FONT } from '../constants/BrandFont';
+import { DESKTOP_BREAKPOINT as WIDE } from '../constants/config';
 import { CATEGORIES, PostCategory } from '../data/mock';
 import { adsApi } from '../lib/adsApi';
 import { useAuth } from '../lib/auth';
@@ -17,8 +18,6 @@ import { useRealtime } from '../lib/realtime';
 import { useScrollToTop } from '../lib/scrollToTop';
 import { useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
 import RateModal from './RateModal';
-
-const WIDE = 900;
 
 interface Props {
   activeCategory?: string;

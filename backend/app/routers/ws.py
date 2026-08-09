@@ -5,6 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from jose import JWTError
 
 from app.core import realtime_registry, typing_registry
+from app.core.config import WS_POLL_INTERVAL_SECONDS
 from app.core.deps import suspension_message
 from app.core.security import decode_token
 from app.daos import group as group_dao
@@ -15,14 +16,6 @@ from app.models.user import User
 from app.services import message as message_service
 
 router = APIRouter(tags=["realtime"])
-
-# Sem infra de pub/sub: cada conexão faz polling periódico no banco e envia só
-# o que mudou desde o último ciclo. Suficiente para a escala do app (SQLite,
-# um processo uvicorn) e evita ter que instrumentar cada ponto que cria
-# mensagem/notificação para publicar eventos. Exceções: notificação nova e
-# suspensão de conta chamam `realtime_registry.wake()`, que interrompe a
-# espera na hora em vez de esperar o próximo tick (ver core/realtime_registry.py).
-POLL_INTERVAL_SECONDS = 2.0
 
 
 def _authenticate(token: str) -> User | None:
@@ -54,7 +47,7 @@ async def realtime(websocket: WebSocket, token: str):
     try:
         while True:
             try:
-                await asyncio.wait_for(wake_event.wait(), timeout=POLL_INTERVAL_SECONDS)
+                await asyncio.wait_for(wake_event.wait(), timeout=WS_POLL_INTERVAL_SECONDS)
             except asyncio.TimeoutError:
                 pass
             wake_event.clear()

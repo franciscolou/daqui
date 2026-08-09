@@ -19,6 +19,7 @@ import { submitOnEnter } from '../../lib/keyboard';
 import { ActivityIndicator } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { BRAND_FONT } from '../../constants/BrandFont';
+import { DESKTOP_BREAKPOINT, ESTABLISHED_COMMUNITY_THRESHOLD } from '../../constants/config';
 import { useT } from '../../lib/i18n';
 import { useReducedMotion } from '../../lib/useReducedMotion';
 import { AvailabilityState } from '../../lib/useAvailability';
@@ -35,11 +36,11 @@ const FEATURES: { icon: IconName; labelKey: string }[] = [
   { icon: 'megaphone-outline',   labelKey: 'auth.features.stayUpdated' },
   { icon: 'trending-up-outline', labelKey: 'auth.features.grow' },
 ];
-// Abaixo desse total de contas, expor o número exato faria a rede parecer
-// vazia — troca por uma mensagem de "comunidade em formação" (ver
+// Abaixo desse total de contas (ESTABLISHED_COMMUNITY_THRESHOLD, ver
+// constants/config.ts), expor o número exato faria a rede parecer vazia —
+// troca por uma mensagem de "comunidade em formação" (ver
 // CommunityStats/useEffect abaixo). Sem fallback estático: enquanto os dados
 // reais não chegam, a vitrine simplesmente não aparece.
-const ESTABLISHED_THRESHOLD = 500;
 // Cada card "acontece" perto de um nó ativo do mapa (ver NeighborhoodScape) —
 // por isso a cor casa com os nós luminosos e o conector tracejado da arte.
 const ACTIVITY_CARDS: { color: string; labelKey: string; textKey: string; icon: IconName; anchor: 'cardA' | 'cardB' | 'cardC' }[] = [
@@ -146,7 +147,7 @@ export default function WelcomeScreen() {
   const numberLocale = i18n.language === 'en' ? 'en-US' : 'pt-BR';
   const SIGNUP_STEPS = [t('auth.signup.steps.account'), t('auth.signup.steps.verify'), t('auth.signup.steps.done')];
   const { width, height } = useWindowDimensions();
-  const isWide = width >= 900;
+  const isWide = width >= DESKTOP_BREAKPOINT;
   // Notebooks costumam ter 720–800px de altura útil depois das barras do
   // navegador/SO. Nessa faixa o hero desktop precisa ficar mais compacto
   // para o cartão continuar inteiro, sem alterar a composição espaçosa de
@@ -862,7 +863,7 @@ export default function WelcomeScreen() {
             ))}
             <View style={[styles.clusterBadge, communityStats.avatarUrls.length === 0 && { marginLeft: 0 }]}>
               <Text style={styles.clusterBadgeText}>
-                {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
+                {communityStats.totalUsers >= ESTABLISHED_COMMUNITY_THRESHOLD
                   ? t('auth.neighborsCount', { count: communityStats.totalUsers.toLocaleString(numberLocale) })
                   : t('auth.communityGrowingCta')}
               </Text>
@@ -932,14 +933,14 @@ export default function WelcomeScreen() {
                   <Image key={`${url}-${i}`} source={{ uri: url }}
                     style={[styles.mobileAvatar, { marginLeft: i > 0 ? -14 : 0, zIndex: 5 - i }]} />
                 ))}
-                {communityStats.totalUsers >= ESTABLISHED_THRESHOLD && (
+                {communityStats.totalUsers >= ESTABLISHED_COMMUNITY_THRESHOLD && (
                   <View style={styles.mobileBadge}>
                     <Text style={styles.mobileBadgeText}>{communityStats.totalUsers.toLocaleString(numberLocale)}</Text>
                   </View>
                 )}
               </View>
               <Text style={styles.mobileAvatarLabel}>
-                {communityStats.totalUsers >= ESTABLISHED_THRESHOLD
+                {communityStats.totalUsers >= ESTABLISHED_COMMUNITY_THRESHOLD
                   ? t('auth.neighborsNearYou')
                   : t('auth.communityGrowingCta')}
               </Text>

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Palette } from '../../constants/Colors';
+import { DESKTOP_BREAKPOINT } from '../../constants/config';
 import { useT } from '../../lib/i18n';
 import { useRealtime } from '../../lib/realtime';
 import { useScrollToTop } from '../../lib/scrollToTop';
@@ -33,7 +34,7 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const { trigger } = useScrollToTop();
   const { t } = useT();
 
-  if (width >= 900) return null;
+  if (width >= DESKTOP_BREAKPOINT) return null;
 
   const activeName = state.routes[state.index]?.name;
 

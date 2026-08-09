@@ -17,6 +17,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { Palette } from '../../constants/Colors';
+import { MAX_COMMENT_INDENT_DEPTH } from '../../constants/config';
 import { CATEGORY_ICONS, Post } from '../../data/mock';
 import { api, Comment } from '../../lib/api';
 import { Ad, adsApi } from '../../lib/adsApi';
@@ -27,7 +28,6 @@ import { useTheme, useThemedStyles } from '../../lib/theme';
 import { submitOnEnter } from '../../lib/keyboard';
 import { useT } from '../../lib/i18n';
 
-const MAX_INDENT_DEPTH = 4; // além disso, não indenta mais (evita "escada" infinita)
 import WideLayout from '../../components/WideLayout';
 import PollBlock from '../../components/PollBlock';
 import ActionMenu from '../../components/ActionMenu';
@@ -431,7 +431,7 @@ export default function PostDetailScreen() {
 
   // Renderiza um comentário e, se expandido, suas respostas (recursivo).
   const renderComment = (comment: Comment, depth: number) => {
-    const indent = Math.min(depth, MAX_INDENT_DEPTH) * 22;
+    const indent = Math.min(depth, MAX_COMMENT_INDENT_DEPTH) * 22;
     const isExpanded = expanded.has(comment.id);
     const isLoading = loadingReplies.has(comment.id);
     const replies = repliesByParent[comment.id] ?? [];

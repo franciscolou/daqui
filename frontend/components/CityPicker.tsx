@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator 
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
 import { Palette } from '../constants/Colors';
+import { SEARCH_DEBOUNCE_MS } from '../constants/config';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { useT } from '../lib/i18n';
 import { searchCities, CitySuggestion } from '../lib/geocode';
@@ -75,7 +76,7 @@ export default function CityPicker({ value, onChange, placeholder, max }: CityPi
   const onChangeQuery = (v: string) => {
     setQuery(v);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => runSearch(v), 300);
+    timer.current = setTimeout(() => runSearch(v), SEARCH_DEBOUNCE_MS);
   };
 
   const onSubmit = () => {

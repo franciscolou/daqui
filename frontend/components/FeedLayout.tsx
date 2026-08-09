@@ -1,12 +1,11 @@
 import { View, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Palette } from '../constants/Colors';
+import { DESKTOP_BREAKPOINT as WIDE } from '../constants/config';
 import { useThemedStyles } from '../lib/theme';
 import LeftSidebar from './LeftSidebar';
 import RightSidebar from './RightSidebar';
 import MobileMenu from './MobileMenu';
-
-const WIDE = 900;
 
 /**
  * Estrutura padrão das telas no "modelo do feed": em telas largas o conteúdo

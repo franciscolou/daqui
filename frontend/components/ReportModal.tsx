@@ -12,12 +12,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Palette } from '../constants/Colors';
+import { REPORT_COMMENT_MAX_LENGTH } from '../constants/config';
 import { useTheme, useThemedStyles } from '../lib/theme';
 import { api, ReportTargetType } from '../lib/api';
 import AttachmentPicker, { AttachmentDraft } from './AttachmentPicker';
 import { useT } from '../lib/i18n';
-
-const MAX_COMMENT = 3000;
 
 const REASONS: Record<ReportTargetType, string[]> = {
   post: [
@@ -120,11 +119,11 @@ export default function ReportModal({ visible, onClose, targetType, targetId }: 
               placeholder={t('report.commentPlaceholder')}
               placeholderTextColor={Colors.textTertiary}
               value={comment}
-              onChangeText={(t) => setComment(t.slice(0, MAX_COMMENT))}
+              onChangeText={(t) => setComment(t.slice(0, REPORT_COMMENT_MAX_LENGTH))}
               multiline
-              maxLength={MAX_COMMENT}
+              maxLength={REPORT_COMMENT_MAX_LENGTH}
             />
-            <Text style={styles.counter}>{comment.length}/{MAX_COMMENT}</Text>
+            <Text style={styles.counter}>{comment.length}/{REPORT_COMMENT_MAX_LENGTH}</Text>
 
             <View style={styles.attachmentsSection}>
               <AttachmentPicker

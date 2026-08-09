@@ -6,6 +6,39 @@ from pydantic_settings import BaseSettings
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+# Posts (ver services/post.py)
+# Post importante notifica todo o bairro (e redondezas) na hora — limite pra
+# não virar spam de notificação (ver contagem em create_post/get_important_quota).
+MAX_IMPORTANT_POSTS_PER_MONTH = 2
+# A partir do 4º curtidor (total > este limite), as notificações de curtida
+# de um mesmo post mesclam numa só, estilo Instagram (menos poluição na aba
+# de novidades). Abaixo disso cada curtida ainda gera sua própria notificação.
+LIKE_MERGE_THRESHOLD = 3
+MAX_MEDIA_ITEMS = 10
+
+# Denúncias e chamados de suporte (ver schemas/{attachment,report,support_ticket}.py)
+MAX_ATTACHMENTS = 3
+MAX_COMMENT_LENGTH = 3000  # denúncias
+MAX_SUBJECT_LENGTH = 120  # chamado de suporte
+MAX_MESSAGE_LENGTH = 2000  # chamado de suporte
+MAX_RESPONSE_LENGTH = 2000  # resposta do moderador ao chamado
+
+# Realtime (ver core/typing_registry.py, routers/ws.py)
+# Uma entrada de "digitando" expira sozinha após TYPING_TTL_SECONDS sem novo
+# aviso — não precisa de limpeza explícita, só filtramos pela idade na leitura.
+TYPING_TTL_SECONDS = 4.0
+# Sem infra de pub/sub: cada conexão do /ws faz polling periódico no banco.
+# Suficiente pra escala do app (SQLite, um processo uvicorn); notificação nova
+# e suspensão de conta interrompem a espera na hora via realtime_registry.wake()
+# em vez de esperar o próximo tick.
+WS_POLL_INTERVAL_SECONDS = 2.0
+
+# Geocoding (ver core/geocoding/{here,nominatim}.py)
+HERE_TIMEOUT_SECONDS = 6.0
+NOMINATIM_TIMEOUT_SECONDS = 8.0
+# Overpass costuma ser mais lento; damos uma folga maior no timeout.
+OVERPASS_TIMEOUT_SECONDS = 25.0
+
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./daqui.db"

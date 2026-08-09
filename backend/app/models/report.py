@@ -55,9 +55,6 @@ class ReportStatus(StrEnum):
     DISMISSED = "dismissed"
 
 
-MAX_COMMENT_LENGTH = 3000
-
-
 class Report(Base):
     """Denúncia de post, comentário ou perfil, feita por um usuário do app Daqui."""
 
@@ -81,7 +78,7 @@ class Report(Base):
     )
     reason: Mapped[ReportReason] = mapped_column(String(30), nullable=False)
     comment: Mapped[str] = mapped_column(Text, default="")
-    # Até MAX_ATTACHMENTS (ver schemas/attachment.py) imagens/vídeos anexados
+    # Até MAX_ATTACHMENTS (ver core/config.py) imagens/vídeos anexados
     # como evidência: [{"url": ..., "type": "image"|"video"}, ...].
     attachments: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
     status: Mapped[ReportStatus] = mapped_column(String(20), default=ReportStatus.PENDING, index=True)

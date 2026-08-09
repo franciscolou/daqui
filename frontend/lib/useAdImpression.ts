@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ViewToken } from 'react-native';
+import { AD_VIEWABILITY_CONFIG } from '../constants/config';
 import { Ad, AdFormat, adsApi } from './adsApi';
-
-// Mesmo threshold usado pela indústria de ads (padrão MRC/IAB de "viewable
-// impression"): pelo menos 50% do item visível por pelo menos 1s contínuo.
-// Objeto de módulo (não precisa de useRef/memo — já tem identidade estável).
-const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 50, minimumViewTime: 1000 };
 
 interface TrackContext {
   viewerId?: string;
@@ -54,5 +50,5 @@ export function useAdImpressionTracking<T>(
     [format],
   );
 
-  return { onViewableItemsChanged, viewabilityConfig: VIEWABILITY_CONFIG };
+  return { onViewableItemsChanged, viewabilityConfig: AD_VIEWABILITY_CONFIG };
 }

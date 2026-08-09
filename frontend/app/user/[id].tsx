@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
+import { DESKTOP_BREAKPOINT } from '../../constants/config';
 import { Post, User, postListKey } from '../../data/mock';
 import { api } from '../../lib/api';
 import { Ad, adsApi } from '../../lib/adsApi';
@@ -33,7 +34,7 @@ export default function UserScreen() {
   const { t } = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
-  const isWide = width >= 900;
+  const isWide = width >= DESKTOP_BREAKPOINT;
   const { user: me } = useAuth();
   const Colors = useTheme();
   const styles = useThemedStyles(makeStyles);

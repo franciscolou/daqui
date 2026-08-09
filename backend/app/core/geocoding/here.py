@@ -11,12 +11,11 @@ from __future__ import annotations
 
 import httpx
 
-from app.core.config import settings
+from app.core.config import HERE_TIMEOUT_SECONDS, settings
 
 from .types import STATE_UF, GeoResult
 
 GEOCODE_URL = "https://geocode.search.hereapi.com/v1/geocode"
-TIMEOUT = 6.0
 
 # Campos do `address` do HERE mais próximos de "bairro" em endereços BR.
 # Não confirmado em documentação oficial pra todo endereço BR — validar com
@@ -82,7 +81,7 @@ def search(query: str, limit: int = 10) -> list[GeoResult]:
                 "limit": limit,
                 "apiKey": settings.HERE_API_KEY,
             },
-            timeout=TIMEOUT,
+            timeout=HERE_TIMEOUT_SECONDS,
         )
         resp.raise_for_status()
         data = resp.json()

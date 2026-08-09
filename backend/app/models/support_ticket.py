@@ -5,6 +5,7 @@ from typing import Optional
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.config import MAX_SUBJECT_LENGTH
 from app.database import Base
 
 
@@ -13,11 +14,6 @@ class SupportTicketStatus(StrEnum):
 
     PENDING = "pending"
     ANSWERED = "answered"
-
-
-MAX_SUBJECT_LENGTH = 120
-MAX_MESSAGE_LENGTH = 2000
-MAX_RESPONSE_LENGTH = 2000
 
 
 class SupportTicket(Base):
@@ -33,7 +29,7 @@ class SupportTicket(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     subject: Mapped[str] = mapped_column(String(MAX_SUBJECT_LENGTH), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    # Até MAX_ATTACHMENTS (ver schemas/attachment.py) imagens/vídeos anexados
+    # Até MAX_ATTACHMENTS (ver core/config.py) imagens/vídeos anexados
     # pelo usuário: [{"url": ..., "type": "image"|"video"}, ...].
     attachments: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
     status: Mapped[SupportTicketStatus] = mapped_column(

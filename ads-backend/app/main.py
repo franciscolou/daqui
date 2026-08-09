@@ -6,14 +6,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.core.config import UPLOAD_DIR
+from app.core.config import EXPIRE_CAMPAIGNS_INTERVAL_SECONDS, UPLOAD_DIR
 from app.daos import ad as ad_dao
 from app.database import SessionLocal, create_tables
 from app.routers import ads, audit_log, auth, geo, staff
 
 logger = logging.getLogger(__name__)
-
-EXPIRE_CAMPAIGNS_INTERVAL_SECONDS = 30
 
 
 async def _expire_campaigns_loop() -> None:

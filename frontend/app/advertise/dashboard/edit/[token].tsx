@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Palette } from '../../../../constants/Colors';
+import { DESKTOP_BREAKPOINT } from '../../../../constants/config';
 import { useTheme, useThemedStyles } from '../../../../lib/theme';
 import { goBack } from '../../../../lib/navigation';
 import { adsApi, AdsApiError, AdvertiserType, MyCampaign } from '../../../../lib/adsApi';
@@ -38,7 +39,7 @@ export default function EditCampaignScreen() {
   const { t } = useT();
   const { token } = useLocalSearchParams<{ token: string }>();
   const { width } = useWindowDimensions();
-  const wide = width >= 900;
+  const wide = width >= DESKTOP_BREAKPOINT;
 
   const [campaign, setCampaign] = useState<MyCampaign | null>(null);
   const [loading, setLoading] = useState(true);

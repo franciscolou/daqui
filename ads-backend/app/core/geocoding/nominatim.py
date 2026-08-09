@@ -11,14 +11,13 @@ import math
 
 import httpx
 
+from app.core.config import NOMINATIM_TIMEOUT_SECONDS, OVERPASS_TIMEOUT_SECONDS
+
 from .types import STATE_UF, GeoResult, NearbyPlace
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org"
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "Daqui/1.0 (rede social de bairro)"
-TIMEOUT = 8.0
-# Overpass costuma ser mais lento; damos uma folga maior no timeout.
-OVERPASS_TIMEOUT = 25.0
 
 # Chaves do `address` do Nominatim que, em ordem, representam o "bairro".
 NEIGHBORHOOD_KEYS = ("suburb", "neighbourhood", "city_district", "quarter", "borough")
@@ -88,7 +87,7 @@ def _get(path: str, params: dict) -> dict | list | None:
             f"{NOMINATIM_URL}{path}",
             params={**params, "format": "jsonv2", "addressdetails": 1},
             headers={"User-Agent": USER_AGENT},
-            timeout=TIMEOUT,
+            timeout=NOMINATIM_TIMEOUT_SECONDS,
         )
         resp.raise_for_status()
         return resp.json()
@@ -153,7 +152,7 @@ def nearby(lat: float, lon: float, radius: int = 3000, limit: int = 12) -> list[
             OVERPASS_URL,
             data={"data": query},
             headers={"User-Agent": USER_AGENT},
-            timeout=OVERPASS_TIMEOUT,
+            timeout=OVERPASS_TIMEOUT_SECONDS,
         )
         resp.raise_for_status()
         data = resp.json()

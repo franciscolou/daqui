@@ -4,13 +4,13 @@ Segue a mesma filosofia do `routers/ws.py`: sem infra de pub/sub, um único
 processo uvicorn. O cliente avisa via POST (`/messages/typing`) sempre que o
 usuário digita (com debounce no app); o polling do websocket lê esse estado
 a cada ciclo e informa aos outros participantes da conversa. Uma entrada
-"expira" sozinha após `TTL_SECONDS` sem novo aviso — não precisa de limpeza
-explícita, só filtramos pela idade na leitura.
+"expira" sozinha após `TYPING_TTL_SECONDS` (ver core/config.py) sem novo
+aviso — não precisa de limpeza explícita, só filtramos pela idade na leitura.
 """
 
 from datetime import datetime, timezone
 
-TTL_SECONDS = 4.0
+from app.core.config import TYPING_TTL_SECONDS
 
 # (remetente, destinatário) -> quando foi o último aviso de "digitando"
 _dm_typing: dict[tuple[int, int], datetime] = {}
@@ -19,7 +19,7 @@ _group_typing: dict[tuple[int, int], datetime] = {}
 
 
 def _fresh(ts: datetime) -> bool:
-    return (datetime.now(timezone.utc) - ts).total_seconds() < TTL_SECONDS
+    return (datetime.now(timezone.utc) - ts).total_seconds() < TYPING_TTL_SECONDS
 
 
 def set_dm_typing(from_id: int, to_id: int) -> None:

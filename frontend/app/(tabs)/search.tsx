@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
+import { DESKTOP_BREAKPOINT as WIDE, SEARCH_DEBOUNCE_MS } from '../../constants/config';
 import { Post, User } from '../../data/mock';
 import { api, SearchType } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
@@ -28,8 +29,6 @@ import PostCard from '../../components/PostCard';
 import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
 import AdSearchPoster from '../../components/AdSearchPoster';
-
-const WIDE = 900;
 
 export default function SearchScreen() {
   const { width } = useWindowDimensions();
@@ -177,7 +176,7 @@ export default function SearchScreen() {
   const onChangeQuery = (v: string) => {
     setQuery(v);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => runSearch(v, type), 300);
+    timer.current = setTimeout(() => runSearch(v, type), SEARCH_DEBOUNCE_MS);
   };
 
   const onChangeType = (t: SearchType) => {

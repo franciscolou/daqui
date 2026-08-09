@@ -15,7 +15,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
-import { CATEGORY_ICONS, CATEGORY_LIFESPAN_DAYS, PostCategory, Post } from '../../data/mock';
+import { CATEGORY_LIFESPAN_DAYS, DESKTOP_BREAKPOINT as WIDE } from '../../constants/config';
+import { CATEGORY_ICONS, PostCategory, Post } from '../../data/mock';
 import { api, NeighborhoodStats } from '../../lib/api';
 import { adsApi, Ad } from '../../lib/adsApi';
 import { getOrCreateAdViewerId } from '../../lib/storage';
@@ -26,8 +27,6 @@ import LeafletMap from '../../components/LeafletMap';
 import FeedLayout from '../../components/FeedLayout';
 import MobileMenu from '../../components/MobileMenu';
 import { MapBounds, MapMarker } from '../../components/leafletHtml';
-
-const WIDE = 900;
 
 const MAP_HEIGHT = 440;
 // Fallback quando o usuário não tem localização própria (sem "meu bairro" e

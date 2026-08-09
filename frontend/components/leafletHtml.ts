@@ -1,6 +1,8 @@
 // Gera o documento do mapa vetorial MapLibre. O mesmo HTML roda no iframe
 // (web) e no WebView (Android/iOS), sem API key e com dados OpenStreetMap.
 
+import { MIN_PIN_SCALE, STACK_THRESHOLD } from '../constants/config';
+
 export interface MapMarker {
   id: string;
   latitude: number;
@@ -100,6 +102,12 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
   .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: ${appearance === 'dark' ? 'invert(1) brightness(1.35)' : 'none'}; }
   .maplibregl-ctrl-attrib { background: ${appearance === 'dark' ? 'rgba(11,18,32,.86)' : 'rgba(255,255,255,.88)'} !important; color: var(--muted); }
   .maplibregl-ctrl-attrib a { color: var(--green); }
+  /* O compacto do MapLibre é um <details> nativo: uma vez tocado ele fica aberto pra sempre
+     (nada fecha sozinho), cobrindo o mapa com o texto todo. Troca pra hover/foco: some assim
+     que o mouse sai ou o foco muda, sempre volta a ser só o ícone "i". */
+  .maplibregl-ctrl-attrib.maplibregl-compact .maplibregl-ctrl-attrib-inner { display: none !important; }
+  .maplibregl-ctrl-attrib.maplibregl-compact:hover .maplibregl-ctrl-attrib-inner,
+  .maplibregl-ctrl-attrib.maplibregl-compact:focus-within .maplibregl-ctrl-attrib-inner { display: block !important; }
   .daqui-pick-pin { width: 24px; height: 24px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #16A34A; border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.35); }
 </style>
 </head>
@@ -129,10 +137,11 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     var b = map.getBounds();
     post({ bounds: { south: b.getSouth(), north: b.getNorth(), west: b.getWest(), east: b.getEast() } });
   }
-  // Nunca encolhe abaixo de 45% do tamanho normal — perto disso o pin vira
-  // um pontinho difícil de ver/tocar, então a "quase expiração" já basta
-  // pra sinalizar (não precisa chegar a quase sumir).
-  var MIN_PIN_SCALE = 0.45;
+  // Nunca encolhe abaixo de MIN_PIN_SCALE do tamanho normal (ver
+  // constants/config.ts) — perto disso o pin vira um pontinho difícil de
+  // ver/tocar, então a "quase expiração" já basta pra sinalizar (não
+  // precisa chegar a quase sumir).
+  var MIN_PIN_SCALE = ${MIN_PIN_SCALE};
   function pinScale(m) {
     if (!m.maxAgeDays || !m.createdAt) return 1;
     var age = (Date.now() - new Date(m.createdAt).getTime()) / 86400000;
@@ -146,7 +155,7 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
   // decide como representar cada grupo — ver features() abaixo.
   var NEARBY_METERS = 12; // abaixo disso, dois pins "colidem"
   var FAN_METERS = 6; // raio do leque quando poucos pins colidem
-  var STACK_THRESHOLD = 6; // acima disso, vira símbolo de pilha em vez de leque
+  var STACK_THRESHOLD = ${STACK_THRESHOLD}; // acima disso, vira símbolo de pilha em vez de leque (ver constants/config.ts)
   function metersToDegrees(meters, lat) {
     return {
       lat: meters / 111320,
@@ -321,8 +330,13 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
     doubleClickZoom: !IS_TOUCH,
     attributionControl: false,
   });
-  map.addControl(new maplibregl.AttributionControl({ compact: true }));
-  if (CFG.interactive) map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  if (CFG.interactive) {
+    // Miniaturas não-interativas (ex.: card do RightSidebar) embrulham o mapa
+    // com pointerEvents:none no RN — o ícone nunca seria clicável/hoverável
+    // mesmo existindo, então nem adiciona o controle aqui.
+    map.addControl(new maplibregl.AttributionControl({ compact: true }));
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  }
 
   function recolorStyle() {
     var dark = CFG.appearance === 'dark';
@@ -345,15 +359,37 @@ export function buildLeafletHtml(opts: LeafletHtmlOptions): string {
         // principal, mais saturada) competia com o nome da rua escrito por
         // cima, poluindo o mapa e prejudicando a leitura do label. 0.75/0.8
         // ainda ficou forte demais — cortado bem mais.
+        // Com zoom out, a malha de vias de hierarquia superior fica densa
+        // (muitos trechos de rodovia/via principal próximos uns dos outros)
+        // e a opacidade fixa acima soma visualmente até parecer um bloco
+        // verde sólido cobrindo o mapa. Interpola por zoom: bem apagado no
+        // nível país/cidade, sobe pro valor já calibrado a partir do nível
+        // de bairro (onde a densidade de linhas é baixa o suficiente pra
+        // não acumular).
         if (layer.type === 'line' && /motorway|freeway|trunk/.test(key)) {
           map.setPaintProperty(layer.id, 'line-color', colors.motorway);
-          map.setPaintProperty(layer.id, 'line-opacity', 0.45);
+          map.setPaintProperty(layer.id, 'line-opacity', [
+            'interpolate', ['linear'], ['zoom'],
+            5, 0.12,
+            10, 0.22,
+            13, 0.45,
+          ]);
         } else if (layer.type === 'line' && /primary/.test(key)) {
           map.setPaintProperty(layer.id, 'line-color', colors.primary);
-          map.setPaintProperty(layer.id, 'line-opacity', 0.45);
+          map.setPaintProperty(layer.id, 'line-opacity', [
+            'interpolate', ['linear'], ['zoom'],
+            5, 0.12,
+            10, 0.22,
+            13, 0.45,
+          ]);
         } else if (layer.type === 'line' && /secondary|tertiary/.test(key)) {
           map.setPaintProperty(layer.id, 'line-color', colors.secondary);
-          map.setPaintProperty(layer.id, 'line-opacity', 0.55);
+          map.setPaintProperty(layer.id, 'line-opacity', [
+            'interpolate', ['linear'], ['zoom'],
+            5, 0.15,
+            10, 0.28,
+            13, 0.55,
+          ]);
         }
       } catch (_) {}
     });

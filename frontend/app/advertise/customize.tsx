@@ -9,6 +9,13 @@ import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, type ComponentRef, type ComponentType } from 'react';
 import { Palette } from '../../constants/Colors';
+import {
+  AD_COMBO_DISCOUNT_PCT,
+  AD_DISCOUNT_CHART_POINTS,
+  AD_DURATION_PRESETS,
+  AD_DURATION_SCALE,
+  AD_MAX_DURATION_DAYS,
+} from '../../constants/config';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { goBack } from '../../lib/navigation';
 import { adsApi, AdFormat, AdObjective, GeoScope, PriceFactor } from '../../lib/adsApi';
@@ -30,11 +37,11 @@ const FORMATS: { key: AdFormat; label: string; desc: string; icon: keyof typeof 
 
 // "post" e "map" são vendidos separados (quem anuncia um app não tem endereço
 // pra fixar; quem tem uma loja pode querer só o pin), mas juntos custam menos
-// que a soma — o par abaixo é o que a UI destaca como combo. O percentual
-// espelha `POST_MAP_BUNDLE_DISCOUNT` em `ads-backend/app/services/ad_pricing.py`;
-// o valor economizado de verdade sai sempre da cotação (fator abaixo).
+// que a soma — o par abaixo é o que a UI destaca como combo. AD_AD_COMBO_DISCOUNT_PCT
+// (constants/config.ts) espelha `POST_MAP_BUNDLE_DISCOUNT` em
+// `ads-backend/app/core/config.py`; o valor economizado de verdade sai sempre
+// da cotação (fator abaixo).
 const COMBO_FORMATS: AdFormat[] = ['post', 'map'];
-const COMBO_DISCOUNT_PCT = 15;
 const COMBO_FACTOR_LABEL = 'Combo post + mapa';
 const FACTOR_KEYS: Record<string, string> = {
   'Combo post + mapa': 'bundle', 'Alcance': 'reach', 'Concorrência no período/bairros': 'competition',
@@ -50,24 +57,8 @@ const GEO_SCOPE_OPTIONS: { key: GeoScope; label: string }[] = [
   { key: 'country', label: 'Brasil todo' },
 ];
 
-const DURATION_PRESETS = [7, 15, 30, 90];
-// Duração máxima de uma campanha: 720 dias (2 anos) — mesmo limite validado
-// em `QuoteRequest`/`CampaignCreateBase` no ads-backend.
-const MAX_DURATION_DAYS = 720;
-
-// Escala não-linear do slider de duração: dá espaço proporcional pros
-// presets mais comuns (7/15/30/90 dias) em vez de espremê-los nos primeiros
-// ~12% de uma escala linear até 720 dias. Cada ponto é [posição 0-1, dias];
-// o slider em si é sempre controlado em posição (0-1), convertida pra dias
-// pelas funções abaixo.
-const DURATION_SCALE: [number, number][] = [
-  [0, 1],
-  [0.22, 7],
-  [0.42, 15],
-  [0.62, 30],
-  [0.82, 90],
-  [1, MAX_DURATION_DAYS],
-];
+// AD_DURATION_PRESETS/AD_MAX_DURATION_DAYS/AD_DURATION_SCALE (constants/config.ts)
+// — mesmo limite validado em `QuoteRequest`/`CampaignCreateBase` no ads-backend.
 
 function todayDateString(): string {
   const now = new Date();
@@ -88,7 +79,7 @@ function addDaysToDateString(date: string, days: number): string {
 }
 
 function durationScalePosToDays(pos: number): number {
-  const s = DURATION_SCALE;
+  const s = AD_DURATION_SCALE;
   if (pos <= s[0][0]) return s[0][1];
   if (pos >= s[s.length - 1][0]) return s[s.length - 1][1];
   for (let i = 0; i < s.length - 1; i++) {
@@ -100,7 +91,7 @@ function durationScalePosToDays(pos: number): number {
 }
 
 function durationDaysToScalePos(days: number): number {
-  const s = DURATION_SCALE;
+  const s = AD_DURATION_SCALE;
   if (days <= s[0][1]) return s[0][0];
   if (days >= s[s.length - 1][1]) return s[s.length - 1][0];
   for (let i = 0; i < s.length - 1; i++) {
@@ -111,20 +102,13 @@ function durationDaysToScalePos(days: number): number {
   return s[s.length - 1][0];
 }
 
-// Pontos do gráfico de desconto (espelha `DURATION_DISCOUNT_ANCHORS` em
-// `ads-backend/app/services/ad_pricing.py`) — só ilustrativo, não afeta o
-// preço de verdade (esse sempre vem da cotação do backend). Eixo X
-// categórico (espaçamento igual entre pontos, não proporcional aos dias):
-// os patamares vão de 1 a 720 dias, então uma escala real deixaria os 4
-// últimos pontos espremidos num canto — assim o formato da curva fica claro.
-const DISCOUNT_CHART_POINTS: { days: number; pct: number }[] = [
-  { days: 1, pct: 0 },
-  { days: 30, pct: 5 },
-  { days: 90, pct: 15 },
-  { days: 180, pct: 22 },
-  { days: 365, pct: 30 },
-  { days: 720, pct: 40 },
-];
+// Pontos do gráfico de desconto: AD_DISCOUNT_CHART_POINTS (constants/config.ts,
+// espelha `DURATION_DISCOUNT_ANCHORS` em `ads-backend/app/core/config.py`) —
+// só ilustrativo, não afeta o preço de verdade (esse sempre vem da cotação do
+// backend). Eixo X categórico (espaçamento igual entre pontos, não
+// proporcional aos dias): os patamares vão de 1 a 720 dias, então uma escala
+// real deixaria os 4 últimos pontos espremidos num canto — assim o formato da
+// curva fica claro.
 
 const CHART_W = 320;
 const CHART_H = 180;
@@ -154,11 +138,11 @@ function DiscountChart() {
   const plotW = CHART_W - CHART_PAD.left - CHART_PAD.right;
   const plotH = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
   const baseline = CHART_PAD.top + plotH;
-  const maxPct = DISCOUNT_CHART_POINTS[DISCOUNT_CHART_POINTS.length - 1].pct;
+  const maxPct = AD_DISCOUNT_CHART_POINTS[AD_DISCOUNT_CHART_POINTS.length - 1].pct;
 
-  const points = DISCOUNT_CHART_POINTS.map((p, i) => ({
+  const points = AD_DISCOUNT_CHART_POINTS.map((p, i) => ({
     ...p,
-    x: CHART_PAD.left + (i / (DISCOUNT_CHART_POINTS.length - 1)) * plotW,
+    x: CHART_PAD.left + (i / (AD_DISCOUNT_CHART_POINTS.length - 1)) * plotW,
     y: CHART_PAD.top + (1 - p.pct / maxPct) * plotH,
   }));
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
@@ -393,9 +377,9 @@ export default function CustomizeScreen() {
   const [durationText, setDurationText] = useState(String(prefillData?.durationDays ?? 15));
 
   // Aplica uma duração vinda do slider/marcações/plano: mantém texto e valor
-  // numérico em sincronia, sempre dentro de [1, MAX_DURATION_DAYS].
+  // numérico em sincronia, sempre dentro de [1, AD_MAX_DURATION_DAYS].
   const applyDuration = (n: number) => {
-    const clamped = Math.min(MAX_DURATION_DAYS, Math.max(1, Math.round(n)));
+    const clamped = Math.min(AD_MAX_DURATION_DAYS, Math.max(1, Math.round(n)));
     setDurationDays(clamped);
     setDurationText(String(clamped));
   };
@@ -645,7 +629,7 @@ export default function CustomizeScreen() {
               <Text style={[styles.comboPillText, comboActive && styles.comboPillTextActive]}>
                 {comboActive
                   ? t('ads.customize.comboApplied', { discount: comboDiscountCents > 0 ? ` · ${formatDiscountValue(comboDiscountCents)}` : '' })
-                  : t('ads.customize.comboOffer', { percent: COMBO_DISCOUNT_PCT })}
+                  : t('ads.customize.comboOffer', { percent: AD_COMBO_DISCOUNT_PCT })}
               </Text>
             </View>
             <View style={styles.comboBannerLine} />
@@ -673,7 +657,7 @@ export default function CustomizeScreen() {
               thumbTintColor={Colors.primary}
             />
             <View style={styles.durationMarksRow}>
-              {DURATION_PRESETS.map((d) => (
+              {AD_DURATION_PRESETS.map((d) => (
                 // TouchableOpacity ignora `position: absolute` no próprio style
                 // (fica relativo à posição no fluxo) — por isso o posicionamento
                 // fica numa View plana por fora, só com o toque por dentro.
@@ -696,7 +680,7 @@ export default function CustomizeScreen() {
                 const cleaned = text.replace(/[^0-9]/g, '');
                 setDurationText(cleaned);
                 const n = parseInt(cleaned, 10);
-                if (!Number.isNaN(n) && n >= 1 && n <= MAX_DURATION_DAYS) setDurationDays(n);
+                if (!Number.isNaN(n) && n >= 1 && n <= AD_MAX_DURATION_DAYS) setDurationDays(n);
               }}
               onBlur={() => applyDuration(parseInt(durationText, 10) || durationDays)}
               keyboardType="numeric"
@@ -705,13 +689,13 @@ export default function CustomizeScreen() {
             <View style={styles.durationStepper}>
               <TouchableOpacity
                 style={[styles.durationStepperBtn, styles.durationStepperBtnUp]}
-                disabled={durationDays >= MAX_DURATION_DAYS}
+                disabled={durationDays >= AD_MAX_DURATION_DAYS}
                 onPress={() => applyDuration(durationDays + 1)}
               >
                 <Ionicons
                   name="chevron-up"
                   size={11}
-                  color={durationDays >= MAX_DURATION_DAYS ? Colors.borderLight : Colors.textSecondary}
+                  color={durationDays >= AD_MAX_DURATION_DAYS ? Colors.borderLight : Colors.textSecondary}
                 />
               </TouchableOpacity>
               <View style={styles.durationStepperDivider} />

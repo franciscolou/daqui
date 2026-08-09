@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import QRCode from 'react-native-qrcode-svg';
 import { Palette } from '../constants/Colors';
+import { DESKTOP_BREAKPOINT as WIDE } from '../constants/config';
 import { api, ApiError, UserSession } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { LanguagePreference, SUPPORTED_LANGUAGES, useLanguage, useT } from '../lib/i18n';
@@ -31,7 +32,6 @@ import LeftSidebar from '../components/LeftSidebar';
 import MobileMenu from '../components/MobileMenu';
 import { CONTENT_MAX_W } from '../components/WideLayout';
 
-const WIDE = 900;
 // Larguras fixas das colunas (mesmo modelo do FeedLayout, centralizado).
 const LEFT_W = 220;
 const MIDDLE_W = 300;
@@ -1478,6 +1478,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingVertical: 12,
+    borderRadius: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.borderLight,
   },

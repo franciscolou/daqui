@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { RECONNECT_DELAY_MS } from '../constants/config';
 import { api, getRealtimeUrl, triggerForceLogout } from './api';
 import { useAuth } from './auth';
 
@@ -47,8 +48,6 @@ interface RealtimeState {
 }
 
 const RealtimeContext = createContext<RealtimeState | null>(null);
-
-const RECONNECT_DELAY_MS = 3000;
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { signedIn } = useAuth();
