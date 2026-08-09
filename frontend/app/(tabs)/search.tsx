@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { DESKTOP_BREAKPOINT as WIDE, SEARCH_DEBOUNCE_MS } from '../../constants/config';
 import { Post, User } from '../../data/mock';
@@ -25,6 +25,7 @@ import { useAuth } from '../../lib/auth';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
 import { useTheme, useThemedStyles } from '../../lib/theme';
 import { useT } from '../../lib/i18n';
+import { getScreenMemory, setScreenMemory, useScreenMemory } from '../../lib/screenMemory';
 import PostCard from '../../components/PostCard';
 import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
@@ -44,12 +45,12 @@ export default function SearchScreen() {
     { key: 'users', label: t('search.filterPeople'), icon: 'people-outline' },
   ];
 
-  const [query, setQuery] = useState('');
-  const [type, setType] = useState<SearchType>('all');
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [query, setQuery] = useScreenMemory('search.query', '');
+  const [type, setType] = useScreenMemory<SearchType>('search.type', 'all');
+  const [posts, setPosts] = useScreenMemory<Post[]>('search.posts', []);
+  const [users, setUsers] = useScreenMemory<User[]>('search.users', []);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [searched, setSearched] = useScreenMemory('search.searched', false);
   // Mais de um anúncio, carregados aos poucos conforme o usuário rola (ver
   // handleScroll) — o pool elegível pode repetir quando esgota, então a
   // rolagem nunca "acaba" de verdade enquanto houver ao menos 1 campanha ativa.
@@ -140,8 +141,16 @@ export default function SearchScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   useRegisterScrollToTop('search', () => {
+    setScreenMemory('search.scrollY', 0);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      const y = getScreenMemory('search.scrollY', 0);
+      requestAnimationFrame(() => scrollRef.current?.scrollTo({ y, animated: false }));
+    }, []),
+  );
 
   const runSearch = (q: string, t: SearchType) => {
     const term = q.trim();
@@ -198,6 +207,7 @@ export default function SearchScreen() {
   };
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    setScreenMemory('search.scrollY', e.nativeEvent.contentOffset.y);
     if (query.trim()) return;
     const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
     if (contentOffset.y + layoutMeasurement.height > contentSize.height - 300) {
@@ -338,7 +348,10 @@ export default function SearchScreen() {
             onScroll={handleScroll}
             scrollEventThrottle={200}
             onLayout={(e) => setScrollViewportHeight(e.nativeEvent.layout.height)}
-            onContentSizeChange={(_w, h) => setScrollContentHeight(h)}
+            onContentSizeChange={(_w, h) => {
+              setScrollContentHeight(h);
+              scrollRef.current?.scrollTo({ y: getScreenMemory('search.scrollY', 0), animated: false });
+            }}
           >
             {content}
           </ScrollView>
@@ -355,7 +368,10 @@ export default function SearchScreen() {
           onScroll={handleScroll}
           scrollEventThrottle={200}
           onLayout={(e) => setScrollViewportHeight(e.nativeEvent.layout.height)}
-          onContentSizeChange={(_w, h) => setScrollContentHeight(h)}
+          onContentSizeChange={(_w, h) => {
+            setScrollContentHeight(h);
+            scrollRef.current?.scrollTo({ y: getScreenMemory('search.scrollY', 0), animated: false });
+          }}
         >
           {content}
         </ScrollView>

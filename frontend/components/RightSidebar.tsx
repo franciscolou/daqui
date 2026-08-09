@@ -27,7 +27,7 @@ export default function RightSidebar() {
   // deixamos isso explícito em vez de cair num centro/cidade "genéricos".
   const hasNeighborhood = !!user?.neighborhood;
   const goConfigureNeighborhood = () =>
-    router.push({ pathname: '/(tabs)', params: { view: 'meu' } } as any);
+    router.navigate({ pathname: '/(tabs)', params: { view: 'meu' } } as any);
 
   useEffect(() => {
     api.getPopular().then((n) => setPopularUsers(n.slice(0, 4))).catch(() => {});
@@ -41,7 +41,7 @@ export default function RightSidebar() {
       <View style={styles.card}>
         <Pressable
           style={styles.mapPlaceholder}
-          onPress={hasNeighborhood ? () => router.push('/(tabs)/map' as any) : goConfigureNeighborhood}
+          onPress={hasNeighborhood ? () => router.navigate('/(tabs)/map' as any) : goConfigureNeighborhood}
         >
           {hasNeighborhood && user?.latitude != null && user?.longitude != null ? (
             // Miniatura não-interativa: o toque leva ao mapa (pointerEvents none no mapa).

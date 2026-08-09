@@ -10,7 +10,13 @@
     "search": "Search...",
     "searching": "Searching…",
     "confirm": "Confirm",
-    "understood": "Got it"
+    "understood": "Got it",
+    "errors": {
+      "notFound": {
+        "title": "Route not found",
+        "description": "The address you tried to open doesn't exist or has been moved."
+      }
+    }
   },
   "externalLink": {
     "title": "You're leaving Daqui",

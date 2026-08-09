@@ -30,6 +30,7 @@ import { getOrCreateAdViewerId } from '../../lib/storage';
 import { getDeviceCoords, LocationError, Coords } from '../../lib/location';
 import { useAuth } from '../../lib/auth';
 import { useRegisterScrollToTop } from '../../lib/scrollToTop';
+import { getScreenMemory, setScreenMemory } from '../../lib/screenMemory';
 import PostCard from '../../components/PostCard';
 import AdPostCard from '../../components/AdPostCard';
 import LeftSidebar from '../../components/LeftSidebar';
@@ -69,6 +70,7 @@ export default function FeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<FlatList<FeedItem>>(null);
+  const scrollOffsetRef = useRef(getScreenMemory('feed.scrollY', 0));
 
   // Visualização ativa e preferência de "redondezas" por visualização.
   // Padrão "perto de mim": "Meu bairro" pode exigir configurar o bairro antes.
@@ -93,10 +95,6 @@ export default function FeedScreen() {
   const contentOpacity = useSharedValue(1);
   const indicator = useSharedValue(1); // 0 = "meu", 1 = "perto" (padrão: "perto")
   const [tabsWidth, setTabsWidth] = useState(0);
-
-  useRegisterScrollToTop('index', () => {
-    listRef.current?.scrollToOffset({ offset: 0, animated: true });
-  });
 
   // Descobre o bairro atual pelo GPS (usado sempre que a aba "Perto de mim" é ativada).
   const fetchPertoLocation = useCallback(async () => {
@@ -223,12 +221,27 @@ export default function FeedScreen() {
       });
   }, [feedParams, page, posts, totalPosts]);
 
-  // Recarrega ao focar a tela e sempre que a visualização/preferências mudam
-  // (reflete novos posts, curtidas e comentários).
+  const loadedContext = useRef<string | null>(null);
+  const feedContext = JSON.stringify({
+    ready: !initialViewLoading,
+    viewMode,
+    nearbyMeu,
+    nearbyPerto,
+    pertoNeighborhood,
+    pertoCoords,
+    home: user?.neighborhood,
+    latitude: user?.latitude,
+    longitude: user?.longitude,
+  });
+
+  // Recarrega apenas quando os parâmetros reais mudam. Um simples retorno à
+  // seção mantém os itens e o offset em vez de reconstruir a FlatList.
   useFocusEffect(
     useCallback(() => {
+      if (loadedContext.current === feedContext) return;
+      loadedContext.current = feedContext;
       load();
-    }, [load]),
+    }, [feedContext, load]),
   );
 
   // Antes de revelar o feed, resolve a localização e escolhe a visualização
@@ -341,11 +354,24 @@ export default function FeedScreen() {
   );
 
   const onRefresh = useCallback(async () => {
+    if (refreshing) return;
     setRefreshing(true);
     if (viewMode === 'perto') await fetchPertoLocation();
     await load();
     setRefreshing(false);
-  }, [viewMode, fetchPertoLocation, load]);
+  }, [refreshing, viewMode, fetchPertoLocation, load]);
+
+  useRegisterScrollToTop('index', () => {
+    // Primeiro toque fora do topo apenas volta ao início. Um novo toque, já
+    // no início, passa a funcionar como atualização explícita no desktop.
+    if (scrollOffsetRef.current > 8) {
+      scrollOffsetRef.current = 0;
+      setScreenMemory('feed.scrollY', 0);
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      return;
+    }
+    void onRefresh();
+  });
 
   const contentStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: contentX.value }],
@@ -469,7 +495,7 @@ export default function FeedScreen() {
       <View style={styles.composeBox}>
         <TouchableOpacity
           style={styles.composeAvatarBtn}
-          onPress={() => router.push('/(tabs)/profile')}
+          onPress={() => router.navigate('/(tabs)/profile')}
           activeOpacity={0.8}
         >
           <Image source={{ uri: user?.avatar }} style={styles.composeAvatar} />
@@ -477,7 +503,7 @@ export default function FeedScreen() {
         <TouchableOpacity
           style={styles.composeFakeInput}
           activeOpacity={0.7}
-          onPress={() => router.push('/(tabs)/publish')}
+          onPress={() => router.navigate('/(tabs)/publish')}
         >
           <Text style={styles.composePlaceholder}>
             {t('feed.compose')}
@@ -607,6 +633,16 @@ export default function FeedScreen() {
       data={feedItems}
       keyExtractor={(item, index) => (item.kind === 'post' ? postListKey(item.post) : `ad-${item.ad.id}-${index}`)}
       showsVerticalScrollIndicator={false}
+      onScroll={(event) => {
+        const y = Math.max(0, event.nativeEvent.contentOffset.y);
+        scrollOffsetRef.current = y;
+        setScreenMemory('feed.scrollY', y);
+      }}
+      scrollEventThrottle={100}
+      onContentSizeChange={() => {
+        const y = getScreenMemory('feed.scrollY', 0);
+        if (y > 0) listRef.current?.scrollToOffset({ offset: y, animated: false });
+      }}
       onViewableItemsChanged={onAdViewableItemsChanged}
       viewabilityConfig={adViewabilityConfig}
       ListHeaderComponent={feedHeader}

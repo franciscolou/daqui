@@ -10,7 +10,13 @@
     "search": "Buscar...",
     "searching": "Buscando…",
     "confirm": "Confirmar",
-    "understood": "Entendi"
+    "understood": "Entendi",
+    "errors": {
+      "notFound": {
+        "title": "Rota não encontrada",
+        "description": "O endereço que você tentou abrir não existe ou foi movido."
+      }
+    }
   },
   "externalLink": {
     "title": "Você está saindo do Daqui",

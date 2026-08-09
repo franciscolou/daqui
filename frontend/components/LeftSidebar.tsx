@@ -138,7 +138,10 @@ export default function LeftSidebar({
     key === 'index' ? pathname === '/' : pathname === `/${key}`;
 
   const navigate = (route: string) => {
-    router.push(route as any);
+    // Itens da navegação principal são destinos estáveis, não novas páginas
+    // empilhadas. `navigate` reencontra a rota que já existe no histórico (em
+    // especial as Tabs) e, assim, conserva o estado local e o scroll da tela.
+    router.navigate(route as any);
     onNavigate?.();
   };
 

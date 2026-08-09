@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import QRCode from 'react-native-qrcode-svg';
 import { Palette } from '../constants/Colors';
@@ -28,6 +28,7 @@ import { registerPushToken, unregisterPushToken } from '../lib/push';
 import { getItem, setItem } from '../lib/storage';
 import { MapMode, useTheme, useThemedStyles, useThemeMode } from '../lib/theme';
 import { formatExactDateTime } from '../lib/time';
+import { getScreenMemory, setScreenMemory, useScreenMemory } from '../lib/screenMemory';
 import LeftSidebar from '../components/LeftSidebar';
 import MobileMenu from '../components/MobileMenu';
 import { CONTENT_MAX_W } from '../components/WideLayout';
@@ -60,9 +61,17 @@ export default function SettingsScreen() {
   ];
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
-  const [selected, setSelected] = useState<TopicKey>('edit-profile');
+  const [selected, setSelected] = useScreenMemory<TopicKey>('settings.selected', 'edit-profile');
   // Em telas estreitas usamos master-detail: a lista abre o painel do tópico.
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useScreenMemory('settings.detailOpen', false);
+  const detailScrollRef = useRef<ScrollView>(null);
+  const mobileScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const ref = isWide ? detailScrollRef : mobileScrollRef;
+    const y = getScreenMemory(`settings.scrollY.${selected}`, 0);
+    requestAnimationFrame(() => ref.current?.scrollTo({ y, animated: false }));
+  }, [isWide, selected, detailOpen]);
 
   const current = TOPICS.find((t) => t.key === selected)!;
 
@@ -133,9 +142,16 @@ export default function SettingsScreen() {
             {topicList}
           </ScrollView>
           <ScrollView
+            ref={detailScrollRef}
             style={styles.detailCol}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.detailContent}
+            onScroll={(event) => setScreenMemory(`settings.scrollY.${selected}`, event.nativeEvent.contentOffset.y)}
+            scrollEventThrottle={100}
+            onContentSizeChange={() => detailScrollRef.current?.scrollTo({
+              y: getScreenMemory(`settings.scrollY.${selected}`, 0),
+              animated: false,
+            })}
           >
             {detailInner}
           </ScrollView>
@@ -155,8 +171,15 @@ export default function SettingsScreen() {
             <MobileMenu inline />
           </View>
           <ScrollView
+            ref={mobileScrollRef}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={detailOpen ? styles.detailContent : styles.topicListContent}
+            onScroll={(event) => setScreenMemory(`settings.scrollY.${selected}`, event.nativeEvent.contentOffset.y)}
+            scrollEventThrottle={100}
+            onContentSizeChange={() => mobileScrollRef.current?.scrollTo({
+              y: getScreenMemory(`settings.scrollY.${selected}`, 0),
+              animated: false,
+            })}
           >
             {detailOpen ? detailInner : topicList}
           </ScrollView>
