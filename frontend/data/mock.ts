@@ -111,6 +111,14 @@ export interface Post {
   location?: string;          // texto livre (evento, recomendação, venda, perdidos)
   price?: number;             // venda: preço em R$
   priceNegotiable?: boolean;  // venda: "Negociável"
+  productName?: string;       // venda: nome do produto (obrigatório)
+  // venda: quem pode ver — "neighborhood" (default, mesma regra do resto do
+  // feed) ou "public" (qualquer pessoa dentro do raio que ela escolher).
+  saleVisibility?: 'neighborhood' | 'public';
+  // venda "vendido" / perdidos "encontrado" — ação manual do autor (ver
+  // lib/postStatus.ts::getPostStatus, que combina isso com o "expirado"
+  // automático de enquete/evento pra decidir o aviso mostrado no post).
+  resolvedStatus?: 'sold' | 'found';
   poll?: Poll;                // enquete
 }
 

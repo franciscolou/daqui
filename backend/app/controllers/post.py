@@ -28,6 +28,7 @@ def get_feed(
     latitude: Optional[float] = Query(None),
     longitude: Optional[float] = Query(None),
     include_nearby: bool = Query(False),
+    sale_radius_km: Optional[float] = Query(None, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PostFeed:
@@ -41,7 +42,16 @@ def get_feed(
         latitude=latitude,
         longitude=longitude,
         include_nearby=include_nearby,
+        sale_radius_km=sale_radius_km,
     )
+
+
+def resolve_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PostOut:
+    return post.resolve_post(db, post_id, current_user)
 
 
 def list_by_author(

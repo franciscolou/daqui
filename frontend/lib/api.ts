@@ -233,6 +233,7 @@ interface BackendPost {
   public_id: string;
   category: string;
   title: string | null;
+  product_name: string | null;
   content: string;
   media: BackendPostMedia[];
   image_urls: string[];
@@ -812,6 +813,7 @@ function mapPost(p: BackendPost): Post {
     authorIsResident: p.author_is_resident,
     category: p.category as PostCategory,
     title: p.title ?? undefined,
+    productName: p.product_name ?? undefined,
     content: p.content,
     media: p.media.length ? p.media : undefined,
     createdAt: p.created_at, // ISO — formatado na renderização (lib/time)
@@ -839,6 +841,8 @@ function mapPost(p: BackendPost): Post {
     location: p.location ?? d.location ?? undefined,
     price: typeof d.price === 'number' ? d.price : undefined,
     priceNegotiable: d.price_negotiable ?? undefined,
+    saleVisibility: d.visibility === 'public' ? 'public' : d.visibility === 'neighborhood' ? 'neighborhood' : undefined,
+    resolvedStatus: d.resolved_status === 'sold' || d.resolved_status === 'found' ? d.resolved_status : undefined,
     poll: p.poll ? mapPoll(p.poll) : undefined,
   };
 }
@@ -1271,6 +1275,10 @@ export const api = {
     latitude?: number;
     longitude?: number;
     includeNearby?: boolean; // incluir também os bairros vizinhos
+    // Vendas: estende o alcance além do bairro pra posts com visibilidade
+    // pública dentro deste raio (ver SaleRadiusModal) — sem efeito fora de
+    // category: 'venda'.
+    saleRadiusKm?: number;
     page?: number; // paginação (rolagem infinita) — default do backend: página 1
     pageSize?: number; // default do backend: 20
   } = {}): Promise<{ items: Post[]; total: number; page: number; pageSize: number }> {
@@ -1280,6 +1288,7 @@ export const api = {
     if (opts.latitude != null) params.set('latitude', String(opts.latitude));
     if (opts.longitude != null) params.set('longitude', String(opts.longitude));
     if (opts.includeNearby) params.set('include_nearby', 'true');
+    if (opts.saleRadiusKm != null) params.set('sale_radius_km', String(opts.saleRadiusKm));
     if (opts.page != null) params.set('page', String(opts.page));
     if (opts.pageSize != null) params.set('page_size', String(opts.pageSize));
     const q = params.toString() ? `?${params.toString()}` : '';
@@ -1454,6 +1463,8 @@ export const api = {
   async createPost(payload: {
     category: string;
     title?: string;
+    // Vendas: nome do produto anunciado (obrigatório só nessa categoria).
+    productName?: string;
     content: string;
     media?: PostMedia[]; // já enviados via uploadPostMedia, até 10 itens
     details?: Record<string, any>;
@@ -1468,18 +1479,26 @@ export const api = {
     quotedCommentId?: string;
     quotedAdId?: number;
   }): Promise<Post> {
-    const { quotedPostId, quotedCommentId, quotedAdId, ...rest } = payload;
+    const { quotedPostId, quotedCommentId, quotedAdId, productName, ...rest } = payload;
     return mapPost(
       await request<BackendPost>('/posts/', {
         method: 'POST',
         body: {
           ...rest,
+          product_name: productName,
           quoted_post_id: quotedPostId ? Number(quotedPostId) : undefined,
           quoted_comment_id: quotedCommentId ? Number(quotedCommentId) : undefined,
           quoted_ad_id: quotedAdId,
         },
       }),
     );
+  },
+
+  // Vendas "vendido" / Perdidos "encontrado" — alternativa a excluir o post
+  // (ver ActionMenu na tela de detalhe). Sem body: a categoria já define o
+  // status resultante (ver services/post.py::resolve_post).
+  async resolvePost(id: string): Promise<Post> {
+    return mapPost(await request<BackendPost>(`/posts/${id}/resolve`, { method: 'POST' }));
   },
 
   // Edita post (usado para enquetes: opções, múltiplo e prazo — sempre para o futuro).

@@ -33,6 +33,25 @@
     "errors": {
       "location": "Não foi possível descobrir seu bairro agora.",
       "load": "Não foi possível carregar o feed."
+    },
+    "saleRadius": {
+      "title": "Alcance de Vendas",
+      "description": "Além do seu bairro, mostrar também anúncios públicos dentro deste raio a partir de \"{{reference}}\".",
+      "currentNeighborhood": "Atualmente: apenas o bairro",
+      "currentRadius": "Atualmente: raio de {{km}} km",
+      "km_one": "{{count}} km",
+      "km_other": "{{count}} km",
+      "clear": "Limpar",
+      "apply": "Aplicar"
+    },
+    "saleView": {
+      "list": "Lista",
+      "grid": "Grade"
+    },
+    "saleHideSold": "Apenas não vendidos",
+    "saleScope": {
+      "neighborhood": "Mostrando: apenas o bairro",
+      "radius": "Mostrando: raio de {{km}} km"
     }
   },
   "nav": {
@@ -1023,7 +1042,19 @@
     "deleteConfirm": "Excluir",
     "allDay": "Dia inteiro",
     "repostedByYou": "Você repostou",
-    "repostedBy": "{{name}} repostou"
+    "repostedBy": "{{name}} repostou",
+    "markSold": "Marcar como vendido",
+    "markFound": "Marcar como encontrado",
+    "resolveSoldTitle": "Marcar como vendido?",
+    "resolveSoldMessage": "O anúncio continua visível, mas com o aviso de \"Vendido\" por cima do conteúdo.",
+    "resolveFoundTitle": "Marcar como encontrado?",
+    "resolveFoundMessage": "O post continua visível, mas com o aviso de \"Encontrado\" por cima do conteúdo.",
+    "resolveConfirm": "Marcar",
+    "status": {
+      "expired": "Expirado",
+      "sold": "Vendido",
+      "found": "Encontrado"
+    }
   },
   "poll": {
     "vote": "Votar",
@@ -1079,9 +1110,12 @@
     "validation": {
       "category": "Selecione uma categoria",
       "eventName": "Informe o nome do evento",
+      "saleTitle": "Informe um título para o anúncio",
       "uploading": "Aguarde o envio das fotos/vídeos terminar",
       "eventDate": "Selecione ao menos uma data para o evento",
       "price": "Informe o preço ou marque \"Negociável\"",
+      "productName": "Informe o nome do produto",
+      "photo": "Adicione ao menos uma foto do produto",
       "poll": "Preencha ao menos 2 opções e um prazo futuro",
       "message": "Escreva uma mensagem",
       "location": "Escolha um endereço da lista de sugestões (ou marque no mapa)"
@@ -1125,8 +1159,15 @@
       "locationPlaceholder": "Ex.: Rua das Flores"
     },
     "sale": {
+      "productName": "Nome do produto",
+      "productPlaceholder": "Ex.: Bicicleta aro 26",
       "price": "Preço",
-      "negotiable": "Negociável"
+      "negotiable": "Negociável",
+      "visibilityLabel": "Quem pode ver",
+      "visibility": {
+        "neighborhood": "Apenas no bairro",
+        "public": "Visível para qualquer pessoa"
+      }
     }
   },
   "settings": {

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { ActivityIndicator, StyleProp, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import {
   GoogleSignin,
   isErrorWithCode,
   isSuccessResponse,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
+import GoogleGIcon from './GoogleGIcon';
 import { useT } from '../lib/i18n';
 
 // Versão nativa (iOS/Android) — ver GoogleSignInButton.web.tsx para a versão
@@ -65,8 +65,8 @@ export default function GoogleSignInButton({
   return (
     <TouchableOpacity style={style} onPress={handlePress} activeOpacity={0.85} disabled={busy}>
       {busy
-        ? <ActivityIndicator size="small" color="#EA4335" />
-        : <Ionicons name="logo-google" size={20} color="#EA4335" />}
+        ? <ActivityIndicator size="small" color="#4285F4" />
+        : <GoogleGIcon size={18} />}
       <Text style={textStyle}>Google</Text>
     </TouchableOpacity>
   );

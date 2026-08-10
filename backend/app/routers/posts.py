@@ -85,6 +85,12 @@ router.post(
     response_model=PostOut,
 )(post.toggle_repost)
 
+# Vendas "vendido" / Perdidos "encontrado" — ver services/post.py::resolve_post.
+router.post(
+    "/{post_id}/resolve",
+    response_model=PostOut,
+)(post.resolve_post)
+
 router.delete(
     "/{post_id}",
     status_code=204,

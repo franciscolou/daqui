@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from 're
 import { Palette } from '../../../constants/Colors';
 import { MAX_COMMENT_INDENT_DEPTH } from '../../../constants/config';
 import { CATEGORY_ICONS, Post } from '../../../data/mock';
+import { getPostStatus } from '../../../lib/postStatus';
 import { trackClick } from '../../../lib/analytics';
 import { api, Comment } from '../../../lib/api';
 import { Ad, adsApi } from '../../../lib/adsApi';
@@ -36,6 +37,7 @@ import ActionMenu from '../../../components/ActionMenu';
 import HoverTime from '../../../components/HoverTime';
 import ReportModal from '../../../components/ReportModal';
 import ConfirmModal from '../../../components/ConfirmModal';
+import PostStatusBanner from '../../../components/PostStatusBanner';
 import PostMediaGallery from '../../../components/PostMediaGallery';
 import ImageViewerModal from '../../../components/ImageViewerModal';
 import ResidentBadge from '../../../components/ResidentBadge';
@@ -102,6 +104,10 @@ export default function PostDetailScreen() {
   const [confirmDeletePost, setConfirmDeletePost] = useState(false);
   const [confirmDeleteComment, setConfirmDeleteComment] = useState<Comment | null>(null);
   const [deleting, setDeleting] = useState(false);
+  // Vendas "vendido" / Perdidos "encontrado" — alternativa a excluir (ver
+  // ActionMenu do autor mais abaixo).
+  const [confirmResolvePost, setConfirmResolvePost] = useState(false);
+  const [resolving, setResolving] = useState(false);
   // Total de comentários (topo + respostas) — reflete o contador denormalizado do post.
   const [commentCount, setCommentCount] = useState(0);
   // Respostas carregadas sob demanda por comentário + quais estão expandidas/carregando.
@@ -442,6 +448,20 @@ export default function PostDetailScreen() {
     }
   };
 
+  const doResolvePost = async () => {
+    if (!post || resolving) return;
+    setResolving(true);
+    try {
+      const updated = await api.resolvePost(post.id);
+      setPost(updated);
+      setConfirmResolvePost(false);
+    } catch {
+      // mantém o modal aberto para nova tentativa
+    } finally {
+      setResolving(false);
+    }
+  };
+
   // Renderiza um comentário e, se expandido, suas respostas (recursivo).
   const renderComment = (comment: Comment, depth: number) => {
     const indent = Math.min(depth, MAX_COMMENT_INDENT_DEPTH) * 22;
@@ -619,8 +639,9 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
         </View>
 
+        <PostStatusBanner status={getPostStatus(post)} />
         {post.title && <MentionText style={styles.title}>{post.title}</MentionText>}
-        <MentionText style={styles.body}>{post.content}</MentionText>
+        {!!post.content && <MentionText style={styles.body}>{post.content}</MentionText>}
         {post.poll && (
           <PollBlock
             poll={post.poll}
@@ -965,13 +986,23 @@ export default function PostDetailScreen() {
         onClose={() => setPostMenuVisible(false)}
         options={
           isPostAuthor
-            ? [{
-                key: 'delete',
-                label: t('post.delete'),
-                icon: 'trash-outline' as const,
-                destructive: true,
-                onPress: () => setConfirmDeletePost(true),
-              }]
+            ? [
+                ...(post && (post.category === 'venda' || post.category === 'perdidos') && !post.resolvedStatus
+                  ? [{
+                      key: 'resolve',
+                      label: t(post.category === 'venda' ? 'post.markSold' : 'post.markFound'),
+                      icon: 'checkmark-circle-outline' as const,
+                      onPress: () => setConfirmResolvePost(true),
+                    }]
+                  : []),
+                {
+                  key: 'delete',
+                  label: t('post.delete'),
+                  icon: 'trash-outline' as const,
+                  destructive: true,
+                  onPress: () => setConfirmDeletePost(true),
+                },
+              ]
             : [{
                 key: 'report',
                 label: t('report.titles.post'),
@@ -996,6 +1027,15 @@ export default function PostDetailScreen() {
         loading={deleting}
         onConfirm={doDeletePost}
         onClose={() => setConfirmDeletePost(false)}
+      />
+      <ConfirmModal
+        visible={confirmResolvePost}
+        title={t(post?.category === 'venda' ? 'post.resolveSoldTitle' : 'post.resolveFoundTitle')}
+        message={t(post?.category === 'venda' ? 'post.resolveSoldMessage' : 'post.resolveFoundMessage')}
+        confirmLabel={t('post.resolveConfirm')}
+        loading={resolving}
+        onConfirm={doResolvePost}
+        onClose={() => setConfirmResolvePost(false)}
       />
       {post && (
         <LikersModal

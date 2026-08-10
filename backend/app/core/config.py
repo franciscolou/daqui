@@ -16,6 +16,10 @@ MAX_IMPORTANT_POSTS_PER_MONTH = 2
 LIKE_MERGE_THRESHOLD = 3
 MAX_MEDIA_ITEMS = 10
 
+# Vendas (ver services/post.py::create_post, models/post.py::Post.product_name)
+SALE_MIN_PHOTOS = 1
+SALE_PRODUCT_NAME_MAX_LENGTH = 120
+
 # Denúncias e chamados de suporte (ver schemas/{attachment,report,support_ticket}.py)
 TICKET_MAX_ATTACHMENTS = 3
 TICKET_MAX_SUBJECT_LENGTH = 120  # chamado de suporte

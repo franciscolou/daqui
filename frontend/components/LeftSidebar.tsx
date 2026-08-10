@@ -29,6 +29,10 @@ interface Props {
   includeNearby?: boolean;
   onIncludeNearbyChange?: (value: boolean) => void;
   onNavigate?: () => void; // chamado ao tocar em um item (ex.: fechar o drawer no mobile)
+  // Vendas: raio ativo (só pra colorir o botão) e handler do botão que abre
+  // o SaleRadiusModal — aparece ao lado do item "Vendas" só quando ativo.
+  saleRadiusKm?: number | null;
+  onOpenSaleRadius?: () => void;
 }
 
 const NAV_ITEMS = [
@@ -71,6 +75,8 @@ export default function LeftSidebar({
   includeNearby,
   onIncludeNearbyChange,
   onNavigate,
+  saleRadiusKm,
+  onOpenSaleRadius,
 }: Props) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -129,6 +135,19 @@ export default function LeftSidebar({
         <Text style={[styles.navLabel, isActive && { color: Colors.text, fontWeight: '600' }]}>
           {t(`categories.${cat.key}`)}
         </Text>
+        {cat.key === 'venda' && isActive && (
+          <Pressable
+            onPress={() => onOpenSaleRadius?.()}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.saleRadiusIconBtn}
+          >
+            <Ionicons
+              name="navigate-circle-outline"
+              size={16}
+              color={saleRadiusKm ? Colors.primary : Colors.textTertiary}
+            />
+          </Pressable>
+        )}
         {isActive && <View style={[styles.activeIndicator, { backgroundColor: color }]} />}
       </Pressable>
     );
@@ -576,6 +595,10 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   // Ícone de "Todas" ocupando ~8px (como os pontos das categorias) p/ alinhar os rótulos.
   catAllIcon: { marginLeft: -3, marginRight: -3 },
+  // borderRadius direto no próprio Pressable (não no Ionicons filho) — senão
+  // o hover global (globalStyles.web.ts) sai com cantos quadrados num botão
+  // que devia parecer redondo (bug recorrente já documentado no projeto).
+  saleRadiusIconBtn: { padding: 3, borderRadius: 12 },
   activeIndicator: {
     position: 'absolute',
     left: 0,

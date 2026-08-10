@@ -66,6 +66,9 @@ class PollOut(BaseModel):
 class PostCreate(BaseModel):
     category: PostCategory
     title: Optional[str] = None
+    # Vendas: nome do produto anunciado (obrigatório só nessa categoria — ver
+    # services/post.py::create_post). Coluna própria em Post, não em `details`.
+    product_name: Optional[str] = None
     content: str
     # Já enviados via POST /posts/media (imagens e/ou vídeos), até 10 itens.
     media: list[PostMediaItem] = []
@@ -98,6 +101,7 @@ class PostOut(BaseModel):
     public_id: str
     category: PostCategory
     title: Optional[str]
+    product_name: Optional[str] = None
     content: str
     media: list[PostMediaItem] = []
     image_urls: list[str] = []  # compat: só as imagens de `media`

@@ -17,6 +17,8 @@ import HoverTime from './HoverTime';
 import MentionText from './MentionText';
 import PollBlock from './PollBlock';
 import PostMediaGallery from './PostMediaGallery';
+import PostStatusBanner from './PostStatusBanner';
+import { getPostStatus } from '../lib/postStatus';
 import ReportModal from './ReportModal';
 import ResidentBadge from './ResidentBadge';
 import SharedCommentPreview from './SharedCommentPreview';
@@ -214,13 +216,18 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
           )}
         </View>
 
+        {/* Expirado / Vendido / Encontrado */}
+        <PostStatusBanner status={getPostStatus(post)} />
+
         {/* Title */}
         {post.title && (
           <MentionText style={styles.title}>{post.title}</MentionText>
         )}
 
-        {/* Body */}
-        <MentionText style={styles.body} numberOfLines={4}>{post.content}</MentionText>
+        {/* Body — mensagem passou a ser opcional em Vendas (ver publish.tsx) */}
+        {!!post.content && (
+          <MentionText style={styles.body} numberOfLines={4}>{post.content}</MentionText>
+        )}
 
         {/* Enquete */}
         {post.poll && <PollBlock poll={post.poll} postId={post.id} />}
@@ -381,6 +388,14 @@ function PostDetails({
   }
 
   if (post.category === 'venda') {
+    if (post.productName) {
+      chips.push(
+        <View key="product" style={styles.detailChip}>
+          <Ionicons name="cube-outline" size={12} color={Colors.primary} />
+          <Text style={styles.detailChipText}>{post.productName}</Text>
+        </View>,
+      );
+    }
     const priceLabel = post.priceNegotiable
       ? t('publish.sale.negotiable')
       : typeof post.price === 'number'

@@ -18,7 +18,7 @@ import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
-import { DESKTOP_BREAKPOINT, MAX_POST_MEDIA } from '../../constants/config';
+import { DESKTOP_BREAKPOINT, MAX_POST_MEDIA, SALE_MIN_PHOTOS, SALE_PRODUCT_NAME_MAX_LENGTH } from '../../constants/config';
 import { CATEGORIES, PostCategory } from '../../data/mock';
 import { trackClick } from '../../lib/analytics';
 import { api, ApiError, ImportantQuota } from '../../lib/api';
@@ -135,6 +135,8 @@ export default function PublishScreen() {
   const [eventTime, setEventTime] = useState('');
   const [price, setPrice] = useState('');
   const [priceNegotiable, setPriceNegotiable] = useState(false);
+  const [productName, setProductName] = useState('');
+  const [saleVisibility, setSaleVisibility] = useState<'neighborhood' | 'public'>('neighborhood');
   const [media, setMedia] = useState<DraftMedia[]>([]); // até 10 fotos/vídeos
   const [pollDraft, setPollDraft] = useState<PollDraft>(emptyPollDraft());
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
@@ -193,20 +195,26 @@ export default function PublishScreen() {
     : parseFloat(price.replace(/\./g, '').replace(',', '.'));
   const priceValid = priceNegotiable || priceNumber() > 0;
 
+  // Vendas: nome do produto obrigatório e ao menos SALE_MIN_PHOTOS fotos
+  // (vídeo não conta) — ver services/post.py::create_post no backend.
+  const productNameValid = selectedCategory !== 'venda' || productName.trim().length > 0;
+  const salePhotoCount = media.filter((m) => m.type === 'image' && m.url).length;
+  const salePhotoValid = selectedCategory !== 'venda' || salePhotoCount >= SALE_MIN_PHOTOS;
+
   // Requisitos extras por categoria
   const categoryValid =
     selectedCategory === 'venda'
-      ? priceValid
+      ? priceValid && productNameValid && salePhotoValid
       : selectedCategory === 'evento'
       ? eventDates.length > 0
       : selectedCategory === 'enquete'
       ? pollDraftValid(pollDraft)
       : true;
 
-  // Título é obrigatório apenas em Eventos.
-  const titleValid = selectedCategory !== 'evento' || title.trim().length > 0;
-  // A mensagem é obrigatória (basta não estar vazia) exceto em Eventos.
-  const contentValid = selectedCategory === 'evento' || content.trim().length > 0;
+  // Título é obrigatório em Eventos e Vendas.
+  const titleValid = (selectedCategory !== 'evento' && selectedCategory !== 'venda') || title.trim().length > 0;
+  // A mensagem é obrigatória (basta não estar vazia) exceto em Eventos e Vendas.
+  const contentValid = selectedCategory === 'evento' || selectedCategory === 'venda' || content.trim().length > 0;
 
   // Local digitado mas nunca confirmado (nem por sugestão, nem pelo mapa)
   // bloqueia a publicação — evita mandar um texto vago/não geocodificado.
@@ -219,12 +227,17 @@ export default function PublishScreen() {
   // Mensagem explicando por que o botão está desabilitado (ajuda o usuário).
   const disabledReason = (() => {
     if (!selectedCategory) return t('publish.validation.category');
-    if (!titleValid) return t('publish.validation.eventName');
+    if (!titleValid)
+      return t(selectedCategory === 'venda' ? 'publish.validation.saleTitle' : 'publish.validation.eventName');
     if (media.some((m) => m.uploading)) return t('publish.validation.uploading');
     if (selectedCategory === 'evento' && eventDates.length === 0)
       return t('publish.validation.eventDate');
     if (selectedCategory === 'venda' && !priceValid)
       return t('publish.validation.price');
+    if (selectedCategory === 'venda' && !productNameValid)
+      return t('publish.validation.productName');
+    if (selectedCategory === 'venda' && !salePhotoValid)
+      return t('publish.validation.photo');
     if (selectedCategory === 'enquete' && !pollDraftValid(pollDraft))
       return t('publish.validation.poll');
     if (!contentValid) return t('publish.validation.message');
@@ -305,6 +318,7 @@ export default function PublishScreen() {
         return {
           price: priceNegotiable ? null : priceNumber(),
           price_negotiable: priceNegotiable,
+          visibility: saleVisibility,
           location: location.trim() || null,
         };
       case 'perdidos':
@@ -324,6 +338,7 @@ export default function PublishScreen() {
       await api.createPost({
         category: selectedCategory,
         title: title.trim() || undefined,
+        productName: selectedCategory === 'venda' ? productName.trim() : undefined,
         content: content.trim(),
         media: media.filter((m) => m.url).map((m) => ({ url: m.url as string, type: m.type })),
         details: buildDetails(),
@@ -548,7 +563,7 @@ export default function PublishScreen() {
             </>
           ) : (
             <View style={styles.section}>
-              <FieldLabel styles={styles} optional>{t('publish.postTitle')}</FieldLabel>
+              <FieldLabel styles={styles} optional={selectedCategory !== 'venda'}>{t('publish.postTitle')}</FieldLabel>
               <TextInput
                 style={styles.titleInput}
                 placeholder={t('publish.postTitlePlaceholder')}
@@ -567,7 +582,7 @@ export default function PublishScreen() {
               no desktop), já que no web cada View vira sua própria stacking
               context e um z-index alto lá dentro não escapa sozinho. */}
           <View style={[styles.section, { zIndex: 20 }]}>
-            <FieldLabel styles={styles}>
+            <FieldLabel styles={styles} optional={selectedCategory === 'evento' || selectedCategory === 'venda'}>
               {selectedCategory === 'enquete' ? t('publish.poll.question') : t('publish.message')}
             </FieldLabel>
             <MentionInput
@@ -600,7 +615,7 @@ export default function PublishScreen() {
           {/* Fotos e vídeos (opcional, até 10; não se aplica a enquetes) */}
           {!!selectedCategory && selectedCategory !== 'enquete' && (
             <View style={styles.section}>
-              <FieldLabel styles={styles} optional>
+              <FieldLabel styles={styles} optional={selectedCategory !== 'venda'}>
                 {`${selectedCategory === 'venda' ? t('publish.media.product') : t('publish.media.label')} (${media.length}/${MAX_POST_MEDIA})`}
               </FieldLabel>
               {media.length === 0 ? (
@@ -693,6 +708,18 @@ export default function PublishScreen() {
           {selectedCategory === 'venda' && (
             <>
               <View style={styles.section}>
+                <FieldLabel styles={styles}>{t('publish.sale.productName')}</FieldLabel>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder={t('publish.sale.productPlaceholder')}
+                  placeholderTextColor={Colors.textTertiary}
+                  value={productName}
+                  onChangeText={setProductName}
+                  maxLength={SALE_PRODUCT_NAME_MAX_LENGTH}
+                />
+              </View>
+
+              <View style={styles.section}>
                 <FieldLabel styles={styles}>{t('publish.sale.price')}</FieldLabel>
                 <View style={styles.priceRow}>
                   <View style={[styles.priceInputWrap, priceNegotiable && styles.priceInputDisabled]}>
@@ -730,6 +757,30 @@ export default function PublishScreen() {
                   onPickOnMap={() => setLocationPickerOpen(true)}
                   status={locationStatus}
                 />
+              </View>
+
+              <View style={styles.section}>
+                <FieldLabel styles={styles}>{t('publish.sale.visibilityLabel')}</FieldLabel>
+                <View style={styles.visibilityRow}>
+                  <TouchableOpacity
+                    style={[styles.visibilityOption, saleVisibility === 'neighborhood' && styles.visibilityOptionActive]}
+                    onPress={() => setSaleVisibility('neighborhood')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.visibilityText, saleVisibility === 'neighborhood' && styles.visibilityTextActive]}>
+                      {t('publish.sale.visibility.neighborhood')}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.visibilityOption, saleVisibility === 'public' && styles.visibilityOptionActive]}
+                    onPress={() => setSaleVisibility('public')}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.visibilityText, saleVisibility === 'public' && styles.visibilityTextActive]}>
+                      {t('publish.sale.visibility.public')}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </>
           )}
@@ -1127,6 +1178,20 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   negChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   negChipText: { fontSize: 14, fontWeight: '700', color: Colors.textSecondary },
   negChipTextActive: { color: '#fff' },
+  visibilityRow: { flexDirection: 'row', gap: 10 },
+  visibilityOption: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  visibilityOptionActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  visibilityText: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary, textAlign: 'center' },
+  visibilityTextActive: { color: '#fff' },
   tipCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',

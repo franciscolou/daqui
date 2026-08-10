@@ -7,8 +7,10 @@ from app.core.config import (
     LIKE_MERGE_THRESHOLD,
     MAX_IMPORTANT_POSTS_PER_MONTH,
     MAX_MEDIA_ITEMS,
+    SALE_MIN_PHOTOS,
+    SALE_PRODUCT_NAME_MAX_LENGTH,
 )
-from app.core.uploads import save_upload_media
+from app.core.uploads import MediaType, save_upload_media
 from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
@@ -84,6 +86,7 @@ def _to_schema(
         public_id=post.public_id,
         category=post.category,
         title=post.title,
+        product_name=post.product_name,
         content=post.content,
         media=post.media or [],
         image_urls=post.image_urls or [],
@@ -123,6 +126,7 @@ def get_feed(
     latitude: float | None = None,
     longitude: float | None = None,
     include_nearby: bool = False,
+    sale_radius_km: float | None = None,
 ) -> PostFeed:
     # Bairro em foco: o cadastrado ("Meu bairro") ou o informado pelo cliente
     # ("Perto de mim", resolvido pelo GPS atual).
@@ -149,6 +153,18 @@ def get_feed(
     # projeto por limitação do SQLite.
     own_posts = post_dao.list_feed_all(db, neighborhoods, category)
     reposts = post_dao.list_reposts_for_feed(db, neighborhoods, category)
+
+    # Vendas com raio: estende o alcance além do bairro só pra quem já
+    # explicitamente escolheu um raio na tela (ver SaleRadiusModal no front) —
+    # sem isso, "Vendas" continua 100% neighborhood-scoped por padrão, igual
+    # qualquer outra categoria. Só entram posts com `details.visibility ==
+    # "public"` (ver _build_details) e fora do que a query de bairro já trouxe.
+    if category == PostCategory.VENDA and sale_radius_km and latitude is not None and longitude is not None:
+        exclude_ids = {p.id for p in own_posts}
+        own_posts = own_posts + post_dao.list_venda_public_radius(
+            db, latitude, longitude, sale_radius_km, exclude_ids
+        )
+
     items = [
         (_to_schema(p, user, db), p.pinned, p.created_at) for p in own_posts
     ] + [
@@ -279,9 +295,15 @@ def _build_details(category: PostCategory, raw: dict | None) -> dict | None:
                     status_code=400,
                     detail='Informe um preço válido ou marque "Negociável"',
                 )
+        # "Visível para qualquer pessoa" (público, dentro do raio escolhido por
+        # quem navega) vs. "Apenas no bairro" (default — mesma regra de
+        # visibilidade do resto do feed). Qualquer valor desconhecido/ausente
+        # cai no default, cobrindo posts antigos e clientes desatualizados.
+        visibility = raw.get("visibility") if raw.get("visibility") in ("neighborhood", "public") else "neighborhood"
         return {
             "price": None if negotiable else float(price),
             "price_negotiable": negotiable,
+            "visibility": visibility,
             "location": _clean_str(raw.get("location")),
         }
 
@@ -358,6 +380,22 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
     if is_poll and payload.poll is None:
         raise HTTPException(status_code=400, detail="Configure a enquete")
 
+    # Vendas: título, nome do produto e ao menos uma foto são obrigatórios —
+    # diferente das outras categorias, onde só a mensagem costuma ser exigida
+    # (ver front, publish.tsx). `product_name` é coluna própria (não entra em
+    # `details`), no mesmo nível de `title`.
+    product_name = None
+    if payload.category == PostCategory.VENDA:
+        if not (payload.title or "").strip():
+            raise HTTPException(status_code=400, detail="Informe um título para o anúncio")
+        product_name = (payload.product_name or "").strip()
+        if not product_name:
+            raise HTTPException(status_code=400, detail="Informe o nome do produto")
+        product_name = product_name[:SALE_PRODUCT_NAME_MAX_LENGTH]
+        photo_count = sum(1 for m in payload.media if m.type == MediaType.IMAGE)
+        if photo_count < SALE_MIN_PHOTOS:
+            raise HTTPException(status_code=400, detail="Adicione ao menos uma foto do produto")
+
     if payload.important:
         month_start, _ = _current_month_bounds()
         used = post_dao.count_important_since(db, user.id, month_start)
@@ -423,6 +461,7 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         author_id=user.id,
         category=payload.category,
         title=payload.title,
+        product_name=product_name,
         content=payload.content,
         media=media,
         details=details,
@@ -701,6 +740,39 @@ def toggle_repost(db: Session, post_id: int, user: User) -> PostOut:
     else:
         post_dao.add_repost(db, post_id, user.id)
         post.shares_count += 1
+
+    db.commit()
+    db.refresh(post)
+    return _to_schema(post, user, db)
+
+
+_RESOLVABLE_STATUS_BY_CATEGORY = {
+    PostCategory.VENDA: "sold",
+    PostCategory.PERDIDOS: "found",
+}
+
+
+def resolve_post(db: Session, post_id: int, user: User) -> PostOut:
+    """Autor marca uma Venda como "vendida" ou um Perdidos como "encontrado" —
+    alternativa a excluir o post: ele continua visível, só ganha um aviso por
+    cima do conteúdo (ver getPostStatus/PostStatusBanner no front)."""
+    post = post_dao.get_by_id(db, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post não encontrado")
+    if post.author_id != user.id:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+
+    status = _RESOLVABLE_STATUS_BY_CATEGORY.get(post.category)
+    if status is None:
+        raise HTTPException(status_code=400, detail="Esta categoria não pode ser marcada como concluída")
+
+    details = dict(post.details or {})
+    if details.get("resolved_status"):
+        raise HTTPException(status_code=400, detail="Este post já foi marcado como concluído")
+
+    details["resolved_status"] = status
+    details["resolved_at"] = datetime.now(timezone.utc).isoformat()
+    post.details = details
 
     db.commit()
     db.refresh(post)

@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from app.core.config import settings
+from app.core.config import SALE_PRODUCT_NAME_MAX_LENGTH, settings
 
 connect_args = {"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
 
@@ -240,6 +240,10 @@ def _ensure_columns():
                 conn.execute(text("ALTER TABLE posts ADD COLUMN moderation_deleted_at DATETIME"))
             if "moderation_deleted_by_id" not in columns:
                 conn.execute(text("ALTER TABLE posts ADD COLUMN moderation_deleted_by_id INTEGER REFERENCES users(id)"))
+            if "product_name" not in columns:
+                conn.execute(
+                    text(f"ALTER TABLE posts ADD COLUMN product_name VARCHAR({SALE_PRODUCT_NAME_MAX_LENGTH})")
+                )
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_posts_moderation_deleted_at ON posts (moderation_deleted_at)"))
 
     if "groups" in tables:

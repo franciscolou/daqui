@@ -33,6 +33,25 @@
     "errors": {
       "location": "Couldn't find your neighborhood right now.",
       "load": "Couldn't load the feed."
+    },
+    "saleRadius": {
+      "title": "Sales reach",
+      "description": "Besides your neighborhood, also show public listings within this radius from \"{{reference}}\".",
+      "currentNeighborhood": "Currently: neighborhood only",
+      "currentRadius": "Currently: {{km}} km radius",
+      "km_one": "{{count}} km",
+      "km_other": "{{count}} km",
+      "clear": "Clear",
+      "apply": "Apply"
+    },
+    "saleView": {
+      "list": "List",
+      "grid": "Grid"
+    },
+    "saleHideSold": "Not sold only",
+    "saleScope": {
+      "neighborhood": "Showing: neighborhood only",
+      "radius": "Showing: {{km}} km radius"
     }
   },
   "nav": {
@@ -1369,7 +1388,19 @@
     "deleteConfirm": "Delete",
     "allDay": "All day",
     "repostedByYou": "You reposted",
-    "repostedBy": "{{name}} reposted"
+    "repostedBy": "{{name}} reposted",
+    "markSold": "Mark as sold",
+    "markFound": "Mark as found",
+    "resolveSoldTitle": "Mark as sold?",
+    "resolveSoldMessage": "The listing stays visible, just with a \"Sold\" notice over the content.",
+    "resolveFoundTitle": "Mark as found?",
+    "resolveFoundMessage": "The post stays visible, just with a \"Found\" notice over the content.",
+    "resolveConfirm": "Mark",
+    "status": {
+      "expired": "Expired",
+      "sold": "Sold",
+      "found": "Found"
+    }
   },
   "poll": {
     "vote": "Vote",
@@ -1425,9 +1456,12 @@
     "validation": {
       "category": "Select a category",
       "eventName": "Enter the event name",
+      "saleTitle": "Enter a title for the listing",
       "uploading": "Wait for the photos/videos to finish uploading",
       "eventDate": "Select at least one event date",
       "price": "Enter a price or select \"Negotiable\"",
+      "productName": "Enter the product name",
+      "photo": "Add at least one photo of the product",
       "poll": "Add at least 2 options and a future deadline",
       "message": "Write a message",
       "location": "Choose an address from the suggestions (or select it on the map)"
@@ -1471,8 +1505,15 @@
       "locationPlaceholder": "E.g., Flower Street"
     },
     "sale": {
+      "productName": "Product name",
+      "productPlaceholder": "E.g., 26\" bicycle",
       "price": "Price",
-      "negotiable": "Negotiable"
+      "negotiable": "Negotiable",
+      "visibilityLabel": "Who can see it",
+      "visibility": {
+        "neighborhood": "Neighborhood only",
+        "public": "Visible to anyone"
+      }
     }
   },
   "settings": {

@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.config import SALE_PRODUCT_NAME_MAX_LENGTH
 from app.database import Base
 
 
@@ -36,6 +37,9 @@ class Post(Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     category: Mapped[PostCategory] = mapped_column(String(30), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(200))
+    # Vendas: nome do produto anunciado — obrigatório só nessa categoria
+    # (imposto na service layer, não na coluna — mesmo espírito de `title`).
+    product_name: Mapped[Optional[str]] = mapped_column(String(SALE_PRODUCT_NAME_MAX_LENGTH))
     content: Mapped[str] = mapped_column(Text, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String(500))  # legado; ver media
     # legado; ver media — mantida só pela migração de backfill em database.py

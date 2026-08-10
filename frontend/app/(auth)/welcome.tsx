@@ -799,6 +799,32 @@ export default function WelcomeScreen() {
       })()}
 
       {step === 0 && (
+        <>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{t('auth.login.orContinueWith')}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {googleError && (
+            <View style={styles.authErrorBox}>
+              <Ionicons name="alert-circle" size={16} color={Colors.error} />
+              <Text style={styles.authErrorText}>{googleError}</Text>
+            </View>
+          )}
+
+          <View style={styles.socialRow}>
+            <GoogleSignInButton
+              style={styles.socialBtn}
+              textStyle={styles.socialText}
+              onIdToken={handleGoogleToken}
+              onError={setGoogleError}
+            />
+          </View>
+        </>
+      )}
+
+      {step === 0 && (
         <View style={[styles.switchRow, isCompactDesktop && styles.switchRowCompact]}>
           <Text style={styles.switchText}>{t('auth.signup.haveAccount')}</Text>
           <TouchableOpacity style={styles.switchLinkBtn} onPress={() => goTo('login')}>

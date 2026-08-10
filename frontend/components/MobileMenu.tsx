@@ -22,6 +22,8 @@ interface Props {
   onImportantChange?: (value: boolean) => void;
   includeNearby?: boolean;
   onIncludeNearbyChange?: (value: boolean) => void;
+  saleRadiusKm?: number | null;
+  onOpenSaleRadius?: () => void;
 }
 
 const PANEL_WIDTH = 220;
@@ -35,6 +37,8 @@ export default function MobileMenu({
   onImportantChange,
   includeNearby,
   onIncludeNearbyChange,
+  saleRadiusKm,
+  onOpenSaleRadius,
 }: Props) {
   const [open, setOpen] = useState(false);
   const insets = useSafeAreaInsets();
@@ -107,6 +111,8 @@ export default function MobileMenu({
                 onImportantChange={onImportantChange}
                 includeNearby={includeNearby}
                 onIncludeNearbyChange={onIncludeNearbyChange}
+                saleRadiusKm={saleRadiusKm}
+                onOpenSaleRadius={onOpenSaleRadius}
               />
             </ScrollView>
           </Animated.View>

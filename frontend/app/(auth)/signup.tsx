@@ -13,10 +13,13 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import { Colors } from '../../constants/Colors';
 import { useT } from '../../lib/i18n';
 import { submitOnEnter } from '../../lib/keyboard';
 import { goBack } from '../../lib/navigation';
+import { useAuth } from '../../lib/auth';
 import { AvailabilityState } from '../../lib/useAvailability';
 import { useSignupFlow } from '../../lib/useSignupFlow';
 
@@ -39,6 +42,22 @@ export default function SignupScreen() {
     code, onCodeChange, resending, resent,
     createAccount, handleVerify, handleResend,
   } = useSignupFlow();
+  const { loginWithGoogle } = useAuth();
+  const [googleError, setGoogleError] = useState<string | null>(null);
+
+  const handleGoogleToken = async (idToken: string) => {
+    setGoogleError(null);
+    try {
+      const result = await loginWithGoogle(idToken);
+      if (result.status === 'needs_username') {
+        router.push({ pathname: '/(auth)/google-username', params: { ticket: result.ticket } });
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch {
+      setGoogleError(t('auth.login.googleError'));
+    }
+  };
 
   const headerTitle = step === 0 ? t('auth.signup.title') : step === 1 ? t('auth.signup.verifyTitle') : t('auth.signup.doneTitle');
   const headerSubtitle =
@@ -285,6 +304,32 @@ export default function SignupScreen() {
             </TouchableOpacity>
 
             {step === 0 && (
+              <>
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>{t('auth.login.orContinueWith')}</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                {googleError && (
+                  <View style={styles.errorBox}>
+                    <Ionicons name="alert-circle" size={16} color={Colors.error} />
+                    <Text style={styles.errorText}>{googleError}</Text>
+                  </View>
+                )}
+
+                <View style={styles.socialRow}>
+                  <GoogleSignInButton
+                    style={styles.socialBtn}
+                    textStyle={styles.socialText}
+                    onIdToken={handleGoogleToken}
+                    onError={setGoogleError}
+                  />
+                </View>
+              </>
+            )}
+
+            {step === 0 && (
               <View style={styles.altRow}>
                 <Text style={styles.altText}>{t('auth.signup.haveAccount')}</Text>
                 <TouchableOpacity style={styles.altLinkBtn} onPress={() => router.replace('/(auth)/login')}>
@@ -524,4 +569,34 @@ const styles = StyleSheet.create({
   altText: { fontSize: 14, color: Colors.textSecondary },
   altLinkBtn: { borderRadius: 6, paddingHorizontal: 4, paddingVertical: 2, marginHorizontal: -4, marginVertical: -2 },
   altLink: { fontSize: 14, color: Colors.primaryDark, fontWeight: '700' },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+  dividerText: { fontSize: 12, color: Colors.textTertiary, fontWeight: '500' },
+  socialRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  socialBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingVertical: 13,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  socialText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+  },
 });

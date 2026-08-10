@@ -37,6 +37,8 @@ import LeftSidebar from '../../components/LeftSidebar';
 import RightSidebar from '../../components/RightSidebar';
 import MobileMenu from '../../components/MobileMenu';
 import HomeNeighborhoodSetup from '../../components/HomeNeighborhoodSetup';
+import SaleRadiusModal from '../../components/SaleRadiusModal';
+import SaleGridCard from '../../components/SaleGridCard';
 import DaquiMark from '../../components/DaquiMark';
 
 type FilterKey = 'todos' | PostCategory;
@@ -62,6 +64,19 @@ export default function FeedScreen() {
 
   const [activeCategory, setActiveCategory] = useState<FilterKey>('todos');
   const [importantOnly, setImportantOnly] = useState(false);
+  // Vendas: alcance extra além do bairro (null = padrão, só bairro — ver
+  // SaleRadiusModal) e visualização em grade. Reseta ao sair da categoria.
+  const [saleRadiusKm, setSaleRadiusKm] = useState<number | null>(null);
+  const [saleRadiusModalOpen, setSaleRadiusModalOpen] = useState(false);
+  const [saleViewLayout, setSaleViewLayout] = useState<'list' | 'grid'>('list');
+  const [saleHideSold, setSaleHideSold] = useState(false);
+  useEffect(() => {
+    if (activeCategory !== 'venda') {
+      setSaleRadiusKm(null);
+      setSaleViewLayout('list');
+      setSaleHideSold(false);
+    }
+  }, [activeCategory]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
   const [adViewerId, setAdViewerId] = useState<string | undefined>(undefined);
@@ -124,6 +139,13 @@ export default function FeedScreen() {
   // more" da rolagem infinita.
   const feedParams = useCallback(
     (pageNum: number) => {
+      // Vendas: passa a categoria pro backend (e o raio, se escolhido) em vez
+      // do filtro 100% client-side de sempre — necessário pro alcance por
+      // raio funcionar com paginação correta (ver SaleRadiusModal).
+      const saleParams =
+        activeCategory === 'venda'
+          ? { category: 'venda', ...(saleRadiusKm ? { saleRadiusKm } : {}) }
+          : {};
       if (viewMode === 'meu') {
         if (!user?.neighborhood) return null;
         return {
@@ -132,6 +154,7 @@ export default function FeedScreen() {
           longitude: user?.longitude,
           page: pageNum,
           pageSize: FEED_PAGE_SIZE,
+          ...saleParams,
         };
       }
       if (!pertoNeighborhood || !pertoCoords) return null;
@@ -142,9 +165,10 @@ export default function FeedScreen() {
         includeNearby: nearbyPerto,
         page: pageNum,
         pageSize: FEED_PAGE_SIZE,
+        ...saleParams,
       };
     },
-    [viewMode, nearbyMeu, nearbyPerto, pertoCoords, pertoNeighborhood, user],
+    [viewMode, nearbyMeu, nearbyPerto, pertoCoords, pertoNeighborhood, user, activeCategory, saleRadiusKm],
   );
 
   const [page, setPage] = useState(1);
@@ -232,6 +256,9 @@ export default function FeedScreen() {
     home: user?.neighborhood,
     latitude: user?.latitude,
     longitude: user?.longitude,
+    // Só relevante quando a categoria ativa é Vendas — recarrega do backend
+    // ao entrar/sair da categoria ou trocar o raio (ver feedParams acima).
+    sale: activeCategory === 'venda' ? saleRadiusKm ?? 'default' : null,
   });
 
   // Recarrega apenas quando os parâmetros reais mudam. Um simples retorno à
@@ -299,6 +326,14 @@ export default function FeedScreen() {
   }, []);
 
   const activeNeighborhood = viewMode === 'meu' ? user?.neighborhood : pertoNeighborhood ?? undefined;
+  // Referência de distância do grid de Vendas (ver SaleGridCard) — mesmas
+  // coordenadas usadas pela visualização ativa do feed.
+  const activeReferenceCoords: Coords | null =
+    viewMode === 'meu'
+      ? user?.latitude != null && user?.longitude != null
+        ? { latitude: user.latitude, longitude: user.longitude }
+        : null
+      : pertoCoords;
 
   useEffect(() => {
     getOrCreateAdViewerId()
@@ -384,9 +419,12 @@ export default function FeedScreen() {
   const filteredPosts = useMemo(
     () =>
       posts.filter(
-        (p) => (activeCategory === 'todos' || p.category === activeCategory) && (!importantOnly || p.important),
+        (p) =>
+          (activeCategory === 'todos' || p.category === activeCategory) &&
+          (!importantOnly || p.important) &&
+          (activeCategory !== 'venda' || !saleHideSold || p.resolvedStatus !== 'sold'),
       ),
-    [posts, activeCategory, importantOnly],
+    [posts, activeCategory, importantOnly, saleHideSold],
   );
 
   // Espaçamento variável + rotação de anúncios (ver lib/adSpacing.ts) — o
@@ -522,21 +560,93 @@ export default function FeedScreen() {
               const isActive = activeCategory === cat.key;
               const color = cat.key === 'todos' ? Colors.primary : (Colors.category[cat.key as PostCategory] ?? Colors.primary);
               return (
-                <TouchableOpacity
-                  key={cat.key}
-                  style={[styles.mobileTab, isActive && { borderBottomColor: color }]}
-                  onPress={() => setActiveCategory(cat.key as FilterKey)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name={cat.icon as any} size={12} color={isActive ? color : Colors.textTertiary} />
-                  <Text style={[styles.mobileTabText, isActive && { color, fontWeight: '700' }]}>
-                    {t(`categories.${cat.key}`)}
-                  </Text>
-                </TouchableOpacity>
+                <View key={cat.key} style={styles.mobileTabWrap}>
+                  <TouchableOpacity
+                    style={[styles.mobileTab, isActive && { borderBottomColor: color }]}
+                    onPress={() => setActiveCategory(cat.key as FilterKey)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name={cat.icon as any} size={12} color={isActive ? color : Colors.textTertiary} />
+                    <Text style={[styles.mobileTabText, isActive && { color, fontWeight: '700' }]}>
+                      {t(`categories.${cat.key}`)}
+                    </Text>
+                  </TouchableOpacity>
+                  {cat.key === 'venda' && isActive && (
+                    <TouchableOpacity
+                      style={styles.saleRadiusBtn}
+                      onPress={() => setSaleRadiusModalOpen(true)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons
+                        name="navigate-circle-outline"
+                        size={16}
+                        color={saleRadiusKm ? Colors.primary : Colors.textTertiary}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
               );
             })}
           </ScrollView>
         </View>
+      )}
+
+      {activeCategory === 'venda' && (
+        <>
+          {/* Deixa explícito se o feed está mostrando só o bairro ou já tem
+              um raio extra aplicado — clicável, abre o mesmo SaleRadiusModal
+              do botão ao lado da categoria. */}
+          <TouchableOpacity
+            style={styles.saleScopeRow}
+            onPress={() => setSaleRadiusModalOpen(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={saleRadiusKm ? 'navigate-circle-outline' : 'home-outline'}
+              size={13}
+              color={saleRadiusKm ? Colors.primary : Colors.textSecondary}
+            />
+            <Text style={[styles.saleScopeText, !!saleRadiusKm && { color: Colors.primary }]}>
+              {saleRadiusKm ? t('feed.saleScope.radius', { km: saleRadiusKm }) : t('feed.saleScope.neighborhood')}
+            </Text>
+            <Ionicons name="chevron-forward" size={12} color={Colors.textTertiary} />
+          </TouchableOpacity>
+
+          <View style={styles.saleViewToggleRow}>
+            <TouchableOpacity
+              style={styles.saleHideSoldRow}
+              onPress={() => setSaleHideSold((v) => !v)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.checkbox, saleHideSold && styles.checkboxChecked]}>
+                {saleHideSold && <Ionicons name="checkmark" size={12} color="#fff" />}
+              </View>
+              <Text style={styles.saleHideSoldText}>{t('feed.saleHideSold')}</Text>
+            </TouchableOpacity>
+            <View style={styles.saleViewToggleGroup}>
+              {(['list', 'grid'] as const).map((layout) => {
+                const active = saleViewLayout === layout;
+                return (
+                  <TouchableOpacity
+                    key={layout}
+                    style={[styles.saleViewToggleBtn, active && styles.saleViewToggleBtnActive]}
+                    onPress={() => setSaleViewLayout(layout)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={layout === 'list' ? 'list-outline' : 'grid-outline'}
+                      size={14}
+                      color={active ? Colors.primary : Colors.textTertiary}
+                    />
+                    <Text style={[styles.saleViewToggleText, active && { color: Colors.primary }]}>
+                      {t(`feed.saleView.${layout}`)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </>
       )}
 
       <View style={styles.hairline} />
@@ -625,6 +735,36 @@ export default function FeedScreen() {
         </ScrollView>
       </Animated.View>
     </View>
+  ) : activeCategory === 'venda' && saleViewLayout === 'grid' ? (
+    <FlatList
+      key={`feed-grid-${isWide}`}
+      style={styles.feedFill}
+      data={filteredPosts}
+      keyExtractor={postListKey}
+      numColumns={isWide ? 3 : 2}
+      columnWrapperStyle={styles.gridRow}
+      showsVerticalScrollIndicator={false}
+      ListHeaderComponent={feedHeader}
+      renderItem={({ item }) => (
+        <View style={styles.gridItem}>
+          <SaleGridCard post={item} referenceCoords={activeReferenceCoords} />
+        </View>
+      )}
+      contentContainerStyle={styles.listContent}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+      }
+      ListEmptyComponent={renderEmpty}
+      onEndReached={loadMorePosts}
+      onEndReachedThreshold={0.6}
+      ListFooterComponent={
+        loadingMorePosts ? (
+          <View style={styles.feedFooterLoading}>
+            <ActivityIndicator color={Colors.primary} size="small" />
+          </View>
+        ) : null
+      }
+    />
   ) : (
     <FlatList
       key="feed-list"
@@ -682,6 +822,8 @@ export default function FeedScreen() {
               onImportantChange={setImportantOnly}
               includeNearby={nearbyActive}
               onIncludeNearbyChange={onIncludeNearbyChange}
+              saleRadiusKm={saleRadiusKm}
+              onOpenSaleRadius={() => setSaleRadiusModalOpen(true)}
             />
           </ScrollView>
 
@@ -709,11 +851,24 @@ export default function FeedScreen() {
               onImportantChange={setImportantOnly}
               includeNearby={nearbyActive}
               onIncludeNearbyChange={onIncludeNearbyChange}
+              saleRadiusKm={saleRadiusKm}
+              onOpenSaleRadius={() => setSaleRadiusModalOpen(true)}
             />
           </View>
           {feed}
         </View>
       )}
+
+      <SaleRadiusModal
+        visible={saleRadiusModalOpen}
+        onClose={() => setSaleRadiusModalOpen(false)}
+        referenceLabel={viewMode === 'meu' ? t('feed.myNeighborhood') : t('feed.nearMe')}
+        radiusKm={saleRadiusKm}
+        onApply={(km) => {
+          setSaleRadiusKm(km);
+          setSaleRadiusModalOpen(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -864,6 +1019,68 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     color: Colors.textTertiary,
     fontWeight: '500',
   },
+  mobileTabWrap: { flexDirection: 'row', alignItems: 'center' },
+  // borderRadius direto no próprio Touchable (não no pai/filho) — senão o
+  // hover global (globalStyles.web.ts) desenha o realce com cantos quadrados
+  // em cima de um botão que devia parecer redondo (ver memória do bug).
+  saleRadiusBtn: { padding: 6, borderRadius: 14, marginLeft: 2 },
+  saleViewToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  // Mesmo motivo do saleRadiusBtn acima: borderRadius direto aqui, não só no
+  // checkbox filho, senão o hover do row inteiro sai com cantos quadrados.
+  saleHideSoldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginLeft: -6,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+  },
+  saleHideSoldText: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
+  saleScopeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginHorizontal: 10,
+    marginTop: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.background,
+  },
+  saleScopeText: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
+  checkbox: {
+    width: 17,
+    height: 17,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  saleViewToggleGroup: { flexDirection: 'row', gap: 8 },
+  saleViewToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: Colors.background,
+  },
+  saleViewToggleBtnActive: { backgroundColor: Colors.primaryFaint },
+  saleViewToggleText: { fontSize: 12, fontWeight: '600', color: Colors.textTertiary },
+  gridRow: { gap: 10, paddingHorizontal: 14 },
+  gridItem: { flex: 1, marginBottom: 10 },
   hairline: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: Colors.border,

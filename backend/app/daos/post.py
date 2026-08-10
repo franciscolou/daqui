@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 
 from sqlalchemy import desc, func, or_
@@ -136,6 +137,55 @@ def list_map(
     )
 
 
+def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    # Mesmo cálculo de `daos/ad.py::_haversine_km` — duplicado de propósito
+    # (não há um módulo compartilhado de matemática geo no projeto ainda).
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lng2 - lng1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlambda / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def list_venda_public_radius(
+    db: Session,
+    center_lat: float,
+    center_lng: float,
+    radius_km: float,
+    exclude_ids: set[int],
+) -> list[Post]:
+    """Posts de Vendas com `details.visibility == "public"` dentro de
+    `radius_km` de `center_lat`/`center_lng` — usados por `get_feed` pra
+    estender o alcance de Vendas além do bairro (ver services/post.py::get_feed).
+    Pré-filtro por bounding box (mesmo espírito de `list_map`), raio exato
+    resolvido em Python via haversine (SQLite não tem trig nativa performática
+    — mesma resolução "em Python" do resto deste arquivo)."""
+    lat_delta = radius_km / 111.0
+    lng_delta = radius_km / (111.0 * max(math.cos(math.radians(center_lat)), 0.01))
+    candidates = (
+        db.query(Post)
+        .filter(
+            Post.category == PostCategory.VENDA,
+            Post.moderation_deleted_at.is_(None),
+            Post.latitude.isnot(None),
+            Post.longitude.isnot(None),
+            Post.latitude.between(center_lat - lat_delta, center_lat + lat_delta),
+            Post.longitude.between(center_lng - lng_delta, center_lng + lng_delta),
+        )
+        .all()
+    )
+    result = []
+    for post in candidates:
+        if post.id in exclude_ids:
+            continue
+        if (post.details or {}).get("visibility") != "public":
+            continue
+        if _haversine_km(center_lat, center_lng, post.latitude, post.longitude) <= radius_km:
+            result.append(post)
+    return result
+
+
 def list_by_author(db: Session, author_id: int) -> list[Post]:
     return (
         db.query(Post)
@@ -192,6 +242,7 @@ def create(
     author_id: int,
     category: PostCategory,
     title: str | None,
+    product_name: str | None = None,
     content: str,
     media: list[dict],
     details: dict | None,
@@ -208,6 +259,7 @@ def create(
         author_id=author_id,
         category=category,
         title=title,
+        product_name=product_name,
         content=content,
         media=media,
         details=details,

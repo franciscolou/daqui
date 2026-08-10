@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { LayoutChangeEvent, StyleProp, View, ViewStyle } from 'react-native';
+import { LayoutChangeEvent, StyleProp, Text, TextStyle, View, ViewStyle } from 'react-native';
+import GoogleGIcon from './GoogleGIcon';
 import { useT } from '../lib/i18n';
 
 // Versão web — a lib nativa (@react-native-google-signin/google-signin) não
 // tem suporte a web no plano gratuito (ver node_modules, GoogleSignin.web.ts
 // só loga "not implemented"). Aqui falamos direto com o Google Identity
-// Services (GIS), carregado sob demanda via <script>, e renderizamos o botão
-// OFICIAL do Google — GIS não permite customizar o botão, então o visual
-// difere do resto do formulário; é o preço de usar o fluxo suportado
-// (clique precisa ser no elemento deles).
-
+// Services (GIS), carregado sob demanda via <script>.
+//
+// O botão OFICIAL do GIS (renderButton) só aceita algumas opções pré-
+// definidas (tema/formato/texto) — não dá pra ter fundo translúcido igual ao
+// resto do formulário nem texto só "Google". Pra ter a cara do app mesmo
+// assim, desenhamos nosso próprio botão (idêntico ao nativo, mesmo
+// GoogleGIcon) e sobrepomos o botão real do GIS por cima, com opacidade 0 —
+// o clique continua acontecendo no elemento genuíno do Google (só ele pode
+// abrir o popup de login, é assim que o GIS valida gesto do usuário), mas
+// visualmente quem aparece é o nosso.
 declare global {
   interface Window {
     google?: {
@@ -51,12 +57,12 @@ function loadGsiScript(): Promise<void> {
 
 export default function GoogleSignInButton({
   style,
+  textStyle,
   onIdToken,
   onError,
 }: {
   style?: StyleProp<ViewStyle>;
-  // Ignorados na web (o botão é o oficial do Google, sem texto/cor customizável).
-  textStyle?: unknown;
+  textStyle?: StyleProp<TextStyle>;
   onIdToken: (idToken: string) => void;
   onError?: (message: string) => void;
 }) {
@@ -84,11 +90,13 @@ export default function GoogleSignInButton({
           },
         });
         containerRef.current.innerHTML = '';
+        // 'large' é o mais alto que o GIS oferece (~40px) — ainda assim mais
+        // baixo que o nosso botão custom, então sobra uma faixa fina sem
+        // clique real nas bordas verticais (ver comentário no topo do
+        // arquivo). Sem opção de fixar altura exata no GIS.
         window.google.accounts.id.renderButton(containerRef.current, {
           type: 'standard',
-          theme: 'outline',
           size: 'large',
-          shape: 'pill',
           width: Math.round(Math.min(width, 400)),
         });
       })
@@ -102,8 +110,22 @@ export default function GoogleSignInButton({
   if (!CLIENT_ID) return null;
 
   return (
-    <View style={style} onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}>
-      <div ref={containerRef} />
+    // `style` (socialBtn) já define flexDirection:'row'/gap/alignItems — o
+    // ícone e o texto abaixo são filhos diretos pra ficar lado a lado como no
+    // nativo. O <div> do GIS fica fora do fluxo (position:absolute), então
+    // não interfere nesse layout — só cobre a área por cima, invisível.
+    <View
+      style={[style, { position: 'relative', overflow: 'hidden' }]}
+      onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
+    >
+      <GoogleGIcon size={18} />
+      <Text style={textStyle}>Google</Text>
+      {/* Botão real do GIS, invisível, cobrindo toda a área — é ele quem
+          recebe o clique de verdade. */}
+      <div
+        ref={containerRef}
+        style={{ position: 'absolute', inset: 0, opacity: 0 }}
+      />
     </View>
   );
 }

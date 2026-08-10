@@ -101,6 +101,17 @@ export const CHAT_INPUT_MAX_HEIGHT = CHAT_INPUT_LINE_HEIGHT * 10 + 20;
 // Janela (ms) pra um segundo toque contar como duplo-toque-pra-reagir.
 export const CHAT_DOUBLE_TAP_MS = 400;
 
+// ── Vendas (ver app/(tabs)/publish.tsx, app/(tabs)/index.tsx,
+// components/SaleRadiusModal.tsx, components/SaleGridCard.tsx) ──────────
+export const SALE_MIN_PHOTOS = 1;
+export const SALE_PRODUCT_NAME_MAX_LENGTH = 120;
+// Slider de alcance do modal de raio (SaleRadiusModal) — de 1 até este máximo.
+export const SALE_RADIUS_MIN_KM = 1;
+export const SALE_RADIUS_MAX_KM = 100;
+// Posição inicial do slider ao abrir o modal — nada é aplicado de fato até o
+// usuário confirmar (o padrão do feed continua sendo só o bairro).
+export const SALE_DEFAULT_RADIUS_KM = 5;
+
 // ── Anúncios: configurador de duração/desconto (ver
 // app/advertise/customize.tsx) — espelham constantes homônimas em
 // `ads-backend/app/core/config.py` (ver services/ad_pricing.py); mantidas
