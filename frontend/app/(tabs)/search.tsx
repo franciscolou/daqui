@@ -19,6 +19,7 @@ import { Palette } from '../../constants/Colors';
 import { DESKTOP_BREAKPOINT as WIDE, SEARCH_DEBOUNCE_MS } from '../../constants/config';
 import { Post, User } from '../../data/mock';
 import { api, SearchType } from '../../lib/api';
+import { trackSearch } from '../../lib/analytics';
 import { adsApi, Ad } from '../../lib/adsApi';
 import { getOrCreateAdViewerId } from '../../lib/storage';
 import { useAuth } from '../../lib/auth';
@@ -170,6 +171,7 @@ export default function SearchScreen() {
         setPosts(r.posts);
         setUsers(r.users);
         setSearched(true);
+        trackSearch(term);
       })
       .catch(() => {
         if (id !== seq.current) return;

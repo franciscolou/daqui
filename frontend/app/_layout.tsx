@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
-import { AuthProvider } from '../lib/auth';
+import { normalizeScreen, trackScreenView } from '../lib/analytics';
+import { AuthProvider, useAuth } from '../lib/auth';
 import { daquiGeoAdapter } from '../lib/daquiGeo';
 import { GeoProvider } from '../lib/geoProvider';
 import { I18nProvider } from '../lib/i18n';
@@ -25,6 +26,18 @@ function PushNotificationTapHandler() {
   return null;
 }
 
+// Reporta cada troca de rota pro tracker de uso (ver lib/analytics.ts) — só
+// enquanto autenticado, telas de login/cadastro ficam de fora de propósito.
+function AnalyticsRouteTracker() {
+  const pathname = usePathname();
+  const { user } = useAuth();
+  useEffect(() => {
+    if (user) trackScreenView(normalizeScreen(pathname));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, user?.id]);
+  return null;
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -36,6 +49,7 @@ export default function RootLayout() {
               <ScrollToTopProvider>
                 <ThemedStatusBar />
                 <PushNotificationTapHandler />
+                <AnalyticsRouteTracker />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
                   <Stack.Screen name="(auth)" />

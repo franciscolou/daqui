@@ -66,3 +66,9 @@ export function useAuth(): AuthState {
 export function canManageStaff(role?: string | null): boolean {
   return role === 'administrador' || role === 'owner';
 }
+
+/** Analytics de uso do Daqui é restrito ao Owner (ver core/deps.get_current_owner
+ * no backend — mais restrito que canManageStaff acima). */
+export function isOwner(role?: string | null): boolean {
+  return role === 'owner';
+}

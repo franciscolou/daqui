@@ -162,6 +162,80 @@ export const STAFF_ROLE_FILTERS = [
   { key: 'moderador', label: 'Moderador' },
 ];
 
+// Chaves de rota normalizadas (ver frontend/lib/analytics.ts::normalizeScreen)
+// — usado pela aba Analytics. Chave desconhecida cai no valor cru (ver
+// screens/Analytics.tsx), então não precisa cobrir toda rota do app aqui.
+export const SCREEN_LABEL: Record<string, string> = {
+  '(tabs)/index': 'Feed',
+  '(tabs)/search': 'Busca',
+  '(tabs)/publish': 'Publicar',
+  '(tabs)/notifications': 'Novidades',
+  '(tabs)/messages': 'Mensagens',
+  '(tabs)/map': 'Mapa',
+  '(tabs)/profile': 'Perfil (próprio)',
+  'user/[username]': 'Perfil de usuário',
+  '[username]/post/[publicId]': 'Post',
+  'ad/[id]': 'Anúncio',
+  'poll/[id]': 'Enquete',
+  'messages/[username]/index': 'Conversa',
+  'messages/[username]/info': 'Info da conversa',
+  'messages/[username]/media': 'Mídia da conversa',
+  'groups/index': 'Grupos (descobrir)',
+  'groups/new': 'Criar grupo',
+  'groups/[publicId]/index': 'Chat do grupo',
+  'groups/[publicId]/info': 'Info do grupo',
+  'groups/[publicId]/media': 'Mídia do grupo',
+  'neighbors/index': 'Vizinhos',
+  'rate/index': 'Avaliar o app',
+  'help/index': 'Ajuda',
+  'forward/[postId]': 'Encaminhar post',
+  'quote/[postId]': 'Citar post',
+  'advertise/index': 'Anuncie conosco',
+  'advertise/customize': 'Configurar anúncio',
+  'advertise/checkout': 'Checkout de anúncio',
+  'advertise/checkout/success': 'Anúncio confirmado',
+  'advertise/dashboard/index': 'Meus anúncios',
+  'advertise/dashboard/[token]': 'Painel de campanha',
+  'advertise/dashboard/edit/[token]': 'Editar campanha',
+  settings: 'Configurações',
+  'legal/terms': 'Termos de uso',
+  'legal/privacy': 'Privacidade',
+};
+
+// Plataformas reportadas por lib/analytics.ts (Platform.OS do frontend).
+export const PLATFORM_LABEL: Record<string, string> = {
+  web: 'Web',
+  ios: 'iOS',
+  android: 'Android',
+};
+
+export const PLATFORM_FILTERS = [
+  { key: '', label: 'Todas' },
+  { key: 'web', label: 'Web' },
+  { key: 'ios', label: 'iOS' },
+  { key: 'android', label: 'Android' },
+];
+
+// Rótulos de cliques rastreados (ver frontend/lib/analytics.ts::trackClick,
+// call sites em PostCard/publish/comentários/mensagens/grupos/tab bar).
+export const CLICK_LABEL: Record<string, string> = {
+  like_post: 'Curtir post',
+  unlike_post: 'Descurtir post',
+  repost_post: 'Repostar',
+  unrepost_post: 'Desfazer repost',
+  comment_post: 'Comentar',
+  reply_comment: 'Responder comentário',
+  publish_post: 'Publicar post',
+  send_message: 'Enviar mensagem',
+  send_group_message: 'Enviar mensagem (grupo)',
+  join_group: 'Entrar em grupo',
+  tab_index: 'Aba Feed',
+  tab_search: 'Aba Busca',
+  tab_publish: 'Aba Publicar',
+  tab_notifications: 'Aba Novidades',
+  tab_messages: 'Aba Mensagens',
+};
+
 export function statusTone(status: string): 'green' | 'amber' | 'red' | 'neutral' {
   if (status === 'pending') return 'amber';
   if (status === 'reviewed' || status === 'answered' || status === 'approved') return 'green';

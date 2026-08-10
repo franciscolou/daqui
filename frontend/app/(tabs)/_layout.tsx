@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Palette } from '../../constants/Colors';
 import { DESKTOP_BREAKPOINT } from '../../constants/config';
+import { trackClick } from '../../lib/analytics';
 import { useT } from '../../lib/i18n';
 import { useRealtime } from '../../lib/realtime';
 import { useScrollToTop } from '../../lib/scrollToTop';
@@ -53,6 +54,7 @@ function CustomTabBar({
     });
     if (event.defaultPrevented) return;
     if (activeName !== name) {
+      trackClick(`tab_${name}`);
       onTabChange();
       navigation.navigate(name);
     } else {

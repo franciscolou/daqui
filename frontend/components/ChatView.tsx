@@ -29,6 +29,7 @@ import {
   CHAT_INPUT_MIN_HEIGHT,
 } from '../constants/config';
 import { User } from '../data/mock';
+import { trackClick } from '../lib/analytics';
 import { api, ChatMessage, GroupDetail } from '../lib/api';
 import { formatDayDivider, formatMessageTime } from '../lib/time';
 import { useAuth } from '../lib/auth';
@@ -589,6 +590,7 @@ export default function ChatView({
         kind === 'dm'
           ? await api.sendMessage(id, content, undefined, replyToId, undefined, undefined, undefined, undefined, media)
           : await api.sendGroupMessage(id, content, replyToId, undefined, undefined, media);
+      trackClick(kind === 'dm' ? 'send_message' : 'send_group_message');
       setMessages((prev) => [...prev, msg]);
       animateEntrance([msg.id]);
       onActivity?.();

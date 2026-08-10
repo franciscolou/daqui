@@ -97,9 +97,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 async function request<T>(
   path: string,
-  options: { method?: string; body?: unknown; auth?: boolean } = {},
+  options: { method?: string; body?: unknown; auth?: boolean; keepalive?: boolean } = {},
 ): Promise<T> {
-  const { method = 'GET', body, auth = true } = options;
+  const { method = 'GET', body, auth = true, keepalive } = options;
   if (auth) await ensureTokenLoaded();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (auth && token) headers.Authorization = `Bearer ${token}`;
@@ -110,6 +110,10 @@ async function request<T>(
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      // Mantém a request viva além do unload da página (ver lib/analytics.ts,
+      // flush no fechamento do app na web) — diferente de navigator.sendBeacon,
+      // suporta o header de Authorization acima.
+      ...(keepalive ? { keepalive: true } : {}),
     });
   } catch {
     throw new ApiError(0, 'Não foi possível conectar ao servidor.');
@@ -1933,4 +1937,43 @@ export const api = {
     const r = await request<{ count: number }>('/notifications/unread-count');
     return r.count;
   },
+
+  // ── Analytics de uso (ver lib/analytics.ts) ──────────────────
+  async trackEvents(events: AnalyticsEventPayload[]): Promise<void> {
+    try {
+      await request<void>('/analytics/events', {
+        method: 'POST',
+        body: {
+          events: events.map((e) => ({
+            event_type: e.eventType,
+            session_id: e.sessionId,
+            screen: e.screen,
+            label: e.label,
+            query: e.query,
+            duration_ms: e.durationMs,
+            is_exit: e.isExit,
+            platform: e.platform,
+          })),
+        },
+        // Sobrevive ao unload da aba na web (fechamento/troca de app) — ver
+        // analytics.ts::trackAppBackground.
+        keepalive: true,
+      });
+    } catch {
+      // fire-and-forget: uma falha aqui não deve afetar a navegação do usuário
+    }
+  },
 };
+
+// Formato de evento aceito por `api.trackEvents` — espelha
+// `AnalyticsEventIn` do backend (schemas/analytics.py) em camelCase.
+export interface AnalyticsEventPayload {
+  eventType: 'screen_view' | 'click' | 'search';
+  sessionId: string;
+  screen?: string;
+  label?: string;
+  query?: string;
+  durationMs?: number;
+  isExit?: boolean;
+  platform: string;
+}

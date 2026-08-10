@@ -88,6 +88,11 @@ export const IMAGE_VIEWER_SWIPE_THRESHOLD = 50;
 // vazia — troca por uma mensagem de "comunidade em formação".
 export const ESTABLISHED_COMMUNITY_THRESHOLD = 500;
 
+// ── Analytics de uso (ver lib/analytics.ts) ──────────────────────────
+// Intervalo de flush do buffer de eventos (telas, cliques, buscas) pro
+// backend — além disso, um flush também é forçado ao ir pra background.
+export const ANALYTICS_FLUSH_INTERVAL_MS = 20000;
+
 // ── Chat (ver components/ChatView.tsx) ───────────────────────────────
 export const CHAT_INPUT_MIN_HEIGHT = 40;
 export const CHAT_INPUT_LINE_HEIGHT = 18;

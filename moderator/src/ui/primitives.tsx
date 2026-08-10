@@ -114,11 +114,27 @@ export function MultiTabs({
   );
 }
 
-export function Stat({ value, label }: { value: React.ReactNode; label: string }) {
+/** `delta` é opcional (compara com um período anterior, ver screens/Analytics.tsx)
+ * — as outras telas que usam `Stat` continuam iguais sem passar essa prop. */
+export function Stat({
+  value,
+  label,
+  delta,
+}: {
+  value: React.ReactNode;
+  label: string;
+  delta?: { pct: number; goodDirection?: 'up' | 'down' };
+}) {
+  const good = delta ? (delta.goodDirection ?? 'up') === (delta.pct >= 0 ? 'up' : 'down') : false;
   return (
     <div className="stat">
       <div className="n">{value}</div>
       <div className="l">{label}</div>
+      {delta && Number.isFinite(delta.pct) && (
+        <div className={`stat-delta ${good ? 'good' : 'bad'}`}>
+          {delta.pct >= 0 ? '▲' : '▼'} {Math.abs(Math.round(delta.pct))}% vs período anterior
+        </div>
+      )}
     </div>
   );
 }

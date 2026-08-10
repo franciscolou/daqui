@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Palette } from '../../constants/Colors';
+import { trackClick } from '../../lib/analytics';
 import { api, Group } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
@@ -44,6 +45,7 @@ export default function GroupsDiscoverScreen() {
     setJoining(g.id);
     try {
       await api.joinGroup(g.id);
+      trackClick('join_group');
       if (g.privacy === 'request') {
         // Fica pendente até um admin aprovar — permanece na lista, só trava o botão.
         setRequested((prev) => new Set(prev).add(g.id));

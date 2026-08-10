@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { canManageStaff, useAuth } from '../lib/auth';
+import { canManageStaff, isOwner, useAuth } from '../lib/auth';
 import { STAFF_ROLE_LABEL } from '../lib/labels';
 import { BrandMark } from '../ui/BrandMark';
 import { Icon, IconName } from '../ui/Icon';
@@ -7,6 +7,7 @@ import { NavigationProvider } from '../ui/moderation';
 import { Avatar } from '../ui/primitives';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { Account } from './Account';
+import { Analytics } from './Analytics';
 import { Audit } from './Audit';
 import { Reports } from './Reports';
 import { Reviews } from './Reviews';
@@ -88,6 +89,17 @@ const STAFF_SECTION: Section = {
   subtitle: 'Contas com acesso a este painel',
 };
 
+// Uso do app principal (Daqui) — restrito ao Owner (ver core/deps.get_current_owner
+// no backend), inserida logo após "Auditoria" (as duas são seções de
+// relatório, só leitura).
+const ANALYTICS_SECTION: Section = {
+  key: 'analytics',
+  label: 'Analytics',
+  icon: 'barChart',
+  title: 'Analytics do Daqui',
+  subtitle: 'Frequência de uso, permanência por tela e ações mais feitas pelos vizinhos',
+};
+
 export function Shell() {
   const { me, appUrl, signOut } = useAuth();
   const [active, setActive] = useState('reviews');
@@ -103,9 +115,18 @@ export function Shell() {
   const navigation = useMemo(() => ({ openUser, appUrl }), [openUser, appUrl]);
 
   const sections = useMemo(() => {
-    if (!canManageStaff(me?.staff_role)) return BASE_SECTIONS;
-    const idx = BASE_SECTIONS.findIndex((s) => s.key === 'account');
-    return [...BASE_SECTIONS.slice(0, idx), STAFF_SECTION, ...BASE_SECTIONS.slice(idx)];
+    let list = BASE_SECTIONS;
+    // Ambas inseridas logo antes de "Minha conta" — nesta ordem, pra Owner
+    // ver Auditoria, Analytics e Equipe em sequência.
+    if (isOwner(me?.staff_role)) {
+      const idx = list.findIndex((s) => s.key === 'account');
+      list = [...list.slice(0, idx), ANALYTICS_SECTION, ...list.slice(idx)];
+    }
+    if (canManageStaff(me?.staff_role)) {
+      const idx = list.findIndex((s) => s.key === 'account');
+      list = [...list.slice(0, idx), STAFF_SECTION, ...list.slice(idx)];
+    }
+    return list;
   }, [me?.staff_role]);
 
   const section = sections.find((s) => s.key === active) ?? sections[0];
@@ -125,6 +146,8 @@ export function Shell() {
         return <Trash />;
       case 'audit':
         return <Audit />;
+      case 'analytics':
+        return <Analytics />;
       case 'staff':
         return <Staff />;
       case 'account':

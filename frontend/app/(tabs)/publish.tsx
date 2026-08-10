@@ -20,6 +20,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Palette } from '../../constants/Colors';
 import { DESKTOP_BREAKPOINT, MAX_POST_MEDIA } from '../../constants/config';
 import { CATEGORIES, PostCategory } from '../../data/mock';
+import { trackClick } from '../../lib/analytics';
 import { api, ApiError, ImportantQuota } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useTheme, useThemedStyles } from '../../lib/theme';
@@ -338,6 +339,7 @@ export default function PublishScreen() {
               }
             : undefined,
       });
+      trackClick('publish_post');
       router.replace('/(tabs)');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('publish.errors.publish'));

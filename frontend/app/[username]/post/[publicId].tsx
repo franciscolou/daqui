@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from 're
 import { Palette } from '../../../constants/Colors';
 import { MAX_COMMENT_INDENT_DEPTH } from '../../../constants/config';
 import { CATEGORY_ICONS, Post } from '../../../data/mock';
+import { trackClick } from '../../../lib/analytics';
 import { api, Comment } from '../../../lib/api';
 import { Ad, adsApi } from '../../../lib/adsApi';
 import { formatExactDateTime } from '../../../lib/time';
@@ -264,6 +265,7 @@ export default function PostDetailScreen() {
     setSending(true);
     try {
       const created = await api.addComment(post.id, content, replyingTo?.id, imageUrl);
+      trackClick(replyingTo ? 'reply_comment' : 'comment_post');
       setText('');
       setImageDraft(null);
       setCommentCount((n) => n + 1);

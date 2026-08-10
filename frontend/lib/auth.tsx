@@ -10,6 +10,7 @@ import {
 import { router } from 'expo-router';
 import InfoModal from '../components/InfoModal';
 import { api, loadToken, setForceLogoutHandler, setToken, GoogleAuthResult, LoginResult } from './api';
+import { disableAnalytics, enableAnalytics } from './analytics';
 import { registerPushToken, unregisterPushToken } from './push';
 import { User } from '../data/mock';
 
@@ -151,16 +152,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     showPendingNotice(u);
   }, [showPendingNotice]);
 
-  // Registra o push token do dispositivo sempre que uma sessão fica ativa —
-  // cobre login, verificação de 2FA/e-mail e restauração de sessão no boot
-  // num único lugar, em vez de repetir a chamada nos 3 fluxos.
+  // Registra o push token do dispositivo e liga o tracking de uso sempre que
+  // uma sessão fica ativa — cobre login, verificação de 2FA/e-mail e
+  // restauração de sessão no boot num único lugar, em vez de repetir a
+  // chamada nos 3 fluxos.
   useEffect(() => {
-    if (user) registerPushToken();
+    if (user) {
+      registerPushToken();
+      enableAnalytics();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   const logout = useCallback(async () => {
     await unregisterPushToken();
+    disableAnalytics();
     try {
       await api.logout();
     } catch {

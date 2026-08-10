@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Palette } from '../constants/Colors';
 import { Post, CATEGORY_ICONS } from '../data/mock';
+import { trackClick } from '../lib/analytics';
 import { api } from '../lib/api';
 import { Ad, adsApi } from '../lib/adsApi';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -65,6 +66,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
     // Atualização otimista, com rollback em caso de erro
     const prevLiked = liked;
     const prevCount = likesCount;
+    trackClick(prevLiked ? 'unlike_post' : 'like_post');
     setLiked(!prevLiked);
     setLikesCount(prevLiked ? prevCount - 1 : prevCount + 1);
     setBusy(true);
@@ -84,6 +86,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
     if (repostBusy) return;
     const prevReposted = reposted;
     const prevCount = sharesCount;
+    trackClick(prevReposted ? 'unrepost_post' : 'repost_post');
     setReposted(!prevReposted);
     setSharesCount(prevReposted ? prevCount - 1 : prevCount + 1);
     setRepostBusy(true);

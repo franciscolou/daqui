@@ -15,6 +15,7 @@ class Base(DeclarativeBase):
 
 def create_tables():
     from app.models import (  # noqa: F401
+        analytics,
         audit_log,
         comment,
         geo_cache,

@@ -8,6 +8,7 @@ from app.core.config import UPLOAD_DIR
 from app.database import create_tables
 from app.services import trash as trash_service
 from app.routers import (
+    analytics,
     audit_log,
     auth,
     comments,
@@ -74,6 +75,8 @@ app.include_router(comments.admin_router, prefix="/api/v1")
 app.include_router(search.router, prefix="/api/v1")
 app.include_router(geo.router, prefix="/api/v1")
 app.include_router(ws.router, prefix="/api/v1")
+app.include_router(analytics.router, prefix="/api/v1")
+app.include_router(analytics.admin_router, prefix="/api/v1")
 app.include_router(audit_log.admin_router, prefix="/api/v1")
 app.include_router(staff.admin_router, prefix="/api/v1")
 app.include_router(trash.admin_router, prefix="/api/v1")

@@ -137,6 +137,63 @@ export interface Me {
   two_factor_enabled: boolean;
 }
 
+export interface DailyActiveUsers {
+  date: string;
+  count: number;
+}
+
+export interface ScreenTime {
+  screen: string;
+  avg_duration_seconds: number;
+  views: number;
+}
+
+export interface ScreenExit {
+  screen: string;
+  exits: number;
+}
+
+export interface ClickStat {
+  label: string;
+  screen?: string | null;
+  count: number;
+}
+
+export interface SearchStat {
+  query: string;
+  count: number;
+}
+
+export interface PlatformStat {
+  platform: string;
+  active_users: number;
+}
+
+export interface HourlyStat {
+  hour: string;
+  count: number;
+}
+
+export interface AnalyticsOverview {
+  date_from: string;
+  date_to: string;
+  active_users: number;
+  total_sessions: number;
+  avg_session_duration_seconds: number;
+  total_searches: number;
+  total_clicks: number;
+  new_users: number;
+  returning_users: number;
+  avg_screens_per_session: number;
+  daily_active_users: DailyActiveUsers[];
+  top_screens: ScreenTime[];
+  top_exit_screens: ScreenExit[];
+  top_clicks: ClickStat[];
+  top_searches: SearchStat[];
+  platform_breakdown: PlatformStat[];
+  hourly_activity: HourlyStat[];
+}
+
 export interface TwofaSetup {
   secret: string;
   otpauth_url: string;

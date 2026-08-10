@@ -51,6 +51,12 @@
 
   --sidebar-w: 232px;
   --topbar-h: 60px;
+
+  /* Analytics: plataforma (trio validado — ver ui/charts.tsx) */
+  --platform-web: #2a78d6;
+  --platform-ios: #eb6834;
+  --platform-android: #1baf7a;
+  --compare-series: #94a3b8;
 }
 
 :root[data-theme='dark'] {
@@ -83,6 +89,11 @@
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
   --ring: 0 0 0 3px rgba(34, 197, 94, 0.24);
+
+  --platform-web: #3987e5;
+  --platform-ios: #d95926;
+  --platform-android: #199e70;
+  --compare-series: #64748b;
 }
 
 * {
@@ -1245,12 +1256,19 @@ input[type='file'] {
 }
 
 .bar-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
   font-size: 12px;
   color: var(--text-2);
   margin-bottom: 6px;
+  border-radius: var(--r-sm);
+  outline: none;
+}
+
+.bar-row:focus-visible {
+  box-shadow: var(--ring);
 }
 
 .bar-row .bar-label {
@@ -1754,4 +1772,645 @@ textarea.reply-input {
   margin-top: 12px;
   min-height: 68px;
   font-size: 13px;
+}
+
+/* ── Analytics: animações de entrada ──────────────────────────────────
+   CSS puro (sem JS de estado): dispara sozinha quando o elemento monta —
+   os componentes em ui/charts.tsx recebem `key` do filtro/período em
+   Analytics.tsx pra "re-tocar" a animação quando o usuário muda o recorte. */
+@keyframes analytics-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes analytics-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes analytics-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes analytics-draw-line {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes analytics-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.analytics-fade-in {
+  animation: analytics-fade-in 0.5s ease-out both;
+}
+
+.analytics-grow-x {
+  transform-origin: left center;
+  animation: analytics-grow-x 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.analytics-grow-y {
+  transform-origin: bottom center;
+  animation: analytics-grow-y 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.analytics-draw-line {
+  stroke-dasharray: 100;
+  animation: analytics-draw-line 0.9s ease-out both;
+}
+
+.chart-card,
+.stat {
+  animation: analytics-rise-in 0.35s ease-out both;
+}
+
+/* Escalona a entrada dos cards de KPI/gráfico — cada um espera um pouco
+   mais que o anterior, sem precisar de nenhuma lib de animação. */
+.stats .stat:nth-child(1) { animation-delay: 0ms; }
+.stats .stat:nth-child(2) { animation-delay: 40ms; }
+.stats .stat:nth-child(3) { animation-delay: 80ms; }
+.stats .stat:nth-child(4) { animation-delay: 120ms; }
+.stats .stat:nth-child(5) { animation-delay: 160ms; }
+.stats .stat:nth-child(6) { animation-delay: 200ms; }
+.charts-grid .chart-card:nth-child(1) { animation-delay: 60ms; }
+.charts-grid .chart-card:nth-child(2) { animation-delay: 110ms; }
+.charts-grid .chart-card:nth-child(3) { animation-delay: 160ms; }
+.charts-grid .chart-card:nth-child(4) { animation-delay: 210ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .analytics-fade-in,
+  .analytics-grow-x,
+  .analytics-grow-y,
+  .analytics-draw-line,
+  .chart-card,
+  .stat {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}
+
+/* ── Analytics: refetch mantém o quadro anterior (sem flash/skeleton) ── */
+.analytics-body {
+  transition: opacity 0.15s ease;
+}
+
+.analytics-body.is-refetching {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* ── Analytics: tooltip CSS-only (marcas discretas: barra/coluna/segmento) ──
+   O pai precisa de position:relative + tabIndex (foco por teclado) — o
+   tooltip é filho, escondido por padrão, revelado em hover/focus. */
+.chart-tooltip {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 9px;
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.chart-tooltip .muted {
+  opacity: 0.75;
+  font-weight: 500;
+}
+
+.chart-tooltip-row {
+  bottom: auto;
+  top: 50%;
+  left: auto;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+:is(.hbar-col, .platform-col, .split-seg, .bar-row):hover .chart-tooltip,
+:is(.hbar-col, .platform-col, .split-seg, .bar-row):focus-visible .chart-tooltip,
+:is(.hbar-col, .platform-col, .split-seg, .bar-row):focus-within .chart-tooltip {
+  opacity: 1;
+}
+
+/* ── Analytics: selo de variação (▲/▼ %) ── */
+.bar-delta,
+.stat-delta {
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-delta.good,
+.stat-delta.good {
+  color: var(--primary-ink);
+}
+
+.bar-delta.bad,
+.stat-delta.bad {
+  color: var(--danger-ink);
+}
+
+.stat-delta {
+  margin-top: 4px;
+}
+
+/* ── Analytics: linha de tendência (usuários ativos por dia) ─────────── */
+.trend-chart {
+  position: relative;
+}
+
+.trend-svg {
+  width: 100%;
+  height: 180px;
+  display: block;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.trend-baseline {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.trend-area {
+  fill: var(--primary);
+  opacity: 0.1;
+  stroke: none;
+}
+
+.trend-line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-line-current {
+  stroke: var(--primary);
+}
+
+.trend-line-compare {
+  stroke: var(--compare-series);
+  stroke-dasharray: 100;
+  stroke-width: 2;
+}
+
+.trend-crosshair {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.trend-dot {
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.trend-dot-current {
+  fill: var(--primary);
+}
+
+.trend-dot-compare {
+  fill: var(--compare-series);
+}
+
+.chart-floating-tooltip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--surface);
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  min-width: 120px;
+}
+
+.chart-floating-tooltip .tt-date {
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.chart-floating-tooltip .tt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.chart-floating-tooltip .tt-row.muted {
+  opacity: 0.75;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.legend .dot-current {
+  background: var(--primary);
+}
+
+.legend .dash {
+  display: inline-block;
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed var(--compare-series);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* ── Analytics: atividade por hora do dia ─────────────────────────────── */
+.hbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 130px;
+  padding-top: 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.hbar-col {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  border-radius: var(--r-sm);
+  outline: none;
+}
+
+.hbar-col:focus-visible {
+  box-shadow: var(--ring);
+}
+
+.hbar-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 100%;
+  width: 100%;
+  justify-content: center;
+}
+
+.hbar {
+  width: 6px;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+}
+
+.hbar-current {
+  background: linear-gradient(180deg, var(--primary), var(--primary-strong));
+}
+
+.hbar-compare {
+  background: var(--compare-series);
+  opacity: 0.55;
+}
+
+.hbar-label {
+  font-size: 9px;
+  color: var(--text-3);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+/* ── Analytics: plataforma ─────────────────────────────────────────────── */
+.platform-bars {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
+  height: 150px;
+  padding-top: 10px;
+}
+
+.platform-col {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  border-radius: var(--r-sm);
+  outline: none;
+}
+
+.platform-col:focus-visible {
+  box-shadow: var(--ring);
+}
+
+.platform-bar-track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  width: 100%;
+}
+
+.platform-bar {
+  width: 28px;
+  min-height: 3px;
+  border-radius: 4px 4px 0 0;
+}
+
+.platform-bar-compare {
+  width: 14px;
+  opacity: 0.4;
+}
+
+.platform-value {
+  font-weight: 800;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.platform-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+.platform-label .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Analytics: novos vs recorrentes ──────────────────────────────────── */
+.split-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.split-bar {
+  display: flex;
+  height: 34px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  gap: 2px;
+}
+
+.split-bar-compare {
+  height: 14px;
+  opacity: 0.55;
+}
+
+.split-seg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  transition: filter 0.15s ease;
+}
+
+.split-seg:hover,
+.split-seg:focus-visible {
+  filter: brightness(1.08);
+}
+
+.split-seg-new {
+  background: linear-gradient(90deg, var(--primary), var(--primary-strong));
+}
+
+.split-seg-returning {
+  background: var(--text-3);
+}
+
+.split-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+}
+
+/* ── Analytics: painel de comparação de período ───────────────────────── */
+.compare-toggle.active {
+  background: var(--primary-faint);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+
+.compare-panel {
+  padding: 16px;
+  margin: -6px 0 18px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.compare-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.compare-panel-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  color: var(--primary-ink);
+  background: var(--primary-faint);
+  border: 1px solid var(--primary-tint);
+  border-radius: 10px;
+}
+
+.compare-panel-head strong,
+.compare-panel-head span {
+  display: block;
+}
+
+.compare-panel-head strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.compare-panel-head span {
+  margin-top: 1px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.compare-panel-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 0.7fr) minmax(210px, 1.05fr) minmax(210px, auto);
+  grid-template-areas: "date duration summary summary";
+  gap: 12px;
+  align-items: end;
+  min-width: 0;
+}
+
+.compare-panel-controls.has-reset {
+  grid-template-areas: "date duration summary action";
+}
+
+.compare-panel-controls > .field:first-child {
+  grid-area: date;
+}
+
+.compare-panel-controls > .field:nth-child(2) {
+  grid-area: duration;
+}
+
+.compare-duration-input {
+  position: relative;
+}
+
+.compare-duration-input input {
+  padding-right: 48px;
+}
+
+.compare-duration-input span {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  color: var(--text-3);
+  font-size: 12px;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.compare-range-summary {
+  grid-area: summary;
+  min-width: 0;
+  display: flex;
+  min-height: 42px;
+  padding: 6px 12px;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-md);
+}
+
+.compare-range-summary span {
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.compare-range-summary strong {
+  color: var(--text-2);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compare-reset {
+  grid-area: action;
+  gap: 7px;
+  height: 42px;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .compare-panel-controls {
+    grid-template-columns: minmax(180px, 1fr) minmax(140px, 0.7fr) minmax(210px, 1fr);
+    grid-template-areas: "date duration summary";
+  }
+
+  .compare-panel-controls.has-reset {
+    grid-template-areas:
+      "date duration summary"
+      ". action action";
+  }
+
+  .compare-reset {
+    width: max-content;
+    max-width: 100%;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 700px) {
+  .compare-panel-controls {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "date duration"
+      "summary summary";
+  }
+
+  .compare-panel-controls.has-reset {
+    grid-template-areas:
+      "date duration"
+      "summary summary"
+      "action action";
+  }
+
+  .compare-range-summary,
+  .compare-reset {
+    width: 100%;
+  }
+
+  .compare-reset {
+    justify-content: center;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 460px) {
+  .compare-panel-controls {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "date"
+      "duration"
+      "summary";
+  }
+
+  .compare-panel-controls.has-reset {
+    grid-template-areas:
+      "date"
+      "duration"
+      "summary"
+      "action";
+  }
 }

@@ -33,6 +33,18 @@ TYPING_TTL_SECONDS = 4.0
 # em vez de esperar o próximo tick.
 WS_POLL_INTERVAL_SECONDS = 2.0
 
+# Analytics (ver models/analytics.py, services/analytics.py)
+# Lote de eventos que o cliente reporta de uma vez em POST /analytics/events.
+ANALYTICS_MAX_EVENTS_PER_BATCH = 50
+# Quantos itens aparecem em cada ranking (telas, cliques, buscas) no overview
+# por padrão — o moderator pode pedir mais via `limit`, até ANALYTICS_MAX_TOP_N.
+ANALYTICS_TOP_N = 10
+ANALYTICS_MAX_TOP_N = 20
+ANALYTICS_MAX_QUERY_LENGTH = 200
+ANALYTICS_MAX_LABEL_LENGTH = 80
+# Período do overview quando o moderator não passa date_from/date_to.
+ANALYTICS_DEFAULT_RANGE_DAYS = 30
+
 # Geocoding (ver core/geocoding/{here,nominatim}.py)
 HERE_TIMEOUT_SECONDS = 6.0
 NOMINATIM_TIMEOUT_SECONDS = 8.0
