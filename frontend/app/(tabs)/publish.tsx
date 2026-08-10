@@ -437,7 +437,7 @@ export default function PublishScreen() {
               <View style={[styles.importantIcon, isImportant && styles.importantIconActive]}>
                 <Ionicons name="alert-circle" size={18} color={isImportant ? '#fff' : Colors.error} />
               </View>
-              <View>
+              <View style={styles.importantTextWrap}>
                 <Text style={styles.importantLabel}>{t('publish.important.label')}</Text>
                 <Text style={styles.importantDesc}>
                   {importantQuotaExhausted && importantQuota
@@ -448,6 +448,11 @@ export default function PublishScreen() {
                           i18n.language,
                           (count) => t('publish.important.days', { count }),
                         ),
+                      })
+                    : importantQuota
+                    ? t('publish.important.remaining', {
+                        count: importantQuota.remaining,
+                        limit: importantQuota.limit,
                       })
                     : t('publish.important.description')}
                 </Text>
@@ -978,6 +983,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     justifyContent: 'center',
   },
   importantIconActive: { backgroundColor: Colors.error },
+  importantTextWrap: { flexShrink: 1 },
   importantLabel: { fontSize: 14, fontWeight: '700', color: Colors.text },
   importantDesc: { fontSize: 12, color: Colors.textTertiary, marginTop: 1 },
   toggle: {
@@ -987,6 +993,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.border,
     justifyContent: 'center',
     paddingHorizontal: 3,
+    flexShrink: 0,
   },
   toggleActive: { backgroundColor: Colors.primary },
   toggleThumb: {

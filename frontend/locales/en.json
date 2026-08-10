@@ -1441,6 +1441,7 @@
     "important": {
       "label": "Mark as important",
       "description": "Notifies neighbors in the neighborhood (and nearby areas for people with \"Include nearby areas\" enabled)",
+      "remaining": "Notifies neighbors in the neighborhood. You still have {{count}} of {{limit}} this month.",
       "exhausted": "You've used the monthly limit of {{limit}} important posts. Renews in {{reset}}.",
       "days_one": "1 day",
       "days_other": "{{count}} days"

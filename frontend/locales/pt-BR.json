@@ -1095,6 +1095,7 @@
     "important": {
       "label": "Marcar como importante",
       "description": "Notifica os vizinhos do bairro (e as redondezas para quem está com \"Incluir redondezas\" ligado)",
+      "remaining": "Notifica os vizinhos do bairro. Você ainda tem {{count}} de {{limit}} neste mês.",
       "exhausted": "Limite de {{limit}} posts importantes usado este mês. Renova em {{reset}}.",
       "days_one": "1 dia",
       "days_other": "{{count}} dias"
