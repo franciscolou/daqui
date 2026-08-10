@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setApiBase(apiBase);
     setToken(accessToken);
     try {
-      const profile = await api.get<Me>('/auth/me');
+      const profile = await api.get<Me>('/ads-admin/auth/me');
       setMe(profile);
       return profile;
     } catch (e) {
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    setMe(await api.get<Me>('/auth/me'));
+    setMe(await api.get<Me>('/ads-admin/auth/me'));
   }, []);
 
   const value = useMemo(() => ({ me, signIn, signOut, refresh }), [me, signIn, signOut, refresh]);

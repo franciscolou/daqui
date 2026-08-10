@@ -1,25 +1,24 @@
 # Daqui · Painel de Anúncios
 
-Painel interno do time de anúncios. Fala com o **ads-backend** (porta 8001), que tem login
-próprio — separado das contas do app Daqui.
+Painel interno do time de anúncios. Fala com o **backend do Daqui** (porta 8000, rotas
+`/ads-admin/*`), com login próprio de `AdAdmin` — separado das contas do app Daqui (`User`).
 
 App React + TypeScript, build com Vite.
 
 ## Como rodar
 
-1. Suba o ads-backend (porta 8001). Seed inicial, se ainda não fez:
+1. Suba o backend (porta 8000). Seed inicial, se ainda não fez:
    ```bash
-   cd ../ads-backend
-   .venv/bin/python -m app.seed_admin   # login: ads@daqui.com / senha123
-   .venv/bin/python -m app.seed_plans
+   cd ../backend
+   .venv/bin/python -m app.seed_ads_admin   # login: ads@daqui.com / senha123
+   .venv/bin/python -m app.seed_ads_plans
    ```
 2. Instale e suba o painel:
    ```bash
    npm install
    npm run dev     # http://localhost:8091
    ```
-3. No painel, confirme o "Servidor do ads-backend" (padrão `http://localhost:8001/api/v1`)
-   e faça login.
+3. No painel, confirme o "Servidor" (padrão `http://localhost:8000/api/v1`) e faça login.
 
 `./dev.sh` na raiz do repositório sobe tudo de uma vez.
 
@@ -40,7 +39,7 @@ funcionam no app (aba "Novo post"), via `react-native-web`.
 
 | Campo | Componente | Fonte de dados |
 | --- | --- | --- |
-| Localização do pin do anúncio | `LocationAutocompleteInput` + `LocationPickerModal` | `/geo/search` do ads-backend (Nominatim + HERE, com cache) |
+| Localização do pin do anúncio | `LocationAutocompleteInput` + `LocationPickerModal` | `/ads-admin/geo/search` (Nominatim + HERE, com cache) |
 | Bairros da segmentação | `NeighborhoodPicker` + `NeighborhoodMapPickerModal` | Nominatim puro (busca e reverso) |
 | Cidade / cidades | `CityPicker` | Nominatim puro |
 
@@ -52,8 +51,9 @@ O que faz isso funcionar (ver `vite.config.ts`):
   glyphmap saem do pacote original), sem arrastar o runtime do Expo pro bundle.
 
 Os componentes pedem o backend de geocodificação a um contexto (`frontend/lib/geoProvider.tsx`)
-em vez de importarem o cliente do app: aqui o `DaquiProviders` liga esse contexto ao ads-backend
-e libera o pin em qualquer ponto do país (no app, o local fica restrito ao bairro do usuário).
+em vez de importarem o cliente do app: aqui o `DaquiProviders` liga esse contexto a
+`/ads-admin/geo/search` e libera o pin em qualquer ponto do país (no app, o local fica restrito
+ao bairro do usuário).
 
 ## Seções
 

@@ -37,7 +37,7 @@ export function Login() {
     setBusy(true);
     try {
       const data = await api.public<LoginResponse>(
-        '/auth/login',
+        '/ads-admin/auth/login',
         { email: email.trim(), password },
         base(),
       );
@@ -60,7 +60,7 @@ export function Login() {
     setBusy(true);
     try {
       const data = await api.public<LoginResponse>(
-        '/auth/login/2fa',
+        '/ads-admin/auth/login/2fa',
         { ticket, code: code.trim() },
         base(),
       );
@@ -82,7 +82,7 @@ export function Login() {
     }
     setBusy(true);
     try {
-      await api.public('/auth/forgot-password', { email: value }, base());
+      await api.public('/ads-admin/auth/forgot-password', { email: value }, base());
       setForgotMsg(
         'Se este e-mail estiver cadastrado, você receberá um link para redefinir a senha.',
       );
@@ -111,7 +111,7 @@ export function Login() {
         {step === 'creds' && (
           <>
             <div className="auth-fields">
-              <Field label="Servidor do ads-backend">
+              <Field label="Servidor da API">
                 <input value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} />
               </Field>
               <Field label="E-mail">

@@ -24,9 +24,10 @@ interface NominatimReverse {
   address?: Record<string, string>;
 }
 
-// O ads-backend não tem `/geo/resolve` (é rota do backend do app, ligada ao
-// bairro do usuário logado). Aqui a geocodificação reversa serve só pra
-// mostrar o endereço do ponto clicado no mapa, então o Nominatim puro basta.
+// `/geo/resolve` exige um User logado (é escopado ao bairro dele) — não serve
+// aqui, onde quem busca é um AdAdmin sem bairro próprio. A geocodificação
+// reversa serve só pra mostrar o endereço do ponto clicado no mapa, então o
+// Nominatim puro basta.
 async function reverseGeocode(latitude: number, longitude: number): Promise<GeoResolution> {
   const fallback = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
   try {
@@ -66,7 +67,7 @@ export function DaquiProviders({ children }: { children: React.ReactNode }) {
       // serviria: o anunciante precisa do endereço exato do anúncio, e o
       // Nominatim sozinho costuma não indexar número em rua residencial.
       searchAddress: (query: string) =>
-        api.post<GeoSearchResult[]>('/geo/search', { query }).catch(() => []),
+        api.post<GeoSearchResult[]>('/ads-admin/geo/search', { query }).catch(() => []),
       resolveLocation: reverseGeocode,
     }),
     [],

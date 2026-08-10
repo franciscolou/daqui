@@ -1,12 +1,15 @@
-// Cliente do ads-backend — um serviço HTTP separado do backend do Daqui
-// (ver plano de infraestrutura de anunciantes). Por isso este arquivo, e não
-// lib/api.ts: aqui há literalmente dois backends distintos.
+// Cliente do domínio de anúncios (rotas /ads/* do backend principal) — fica
+// isolado de lib/api.ts porque as respostas vêm com seu próprio formato
+// BackendXxx/mapXxx e sem token de usuário anexado (ver getAd/toggleAdLike,
+// que recebem viewer_id explícito em vez de Authorization: Bearer). Mesmo
+// backend/porta que lib/api.ts (fundido ao ads-backend original); a
+// separação de arquivo é só de organização de código.
 
 import { Platform } from 'react-native';
 
 export const ADS_API_URL =
   process.env.EXPO_PUBLIC_ADS_API_URL?.replace(/\/$/, '') ??
-  'http://localhost:8001/api/v1';
+  'http://localhost:8000/api/v1';
 
 export class AdsApiError extends Error {
   status: number;

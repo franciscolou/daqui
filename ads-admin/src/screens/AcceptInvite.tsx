@@ -20,7 +20,7 @@ export function AcceptInvite({ token, onDone }: { token: string; onDone: () => v
   const base = () => apiUrl.trim().replace(/\/$/, '');
 
   const invite = useAsync<InviteInfo>(
-    () => api.publicGet<InviteInfo>(`/admin/staff/invite?token=${encodeURIComponent(token)}`, base()),
+    () => api.publicGet<InviteInfo>(`/ads-admin/staff/invite?token=${encodeURIComponent(token)}`, base()),
     [apiUrl],
   );
 
@@ -44,7 +44,7 @@ export function AcceptInvite({ token, onDone }: { token: string; onDone: () => v
     setBusy(true);
     try {
       await api.public(
-        '/admin/staff/accept-invite',
+        '/ads-admin/staff/accept-invite',
         { token, username: username.trim(), password },
         base(),
       );
@@ -83,7 +83,7 @@ export function AcceptInvite({ token, onDone }: { token: string; onDone: () => v
           <>
             <p className="muted">{invite.error || 'Convite inválido ou expirado.'}</p>
             <div className="auth-fields" style={{ marginTop: 16 }}>
-              <Field label="Servidor do ads-backend">
+              <Field label="Servidor da API">
                 <input value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} />
               </Field>
             </div>

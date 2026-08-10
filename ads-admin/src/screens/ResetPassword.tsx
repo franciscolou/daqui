@@ -28,7 +28,7 @@ export function ResetPassword({ token, onDone }: { token: string; onDone: () => 
     setBusy(true);
     try {
       await api.public(
-        '/auth/reset-password',
+        '/ads-admin/auth/reset-password',
         { token, new_password: password },
         apiUrl.trim().replace(/\/$/, ''),
       );
@@ -65,7 +65,7 @@ export function ResetPassword({ token, onDone }: { token: string; onDone: () => 
         ) : (
           <>
             <div className="auth-fields">
-              <Field label="Servidor do ads-backend">
+              <Field label="Servidor da API">
                 <input value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} />
               </Field>
               <Field label="Nova senha">

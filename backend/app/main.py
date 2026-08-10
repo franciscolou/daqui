@@ -1,13 +1,20 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.core.config import UPLOAD_DIR
-from app.database import create_tables
-from app.services import trash as trash_service
+from app.core.config import EXPIRE_CAMPAIGNS_INTERVAL_SECONDS, UPLOAD_DIR
+from app.daos import ad as ad_dao
+from app.database import SessionLocal, create_tables
 from app.routers import (
+    ad_admin_auth,
+    ad_audit_log,
+    ad_geo,
+    ad_staff,
+    ads,
     analytics,
     audit_log,
     auth,
@@ -27,17 +34,38 @@ from app.routers import (
     users,
     ws,
 )
+from app.services import trash as trash_service
+
+logger = logging.getLogger(__name__)
+
+
+async def _expire_ad_campaigns_loop() -> None:
+    """Único "job" de expiração de campanhas de anúncio: roda em processo,
+    sem depender de infra externa (scheduler/cron/lambda) — troca por
+    EventBridge+Lambda (ou equivalente) chamando o mesmo
+    `ad_dao.expire_due_campaigns` quando for pra produção (ver "Estado em
+    memória de processo único" no CLAUDE.md)."""
+    while True:
+        db = SessionLocal()
+        try:
+            ad_dao.expire_due_campaigns(db)
+        except Exception:
+            logger.exception("Falha ao expirar campanhas de anúncio vencidas")
+        finally:
+            db.close()
+        await asyncio.sleep(EXPIRE_CAMPAIGNS_INTERVAL_SECONDS)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
     # Garante a retenção mesmo que ninguém abra a tela da lixeira após o prazo.
-    from app.database import SessionLocal
-
     with SessionLocal() as db:
         trash_service.purge_expired(db)
+
+    task = asyncio.create_task(_expire_ad_campaigns_loop())
     yield
+    task.cancel()
 
 
 app = FastAPI(
@@ -80,6 +108,16 @@ app.include_router(analytics.admin_router, prefix="/api/v1")
 app.include_router(audit_log.admin_router, prefix="/api/v1")
 app.include_router(staff.admin_router, prefix="/api/v1")
 app.include_router(trash.admin_router, prefix="/api/v1")
+
+# Anúncios — público (app Daqui) e painel do time interno (ads-admin/),
+# prefixos "/ads-admin/*" pra não colidir com auth/staff/audit-logs acima
+# (AdAdmin é um ator separado de User, ver core/deps.py).
+app.include_router(ads.router, prefix="/api/v1")
+app.include_router(ads.admin_router, prefix="/api/v1")
+app.include_router(ad_admin_auth.router, prefix="/api/v1")
+app.include_router(ad_staff.admin_router, prefix="/api/v1")
+app.include_router(ad_audit_log.admin_router, prefix="/api/v1")
+app.include_router(ad_geo.admin_router, prefix="/api/v1")
 
 # Arquivos enviados (ex.: fotos de perfil) servidos em /uploads
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

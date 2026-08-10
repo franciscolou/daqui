@@ -31,6 +31,17 @@ def validate(value: str) -> str:
     return normalized
 
 
+def suggest_from_email(email: str) -> str:
+    """Handle plausível a partir do e-mail (parte antes do @), já saneado.
+
+    Usado como ponto de partida: no bootstrap de contas que existiam antes da
+    coluna `username` e no convite de novas contas (User e AdAdmin).
+    """
+    local = normalize(email).split("@", 1)[0]
+    cleaned = re.sub(r"[^a-z0-9._]", "", local).strip("._") or "usuario"
+    return cleaned[:18].ljust(3, "0")
+
+
 def mention_pattern(handle: str) -> re.Pattern[str]:
     """Casa exatamente `@handle` dentro de um texto já publicado.
 

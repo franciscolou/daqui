@@ -43,7 +43,7 @@ function AvatarCard() {
     }
     setBusy(true);
     try {
-      await api.uploadFile('/auth/me/avatar', file);
+      await api.uploadFile('/ads-admin/auth/me/avatar', file);
       await refresh();
     } catch (e) {
       setError(errorMessage(e));
@@ -61,7 +61,7 @@ function AvatarCard() {
     setError('');
     setBusy(true);
     try {
-      await api.del('/auth/me/avatar');
+      await api.del('/ads-admin/auth/me/avatar');
       await refresh();
     } catch (e) {
       setError(errorMessage(e));
@@ -138,7 +138,7 @@ function PasswordCard() {
     }
     setBusy(true);
     try {
-      await api.post('/auth/change-password', { current_password: current, new_password: next });
+      await api.post('/ads-admin/auth/change-password', { current_password: current, new_password: next });
       setCurrent('');
       setNext('');
       setConfirm('');
@@ -208,7 +208,7 @@ function TwoFactorCard() {
   const dialogs = useDialogs();
   const { refresh } = useAuth();
   const me = useAsync<{ two_factor_enabled: boolean }>(() =>
-    api.get<{ two_factor_enabled: boolean }>('/auth/me'),
+    api.get<{ two_factor_enabled: boolean }>('/ads-admin/auth/me'),
   );
 
   const [setup, setSetup] = useState<TwofaSetup | null>(null);
@@ -228,7 +228,7 @@ function TwoFactorCard() {
   const startSetup = async () => {
     setError('');
     try {
-      setSetup(await api.post<TwofaSetup>('/auth/2fa/setup'));
+      setSetup(await api.post<TwofaSetup>('/ads-admin/auth/2fa/setup'));
       setCode('');
     } catch (e) {
       dialogs.alert(errorMessage(e), 'Erro');
@@ -238,7 +238,7 @@ function TwoFactorCard() {
   const enable = async () => {
     setError('');
     try {
-      await api.post('/auth/2fa/enable', { code: code.trim() });
+      await api.post('/ads-admin/auth/2fa/enable', { code: code.trim() });
       await reload();
     } catch (e) {
       setError(errorMessage(e));
@@ -253,7 +253,7 @@ function TwoFactorCard() {
     if (!ok) return;
     setError('');
     try {
-      await api.post('/auth/2fa/disable', { code: code.trim() });
+      await api.post('/ads-admin/auth/2fa/disable', { code: code.trim() });
       await reload();
     } catch (e) {
       setError(errorMessage(e));

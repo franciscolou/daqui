@@ -1,7 +1,8 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from app.core.deps import get_current_user, get_db
+from app.core.deps import get_current_ad_admin, get_current_user, get_db
+from app.models.ad_admin import AdAdmin
 from app.models.user import User
 from app.schemas.geo import (
     GeocodeRequest,
@@ -41,3 +42,13 @@ def search_address(
     current_user: User = Depends(get_current_user),
 ) -> list[GeocodeResult]:
     return geo.search_within(payload.query, current_user.neighborhood, db)
+
+
+def ads_search_address(
+    payload: SearchRequest,
+    db: Session = Depends(get_db),
+    _admin: AdAdmin = Depends(get_current_ad_admin),
+) -> list[GeocodeResult]:
+    # Admin-only: usado pelo ads-admin pra buscar o pin do anúncio (mapa) —
+    # sem filtro de bairro, ao contrário de search_address acima.
+    return geo.search(payload.query, db)

@@ -154,3 +154,80 @@ def decode_google_signup_ticket(token: str) -> dict:
     if payload.get("scope") != "google_signup":
         raise JWTError("Ticket de cadastro Google inválido")
     return payload
+
+
+# --- Painel de anúncios (AdAdmin) ---------------------------------------
+#
+# AdAdmin é um ator completamente separado de User (time interno de
+# anúncios, não morador do app) mas compartilha processo/SECRET_KEY com o
+# resto do backend desde a fusão do ads-backend. Todo token/ticket de AdAdmin
+# carrega um `scope` próprio (prefixo "ads_"), nunca reaproveitado pelos
+# tickets de User acima. Isso garante DOIS sentidos de isolamento:
+#   1. Um token de AdAdmin nunca autentica como User: `_decode_access_payload`
+#      (usado por get_current_user) já rejeita qualquer payload com `scope`
+#      preenchido — o token de acesso normal do AdAdmin usa scope="ads_admin"
+#      de propósito, então cai nessa rejeição de graça.
+#   2. Um ticket/token de User (2fa/password_reset/staff_invite, mesmos nomes
+#      de scope que existiam no ads-backend antes da fusão) nunca é aceito
+#      pelos decoders abaixo, porque cada um exige seu próprio scope "ads_*"
+#      exato — sem isso, um convite de staff do Daqui (scope="staff_invite")
+#      seria aceito pelo "aceitar convite" do painel de anúncios e criaria
+#      uma conta AdAdmin pro e-mail/role do token alheio.
+def create_ads_admin_access_token(subject: Any) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    payload = {"sub": str(subject), "scope": "ads_admin", "exp": expire}
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_ads_admin_access_token(token: str) -> str:
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    if payload.get("scope") != "ads_admin":
+        raise JWTError("Token de acesso inválido")
+    return payload["sub"]
+
+
+def create_ads_2fa_ticket(subject: Any) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=_TWOFA_TICKET_MINUTES)
+    payload = {"sub": str(subject), "scope": "ads_2fa", "exp": expire}
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_ads_2fa_ticket(token: str) -> str:
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    if payload.get("scope") != "ads_2fa":
+        raise JWTError("Ticket de A2F inválido")
+    return payload["sub"]
+
+
+def create_ads_password_reset_token(subject: Any) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=_PASSWORD_RESET_TOKEN_MINUTES)
+    payload = {"sub": str(subject), "scope": "ads_password_reset", "exp": expire}
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_ads_password_reset_token(token: str) -> str:
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    if payload.get("scope") != "ads_password_reset":
+        raise JWTError("Link de redefinição inválido")
+    return payload["sub"]
+
+
+def create_ads_staff_invite_token(email: str, role: str, invited_by: int) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=_STAFF_INVITE_TOKEN_MINUTES)
+    payload = {
+        "sub": email,
+        "role": role,
+        "invited_by": str(invited_by),
+        "scope": "ads_staff_invite",
+        "exp": expire,
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_ads_staff_invite_token(token: str) -> dict:
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    if payload.get("scope") != "ads_staff_invite":
+        raise JWTError("Convite inválido")
+    return payload

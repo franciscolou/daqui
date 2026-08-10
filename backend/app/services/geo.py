@@ -135,6 +135,52 @@ def geocode_within(address: str, neighborhood: str, db: Session) -> GeoResult:
     return result
 
 
+def search(query: str, db: Session, limit: int = 6) -> list[GeocodeResult]:
+    """Sugestões de endereço pro pin do anúncio (autocomplete do painel de
+    anúncios) — ao contrário de `search_within`, sem filtro de bairro: um
+    anúncio pode ficar em qualquer lugar do Brasil, e quem busca é um
+    AdAdmin (sem bairro próprio), não um User do app."""
+    query = (query or "").strip()
+    if not query:
+        return []
+
+    cache_key = f"{_norm(query)}|{limit}"
+    if cached := _cache_get(db, GeoCacheKind.SEARCH, cache_key):
+        return [GeocodeResult(**item) for item in cached]
+
+    results = geocoding.search(query, limit=limit)
+
+    # Mesmo dedupe de search_within: o rótulo enxuto (sem CEP) pode repetir
+    # pra pontos distintos do OSM; sem o CEP pra diferenciar, mostrar os dois
+    # seria só ruído.
+    seen: set[str] = set()
+    deduped: list[GeoResult] = []
+    for r in results:
+        key = _norm(r["display_name"])
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(r)
+
+    final = deduped[:limit]
+    payload = [
+        {"latitude": r["latitude"], "longitude": r["longitude"], "label": r["display_name"]}
+        for r in final
+    ]
+    if payload:  # lista vazia nunca é cacheada — mesma razão de search_within
+        providers = sorted({r["provider"] for r in final})
+        degraded = geocoding.expects_here(query) and "here" not in providers
+        _cache_put(
+            db,
+            GeoCacheKind.SEARCH,
+            cache_key,
+            payload,
+            provider="+".join(providers),
+            ttl=_GEO_CACHE_TTL_DEGRADED if degraded else None,
+        )
+    return [GeocodeResult(**item) for item in payload]
+
+
 def geocode(address: str, neighborhood: str, db: Session) -> GeocodeResult:
     result = geocode_within(address, neighborhood, db)
     return GeocodeResult(

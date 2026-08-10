@@ -37,7 +37,7 @@ export function Audit() {
     if (applied) params.set('actor', applied);
     actions.forEach((action) => params.append('action', action));
     const qs = params.toString();
-    return api.get<AdAuditLog[]>(`/admin/audit-logs${qs ? `?${qs}` : ''}`);
+    return api.get<AdAuditLog[]>(`/ads-admin/audit-logs${qs ? `?${qs}` : ''}`);
   }, [applied, actions]);
 
   const submitSearch = () => setApplied(draft);

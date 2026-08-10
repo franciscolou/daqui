@@ -25,7 +25,7 @@ export function Staff() {
   const dialogs = useDialogs();
   const { me } = useAuth();
   const { data, loading, error, reload } = useAsync<StaffAccount[]>(() =>
-    api.get<StaffAccount[]>('/admin/staff'),
+    api.get<StaffAccount[]>('/ads-admin/staff'),
   );
   const [inviteOpen, setInviteOpen] = useState(false);
   const [renaming, setRenaming] = useState<StaffAccount | null>(null);
@@ -57,7 +57,7 @@ export function Staff() {
       title: 'Suspender conta',
       confirmLabel: 'Suspender',
     });
-    if (ok) await act(() => api.post(`/admin/staff/${s.id}/suspend`));
+    if (ok) await act(() => api.post(`/ads-admin/staff/${s.id}/suspend`));
   };
 
   const unsuspend = async (s: StaffAccount) => {
@@ -66,7 +66,7 @@ export function Staff() {
       confirmLabel: 'Reativar',
       danger: false,
     });
-    if (ok) await act(() => api.del(`/admin/staff/${s.id}/suspend`));
+    if (ok) await act(() => api.del(`/ads-admin/staff/${s.id}/suspend`));
   };
 
   const remove = async (s: StaffAccount) => {
@@ -74,7 +74,7 @@ export function Staff() {
       `Excluir a conta de ${s.email}? Esta ação não pode ser desfeita.`,
       { title: 'Excluir conta', confirmLabel: 'Excluir' },
     );
-    if (ok) await act(() => api.del(`/admin/staff/${s.id}`));
+    if (ok) await act(() => api.del(`/ads-admin/staff/${s.id}`));
   };
 
   return (
@@ -188,7 +188,7 @@ function InviteStaffModal({
     setError('');
     setBusy(true);
     try {
-      await api.post('/admin/staff/invite', { email: email.trim(), role });
+      await api.post('/ads-admin/staff/invite', { email: email.trim(), role });
       await onInvited(email.trim());
     } catch (e) {
       setError(errorMessage(e));
@@ -254,7 +254,7 @@ function RenameStaffModal({
     setError('');
     setBusy(true);
     try {
-      await api.patch(`/admin/staff/${account.id}/username`, { username: username.trim() });
+      await api.patch(`/ads-admin/staff/${account.id}/username`, { username: username.trim() });
       await onRenamed();
     } catch (e) {
       setError(errorMessage(e));

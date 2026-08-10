@@ -1,12 +1,13 @@
 // Ponte entre os componentes de local (LocationAutocompleteInput,
 // LocationPickerModal) e QUAL backend responde pelas buscas de endereço.
 //
-// Por que existe: os mesmos componentes rodam em dois apps com backends e
-// autenticações diferentes — o Daqui (backend :8000, token do usuário, busca
-// restrita ao bairro dele) e o painel ads-admin (ads-backend :8001, token de
-// admin, busca livre no Brasil). Em vez de importar `lib/api` direto (o que
-// amarraria os componentes ao Daqui e arrastaria o cliente HTTP inteiro pro
-// bundle do painel), eles pedem as funções a este contexto.
+// Por que existe: os mesmos componentes rodam em dois apps com autenticações
+// diferentes contra o mesmo backend (:8000) — o Daqui (token do usuário,
+// busca restrita ao bairro dele, `/geo/search`) e o painel ads-admin (token
+// de AdAdmin, busca livre no Brasil, `/ads-admin/geo/search`). Em vez de
+// importar `lib/api` direto (o que amarraria os componentes ao Daqui e
+// arrastaria o cliente HTTP inteiro pro bundle do painel), eles pedem as
+// funções a este contexto.
 //
 // Quem monta a árvore decide a implementação: o app Daqui em `app/_layout.tsx`
 // (ver `DaquiGeoProvider` abaixo), o ads-admin no seu próprio provider.

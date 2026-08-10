@@ -10,9 +10,9 @@ declare global {
 
 const runtime = typeof window !== 'undefined' ? window.DAQUI_CONFIG ?? {} : {};
 
-/** Base do ads-backend (login próprio do time de anúncios). */
+/** Base do backend do Daqui (rotas /ads-admin/*, login próprio do time de anúncios). */
 export const DEFAULT_API_URL =
-  runtime.API_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:8001/api/v1';
+  runtime.API_URL ?? import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 
 /** App Daqui — onde vive o painel do próprio anunciante. */
 export const APP_URL = (

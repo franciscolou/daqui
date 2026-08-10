@@ -1,5 +1,5 @@
 """Envio de e-mail transacional, isolado atrás de uma função — mesmo padrão de
-`ads-backend/app/core/payments.py` para o Stripe. Implementação: Resend.
+`app/core/payments.py` para o Stripe. Implementação: Resend.
 
 Em `ENVIRONMENT=development`, não chama o Resend: loga o e-mail (com o link/
 código) no console, para dar pra testar o fluxo real de ponta a ponta sem

@@ -32,6 +32,11 @@ _VIDEO_EXTS = {
 _MAX_VIDEO_BYTES = 30 * 1024 * 1024  # 30 MB
 
 
+def is_image_upload(file: UploadFile) -> bool:
+    """Só o mime — barato o bastante pra recusar antes de gravar em disco."""
+    return (file.content_type or "").lower() in _IMAGE_EXTS
+
+
 def save_data_url_image(base_url: str, data_url: str, prefix: str) -> str:
     """Decodifica um data URL base64, grava em UPLOAD_DIR e devolve a URL pública.
 
