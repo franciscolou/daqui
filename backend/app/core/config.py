@@ -27,11 +27,14 @@ REPORT_MAX_COMMENT_LENGTH = 3000  # denúncias
 # Uma entrada de "digitando" expira sozinha após TYPING_TTL_SECONDS sem novo
 # aviso — não precisa de limpeza explícita, só filtramos pela idade na leitura.
 TYPING_TTL_SECONDS = 4.0
-# Sem infra de pub/sub: cada conexão do /ws faz polling periódico no banco.
-# Suficiente pra escala do app (SQLite, um processo uvicorn); notificação nova
-# e suspensão de conta interrompem a espera na hora via realtime_registry.wake()
-# em vez de esperar o próximo tick.
-WS_POLL_INTERVAL_SECONDS = 2.0
+# Todo evento relevante (mensagem, mensagem de grupo, digitando, notificação,
+# suspensão de conta) chama `realtime_registry.wake()` e interrompe a espera
+# na hora — o polling deixou de ser o mecanismo principal de entrega, então
+# este intervalo só serve de heartbeat de segurança (cobre bug de plumbing no
+# wake() e o caso raro de conexão que perdeu o wake por timing). Sem infra de
+# pub/sub entre réplicas (ver CLAUDE.md, "Estado em memória de processo
+# único") — `wake()` só alcança conexões na mesma réplica.
+WS_POLL_INTERVAL_SECONDS = 30.0
 
 # Analytics (ver models/analytics.py, services/analytics.py)
 # Lote de eventos que o cliente reporta de uma vez em POST /analytics/events.

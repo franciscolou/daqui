@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
+from app.core import realtime_registry
 from app.core.uploads import save_data_url_image, save_upload_media
 from app.daos import group as group_dao
 from app.daos import user as user_dao
@@ -388,6 +389,9 @@ def send_message(
     for other_member in group_dao.list_members(db, group.id):
         if other_member.user_id == user.id:
             continue
+        # Acorda o polling do /ws na hora, independente de mute/notify_messages
+        # (isso só afeta push — mesmo espírito do contador de não-lidas).
+        realtime_registry.wake(other_member.user_id)
         if not other_member.user.notify_messages:
             continue
         if mute_service.get_group_status(db, other_member.user_id, group.id).is_muted:

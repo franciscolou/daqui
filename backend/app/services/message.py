@@ -1,7 +1,7 @@
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core import typing_registry
+from app.core import realtime_registry, typing_registry
 from app.core.uploads import save_upload_media
 from app.daos import comment as comment_dao
 from app.daos import group as group_dao
@@ -177,16 +177,26 @@ def send(db: Session, user: User, payload: MessageCreate) -> Message:
             # `/messages/{username}` sem expor o id sequencial (ver lib/push.ts).
             data={"type": "dm", "userId": user.id, "username": user.username},
         )
+    # Acorda o polling do /ws na hora (mesmo mecanismo de notification_service),
+    # independente de mute/notify_messages — isso só afeta push, não o socket
+    # de quem já está com o app aberto (mesmo espírito do contador de não-lidas).
+    realtime_registry.wake(receiver.id)
     return msg
 
 
 def ping_typing(db: Session, user: User, payload: TypingPing) -> None:
-    """Avisa que `user` está digitando — lido pelo polling do websocket
-    (ver `routers/ws.py`) e repassado a quem está na mesma conversa."""
+    """Avisa que `user` está digitando — guardado em `typing_registry` (memória,
+    sem tocar o banco) e empurrado na hora a quem está na mesma conversa via
+    `realtime_registry.wake()`, em vez de esperar o próximo tick do polling do
+    websocket (ver `routers/ws.py`)."""
     if payload.target_type == MuteKind.DM:
         typing_registry.set_dm_typing(user.id, payload.target_id)
+        realtime_registry.wake(payload.target_id)
     else:
         member = group_dao.get_membership(db, payload.target_id, user.id)
         if not member:
             raise HTTPException(status_code=403, detail="Sem permissão")
         typing_registry.set_group_typing(payload.target_id, user.id)
+        for other_member in group_dao.list_members(db, payload.target_id):
+            if other_member.user_id != user.id:
+                realtime_registry.wake(other_member.user_id)
