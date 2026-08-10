@@ -10,6 +10,7 @@ import { User } from '../data/mock';
 import VideoPlayer from './VideoPlayer';
 import VerifiedBadge from './VerifiedBadge';
 import ActionMenu from './ActionMenu';
+import ReportModal from './ReportModal';
 import { useT } from '../lib/i18n';
 
 // Card de anúncio no feed — mesmo formato visual de um PostCard, mas com
@@ -44,6 +45,8 @@ export default function AdPostCard({
   const [reposted, setReposted] = useState(ad.reposted);
   const [repostsCount, setRepostsCount] = useState(ad.repostsCount);
   const [repostMenuVisible, setRepostMenuVisible] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   useEffect(() => {
     if (!ad.linkedUserId) {
@@ -128,6 +131,13 @@ export default function AdPostCard({
               </>
             )}
           </View>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => setMenuVisible(true)}
+          >
+            <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
+          </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.tagRow}>
@@ -135,6 +145,13 @@ export default function AdPostCard({
             <Ionicons name="megaphone-outline" size={11} color={Colors.accent} />
             <Text style={styles.adTagText}>{t('ads.ad')}</Text>
           </View>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => setMenuVisible(true)}
+          >
+            <Ionicons name="ellipsis-horizontal" size={18} color={Colors.textTertiary} />
+          </TouchableOpacity>
         </View>
       )}
       <Text style={styles.title}>{ad.title}</Text>
@@ -207,6 +224,26 @@ export default function AdPostCard({
           },
         ]}
       />
+
+      <ActionMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        options={[
+          {
+            key: 'report',
+            label: t('report.titles.ad'),
+            icon: 'flag-outline',
+            destructive: true,
+            onPress: () => setReportVisible(true),
+          },
+        ]}
+      />
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        targetType="ad"
+        targetId={String(ad.id)}
+      />
     </Pressable>
   );
 }
@@ -223,7 +260,7 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   // Sem `transition` de propósito — troca de cor de uma vez só ao passar o
   // mouse, não suave (ver comentário acima do Pressable).
   rowHovered: { backgroundColor: Colors.borderLight },
-  tagRow: { flexDirection: 'row', marginBottom: 8 },
+  tagRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   adTag: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,7 +272,13 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
   },
   adTagText: { fontSize: 11, fontWeight: '700', color: Colors.accent },
 
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 8,
+  },
   avatar: { width: 32, height: 32, borderRadius: 16 },
   headerMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, flexWrap: 'wrap' },
   authorName: { fontSize: 14, fontWeight: '700', color: Colors.text, flexShrink: 1 },
@@ -273,4 +316,8 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     marginRight: 4,
   },
   actionCount: { fontSize: 13, color: Colors.textTertiary, fontWeight: '600' },
+  iconBtn: {
+    padding: 6,
+    borderRadius: 14,
+  },
 });

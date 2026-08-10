@@ -1038,7 +1038,8 @@
     "titles": {
       "post": "Denunciar publicação",
       "comment": "Denunciar comentário",
-      "user": "Denunciar perfil"
+      "user": "Denunciar perfil",
+      "ad": "Denunciar anúncio"
     },
     "reason": "Motivo",
     "comment": "Comentário",

@@ -2,10 +2,12 @@ from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.uploads import save_upload_media
+from app.daos import ad as ad_dao
 from app.daos import comment as comment_dao
 from app.daos import post as post_dao
 from app.daos import report as report_dao
 from app.daos import user as user_dao
+from app.models.ad import AdCampaign, AdFormat
 from app.models.audit_log import AuditLogAction
 from app.models.report import (
     REASONS_BY_TARGET,
@@ -17,7 +19,13 @@ from app.models.user import User
 from app.schemas.attachment import AttachmentItem
 from app.schemas.comment import CommentOut
 from app.schemas.post import PostOut
-from app.schemas.report import ReportAdminOut, ReportCreate, ReportOut, ReportStats
+from app.schemas.report import (
+    ReportAdminOut,
+    ReportCreate,
+    ReportedAdOut,
+    ReportOut,
+    ReportStats,
+)
 from app.schemas.user import UserPublic
 from app.services import audit_log as audit_log_service
 
@@ -36,6 +44,8 @@ def submit(db: Session, user: User, payload: ReportCreate) -> ReportOut:
         target = post_dao.get_by_id(db, payload.target_id)
     elif payload.target_type == ReportTargetType.COMMENT:
         target = comment_dao.get_by_id(db, payload.target_id)
+    elif payload.target_type == ReportTargetType.AD:
+        target = ad_dao.get_campaign(db, payload.target_id)
     else:
         target = user_dao.get_by_id(db, payload.target_id)
     if not target:
@@ -55,23 +65,47 @@ def submit(db: Session, user: User, payload: ReportCreate) -> ReportOut:
 
 
 # ── Moderação ─────────────────────────────────────────────────────────
+def _reported_ad_out(campaign: AdCampaign) -> ReportedAdOut:
+    creative = ad_dao.pick_creative(campaign, AdFormat.POST)
+    return ReportedAdOut(
+        id=campaign.id,
+        status=campaign.status,
+        advertiser_name=campaign.advertiser_name,
+        advertiser_email=campaign.advertiser_email,
+        title=creative.title if creative else "",
+        content=creative.content if creative else "",
+        image_url=creative.image_url if creative else None,
+        video_url=creative.video_url if creative else None,
+        target_url=creative.target_url if creative else "",
+        linked_user_id=creative.linked_user_id if creative else None,
+    )
+
+
 def _admin_out(report: Report) -> ReportAdminOut:
     out = ReportAdminOut.model_validate(report)
     out.reporter = UserPublic.model_validate(report.reporter)
     out.post = PostOut.model_validate(report.post) if report.post else None
     out.comment_target = CommentOut.model_validate(report.comment_target) if report.comment_target else None
     out.reported_user = UserPublic.model_validate(report.reported_user) if report.reported_user else None
+    out.ad = _reported_ad_out(report.ad_campaign) if report.ad_campaign else None
     return out
 
 
 def _affected_user_id(report: Report) -> int | None:
-    """Usuário afetado pela denúncia: o autor do conteúdo (ou o perfil denunciado)."""
+    """Usuário afetado pela denúncia: o autor do conteúdo (ou o perfil denunciado).
+    Pra anúncio vinculado a uma conta do Daqui (ver `AdCreative.linked_user_id`),
+    é essa conta; sem vínculo, não há usuário afetado."""
     if report.target_type == ReportTargetType.POST:
         return report.post.author_id if report.post else None
     if report.target_type == ReportTargetType.COMMENT:
         return report.comment_target.author_id if report.comment_target else None
     if report.target_type == ReportTargetType.USER:
         return report.reported_user_id
+    if report.target_type == ReportTargetType.AD:
+        if not report.ad_campaign:
+            return None
+        creative = ad_dao.pick_creative(report.ad_campaign, AdFormat.POST)
+        return creative.linked_user_id if creative else None
     return None
 
 

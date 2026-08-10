@@ -28,6 +28,7 @@ import WideLayout from '../../components/WideLayout';
 import HoverTime from '../../components/HoverTime';
 import ActionMenu from '../../components/ActionMenu';
 import ConfirmModal from '../../components/ConfirmModal';
+import ReportModal from '../../components/ReportModal';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import VideoPlayer from '../../components/VideoPlayer';
 
@@ -53,6 +54,8 @@ export default function AdDetailScreen() {
   const [confirmDeleteComment, setConfirmDeleteComment] = useState<AdComment | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [repostMenuVisible, setRepostMenuVisible] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const campaignId = id ? Number(id) : undefined;
@@ -323,7 +326,13 @@ export default function AdDetailScreen() {
               <Ionicons name="chevron-back" size={22} color={Colors.text} />
             </TouchableOpacity>
             <Text style={styles.topBarTitle}>{t('ads.ad')}</Text>
-            <View style={styles.topBarIconBtn} />
+            <TouchableOpacity
+              style={styles.topBarIconBtn}
+              onPress={() => setMenuVisible(true)}
+              hitSlop={10}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text} />
+            </TouchableOpacity>
           </View>
 
           {loading ? (
@@ -398,6 +407,26 @@ export default function AdDetailScreen() {
             onPress: () => ad && router.push(`/quote/${ad.id}?kind=ad` as any),
           },
         ]}
+      />
+
+      <ActionMenu
+        visible={menuVisible}
+        onClose={() => setMenuVisible(false)}
+        options={[
+          {
+            key: 'report',
+            label: t('report.titles.ad'),
+            icon: 'flag-outline',
+            destructive: true,
+            onPress: () => setReportVisible(true),
+          },
+        ]}
+      />
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        targetType="ad"
+        targetId={campaignId ? String(campaignId) : ''}
       />
 
       <ConfirmModal

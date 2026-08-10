@@ -704,7 +704,7 @@ export interface SupportTicket {
   createdAt: string;
 }
 
-export type ReportTargetType = 'post' | 'comment' | 'user';
+export type ReportTargetType = 'post' | 'comment' | 'user' | 'ad';
 
 // Cópia do post/comentário removido pela moderação (ele já não existe mais).
 export interface RemovedContentSnapshot {

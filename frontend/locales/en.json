@@ -1384,7 +1384,8 @@
     "titles": {
       "post": "Report post",
       "comment": "Report comment",
-      "user": "Report profile"
+      "user": "Report profile",
+      "ad": "Report ad"
     },
     "reason": "Reason",
     "comment": "Comment",

@@ -22,6 +22,7 @@ class ReportTargetType(StrEnum):
     POST = "post"
     COMMENT = "comment"
     USER = "user"
+    AD = "ad"
 
 
 class ReportReason(StrEnum):
@@ -45,6 +46,9 @@ REASONS_BY_TARGET: dict[ReportTargetType, set[ReportReason]] = {
         ReportReason.FAKE_ACCOUNT, ReportReason.NOT_NEIGHBOR, ReportReason.HARMFUL_PERSON,
     },
 }
+# Anúncio é denunciável com os mesmos motivos de um post (mesmo pipeline de
+# moderação, só muda o alvo).
+REASONS_BY_TARGET[ReportTargetType.AD] = REASONS_BY_TARGET[ReportTargetType.POST]
 
 
 class ReportStatus(StrEnum):
@@ -61,7 +65,8 @@ class Report(Base):
     __tablename__ = "reports"
     __table_args__ = (
         CheckConstraint(
-            "(post_id IS NOT NULL) + (comment_id IS NOT NULL) + (reported_user_id IS NOT NULL) = 1",
+            "(post_id IS NOT NULL) + (comment_id IS NOT NULL) + (reported_user_id IS NOT NULL)"
+            " + (ad_campaign_id IS NOT NULL) = 1",
             name="report_single_target",
         ),
     )
@@ -75,6 +80,9 @@ class Report(Base):
     )
     reported_user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id"), nullable=True, index=True
+    )
+    ad_campaign_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("ad_campaigns.id"), nullable=True, index=True
     )
     reason: Mapped[ReportReason] = mapped_column(String(30), nullable=False)
     comment: Mapped[str] = mapped_column(Text, default="")
@@ -93,4 +101,7 @@ class Report(Base):
     )
     reported_user: Mapped[Optional["User"]] = relationship(  # noqa: F821
         "User", foreign_keys=[reported_user_id]
+    )
+    ad_campaign: Mapped[Optional["AdCampaign"]] = relationship(  # noqa: F821
+        "AdCampaign", foreign_keys=[ad_campaign_id]
     )

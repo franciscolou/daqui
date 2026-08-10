@@ -26,6 +26,7 @@ def create(
         post_id=target_id if target_type == ReportTargetType.POST else None,
         comment_id=target_id if target_type == ReportTargetType.COMMENT else None,
         reported_user_id=target_id if target_type == ReportTargetType.USER else None,
+        ad_campaign_id=target_id if target_type == ReportTargetType.AD else None,
     )
     db.add(report)
     db.commit()

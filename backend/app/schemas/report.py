@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, field_validator
 
 from app.core.config import REPORT_MAX_COMMENT_LENGTH, TICKET_MAX_ATTACHMENTS
+from app.models.ad import AdCampaignStatus
 from app.models.report import (
     ReportReason,
     ReportStatus,
@@ -12,6 +13,23 @@ from app.schemas.attachment import AttachmentItem
 from app.schemas.comment import CommentOut
 from app.schemas.post import PostOut
 from app.schemas.user import UserPublic
+
+
+class ReportedAdOut(BaseModel):
+    """Recorte enxuto da campanha denunciada — só o que o moderador precisa
+    pra avaliar a denúncia, não o painel de anúncios completo (esse continua
+    restrito ao `AdAdmin`, ver seção "Anúncios" do CLAUDE.md)."""
+
+    id: int
+    status: AdCampaignStatus
+    advertiser_name: str
+    advertiser_email: str
+    title: str
+    content: str
+    image_url: str | None = None
+    video_url: str | None = None
+    target_url: str
+    linked_user_id: int | None = None
 
 
 class ReportCreate(BaseModel):
@@ -57,6 +75,7 @@ class ReportAdminOut(ReportOut):
     post: PostOut | None = None
     comment_target: CommentOut | None = None
     reported_user: UserPublic | None = None
+    ad: ReportedAdOut | None = None
 
 
 class ReportStatusUpdate(BaseModel):

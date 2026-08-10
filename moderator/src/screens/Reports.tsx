@@ -176,6 +176,26 @@ function ReportTarget({ report: r }: { report: Report }) {
     );
   }
 
+  if (r.target_type === 'ad') {
+    if (!r.ad) {
+      return <div className="target-box empty">Anúncio não encontrado (pode ter sido excluído).</div>;
+    }
+    return (
+      <div className="target-box">
+        <div className="label">
+          Anúncio de {r.ad.advertiser_name} ({r.ad.advertiser_email})
+        </div>
+        <div className="content">
+          {r.ad.title ? `${r.ad.title} — ` : ''}
+          {truncate(r.ad.content, 280)}
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <AppLink path={`/ad/${r.ad.id}`} label="Ver anúncio no app" />
+        </div>
+      </div>
+    );
+  }
+
   if (r.target_type === 'user') {
     if (!r.reported_user) return <div className="target-box empty">Perfil não encontrado.</div>;
     return (

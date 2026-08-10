@@ -28,6 +28,10 @@ const REASONS: Record<ReportTargetType, string[]> = {
   user: [
     'fake', 'not_neighbor', 'harmful_person',
   ],
+  // Mesmos motivos de um post — um anúncio é denunciável como se fosse um.
+  ad: [
+    'offensive', 'wrong_category', 'spam', 'harmful',
+  ],
 };
 
 interface ReportModalProps {

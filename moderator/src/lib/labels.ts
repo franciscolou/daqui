@@ -12,6 +12,7 @@ export const REPORT_TYPE_FILTERS = [
   { key: 'post', label: 'Publicações' },
   { key: 'comment', label: 'Comentários' },
   { key: 'user', label: 'Perfis' },
+  { key: 'ad', label: 'Anúncios' },
 ];
 
 export const REPORT_STATUS_LABEL: Record<string, string> = {
@@ -24,6 +25,7 @@ export const REPORT_TARGET_LABEL: Record<string, string> = {
   post: 'Publicação',
   comment: 'Comentário',
   user: 'Perfil',
+  ad: 'Anúncio',
 };
 
 export const REPORT_REASON_LABEL: Record<string, string> = {

@@ -285,6 +285,25 @@ def _ensure_columns():
                 conn.execute(
                     text("UPDATE reports SET attachments = '[]' WHERE attachments IS NULL")
                 )
+            columns.add("attachments")
+
+        if "ad_campaign_id" not in columns:
+            # `ad_campaign_id` entrou na CHECK CONSTRAINT de alvo único
+            # (post/comentário/perfil/anúncio) — SQLite não permite alterar uma
+            # CHECK existente via ALTER TABLE ADD COLUMN, só recriando a tabela.
+            from app.models.report import Report
+
+            old_index_names = [idx["name"] for idx in inspector.get_indexes("reports")]
+            copy_cols = ", ".join(sorted(columns))
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE reports RENAME TO reports_old"))
+                for idx_name in old_index_names:
+                    conn.execute(text(f"DROP INDEX IF EXISTS {idx_name}"))
+                Report.__table__.create(bind=conn)
+                conn.execute(
+                    text(f"INSERT INTO reports ({copy_cols}) SELECT {copy_cols} FROM reports_old")
+                )
+                conn.execute(text("DROP TABLE reports_old"))
 
     if "reviews" in tables:
         columns = {c["name"] for c in inspector.get_columns("reviews")}

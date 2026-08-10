@@ -39,17 +39,31 @@ export interface ReportComment {
   author: UserRef;
 }
 
+export interface ReportedAd {
+  id: number;
+  status: string;
+  advertiser_name: string;
+  advertiser_email: string;
+  title: string;
+  content: string;
+  image_url?: string | null;
+  video_url?: string | null;
+  target_url: string;
+  linked_user_id?: number | null;
+}
+
 export interface Report {
   id: number;
   status: string;
   reason: string;
-  target_type: 'post' | 'comment' | 'user';
+  target_type: 'post' | 'comment' | 'user' | 'ad';
   comment?: string | null;
   created_at: string;
   reporter: UserRef;
   post?: ReportPost | null;
   comment_target?: ReportComment | null;
   reported_user?: UserRef | null;
+  ad?: ReportedAd | null;
   attachments?: Attachment[] | null;
 }
 
