@@ -62,7 +62,6 @@ class Post(Base):
     comments_count: Mapped[int] = mapped_column(Integer, default=0)
     shares_count: Mapped[int] = mapped_column(Integer, default=0)
     important: Mapped[bool] = mapped_column(Boolean, default=False)
-    pinned: Mapped[bool] = mapped_column(Boolean, default=False)
     # Enquete (category == "enquete"): se permite votos múltiplos e o prazo de encerramento.
     poll_multiple: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     poll_closes_at: Mapped[Optional[datetime]] = mapped_column(

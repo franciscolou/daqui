@@ -9,17 +9,12 @@ from app.database import Base
 
 
 class NotificationType(StrEnum):
-    """Tipos de notificação ("novidade"). LIKE_COMMENT/FOLLOW/WELCOME/EVENT
-    não são gerados por nenhum fluxo atual do backend (só aparecem em dados
-    de seed) mas seguem reconhecidos pelo frontend
-    (`constants/notifications.ts::NOTIF_ICONS`)."""
+    """Tipos de notificação ("novidade")."""
 
     LIKE_POST = "like_post"
-    LIKE_COMMENT = "like_comment"
     COMMENT = "comment"
-    FOLLOW = "follow"
+    # Disparada no signup (ver services/auth.py::_send_welcome_notification).
     WELCOME = "welcome"
-    EVENT = "event"
     # Avisos de moderação: post/comentário do usuário removido pela moderação.
     POST_REMOVED = "post_removed"
     COMMENT_REMOVED = "comment_removed"

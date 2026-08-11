@@ -14,7 +14,6 @@ from app.services import push as push_service
 # > No aplicativo). Menções e avisos de moderação não entram aqui — sempre notificam.
 _PREFERENCE_BY_TYPE: dict[NotificationType, str] = {
     NotificationType.LIKE_POST: "notify_likes",
-    NotificationType.LIKE_COMMENT: "notify_likes",
     NotificationType.COMMENT: "notify_comments",
     NotificationType.NEIGHBORHOOD_ALERT: "notify_neighborhood_alerts",
 }

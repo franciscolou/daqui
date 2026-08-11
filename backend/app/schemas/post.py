@@ -114,7 +114,6 @@ class PostOut(BaseModel):
     comments_count: int
     shares_count: int
     important: bool
-    pinned: bool
     created_at: datetime
     author: UserPublic
     # True quando o bairro atual do autor é o mesmo do post — exibe o selo de Morador.

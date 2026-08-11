@@ -194,7 +194,7 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
           </TouchableOpacity>
         </View>
 
-        {/* Category + pinned */}
+        {/* Category + important */}
         <View style={styles.tagRow}>
           <View style={[styles.catTag, { backgroundColor: catColor + '18' }]}>
             <Ionicons name={CATEGORY_ICONS[post.category] as any} size={10} color={catColor} />
@@ -206,12 +206,6 @@ export default function PostCard({ post, onPress, onDeleted }: PostCardProps) {
             <View style={styles.importantTag}>
               <Ionicons name="alert-circle" size={10} color={Colors.error} />
               <Text style={styles.importantTagText}>{t('post.important')}</Text>
-            </View>
-          )}
-          {post.pinned && (
-            <View style={styles.pinnedTag}>
-              <Ionicons name="pin" size={10} color={Colors.textTertiary} />
-              <Text style={styles.pinnedTagText}>{t('post.pinned')}</Text>
             </View>
           )}
         </View>
@@ -543,16 +537,6 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
     backgroundColor: Colors.error + '15',
   },
   importantTagText: { fontSize: 11, fontWeight: '700', color: Colors.error },
-  pinnedTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: Colors.borderLight,
-  },
-  pinnedTagText: { fontSize: 11, color: Colors.textSecondary, fontWeight: '600' },
 
   title: {
     fontSize: 15,

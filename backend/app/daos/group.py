@@ -78,6 +78,21 @@ def list_user_groups(db: Session, user_id: int) -> list[Group]:
     )
 
 
+def list_co_member_ids(db: Session, user_id: int) -> set[int]:
+    """Ids de usuários que compartilham pelo menos um grupo com `user_id`
+    (exclui ele mesmo) — sinal de proximidade social usado no ranking do
+    feed (ver services/post.py::_build_personalization_signals), já que o
+    app não tem conceito de "seguir"."""
+    member_group_ids = db.query(GroupMember.group_id).filter(GroupMember.user_id == user_id)
+    rows = (
+        db.query(GroupMember.user_id)
+        .filter(GroupMember.group_id.in_(member_group_ids), GroupMember.user_id != user_id)
+        .distinct()
+        .all()
+    )
+    return {r[0] for r in rows}
+
+
 def discover_open(
     db: Session, query: str, user_id: int, neighborhood: str, limit: int = 30
 ) -> list[Group]:

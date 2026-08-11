@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
+from app.models.comment import Comment
 from app.models.post import (
     PollOption,
     PollVote,
@@ -38,7 +39,7 @@ def list_feed(
     if category:
         q = q.filter(Post.category == category)
     return (
-        q.order_by(desc(Post.pinned), desc(Post.created_at))
+        q.order_by(desc(Post.created_at))
         .offset(offset)
         .limit(limit)
         .all()
@@ -47,11 +48,13 @@ def list_feed(
 
 def list_feed_all(db: Session, neighborhoods: list[str], category: PostCategory | None) -> list[Post]:
     """Mesma query de `list_feed`, sem paginação — usada por `get_feed` pra
-    mesclar com reposts em Python antes de paginar (ver `list_reposts_for_feed`)."""
+    mesclar com reposts em Python antes de paginar (ver `list_reposts_for_feed`).
+    A ordem do SQL aqui não importa de verdade: `get_feed` reordena tudo pelo
+    score de ranking (ver services/post.py::_score_post)."""
     q = db.query(Post).filter(Post.neighborhood.in_(neighborhoods), Post.moderation_deleted_at.is_(None))
     if category:
         q = q.filter(Post.category == category)
-    return q.order_by(desc(Post.pinned), desc(Post.created_at)).all()
+    return q.order_by(desc(Post.created_at)).all()
 
 
 def list_reposts_for_feed(
@@ -73,6 +76,38 @@ def list_reposts_for_feed(
     if category:
         q = q.filter(Post.category == category)
     return [(post, reposter, reposted_at) for post, reposter, reposted_at in q.all()]
+
+
+def engagement_history(
+    db: Session, user_id: int, since: datetime
+) -> tuple[list[tuple[int, str, int]], list[tuple[int, str, int]], list[tuple[int, str, int]]]:
+    """Curtidas/comentários/reposts que `user_id` DEU (não recebeu) desde
+    `since`, agrupados por `(author_id, category)` do post-alvo — sinal de
+    afinidade por autor e por categoria usado no ranking do feed (ver
+    services/post.py::_build_personalization_signals). Exclui interação do
+    usuário com o próprio post (não é afinidade com outra pessoa)."""
+    likes = (
+        db.query(Post.author_id, Post.category, func.count(PostLike.id))
+        .join(PostLike, PostLike.post_id == Post.id)
+        .filter(PostLike.user_id == user_id, PostLike.created_at >= since, Post.author_id != user_id)
+        .group_by(Post.author_id, Post.category)
+        .all()
+    )
+    comments = (
+        db.query(Post.author_id, Post.category, func.count(Comment.id))
+        .join(Comment, Comment.post_id == Post.id)
+        .filter(Comment.author_id == user_id, Comment.created_at >= since, Post.author_id != user_id)
+        .group_by(Post.author_id, Post.category)
+        .all()
+    )
+    reposts = (
+        db.query(Post.author_id, Post.category, func.count(PostRepost.id))
+        .join(PostRepost, PostRepost.post_id == Post.id)
+        .filter(PostRepost.user_id == user_id, PostRepost.created_at >= since, Post.author_id != user_id)
+        .group_by(Post.author_id, Post.category)
+        .all()
+    )
+    return likes, comments, reposts
 
 
 def top_important(db: Session, neighborhood: str) -> Post | None:

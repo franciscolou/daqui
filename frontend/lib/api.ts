@@ -247,7 +247,6 @@ interface BackendPost {
   comments_count: number;
   shares_count: number;
   important: boolean;
-  pinned: boolean;
   created_at: string;
   author: BackendUser;
   author_is_resident: boolean;
@@ -833,7 +832,6 @@ function mapPost(p: BackendPost): Post {
     quotedAdId: p.quoted_ad_id ?? undefined,
     repostedBy: p.reposted_by ? mapUser(p.reposted_by) : undefined,
     repostedAt: p.reposted_at ?? undefined,
-    pinned: p.pinned,
     important: p.important,
     // Campos específicos por categoria (backend snake_case → camelCase)
     eventDates: Array.isArray(d.event_dates) ? d.event_dates : undefined,

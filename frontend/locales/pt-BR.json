@@ -1033,7 +1033,6 @@
   },
   "post": {
     "important": "Importante",
-    "pinned": "Fixado",
     "delete": "Excluir post",
     "undoRepost": "Desfazer repost",
     "repost": "Repostar",
@@ -1440,10 +1439,8 @@
     "and": " e ",
     "likedYourPostGroupSuffix": " curtiram seu post",
     "likedYourPost": " curtiu seu post: ",
-    "likedYourComment": " curtiu seu comentário ",
     "commented": " comentou: ",
     "mentionedYou": " mencionou você: ",
-    "startedFollowing": " começou a seguir você",
     "welcomeBefore": "Bem-vindo(a) ao Daqui! Antes de começar, confira a seção ",
     "welcomeHighlight": "Ajuda e suporte",
     "welcomeAfter": " pra aprender a usar o app.",

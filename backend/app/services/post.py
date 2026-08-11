@@ -1,9 +1,25 @@
-from datetime import date, datetime, timezone
+import math
+from collections import defaultdict
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.config import (
+    FEED_AUTHOR_AFFINITY_BOOST_WEIGHT,
+    FEED_AUTHOR_AFFINITY_DM_BONUS,
+    FEED_AUTHOR_AFFINITY_GROUP_BONUS,
+    FEED_AUTHOR_AFFINITY_WEIGHT_COMMENT,
+    FEED_AUTHOR_AFFINITY_WEIGHT_LIKE,
+    FEED_AUTHOR_AFFINITY_WEIGHT_SHARE,
+    FEED_CATEGORY_AFFINITY_BOOST_WEIGHT,
+    FEED_ENGAGEMENT_WEIGHT_COMMENT,
+    FEED_ENGAGEMENT_WEIGHT_LIKE,
+    FEED_ENGAGEMENT_WEIGHT_SHARE,
+    FEED_PERSONALIZATION_LOOKBACK_DAYS,
+    FEED_PERSONALIZATION_MAX_BOOST,
+    FEED_POPULARITY_BOOST_WEIGHT,
+    FEED_RECENCY_HALF_LIFE_HOURS,
     LIKE_MERGE_THRESHOLD,
     MAX_IMPORTANT_POSTS_PER_MONTH,
     MAX_MEDIA_ITEMS,
@@ -12,6 +28,8 @@ from app.core.config import (
 )
 from app.core.uploads import MediaType, save_upload_media
 from app.daos import comment as comment_dao
+from app.daos import group as group_dao
+from app.daos import message as message_dao
 from app.daos import post as post_dao
 from app.daos import user as user_dao
 from app.models.audit_log import AuditLogAction
@@ -99,7 +117,6 @@ def _to_schema(
         comments_count=post.comments_count,
         shares_count=post.shares_count,
         important=post.important,
-        pinned=post.pinned,
         created_at=post.created_at,
         author=post.author,
         author_is_resident=author_is_resident,
@@ -114,6 +131,70 @@ def _to_schema(
         reposted_by=reposted_by,
         reposted_at=reposted_at,
     )
+
+
+def _build_personalization_signals(
+    db: Session, user: User
+) -> tuple[dict[int, float], dict[str, float]]:
+    """Sinal de afinidade do usuário logado por autor e por categoria, a
+    partir do que ele mesmo já curtiu/comentou/repostou, com quem já trocou
+    DM e com quem compartilha grupo — usado por `_score_post` pra dar um
+    empurrão de personalização no feed (ver get_feed). Sem conceito de
+    "seguir" no app, então esses são os sinais sociais disponíveis."""
+    since = datetime.now(timezone.utc) - timedelta(days=FEED_PERSONALIZATION_LOOKBACK_DAYS)
+    likes, comments, reposts = post_dao.engagement_history(db, user.id, since)
+
+    author_affinity: dict[int, float] = defaultdict(float)
+    category_affinity: dict[str, float] = defaultdict(float)
+    for rows, weight in (
+        (likes, FEED_AUTHOR_AFFINITY_WEIGHT_LIKE),
+        (comments, FEED_AUTHOR_AFFINITY_WEIGHT_COMMENT),
+        (reposts, FEED_AUTHOR_AFFINITY_WEIGHT_SHARE),
+    ):
+        for author_id, category, count in rows:
+            author_affinity[author_id] += count * weight
+            category_affinity[category] += count * weight
+
+    dm_contacts = {
+        m.receiver_id if m.sender_id == user.id else m.sender_id
+        for m in message_dao.get_last_per_conversation(db, user.id)
+    }
+    for author_id in dm_contacts:
+        author_affinity[author_id] += FEED_AUTHOR_AFFINITY_DM_BONUS
+    for author_id in group_dao.list_co_member_ids(db, user.id):
+        author_affinity[author_id] += FEED_AUTHOR_AFFINITY_GROUP_BONUS
+
+    return author_affinity, category_affinity
+
+
+def _score_post(
+    post: Post,
+    effective_date: datetime,
+    author_affinity: dict[int, float],
+    category_affinity: dict[str, float],
+    now: datetime,
+) -> float:
+    """Ranking do feed: recência (decaimento exponencial) × popularidade ×
+    (1 + boost de personalização do usuário logado). Recência e popularidade
+    continuam os fatores fortes — a personalização é um teto (ver
+    FEED_PERSONALIZATION_MAX_BOOST), não substitui os outros dois."""
+    age_hours = max((now - _aware(effective_date)).total_seconds() / 3600.0, 0.0)
+    recency = 0.5 ** (age_hours / FEED_RECENCY_HALF_LIFE_HOURS)
+
+    engagement = (
+        post.likes_count * FEED_ENGAGEMENT_WEIGHT_LIKE
+        + post.comments_count * FEED_ENGAGEMENT_WEIGHT_COMMENT
+        + post.shares_count * FEED_ENGAGEMENT_WEIGHT_SHARE
+    )
+    popularity_boost = math.log1p(engagement) * FEED_POPULARITY_BOOST_WEIGHT
+
+    personalization_boost = min(
+        math.log1p(author_affinity.get(post.author_id, 0.0)) * FEED_AUTHOR_AFFINITY_BOOST_WEIGHT
+        + math.log1p(category_affinity.get(post.category, 0.0)) * FEED_CATEGORY_AFFINITY_BOOST_WEIGHT,
+        FEED_PERSONALIZATION_MAX_BOOST,
+    )
+
+    return recency * (1 + popularity_boost) * (1 + personalization_boost)
 
 
 def get_feed(
@@ -165,20 +246,28 @@ def get_feed(
             db, latitude, longitude, sale_radius_km, exclude_ids
         )
 
+    # Ranking personalizado: recência × popularidade × afinidade do usuário
+    # logado com o autor/categoria (ver _score_post) — calculado uma vez por
+    # request e aplicado a posts próprios e reposts da mesma forma, já que o
+    # que importa pro interesse do usuário é o conteúdo original, não quem
+    # repostou.
+    now = datetime.now(timezone.utc)
+    author_affinity, category_affinity = _build_personalization_signals(db, user)
+
     items = [
-        (_to_schema(p, user, db), p.pinned, p.created_at) for p in own_posts
+        (_to_schema(p, user, db), _score_post(p, p.created_at, author_affinity, category_affinity, now))
+        for p in own_posts
     ] + [
         (
             _to_schema(p, user, db, reposted_by=reposter, reposted_at=reposted_at),
-            False,
-            reposted_at,
+            _score_post(p, reposted_at, author_affinity, category_affinity, now),
         )
         for p, reposter, reposted_at in reposts
     ]
-    items.sort(key=lambda item: (item[1], item[2]), reverse=True)
+    items.sort(key=lambda item: item[1], reverse=True)
     total = len(items)
     offset = (page - 1) * page_size
-    page_items = [schema for schema, _, _ in items[offset : offset + page_size]]
+    page_items = [schema for schema, _ in items[offset : offset + page_size]]
     return PostFeed(
         items=page_items,
         total=total,

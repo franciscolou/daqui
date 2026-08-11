@@ -12,8 +12,6 @@ function truncate(value: string, max = 70): string {
  * Texto padronizado da notificação. As variáveis (nome do autor e trecho do
  * post/comentário) ficam em negrito; o restante é fixo por tipo:
  *  - [Usuário] curtiu seu post: "[Texto do post]"
- *  - [Usuário] curtiu seu comentário "[Texto do comentário]"
- *  - [Usuário] começou a seguir você
  *  - [Usuário] comentou: "[Texto do comentário]"
  *  - Seu post/comentário foi removido/restaurado pela moderação... (post_removed/
  *    comment_removed/post_restored/comment_restored, texto fixo por i18n, ignora
@@ -41,14 +39,10 @@ export function notificationParts(n: AppNotification, boldStyle: StyleProp<TextS
       }
       return <>{actor}{t('notifications.likedYourPost')}{QUOTE}{target}{QUOTE}</>;
     }
-    case 'like_comment':
-      return <>{actor}{t('notifications.likedYourComment')}{QUOTE}{target}{QUOTE}</>;
     case 'comment':
       return <>{actor}{t('notifications.commented')}{QUOTE}{target}{QUOTE}</>;
     case 'mention':
       return <>{actor}{t('notifications.mentionedYou')}{QUOTE}{target}{QUOTE}</>;
-    case 'follow':
-      return <>{actor}{t('notifications.startedFollowing')}</>;
     case 'welcome':
       return <>{t('notifications.welcomeBefore')}<Text style={boldStyle}>{t('notifications.welcomeHighlight')}</Text>{t('notifications.welcomeAfter')}</>;
     case 'post_removed':

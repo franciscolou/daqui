@@ -1379,7 +1379,6 @@
   },
   "post": {
     "important": "Important",
-    "pinned": "Pinned",
     "delete": "Delete post",
     "undoRepost": "Undo repost",
     "repost": "Repost",
@@ -1786,10 +1785,8 @@
     "and": " and ",
     "likedYourPostGroupSuffix": " liked your post",
     "likedYourPost": " liked your post: ",
-    "likedYourComment": " liked your comment ",
     "commented": " commented: ",
     "mentionedYou": " mentioned you: ",
-    "startedFollowing": " started following you",
     "welcomeBefore": "Welcome to Daqui! Before you start, check out the ",
     "welcomeHighlight": "Help & support",
     "welcomeAfter": " section to learn how to use the app.",

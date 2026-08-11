@@ -102,7 +102,6 @@ export interface Post {
   // autor — banner "fulano repostou" estilo Twitter.
   repostedBy?: User;
   repostedAt?: string;
-  pinned?: boolean;
   important?: boolean;
   // Campos específicos por categoria (vindos de `details` no backend)
   eventDates?: string[];      // ISO YYYY-MM-DD, um ou mais dias (evento)
@@ -254,7 +253,6 @@ export const POSTS: Post[] = [
     neighborhood: 'Vila Madalena',
     distance: '200m',
     liked: false,
-    pinned: true,
     important: false,
   },
   {

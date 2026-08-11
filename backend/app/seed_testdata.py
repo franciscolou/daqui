@@ -89,47 +89,47 @@ def seed():
     mariana = by_email("mariana@daqui.com")
 
     # ── Posts ────────────────────────────────────────────────────
-    # (chave, autor, bairro, categoria, título, conteúdo, image_url, important, pinned, min_atrás)
+    # (chave, autor, bairro, categoria, título, conteúdo, image_url, important, min_atrás)
     posts_spec = [
         # Bairro da lou (Leme) — para o feed da lou ter conteúdo
         ("leme_welcome", helena, lou_neighborhood, PostCategory.AVISO, "Bem-vindos ao grupo do Leme! 🌊",
          "Pessoal, criamos este espaço para os moradores do Leme se conectarem. Sejam todos bem-vindos! Usem com respeito e carinho. 💚",
-         None, False, True, 60),
+         None, False, 60),
         ("leme_feira", sofia, lou_neighborhood, PostCategory.EVENTO, "Feirinha de orgânicos no sábado",
          "Neste sábado das 8h às 13h tem feira de produtos orgânicos na pracinha do Leme. Hortifruti fresquinho direto do produtor! 🥬🍎",
-         "https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=600", False, False, 120),
+         "https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=600", False, 120),
         ("leme_seguranca", bruno, lou_neighborhood, PostCategory.SEGURANCA, "Atenção a carros parados na orla",
          "Vi dois carros suspeitos parados perto do quiosque 3 ontem à noite. Já avisei a guarda. Fiquem atentos ao sair tarde. 🚨",
-         None, True, False, 180),
+         None, True, 180),
         ("leme_lou1", lou, lou_neighborhood, PostCategory.RECOMENDACAO, "Melhor pastel do Leme 🥟",
          "Gente, descobri um quiosque com o pastel de queijo mais incrível da orla. Fica perto do posto 2. Recomendo demais o caldo de cana também!",
-         "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600", False, False, 30),
+         "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?w=600", False, 30),
         ("leme_lou2", lou, lou_neighborhood, PostCategory.AJUDA, "Alguém indica um bom encanador?",
          "Preciso resolver um vazamento na pia da cozinha. Alguém conhece um encanador de confiança aqui no Leme? 🔧",
-         None, False, False, 15),
+         None, False, 15),
         ("leme_lou3", lou, lou_neighborhood, PostCategory.GERAL, "Pôr do sol de hoje no Leme 🌅",
          "Não resisti e tirei essa foto da mureta. A vista daqui continua sendo a melhor do Rio, sem discussão!",
-         "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=600", False, False, 5),
+         "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?w=600", False, 5),
         ("leme_pet", diego, lou_neighborhood, PostCategory.PETS, "Gatinho encontrado na rua Gustavo Sampaio",
          "Achei esse gatinho cinza muito dócil perto do número 200. Está com fome mas saudável. Alguém perdeu? Posso abrigar por uns dias. 🐱",
-         "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=600", False, False, 240),
+         "https://images.unsplash.com/photo-1573865526739-10659fec78a5?w=600", False, 240),
         ("leme_venda", sofia, lou_neighborhood, PostCategory.VENDA, "Bicicleta seminova — R$ 650",
          "Vendo bike aro 29, pouco uso, ideal pra orla. Revisada, freios novos. Retirada no Leme. Chama no direct! 🚲",
-         "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600", False, False, 300),
+         "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=600", False, 300),
         ("leme_evento2", helena, lou_neighborhood, PostCategory.EVENTO, "Mutirão de limpeza da praia 🏖️",
          "Domingo às 7h vamos fazer um mutirão de limpeza na praia do Leme. Levem luvas e sacos. Café da manhã por conta da associação!",
-         None, False, False, 420),
+         None, False, 420),
 
         # Mais conteúdo do Leme (autores que também moram no bairro)
         ("vm_extra1", ana, lou_neighborhood, PostCategory.EVENTO, "Sarau na Praça Almirante Júlio de Noronha",
          "Sábado tem sarau de poesia e música na praça! A partir das 17h. Tragam uma cadeira e boa energia. 🎶",
-         None, False, False, 90),
+         None, False, 90),
         ("vm_extra2", beatriz, lou_neighborhood, PostCategory.RECOMENDACAO, "Novo café com wi-fi excelente ☕",
          "Abriu um café na Rua Gustavo Sampaio perfeito pra trabalhar: tomadas em todas as mesas, wi-fi rápido e café ótimo. Recomendo!",
-         "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600", False, False, 200),
+         "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=600", False, 200),
         ("vm_extra3", mariana, lou_neighborhood, PostCategory.AJUDA, "Doação de roupas de inverno 🧥",
          "Estou organizando uma doação de agasalhos. Quem tiver roupas de frio em bom estado, deixa comigo até sexta. Vamos aquecer alguém!",
-         None, False, False, 350),
+         None, False, 350),
     ]
 
     # Coordenadas na orla do Leme, atribuídas em rodízio aos posts com bairro = Leme.
@@ -145,7 +145,7 @@ def seed():
 
     posts = {}
     coord_i = 0
-    for key, author, neighborhood_name, cat, title, content, img, important, pinned, mins in posts_spec:
+    for key, author, neighborhood_name, cat, title, content, img, important, mins in posts_spec:
         location = lat = lon = None
         if neighborhood_name == lou_neighborhood:
             location, lat, lon = LEME_COORDS[coord_i % len(LEME_COORDS)]
@@ -159,7 +159,7 @@ def seed():
             author_id=author.id, neighborhood=neighborhood_name, category=cat,
             title=title, content=content,
             media=[{"url": img, "type": "image"}] if img else [],
-            important=important, pinned=pinned, created_at=ago(mins),
+            important=important, created_at=ago(mins),
             location=location, latitude=lat, longitude=lon,
         )
         db.add(p)
@@ -230,7 +230,6 @@ def seed():
         (lou, diego, NotificationType.LIKE_POST, "Diego Martins e outros curtiram sua foto do pôr do sol", "leme_lou3", 4, False),
         (lou, helena, NotificationType.COMMENT, 'Helena Prado comentou: "Tenho o contato de um excelente!"', "leme_lou2", 12, False),
         (lou, None, NotificationType.WELCOME, "Bem-vinda ao Daqui! Complete seu perfil e conheça seus vizinhos do Leme 🌊", None, 70, True),
-        (lou, helena, NotificationType.EVENT, "Helena Prado convidou você para o Mutirão de limpeza da praia", "leme_evento2", 420, True),
     ]
     for user, actor, ntype, content, post_key, mins, read in notifs_spec:
         db.add(Notification(

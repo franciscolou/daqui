@@ -16,6 +16,38 @@ MAX_IMPORTANT_POSTS_PER_MONTH = 2
 LIKE_MERGE_THRESHOLD = 3
 MAX_MEDIA_ITEMS = 10
 
+# Feed (ver services/post.py::get_feed)
+# Meia-vida da recência: quanto tempo até o "peso" de um post cair pela
+# metade — mantém posts novos em vantagem forte sobre antigos mesmo com
+# popularidade/afinidade alta.
+FEED_RECENCY_HALF_LIFE_HOURS = 30.0
+# Engajamento (curtidas/comentários/compartilhamentos) que compõe o boost de
+# popularidade — comentário e compartilhamento pesam mais que curtida por
+# exigirem mais esforço/intenção de quem interagiu.
+FEED_ENGAGEMENT_WEIGHT_LIKE = 1.0
+FEED_ENGAGEMENT_WEIGHT_COMMENT = 2.0
+FEED_ENGAGEMENT_WEIGHT_SHARE = 2.0
+# Escala do boost log1p(engajamento) aplicado ao score final.
+FEED_POPULARITY_BOOST_WEIGHT = 0.35
+# Personalização: quanto o histórico do próprio usuário (curtidas/comentários/
+# reposts dados, DMs, grupos em comum) empurra um post pra cima. Janela de
+# lookback pra afinidade não acumular pra sempre e ficar refletindo interesse
+# recente do usuário.
+FEED_PERSONALIZATION_LOOKBACK_DAYS = 90
+FEED_AUTHOR_AFFINITY_WEIGHT_LIKE = 1.0
+FEED_AUTHOR_AFFINITY_WEIGHT_COMMENT = 2.0
+FEED_AUTHOR_AFFINITY_WEIGHT_SHARE = 2.0
+# Bônus fixo de afinidade por autor quando o usuário já trocou DM com ele ou
+# está no mesmo grupo — proxy de laço social, já que o app não tem "seguir".
+FEED_AUTHOR_AFFINITY_DM_BONUS = 3.0
+FEED_AUTHOR_AFFINITY_GROUP_BONUS = 1.5
+FEED_AUTHOR_AFFINITY_BOOST_WEIGHT = 0.25
+FEED_CATEGORY_AFFINITY_BOOST_WEIGHT = 0.15
+# Teto do boost de personalização combinado (afinidade por autor + por
+# categoria) — garante que recência e popularidade continuem sendo os
+# fatores dominantes do score, não a personalização.
+FEED_PERSONALIZATION_MAX_BOOST = 1.5
+
 # Vendas (ver services/post.py::create_post, models/post.py::Post.product_name)
 SALE_MIN_PHOTOS = 1
 SALE_PRODUCT_NAME_MAX_LENGTH = 120
