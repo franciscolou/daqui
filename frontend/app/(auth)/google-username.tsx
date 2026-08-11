@@ -13,13 +13,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
 import { Colors } from '../../constants/Colors';
-import { api, ApiError } from '../../lib/api';
-import { useAuth } from '../../lib/auth';
 import { useT } from '../../lib/i18n';
 import { submitOnEnter } from '../../lib/keyboard';
-import { useAvailability } from '../../lib/useAvailability';
+import { useGoogleUsernameFlow } from '../../lib/useGoogleUsernameFlow';
 
 function AvailabilityIcon({ status }: { status: 'idle' | 'checking' | 'ok' | 'error' }) {
   if (status === 'checking') return <ActivityIndicator size="small" color={Colors.textTertiary} />;
@@ -31,48 +28,19 @@ function AvailabilityIcon({ status }: { status: 'idle' | 'checking' | 'ok' | 'er
 // Último passo de "Entrar com Google" quando é a primeira vez desse usuário
 // (ver GoogleSignInButton + useAuth().loginWithGoogle): a conta ainda não foi
 // criada no backend, só o e-mail/nome/foto já validados pelo Google — falta
-// escolher um nome de usuário antes de poder usar o Daqui. Aberta com
-// ?ticket=... (ver lib/auth.tsx::loginWithGoogle, mesmo padrão do link de
-// redefinição de senha em reset-password.tsx).
+// confirmar/editar o nome e escolher um nome de usuário. Aberta com
+// ?ticket=...&name=... (ver lib/auth.tsx::loginWithGoogle, mesmo padrão do
+// link de redefinição de senha em reset-password.tsx). Usada só no fluxo
+// mobile/estreito (login.tsx/signup.tsx); no desktop esse mesmo passo é um
+// painel embutido em welcome.tsx (mesma lógica via useGoogleUsernameFlow).
 export default function GoogleUsernameScreen() {
   const { t } = useT();
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
-  const { ticket } = useLocalSearchParams<{ ticket?: string }>();
-  const { completeGoogleSignup } = useAuth();
-
-  const [username, setUsername] = useState('');
-  const usernameCheck = useAvailability(username, api.checkSignupUsername, {
-    ready: (v) => v.length >= 3,
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async () => {
-    if (submitting || !ticket) return;
-    setError(null);
-    if (!username.trim()) {
-      setError(t('auth.googleUsername.usernameRequired'));
-      return;
-    }
-    if (usernameCheck.status === 'checking') {
-      setError(t('auth.googleUsername.checkingUsername'));
-      return;
-    }
-    if (usernameCheck.status !== 'ok') {
-      setError(usernameCheck.error ?? t('auth.googleUsername.invalidUsername'));
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await completeGoogleSignup(ticket, username.trim());
-      router.replace('/(tabs)');
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : t('auth.googleUsername.genericError'));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const { ticket, name: initialName } = useLocalSearchParams<{ ticket?: string; name?: string }>();
+  const {
+    name, setName, username, setUsername, usernameCheck, submitting, error, handleSubmit,
+  } = useGoogleUsernameFlow(ticket, initialName ?? '');
 
   return (
     <KeyboardAvoidingView
@@ -107,6 +75,23 @@ export default function GoogleUsernameScreen() {
               </View>
             ) : (
               <>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{t('auth.signup.fullName')}</Text>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="person-outline" size={18} color={Colors.textTertiary} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder={t('auth.signup.fullNamePlaceholder')}
+                      placeholderTextColor={Colors.textTertiary}
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                      onKeyPress={submitOnEnter(handleSubmit)}
+                      onSubmitEditing={handleSubmit}
+                    />
+                  </View>
+                </View>
+
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>{t('auth.googleUsername.username')}</Text>
                   <View style={styles.inputWrapper}>

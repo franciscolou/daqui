@@ -210,6 +210,7 @@
       "backToLogin": "Back to sign in",
       "username": "Username",
       "startUsing": "Start using Daqui",
+      "nameRequired": "Enter your name.",
       "usernameRequired": "Choose a username.",
       "checkingUsername": "Wait for the username check to finish.",
       "invalidUsername": "Choose a valid, available username.",
@@ -1588,7 +1589,12 @@
       "newPlaceholder": "At least 6 characters",
       "confirm": "Confirm new password",
       "confirmPlaceholder": "Enter your new password again",
-      "save": "Save new password"
+      "save": "Save new password",
+      "googleExplain": "You signed in using your Google account, so you don't have a Daqui password yet. By setting a password here, you will also be able to sign in using the standard login method.",
+      "setPassword": "Set password",
+      "setPasswordSending": "Sending...",
+      "setPasswordSent": "We sent a link to {{email}} for you to set a password. It's valid for 20 minutes.",
+      "setPasswordError": "Couldn't send the link. Try again."
     },
     "devices": {
       "title": "Connected devices",

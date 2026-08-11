@@ -37,6 +37,7 @@ def create(
     email_verified: bool = False,
     google_id: str | None = None,
     avatar_url: str | None = None,
+    has_password: bool = True,
 ) -> User:
     user = User(
         username=username,
@@ -54,6 +55,7 @@ def create(
         email_verified=email_verified,
         google_id=google_id,
         avatar_url=avatar_url,
+        has_password=has_password,
     )
     db.add(user)
     db.commit()

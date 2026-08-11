@@ -485,8 +485,17 @@ function PrivacyPanel() {
 /**
  * Alteração de senha: pede a senha atual + a nova (com confirmação). Expande
  * inline a partir de uma linha de link, no mesmo padrão da seção de A2F.
+ * Conta criada via Google sem senha própria (user.hasPassword === false, ver
+ * User.has_password no backend) não tem "senha atual" pra confirmar — nesse
+ * caso a seção vira SetPasswordSection (fluxo de "Esqueci minha senha").
  */
 function ChangePasswordSection() {
+  const { user } = useAuth();
+  if (user?.hasPassword === false) return <SetPasswordSection email={user.email!} />;
+  return <ChangeExistingPasswordSection />;
+}
+
+function ChangeExistingPasswordSection() {
   const { t } = useT();
   const styles = useThemedStyles(makeStyles);
   const Colors = useTheme();
@@ -589,6 +598,76 @@ function ChangePasswordSection() {
               {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>{t('settings.password.save')}</Text>}
             </TouchableOpacity>
           </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/**
+ * Versão da seção "Alterar senha" pra conta sem senha própria (cadastrada
+ * via Google, ver ChangePasswordSection acima) — em vez de pedir uma senha
+ * atual que não existe, explica a situação e manda o link de "Esqueci minha
+ * senha" direto pro e-mail já conhecido (usuário está logado, não precisa
+ * digitar o e-mail de novo).
+ */
+function SetPasswordSection({ email }: { email: string }) {
+  const { t } = useT();
+  const styles = useThemedStyles(makeStyles);
+  const Colors = useTheme();
+  const [expanded, setExpanded] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [feedback, setFeedback] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const handleSend = async () => {
+    setSending(true);
+    try {
+      await api.forgotPassword(email);
+      setFeedback({ ok: true, text: t('settings.password.setPasswordSent', { email }) });
+    } catch (e) {
+      setFeedback({ ok: false, text: e instanceof ApiError ? e.message : t('settings.password.setPasswordError') });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <View>
+      <TouchableOpacity
+        style={styles.settingRow}
+        activeOpacity={0.7}
+        onPress={() => setExpanded((v) => !v)}
+      >
+        <View style={styles.linkIcon}>
+          <Ionicons name="key-outline" size={18} color={Colors.textSecondary} />
+        </View>
+        <Text style={[styles.settingLabel, styles.linkLabel]}>{t('settings.password.change')}</Text>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-forward'} size={18} color={Colors.textTertiary} />
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.twoFaCard}>
+          <View style={styles.infoBox}>
+            <Ionicons name="logo-google" size={16} color={Colors.primary} />
+            <Text style={styles.infoBoxText}>{t('settings.password.googleExplain')}</Text>
+          </View>
+
+          {feedback && (
+            <Text style={[styles.feedback, feedback.ok ? styles.feedbackOk : styles.feedbackErr]}>{feedback.text}</Text>
+          )}
+
+          {!feedback?.ok && (
+            <TouchableOpacity
+              style={[styles.twoFaPrimaryBtn, { flex: undefined, alignSelf: 'flex-start', paddingHorizontal: 20 }, sending && styles.saveBtnDisabled]}
+              activeOpacity={0.85}
+              onPress={handleSend}
+              disabled={sending}
+            >
+              {sending
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.saveBtnText}>{t('settings.password.setPassword')}</Text>}
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>

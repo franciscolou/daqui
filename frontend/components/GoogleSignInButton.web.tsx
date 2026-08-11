@@ -55,6 +55,38 @@ function loadGsiScript(): Promise<void> {
   return scriptPromise;
 }
 
+// O Google avisa explicitamente que chamar accounts.id.initialize() mais de
+// uma vez por página pode deixar o client num estado inconsistente ("only
+// the last initialized instance will be used") — e isso acontece aqui
+// sempre que dois botões ficam montados ao mesmo tempo (ex.: transição de
+// slide entre os painéis de login e cadastro em welcome.tsx, que mantém a
+// tela que está saindo montada por ~280ms). Por isso o initialize() vira um
+// singleton de módulo, chamado uma única vez; o callback central despacha
+// pro handler do botão montado mais recentemente (activeHandler),
+// atualizado a cada mount/unmount. renderButton() continua por instância —
+// isso é seguro e é como o próprio GIS espera múltiplos botões na mesma
+// página.
+let initialized = false;
+let activeHandler: {
+  onIdToken: (idToken: string) => void;
+  onError?: (message: string) => void;
+  credentialMissingMessage: string;
+} | null = null;
+
+function ensureInitialized() {
+  if (initialized || !CLIENT_ID || !window.google) return;
+  initialized = true;
+  window.google.accounts.id.initialize({
+    client_id: CLIENT_ID,
+    callback: (response) => {
+      const handler = activeHandler;
+      if (!handler) return;
+      if (response.credential) handler.onIdToken(response.credential);
+      else handler.onError?.(handler.credentialMissingMessage);
+    },
+  });
+}
+
 export default function GoogleSignInButton({
   style,
   textStyle,
@@ -71,6 +103,16 @@ export default function GoogleSignInButton({
   const [width, setWidth] = useState(0);
   const { t } = useT();
 
+  // Reivindica o callback global do GIS enquanto este botão está montado —
+  // ver comentário do singleton acima.
+  useEffect(() => {
+    const handler = { onIdToken, onError, credentialMissingMessage: t('auth.login.googleError') };
+    activeHandler = handler;
+    return () => {
+      if (activeHandler === handler) activeHandler = null;
+    };
+  }, [onIdToken, onError, t]);
+
   useEffect(() => {
     if (!CLIENT_ID || !width || !containerRef.current) return;
     // Evita re-renderizar o botão do Google por variações mínimas de layout
@@ -82,13 +124,7 @@ export default function GoogleSignInButton({
     loadGsiScript()
       .then(() => {
         if (cancelled || !containerRef.current || !window.google) return;
-        window.google.accounts.id.initialize({
-          client_id: CLIENT_ID,
-          callback: (response) => {
-            if (response.credential) onIdToken(response.credential);
-            else onError?.(t('auth.login.googleError'));
-          },
-        });
+        ensureInitialized();
         containerRef.current.innerHTML = '';
         // 'large' é o mais alto que o GIS oferece (~40px) — ainda assim mais
         // baixo que o nosso botão custom, então sobra uma faixa fina sem
@@ -105,7 +141,7 @@ export default function GoogleSignInButton({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, t]);
+  }, [width]);
 
   if (!CLIENT_ID) return null;
 

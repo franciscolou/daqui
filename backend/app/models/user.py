@@ -44,6 +44,13 @@ class User(Base):
     # só pra manter a coluna NOT NULL sem espalhar Optional por login/troca
     # de senha (ver services/auth.py::_unusable_password_hash).
     google_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    # False só logo após cadastro via Google (hashed_password é o hash inútil
+    # acima) — "Trocar senha" nas Configurações não faz sentido pra essa conta
+    # (não existe senha atual pra confirmar). Vira True assim que a pessoa
+    # define uma senha de verdade via "Esqueci minha senha" (ver
+    # services/auth.py::reset_password), mesmo continuando com google_id
+    # setado — por isso não dá pra inferir isso só a partir de google_id.
+    has_password: Mapped[bool] = mapped_column(Boolean, default=True)
     bio: Mapped[str] = mapped_column(Text, default="")
     avatar_url: Mapped[str | None] = mapped_column(String(500))
     cover_url: Mapped[str | None] = mapped_column(String(500))

@@ -37,6 +37,10 @@ class UserMe(UserPublic):
     email: EmailStr
     # Lido de User.two_factor_enabled (property → totp_enabled).
     two_factor_enabled: bool = False
+    # False = conta criada via Google que nunca definiu senha própria — ver
+    # User.has_password. Usado pelas Configurações pra trocar a seção
+    # "Trocar senha" por "Definir senha" (fluxo de redefinição por e-mail).
+    has_password: bool = True
     # Aviso de moderação pendente (post/comentário removido) — não persistido no
     # modelo, computado e "consumido" (marcado como lido) a cada /auth/me.
     pending_notice: str | None = None

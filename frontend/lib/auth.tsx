@@ -37,7 +37,7 @@ interface AuthState {
   // "Entrar com Google": 'ok' já loga (mesmo efeito de login/verifyEmailCode);
   // 'needs_username' devolve o ticket que completa em completeGoogleSignup.
   loginWithGoogle: (idToken: string) => Promise<GoogleAuthResult>;
-  completeGoogleSignup: (ticket: string, username: string) => Promise<void>;
+  completeGoogleSignup: (ticket: string, username: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -144,8 +144,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, [showPendingNotice]);
 
-  const completeGoogleSignup = useCallback(async (ticket: string, username: string) => {
-    const token = await api.completeGoogleSignup(ticket, username);
+  const completeGoogleSignup = useCallback(async (ticket: string, username: string, name: string) => {
+    const token = await api.completeGoogleSignup(ticket, username, name);
     await setToken(token);
     const u = await api.me();
     setUser(u);

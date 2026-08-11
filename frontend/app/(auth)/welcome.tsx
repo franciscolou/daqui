@@ -26,6 +26,7 @@ import { AvailabilityState } from '../../lib/useAvailability';
 import { useAuth } from '../../lib/auth';
 import { useSignupFlow } from '../../lib/useSignupFlow';
 import { useLoginFlow } from '../../lib/useLoginFlow';
+import { useGoogleUsernameFlow } from '../../lib/useGoogleUsernameFlow';
 import { api, CommunityStats } from '../../lib/api';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -137,7 +138,7 @@ function CtaButton({
 }
 
 // ─── Tipo de view ────────────────────────────────────────────────
-type Panel = 'welcome' | 'login' | 'signup';
+type Panel = 'welcome' | 'login' | 'signup' | 'googleUsername';
 
 // ════════════════════════════════════════════════════════════════
 export default function WelcomeScreen() {
@@ -169,12 +170,22 @@ export default function WelcomeScreen() {
   const loginFlow = useLoginFlow();
   const { loginWithGoogle } = useAuth();
   const [googleError, setGoogleError] = useState<string | null>(null);
+  // Ticket + nome vindos do Google quando é a primeira vez desse usuário —
+  // alimentam o painel 'googleUsername' abaixo (ver renderGoogleUsername).
+  // No desktop esse passo final do cadastro fica no mesmo espaço/animação
+  // dos outros painéis, em vez de navegar pra app/(auth)/google-username.tsx
+  // (essa rota separada continua existindo só pro fluxo mobile/estreito).
+  const [googleTicket, setGoogleTicket] = useState<string | undefined>(undefined);
+  const [googleInitialName, setGoogleInitialName] = useState('');
+  const googleUsernameFlow = useGoogleUsernameFlow(googleTicket, googleInitialName);
   const handleGoogleToken = async (idToken: string) => {
     setGoogleError(null);
     try {
       const result = await loginWithGoogle(idToken);
       if (result.status === 'needs_username') {
-        router.push({ pathname: '/(auth)/google-username', params: { ticket: result.ticket } });
+        setGoogleTicket(result.ticket);
+        setGoogleInitialName(result.name);
+        goTo('googleUsername');
       } else {
         router.replace('/(tabs)');
       }
@@ -835,6 +846,91 @@ export default function WelcomeScreen() {
     </ScrollView>
   );
 
+  // ── Painel esquerdo: completar cadastro via Google (nome + usuário) ──
+  // Mesmo espaço/animação dos painéis acima — versão desktop de
+  // app/(auth)/google-username.tsx (mesma lógica via useGoogleUsernameFlow).
+  const renderGoogleUsername = () => (
+    <ScrollView
+      style={styles.leftScroll}
+      contentContainerStyle={[styles.leftContent, styles.formContent]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <TouchableOpacity style={styles.backBtn} onPress={goBack}>
+        <Ionicons name="chevron-back" size={18} color={FORM_TEXT} />
+      </TouchableOpacity>
+
+      <View style={styles.formHeader}>
+        <Text style={styles.formTitle}>{t('auth.googleUsername.title')}</Text>
+        <Text style={styles.formSubtitle}>{t('auth.googleUsername.subtitle')}</Text>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>{t('auth.signup.fullName')}</Text>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="person-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.signup.fullNamePlaceholder')}
+            placeholderTextColor={FORM_PLACEHOLDER}
+            value={googleUsernameFlow.name}
+            onChangeText={googleUsernameFlow.setName}
+            autoCapitalize="words"
+            onKeyPress={submitOnEnter(googleUsernameFlow.handleSubmit)}
+            onSubmitEditing={googleUsernameFlow.handleSubmit}
+          />
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>{t('auth.googleUsername.username')}</Text>
+        <View style={styles.inputWrapper}>
+          <Ionicons name="at-outline" size={18} color={FORM_ICON} style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.googleUsername.usernamePlaceholder')}
+            placeholderTextColor={FORM_PLACEHOLDER}
+            value={googleUsernameFlow.username}
+            onChangeText={(v) => googleUsernameFlow.setUsername(v.toLowerCase().replace(/[^a-z0-9._]/g, ''))}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={18}
+            autoFocus
+            onKeyPress={submitOnEnter(googleUsernameFlow.handleSubmit)}
+            onSubmitEditing={googleUsernameFlow.handleSubmit}
+          />
+          <AvailabilityIcon state={googleUsernameFlow.usernameCheck} />
+        </View>
+        {googleUsernameFlow.usernameCheck.status === 'error' && !!googleUsernameFlow.usernameCheck.error && (
+          <Text style={styles.fieldError}>{googleUsernameFlow.usernameCheck.error}</Text>
+        )}
+      </View>
+
+      {googleUsernameFlow.error && (
+        <View style={styles.authErrorBox}>
+          <Ionicons name="alert-circle" size={16} color={Colors.error} />
+          <Text style={styles.authErrorText}>{googleUsernameFlow.error}</Text>
+        </View>
+      )}
+
+      <TouchableOpacity
+        style={[styles.btnPrimary, googleUsernameFlow.submitting && { opacity: 0.7 }]}
+        onPress={googleUsernameFlow.handleSubmit}
+        activeOpacity={0.88}
+        disabled={googleUsernameFlow.submitting}
+      >
+        {googleUsernameFlow.submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <Text style={styles.btnPrimaryText}>{t('auth.googleUsername.startUsing')}</Text>
+            <Ionicons name="navigate" size={18} color="#fff" />
+          </>
+        )}
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
   // ── Painel direito: bairro abstrato vivo ─────────────────────
   // O gradiente de fundo agora é um layer único no root (ver return do
   // desktop abaixo), cobrindo os dois lados sem costura — antes cada
@@ -1032,18 +1128,20 @@ export default function WelcomeScreen() {
           {showExit && (
             <Animated.View style={[StyleSheet.absoluteFill, exitStyle]}>
               <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                {exitPanel === 'welcome' && renderHero()}
-                {exitPanel === 'login'   && renderLogin()}
-                {exitPanel === 'signup'  && renderSignup(exitStep)}
+                {exitPanel === 'welcome'        && renderHero()}
+                {exitPanel === 'login'          && renderLogin()}
+                {exitPanel === 'signup'         && renderSignup(exitStep)}
+                {exitPanel === 'googleUsername' && renderGoogleUsername()}
               </KeyboardAvoidingView>
             </Animated.View>
           )}
           {/* Camada que entra — sempre presente */}
           <Animated.View style={[StyleSheet.absoluteFill, enterStyle]}>
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-              {panel === 'welcome' && renderHero()}
-              {panel === 'login'   && renderLogin()}
-              {panel === 'signup'  && renderSignup()}
+              {panel === 'welcome'        && renderHero()}
+              {panel === 'login'          && renderLogin()}
+              {panel === 'signup'         && renderSignup()}
+              {panel === 'googleUsername' && renderGoogleUsername()}
             </KeyboardAvoidingView>
           </Animated.View>
           {/* Véu de transição — só aparece no estado "painel cheio", funde a

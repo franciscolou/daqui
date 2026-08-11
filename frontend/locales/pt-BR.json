@@ -210,6 +210,7 @@
       "backToLogin": "Voltar ao login",
       "username": "Nome de usuário",
       "startUsing": "Começar a usar o Daqui",
+      "nameRequired": "Preencha seu nome.",
       "usernameRequired": "Escolha um nome de usuário.",
       "checkingUsername": "Aguarde a verificação do nome de usuário.",
       "invalidUsername": "Escolha um nome de usuário válido e disponível.",
@@ -1242,7 +1243,12 @@
       "newPlaceholder": "Ao menos 6 caracteres",
       "confirm": "Confirmar nova senha",
       "confirmPlaceholder": "Repita a nova senha",
-      "save": "Salvar nova senha"
+      "save": "Salvar nova senha",
+      "googleExplain": "Você entrou com sua conta do Google, por isso ainda não tem uma senha no Daqui. Ao definir uma senha aqui, você passará a poder entrar com o login convencional também.",
+      "setPassword": "Definir senha",
+      "setPasswordSending": "Enviando...",
+      "setPasswordSent": "Enviamos um link para {{email}} para você definir uma senha. Ele vale por 20 minutos.",
+      "setPasswordError": "Não foi possível enviar o link. Tente novamente."
     },
     "devices": {
       "title": "Dispositivos conectados",

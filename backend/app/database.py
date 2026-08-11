@@ -124,6 +124,11 @@ def _ensure_columns():
                 )
             if "include_nearby" not in columns:
                 conn.execute(text("ALTER TABLE users ADD COLUMN include_nearby BOOLEAN DEFAULT 0 NOT NULL"))
+            if "has_password" not in columns:
+                conn.execute(text("ALTER TABLE users ADD COLUMN has_password BOOLEAN DEFAULT 1 NOT NULL"))
+                # Backfill: contas Google já existentes nunca tiveram chance de
+                # definir uma senha de verdade até agora (feature nova).
+                conn.execute(text("UPDATE users SET has_password = 0 WHERE google_id IS NOT NULL"))
             # Índice pra get_neighbors()/get_nearby_alert_subscribers() (busca por
             # bairro no broadcast de aviso do bairro) não virar full table scan.
             conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_neighborhood ON users (neighborhood)"))

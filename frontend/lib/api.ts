@@ -189,6 +189,7 @@ interface BackendUser {
   locked?: boolean;
   email?: string;
   two_factor_enabled?: boolean;
+  has_password?: boolean;
   pending_notice?: string | null;
   show_location?: boolean;
   searchable?: boolean;
@@ -581,7 +582,7 @@ export type LoginResult =
 // /auth/google/complete-signup.
 export type GoogleAuthResult =
   | { status: 'ok'; token: string }
-  | { status: 'needs_username'; ticket: string };
+  | { status: 'needs_username'; ticket: string; name: string };
 
 export interface TwoFactorSetup {
   secret: string;
@@ -765,6 +766,7 @@ export function mapUser(u: BackendUser): User {
     longitude: u.longitude ?? undefined,
     locked: u.locked ?? false,
     twoFactorEnabled: u.two_factor_enabled,
+    hasPassword: u.has_password,
     pendingNotice: u.pending_notice ?? undefined,
     email: u.email ?? undefined,
     showLocation: u.show_location,
@@ -1091,21 +1093,23 @@ export const api = {
     const r = await request<{
       needs_username: boolean;
       signup_ticket: string | null;
+      name: string | null;
       access_token: string | null;
     }>('/auth/google', {
       method: 'POST',
       body: { id_token: idToken },
       auth: false,
     });
-    if (r.needs_username) return { status: 'needs_username', ticket: r.signup_ticket! };
+    if (r.needs_username) return { status: 'needs_username', ticket: r.signup_ticket!, name: r.name ?? '' };
     return { status: 'ok', token: r.access_token! };
   },
 
-  // Último passo do cadastro via Google: escolher um nome de usuário.
-  async completeGoogleSignup(ticket: string, username: string): Promise<string> {
+  // Último passo do cadastro via Google: confirmar/editar o nome (vem
+  // pré-preenchido do Google) e escolher um nome de usuário.
+  async completeGoogleSignup(ticket: string, username: string, name: string): Promise<string> {
     const r = await request<{ access_token: string }>('/auth/google/complete-signup', {
       method: 'POST',
-      body: { signup_ticket: ticket, username },
+      body: { signup_ticket: ticket, username, name },
       auth: false,
     });
     return r.access_token;

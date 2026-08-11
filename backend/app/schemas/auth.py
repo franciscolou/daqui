@@ -97,9 +97,12 @@ class GoogleAuthResponse(BaseModel):
     # Conta já existia (ou acabou de ser vinculada por e-mail já verificado
     # pelo Google): vem com access_token, login completo.
     # Conta nova: falta escolher um nome de usuário — signup_ticket completa
-    # em /auth/google/complete-signup.
+    # em /auth/google/complete-signup. `name` vem junto (mesmo valor gravado
+    # no ticket) só pra o passo de completar cadastro pré-preencher o campo
+    # de nome sem precisar decodificar o JWT no cliente.
     needs_username: bool = False
     signup_ticket: str | None = None
+    name: str | None = None
     access_token: str | None = None
     token_type: str = "bearer"
 
@@ -107,3 +110,8 @@ class GoogleAuthResponse(BaseModel):
 class GoogleCompleteSignupRequest(BaseModel):
     signup_ticket: str
     username: str
+    # Pré-preenchido no app com o nome que veio do Google (ver
+    # GoogleAuthResponse.name acima), mas editável pelo usuário nesse passo —
+    # por isso viaja de novo aqui em vez de o backend reusar cegamente o nome
+    # gravado no ticket.
+    name: str

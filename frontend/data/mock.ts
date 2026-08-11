@@ -48,6 +48,7 @@ export interface User {
   longitude?: number;
   locked?: boolean;           // perfil de outro bairro: só nome, @username, foto e nº de posts
   twoFactorEnabled?: boolean; // só presente em /auth/me (conta do próprio usuário)
+  hasPassword?: boolean;      // false = conta via Google que nunca definiu senha própria; só em /auth/me
   pendingNotice?: string;     // aviso de moderação (post/comentário removido), só em /auth/me
   email?: string;             // só presente em /auth/me — usado p/ escopar "Meus anúncios" no ads-backend
   // Privacidade e preferências de notificação — só presentes em /auth/me (tela Configurações).

@@ -40,7 +40,7 @@ export default function LoginScreen() {
     try {
       const result = await loginWithGoogle(idToken);
       if (result.status === 'needs_username') {
-        router.push({ pathname: '/(auth)/google-username', params: { ticket: result.ticket } });
+        router.push({ pathname: '/(auth)/google-username', params: { ticket: result.ticket, name: result.name } });
       } else {
         router.replace('/(tabs)');
       }

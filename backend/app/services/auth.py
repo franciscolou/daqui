@@ -247,7 +247,7 @@ def reset_password(db: Session, payload: ResetPasswordRequest) -> None:
             status_code=400,
             detail=f"A nova senha deve ter ao menos {_MIN_PASSWORD_LEN} caracteres",
         )
-    user_dao.update(db, user, {"hashed_password": hash_password(payload.new_password)})
+    user_dao.update(db, user, {"hashed_password": hash_password(payload.new_password), "has_password": True})
     session_dao.revoke_all_for_user(db, user.id)
 
 
@@ -324,13 +324,14 @@ def google_auth(
             user = user_dao.update(db, existing, {"google_id": google_id, "email_verified": True})
 
     if not user:
+        name = claims.get("name") or email.split("@")[0]
         ticket = create_google_signup_ticket(
             google_id=google_id,
             email=email,
-            name=claims.get("name") or email.split("@")[0],
+            name=name,
             avatar_url=claims.get("picture"),
         )
-        return GoogleAuthResponse(needs_username=True, signup_ticket=ticket)
+        return GoogleAuthResponse(needs_username=True, signup_ticket=ticket, name=name)
 
     if user.is_currently_suspended:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=suspension_message(user))
@@ -363,10 +364,12 @@ def google_complete_signup(
     if user_dao.get_by_username(db, uname):
         raise HTTPException(status_code=400, detail=_USERNAME_TAKEN)
 
+    name = payload.name.strip() or claims.get("name") or uname
+
     user = user_dao.create(
         db,
         username=uname,
-        name=claims.get("name") or uname,
+        name=name,
         email=email,
         hashed_password=_unusable_password_hash(),
         neighborhood="",
@@ -375,6 +378,7 @@ def google_complete_signup(
         email_verified=True,
         google_id=google_id,
         avatar_url=claims.get("picture"),
+        has_password=False,
     )
     _send_welcome_notification(db, user)
     jti = _start_session(db, user, user_agent, ip_address)
