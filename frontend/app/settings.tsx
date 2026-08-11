@@ -374,7 +374,7 @@ function EditProfilePanel() {
           </View>
         </View>
       </View>
-      <View style={styles.coverEditSpacer} />
+      <View style={styles.coverEditSpacer} pointerEvents="none" />
 
       <Field
         label={t('settings.profile.username')}
