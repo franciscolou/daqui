@@ -9,7 +9,7 @@ export interface AdContactChannel {
 }
 
 export const AD_CONTACT_CHANNELS: AdContactChannel[] = [
-  { key: 'instagram', title: 'Instagram', label: '@francisco.l0u', icon: 'logo-instagram', url: 'https://instagram.com/francisco.l0u' },
+  { key: 'instagram', title: 'Instagram', label: '@daqui.me', icon: 'logo-instagram', url: 'https://instagram.com/francisco.l0u' },
   { key: 'whatsapp', title: 'WhatsApp', label: '(21) 96705-5617', icon: 'logo-whatsapp', url: 'https://wa.me/5521967055617' },
-  { key: 'email', title: 'E-mail', label: 'franciscogardenberg@gmail.com', icon: 'mail-outline', url: 'mailto:franciscogardenberg@gmail.com' },
+  { key: 'email', title: 'E-mail', label: 'team.daqui@gmail.com', icon: 'mail-outline', url: 'mailto:franciscogardenberg@gmail.com' },
 ];
