@@ -197,7 +197,7 @@ export default function AdCreativeEditor({ formats, value, onChange }: AdCreativ
         return (
           <View key={f.key} style={styles.overrideCard}>
             <TouchableOpacity
-              style={styles.toggleRow}
+              style={[styles.overrideToggleRow, block && styles.overrideToggleRowExpanded]}
               activeOpacity={0.7}
               onPress={() => updateBlock(f.key, block ? undefined : seedOverride(f.allowVideo))}
             >
@@ -209,18 +209,20 @@ export default function AdCreativeEditor({ formats, value, onChange }: AdCreativ
               <Text style={styles.toggleText}>{t('ads.creative.customizeFor', { format: t(`ads.formats.${f.key}`) })}</Text>
             </TouchableOpacity>
             {block && (
-              <CreativeBlockFields
-                label={t('ads.creative.inFormat', { format: t(`ads.formats.${f.key}`) })}
-                draft={block}
-                onChange={(next) => updateBlock(f.key, next)}
-                allowVideo={f.allowVideo}
-                showLocation={false}
-                showAccountLink={false}
-                showTargetUrl={false}
-                user={null}
-                Colors={Colors}
-                styles={styles}
-              />
+              <View style={styles.overrideFieldsWrap}>
+                <CreativeBlockFields
+                  label={t('ads.creative.inFormat', { format: t(`ads.formats.${f.key}`) })}
+                  draft={block}
+                  onChange={(next) => updateBlock(f.key, next)}
+                  allowVideo={f.allowVideo}
+                  showLocation={false}
+                  showAccountLink={false}
+                  showTargetUrl={false}
+                  user={null}
+                  Colors={Colors}
+                  styles={styles}
+                />
+              </View>
             )}
           </View>
         );
@@ -457,18 +459,36 @@ const makeStyles = (Colors: Palette) => StyleSheet.create({
 
   errorText: { fontSize: 12, fontWeight: '600', color: Colors.error },
 
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  // Sem `alignSelf: 'flex-start'` aqui de propósito (diferente do checkbox
+  // solto de "lembrar dados" no checkout): este mora dentro de um card com
+  // texto que pode ficar longo (`@username`), e precisa continuar esticado
+  // pra `numberOfLines={1}` truncar em vez de estourar a largura do card.
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, borderRadius: 8 },
   toggleText: { fontSize: 13, fontWeight: '700', color: Colors.text, flexShrink: 1 },
 
   locationField: { gap: 6 },
   fieldHint: { fontSize: 12, fontWeight: '700', color: Colors.textSecondary },
 
   overridesHint: { fontSize: 12, color: Colors.textTertiary, lineHeight: 17, marginTop: 2 },
+  // Sem padding aqui de propósito: o próprio `overrideToggleRow` ocupa a
+  // caixa inteira (borda a borda) e leva seu radius próprio, senão o hover
+  // do checkbox fica "encolhido" para dentro, sem alcançar as bordas do
+  // card nem os cantos arredondados (ver hover-square-corners-bug).
   overrideCard: {
     borderWidth: 1,
     borderColor: Colors.borderLight,
     borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
   },
+  overrideToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+  },
+  // Quando o bloco de campos abre logo abaixo, só os cantos de cima
+  // continuam arredondados — os de baixo encostam no conteúdo seguinte.
+  overrideToggleRowExpanded: { borderBottomLeftRadius: 0, borderBottomRightRadius: 0 },
+  overrideFieldsWrap: { paddingHorizontal: 12, paddingBottom: 12, paddingTop: 4 },
 });

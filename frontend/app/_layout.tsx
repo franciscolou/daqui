@@ -74,6 +74,7 @@ export default function RootLayout() {
                   <Stack.Screen name="advertise/index" />
                   <Stack.Screen name="advertise/customize" />
                   <Stack.Screen name="advertise/checkout" />
+                  <Stack.Screen name="advertise/checkout/content" />
                   <Stack.Screen name="advertise/checkout/success" />
                   <Stack.Screen name="advertise/dashboard/index" />
                   <Stack.Screen name="advertise/dashboard/edit/[token]" />

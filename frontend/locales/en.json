@@ -628,6 +628,8 @@
       "paymentError": "We couldn't start the payment. Try again.",
       "reactivate": "Reactivate campaign",
       "adDetails": "Ad details",
+      "adContent": "Ad content",
+      "stepDetails": "Step 1 of 2 — your contact details",
       "days_one": "1 day",
       "days_other": "{{count}} days",
       "yourDetails": "Your details",
@@ -635,6 +637,7 @@
       "phoneOptional": "Phone (optional)",
       "remember": "Remember my details for future campaigns",
       "pinRequired": "Mark the pin location above to advertise on the map.",
+      "continue": "Continue",
       "goToPayment": "Continue to payment"
     },
     "formats": {

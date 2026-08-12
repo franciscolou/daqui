@@ -628,6 +628,8 @@
       "paymentError": "Não foi possível iniciar o pagamento. Tente novamente.",
       "reactivate": "Reativar campanha",
       "adDetails": "Dados do anúncio",
+      "adContent": "Conteúdo do anúncio",
+      "stepDetails": "Passo 1 de 2 — seus dados de contato",
       "days_one": "1 dia",
       "days_other": "{{count}} dias",
       "yourDetails": "Seus dados",
@@ -635,6 +637,7 @@
       "phoneOptional": "Telefone (opcional)",
       "remember": "Lembrar meus dados para campanhas futuras",
       "pinRequired": "Marque o local do pin acima para anunciar no mapa.",
+      "continue": "Continuar",
       "goToPayment": "Ir para o pagamento"
     },
     "formats": {
