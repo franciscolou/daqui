@@ -8,12 +8,13 @@ from app.database import Base
 
 
 class GeoCacheKind(StrEnum):
-    """As 3 rotas de geo.py que consultam provedor externo — cada uma com sua
+    """As rotas de geo.py que consultam provedor externo — cada uma com sua
     própria forma de chave (ver daos/geo_cache.py e services/geo.py)."""
 
     FORWARD = "forward"   # geocode_within — endereço já fechado
     SEARCH = "search"     # search_within — sugestões de autocomplete
     REVERSE = "reverse"   # resolve_neighborhood — ponto -> bairro
+    NEARBY = "nearby"     # neighborhoods_around — bairros vizinhos (Overpass)
 
 
 class GeoCacheEntry(Base):

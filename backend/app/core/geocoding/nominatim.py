@@ -8,10 +8,15 @@ deixando a decisão de negócio para a camada de service.
 from __future__ import annotations
 
 import math
+import time
 
 import httpx
 
-from app.core.config import NOMINATIM_TIMEOUT_SECONDS, OVERPASS_TIMEOUT_SECONDS
+from app.core.config import (
+    NOMINATIM_TIMEOUT_SECONDS,
+    OVERPASS_RATE_LIMIT_BACKOFF_SECONDS,
+    OVERPASS_TIMEOUT_SECONDS,
+)
 
 from .types import STATE_UF, GeoResult, NearbyPlace
 
@@ -135,28 +140,46 @@ def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 PLACE_KINDS = "suburb|neighbourhood|quarter|city_district|borough"
 
 
+def _query_overpass(query: str) -> dict | None:
+    """POST no Overpass com 1 retry (após um respiro curto) só quando ele
+    responde 429 — rajadas de requisições concorrentes pra mesma região são o
+    gatilho mais comum disso, e a chance de a segunda tentativa passar é boa.
+    Outro tipo de falha (timeout, conexão) não tenta de novo: o timeout já é
+    de 25s (`OVERPASS_TIMEOUT_SECONDS`), dobrar essa espera pouco ajuda.
+    """
+    for attempt in range(2):
+        try:
+            resp = httpx.post(
+                OVERPASS_URL,
+                data={"data": query},
+                headers={"User-Agent": USER_AGENT},
+                timeout=OVERPASS_TIMEOUT_SECONDS,
+            )
+            if resp.status_code == 429 and attempt == 0:
+                time.sleep(OVERPASS_RATE_LIMIT_BACKOFF_SECONDS)
+                continue
+            resp.raise_for_status()
+            return resp.json()
+        except (httpx.HTTPError, ValueError):
+            return None
+    return None
+
+
 def nearby(lat: float, lon: float, radius: int = 3000, limit: int = 12) -> list[NearbyPlace]:
     """Bairros vizinhos ao ponto, via Overpass (OSM).
 
     Busca, numa única requisição, os nós de bairro num raio ao redor das
     coordenadas e devolve os mais próximos (distintos por nome), ordenados por
-    distância. Tolerante a falha: devolve [] se o Overpass não responder.
+    distância. Tolerante a falha: devolve [] se o Overpass não responder (ver
+    `_query_overpass` sobre o único caso que tenta de novo).
     """
     query = (
         f"[out:json][timeout:20];"
         f'node(around:{radius},{lat},{lon})["place"~"^({PLACE_KINDS})$"]["name"];'
         f"out body;"
     )
-    try:
-        resp = httpx.post(
-            OVERPASS_URL,
-            data={"data": query},
-            headers={"User-Agent": USER_AGENT},
-            timeout=OVERPASS_TIMEOUT_SECONDS,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-    except (httpx.HTTPError, ValueError):
+    data = _query_overpass(query)
+    if not isinstance(data, dict):
         return []
 
     scored: list[tuple[float, NearbyPlace]] = []

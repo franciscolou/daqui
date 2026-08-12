@@ -219,7 +219,7 @@ def get_feed(
         lat = latitude if latitude is not None else user.latitude
         lon = longitude if longitude is not None else user.longitude
         if lat is not None and lon is not None:
-            nearby = geo.neighborhoods_around(lat, lon)
+            nearby = geo.neighborhoods_around(lat, lon, db)
             # Preserva o bairro em foco no topo e acrescenta os vizinhos (sem duplicar).
             for name in nearby:
                 if name and name not in neighborhoods:
@@ -602,7 +602,9 @@ def create_post(db: Session, user: User, payload: PostCreate, base_url: str) -> 
         lon = post.longitude if post.longitude is not None else user.longitude
         if lat is not None and lon is not None:
             nearby_names = [
-                name for name in geo.neighborhoods_around(lat, lon) if name and name != user.neighborhood
+                name
+                for name in geo.neighborhoods_around(lat, lon, db)
+                if name and name != user.neighborhood
             ]
             if nearby_names:
                 for n in user_dao.get_nearby_alert_subscribers(db, nearby_names, exclude_id=user.id):

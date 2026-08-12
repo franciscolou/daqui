@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.core.config import EXPIRE_CAMPAIGNS_INTERVAL_SECONDS, UPLOAD_DIR
+from app.core.config import EXPIRE_CAMPAIGNS_INTERVAL_SECONDS, UPLOAD_DIR, settings
 from app.daos import ad as ad_dao
 from app.database import SessionLocal
 from app.routers import (
@@ -121,8 +121,11 @@ app.include_router(ad_staff.admin_router, prefix="/api/v1")
 app.include_router(ad_audit_log.admin_router, prefix="/api/v1")
 app.include_router(ad_geo.admin_router, prefix="/api/v1")
 
-# Arquivos enviados (ex.: fotos de perfil) servidos em /uploads
-app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+# Arquivos enviados (ex.: fotos de perfil) servidos em /uploads — só quando
+# não há R2 configurado (ver core/uploads.py), senão a URL pública já aponta
+# direto pro bucket.
+if not settings.R2_BUCKET_NAME:
+    app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 @app.get("/")

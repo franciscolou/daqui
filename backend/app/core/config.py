@@ -89,6 +89,9 @@ HERE_TIMEOUT_SECONDS = 6.0
 NOMINATIM_TIMEOUT_SECONDS = 8.0
 # Overpass costuma ser mais lento; damos uma folga maior no timeout.
 OVERPASS_TIMEOUT_SECONDS = 25.0
+# Respiro antes de tentar de novo quando o Overpass responde 429 (rate limit)
+# — ver core/geocoding/nominatim.py::_query_overpass.
+OVERPASS_RATE_LIMIT_BACKOFF_SECONDS = 1.5
 
 # Anúncios (ver models/ad.py, services/ad.py, services/ad_pricing.py)
 # Loop de expiração de campanhas (ver main.py::_expire_campaigns_loop)
@@ -196,10 +199,12 @@ class Settings(BaseSettings):
 
     # HERE Geocoding & Search API (opcional). Sem chave, core/geocoding/router.py
     # nunca escalona pro HERE — roda 100% Nominatim (grátis), só perdendo a
-    # interpolação de número exato no autocomplete (/geo/search). Cadastro:
-    # developer.here.com. O tamanho do free tier específico pra Geocoding &
-    # Search não está confirmado por documentação — checar na conta antes de
-    # depender em produção.
+    # interpolação de número exato no autocomplete (/geo/search) e a
+    # resiliência extra do reverse geocode (/geo/resolve, quando o Nominatim
+    # falha ou não resolve bairro nenhum). Cadastro: developer.here.com. O
+    # tamanho do free tier específico pra Geocoding & Search não está
+    # confirmado por documentação — checar na conta antes de depender em
+    # produção.
     HERE_API_KEY: str = ""
 
     # Client ID OAuth do Google Cloud Console (tipo "Aplicativo da Web").
@@ -208,6 +213,19 @@ class Settings(BaseSettings):
     # como webClientId de propósito, pra sair só uma audience pro backend
     # validar). Vazio = /auth/google responde 501 (ver core/google_oauth.py).
     GOOGLE_WEB_CLIENT_ID: str = ""
+
+    # Uploads de mídia — Cloudflare R2 (ver core/uploads.py). Opcional: sem
+    # R2_BUCKET_NAME, uploads caem pro disco local (UPLOAD_DIR), servido em
+    # /uploads — só serve pra dev local, não é confiável em produção (disco
+    # efêmero na maioria dos PaaS, sem redundância numa VPS única).
+    # R2_ACCOUNT_ID monta o endpoint (https://<id>.r2.cloudflarestorage.com);
+    # R2_PUBLIC_URL é o domínio público do bucket (r2.dev ou domínio custom
+    # conectado) usado pra montar a URL devolvida pro cliente.
+    R2_ACCOUNT_ID: str = ""
+    R2_ACCESS_KEY_ID: str = ""
+    R2_SECRET_ACCESS_KEY: str = ""
+    R2_BUCKET_NAME: str = ""
+    R2_PUBLIC_URL: str = ""
 
     # Anúncios — Stripe Checkout (ver core/payments.py). Opcional: sem chave,
     # tanto o checkout quanto a submissão de conteúdo de proposta manual

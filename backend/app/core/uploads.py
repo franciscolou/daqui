@@ -3,9 +3,10 @@ import binascii
 import secrets
 from enum import StrEnum
 
+import boto3
 from fastapi import HTTPException, UploadFile
 
-from app.core.config import UPLOAD_DIR
+from app.core.config import UPLOAD_DIR, settings
 
 
 class MediaType(StrEnum):
@@ -37,6 +38,31 @@ def is_image_upload(file: UploadFile) -> bool:
     return (file.content_type or "").lower() in _IMAGE_EXTS
 
 
+def _r2_client():
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+        region_name="auto",
+    )
+
+
+def _store(base_url: str, filename: str, data: bytes, content_type: str) -> str:
+    """Grava `data` no R2 (se configurado) ou em UPLOAD_DIR, e devolve a URL pública.
+
+    Sem R2_BUCKET_NAME (dev local), cai pro disco servido em /uploads.
+    """
+    if settings.R2_BUCKET_NAME:
+        _r2_client().put_object(
+            Bucket=settings.R2_BUCKET_NAME, Key=filename, Body=data, ContentType=content_type
+        )
+        return f"{settings.R2_PUBLIC_URL.rstrip('/')}/{filename}"
+
+    (UPLOAD_DIR / filename).write_bytes(data)
+    return f"{base_url.rstrip('/')}/uploads/{filename}"
+
+
 def save_data_url_image(base_url: str, data_url: str, prefix: str) -> str:
     """Decodifica um data URL base64, grava em UPLOAD_DIR e devolve a URL pública.
 
@@ -65,14 +91,15 @@ def save_data_url_image(base_url: str, data_url: str, prefix: str) -> str:
         raise HTTPException(status_code=400, detail="A imagem deve ter no máximo 6 MB")
 
     filename = f"{prefix}_{secrets.token_hex(8)}.{ext}"
-    (UPLOAD_DIR / filename).write_bytes(binary)
-
-    return f"{base_url.rstrip('/')}/uploads/{filename}"
+    return _store(base_url, filename, binary, mime)
 
 
 def save_upload_media(base_url: str, file: UploadFile, prefix: str) -> tuple[str, MediaType]:
-    """Salva uma imagem ou vídeo enviado via multipart (streaming, sem carregar
-    tudo em memória) e devolve `(url_publica, tipo)`.
+    """Salva uma imagem ou vídeo enviado via multipart e devolve `(url_publica, tipo)`.
+
+    Lê em chunks pra cortar cedo se passar do limite, mas o resultado é
+    bufferizado em memória (teto de 30 MB) — necessário pro R2, que recebe o
+    corpo inteiro num único put_object.
     """
     mime = (file.content_type or "").lower()
     if mime in _IMAGE_EXTS:
@@ -82,23 +109,17 @@ def save_upload_media(base_url: str, file: UploadFile, prefix: str) -> tuple[str
     else:
         raise HTTPException(status_code=400, detail="Formato de arquivo não suportado")
 
-    filename = f"{prefix}_{secrets.token_hex(8)}.{ext}"
-    dest = UPLOAD_DIR / filename
-    size = 0
-    with dest.open("wb") as out:
-        while chunk := file.file.read(1024 * 1024):
-            size += len(chunk)
-            if size > max_bytes:
-                out.close()
-                dest.unlink(missing_ok=True)
-                limit_mb = max_bytes // (1024 * 1024)
-                raise HTTPException(
-                    status_code=400, detail=f"O arquivo deve ter no máximo {limit_mb} MB"
-                )
-            out.write(chunk)
+    data = bytearray()
+    while chunk := file.file.read(1024 * 1024):
+        data += chunk
+        if len(data) > max_bytes:
+            limit_mb = max_bytes // (1024 * 1024)
+            raise HTTPException(
+                status_code=400, detail=f"O arquivo deve ter no máximo {limit_mb} MB"
+            )
 
-    if size == 0:
-        dest.unlink(missing_ok=True)
+    if not data:
         raise HTTPException(status_code=400, detail="Arquivo vazio")
 
-    return f"{base_url.rstrip('/')}/uploads/{filename}", media_type
+    filename = f"{prefix}_{secrets.token_hex(8)}.{ext}"
+    return _store(base_url, filename, bytes(data), mime), media_type

@@ -1,4 +1,4 @@
-import time
+import threading
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -14,38 +14,17 @@ def _norm(value: str) -> str:
     return (value or "").strip().lower()
 
 
-# Cache em memória dos bairros vizinhos por ponto. O Overpass é lento (~25s de
-# timeout) e limitado por taxa, então não pode rodar a cada carga de feed. A
-# chave arredonda lat/lng em 2 casas (~1km) e o valor expira em 6h.
-_NEARBY_TTL = 6 * 60 * 60
-_nearby_cache: dict[tuple[float, float], tuple[float, list[str]]] = {}
-
-
-def neighborhoods_around(latitude: float, longitude: float) -> list[str]:
-    """Nomes dos bairros vizinhos ao ponto (para o feed 'incluir redondezas').
-
-    Reusa `geocoding.nearby` (OSM/Overpass) com cache por ponto. Tolerante a
-    falha: devolve [] se o Overpass não responder.
-    """
-    key = (round(latitude, 2), round(longitude, 2))
-    now = time.monotonic()
-    cached = _nearby_cache.get(key)
-    if cached and now - cached[0] < _NEARBY_TTL:
-        return cached[1]
-    places = geocoding.nearby(latitude, longitude)
-    names = [p["neighborhood"] for p in places if p["neighborhood"]]
-    _nearby_cache[key] = (now, names)
-    return names
-
-
-# Cache persistente (banco, `geo_cache`) para geocode/search/reverse — ao
-# contrário do `_nearby_cache` acima (em memória, protege uma chamada grátis
-# ao Overpass), este protege a cota do provedor pago (HERE, ver
-# core/geocoding/router.py) e sobrevive a restart do backend. Endereço e
-# mapeamento prédio→bairro são quase estáticos, por isso um TTL longo (60
-# dias) é seguro — resultado negativo (endereço não encontrado) NUNCA é
-# cacheado em nenhum dos 3 call sites abaixo, pra uma falha pontual do
-# provedor não bloquear em silêncio um endereço real por 60 dias.
+# Cache persistente (banco, `geo_cache`) pra geocode/search/reverse/nearby —
+# protege tanto a cota do provedor pago (HERE, ver core/geocoding/router.py)
+# quanto o rate limit do Nominatim/Overpass (grátis, mas ~1 req/s), e
+# sobrevive a restart do backend (ao contrário de um cache em memória, que
+# zera a cada deploy e, se o backend um dia for multi-réplica, não é
+# compartilhado entre elas — ver CLAUDE.md, "Estado em memória de processo
+# único"). Endereço e mapeamento prédio→bairro são quase estáticos, por isso
+# um TTL longo (60 dias) é seguro — resultado negativo (endereço não
+# encontrado, sem bairro vizinho mapeado) NUNCA é cacheado em nenhum dos call
+# sites abaixo, pra uma falha pontual do provedor não bloquear em silêncio um
+# resultado real por 60 dias.
 _GEO_CACHE_TTL = 60 * 24 * 60 * 60
 
 # TTL curto para resultado DEGRADADO: a query pedia número de casa (portanto o
@@ -72,8 +51,9 @@ def resolve_neighborhood(latitude: float, longitude: float, db: Session) -> Neig
 
     Chave do cache arredonda lat/lng em 4 casas (~11m, grid do tamanho de um
     lote): fino o bastante pra nunca misturar bairros diferentes (ao
-    contrário das 2 casas do `_nearby_cache`, que seriam coarse demais aqui),
-    mas ainda captura o caso comum de reabrir o app quase no mesmo ponto.
+    contrário das 2 casas de `neighborhoods_around` abaixo, que seriam coarse
+    demais aqui), mas ainda captura o caso comum de reabrir o app quase no
+    mesmo ponto.
     """
     cache_key = f"{round(latitude, 4)},{round(longitude, 4)}"
     if cached := _cache_get(db, GeoCacheKind.REVERSE, cache_key):
@@ -95,6 +75,53 @@ def resolve_neighborhood(latitude: float, longitude: float, db: Session) -> Neig
     )
     _cache_put(db, GeoCacheKind.REVERSE, cache_key, resolution.model_dump(), provider=result["provider"])
     return resolution
+
+
+# Coalescência (single-flight) por chave de cache: evita que N requisições
+# concorrentes pra mesma região (mesmo cache miss) disparem N chamadas em
+# paralelo ao Overpass — a segunda thread espera o resultado da primeira em
+# vez de arriscar bater no rate limit dele junto. Só protege dentro de um
+# mesmo processo (mesma premissa do resto do "estado em memória de processo
+# único" documentado no CLAUDE.md) — com múltiplas réplicas cada uma coalesce
+# a sua própria rajada, o que já reduz bastante o problema mesmo sem
+# coordenação entre elas. Os locks nunca são removidos do dict, mas cada um
+# custa poucas dezenas de bytes — mesmo com milhares de regiões distintas ao
+# longo de meses, isso não chega a ser memória relevante.
+_nearby_locks: dict[str, threading.Lock] = {}
+_nearby_locks_guard = threading.Lock()
+
+
+def _nearby_lock(cache_key: str) -> threading.Lock:
+    with _nearby_locks_guard:
+        return _nearby_locks.setdefault(cache_key, threading.Lock())
+
+
+def neighborhoods_around(latitude: float, longitude: float, db: Session) -> list[str]:
+    """Nomes dos bairros vizinhos ao ponto (para o feed 'incluir redondezas').
+
+    Chamado a cada carga de feed com o toggle ligado — o volume aqui é bem
+    maior que o de `nearby_neighborhoods` abaixo (usado só uma vez, no
+    onboarding). Cache persistente igual `resolve_neighborhood`: chave
+    arredonda lat/lng em 2 casas (~1km, coarse o bastante pra não gerar uma
+    linha nova por metro andado) e TTL longo, já que quais bairros ficam perto
+    de um ponto muda raramente. Lista vazia nunca é cacheada, mesma razão do
+    resto do arquivo: não dá pra distinguir "sem bairro vizinho mapeado" de
+    "o Overpass só falhou agora".
+    """
+    cache_key = f"{round(latitude, 2)},{round(longitude, 2)}"
+    if cached := _cache_get(db, GeoCacheKind.NEARBY, cache_key):
+        return cached
+
+    with _nearby_lock(cache_key):
+        # Outra requisição pode ter resolvido e cacheado enquanto esperávamos.
+        if cached := _cache_get(db, GeoCacheKind.NEARBY, cache_key):
+            return cached
+
+        places = geocoding.nearby(latitude, longitude)
+        names = [p["neighborhood"] for p in places if p["neighborhood"]]
+        if names:
+            _cache_put(db, GeoCacheKind.NEARBY, cache_key, names, provider="overpass")
+        return names
 
 
 def nearby_neighborhoods(latitude: float, longitude: float) -> list[NearbyNeighborhood]:

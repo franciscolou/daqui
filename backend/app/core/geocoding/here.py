@@ -16,6 +16,7 @@ from app.core.config import HERE_TIMEOUT_SECONDS, settings
 from .types import STATE_UF, GeoResult
 
 GEOCODE_URL = "https://geocode.search.hereapi.com/v1/geocode"
+REVGEOCODE_URL = "https://revgeocode.search.hereapi.com/v1/revgeocode"
 
 # Campos do `address` do HERE mais próximos de "bairro" em endereços BR.
 # Não confirmado em documentação oficial pra todo endereço BR — validar com
@@ -91,3 +92,25 @@ def search(query: str, limit: int = 10) -> list[GeoResult]:
     if not isinstance(items, list):
         return []
     return [r for item in items if (r := _to_result(item)) is not None]
+
+
+def reverse(lat: float, lon: float) -> GeoResult | None:
+    """Coordenadas → bairro/endereço, via HERE Reverse Geocode. Só chamado
+    quando `settings.HERE_API_KEY` está configurada (ver router.py) e o
+    Nominatim falhou ou não resolveu bairro nenhum."""
+    if not settings.HERE_API_KEY:
+        return None
+    try:
+        resp = httpx.get(
+            REVGEOCODE_URL,
+            params={"at": f"{lat},{lon}", "limit": 1, "apiKey": settings.HERE_API_KEY},
+            timeout=HERE_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except (httpx.HTTPError, ValueError):
+        return None
+    items = data.get("items") if isinstance(data, dict) else None
+    if not isinstance(items, list) or not items:
+        return None
+    return _to_result(items[0])
