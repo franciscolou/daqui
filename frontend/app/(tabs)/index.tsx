@@ -351,8 +351,11 @@ export default function FeedScreen() {
 
   const switchView = useCallback((mode: ViewMode) => {
     if (mode === viewMode) {
-      // Retoque na aba "Perto de mim" reobtém a localização.
+      // Retoque na aba já ativa atualiza: "Perto de mim" reobtém a
+      // localização, "Meu bairro" só recarrega o feed (bairro já é o
+      // cadastrado, não depende de GPS).
       if (mode === 'perto') fetchPertoLocation();
+      else load();
       return;
     }
     const dir = mode === 'perto' ? 1 : -1;
@@ -363,7 +366,7 @@ export default function FeedScreen() {
     indicator.set(withSpring(mode === 'perto' ? 1 : 0, { damping: 20, stiffness: 220, mass: 0.6 }));
     setViewMode(mode);
     if (mode === 'perto') fetchPertoLocation();
-  }, [viewMode, fetchPertoLocation, contentX, contentOpacity, indicator]);
+  }, [viewMode, fetchPertoLocation, load, contentX, contentOpacity, indicator]);
 
   // Redirecionamento de "Alterar bairro de moradia" (Configurações > Meu
   // endereço): chega aqui com ?view=meu pra cair direto na aba "Meu bairro",
