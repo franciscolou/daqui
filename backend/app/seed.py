@@ -6,7 +6,7 @@ import time
 
 from app.core import geocoding
 from app.core.security import hash_password
-from app.database import SessionLocal, create_tables
+from app.database import SessionLocal
 from app.models.comment import Comment
 from app.models.message import Message
 from app.models.notification import Notification, NotificationType
@@ -94,7 +94,6 @@ POSTS = [
 
 
 def seed():
-    create_tables()
     db = SessionLocal()
 
     if db.query(User).count() > 0:

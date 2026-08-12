@@ -25,7 +25,7 @@ todo plano."""
 
 from app.core.config import PLAN_DISCOUNT
 from app.daos import ad as ad_dao
-from app.database import SessionLocal, create_tables
+from app.database import SessionLocal
 from app.models.ad import (
     AdFormat,
     AdPlanCategory,
@@ -281,7 +281,6 @@ PLANS = [
 
 
 def seed_plans():
-    create_tables()
     db = SessionLocal()
     try:
         for data in PLANS:

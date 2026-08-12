@@ -7,12 +7,13 @@ import { AcceptInvite } from './screens/AcceptInvite';
 import { Login } from './screens/Login';
 import { ResetPassword } from './screens/ResetPassword';
 import { Shell } from './screens/Shell';
+import { LoadingState } from './ui/primitives';
 
 // Quatro estados possíveis: aceitar convite de conta (link do e-mail),
 // redefinição de senha (idem), login, ou o painel em si. Não há rotas — o
 // painel é uma tela só, com seções.
 function Root() {
-  const { me } = useAuth();
+  const { me, restoring } = useAuth();
   const [resetToken, setResetToken] = useState(
     () => new URLSearchParams(location.search).get('reset_token') ?? '',
   );
@@ -41,6 +42,14 @@ function Root() {
           setResetToken('');
         }}
       />
+    );
+  }
+
+  if (restoring) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+        <LoadingState label="Restaurando sessão…" />
+      </div>
     );
   }
 

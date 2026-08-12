@@ -5,11 +5,12 @@ import { DialogsProvider } from './ui/dialogs';
 import { AcceptInvite } from './screens/AcceptInvite';
 import { Login } from './screens/Login';
 import { Shell } from './screens/Shell';
+import { LoadingState } from './ui/primitives';
 
 // Dois estados possíveis além do painel em si: aceitar convite de conta
 // (link do e-mail) ou login. Não há rotas — o painel é uma tela só, com seções.
 function Root() {
-  const { me } = useAuth();
+  const { me, restoring } = useAuth();
   const [inviteToken, setInviteToken] = useState(
     () => new URLSearchParams(location.search).get('invite_token') ?? '',
   );
@@ -23,6 +24,14 @@ function Root() {
           setInviteToken('');
         }}
       />
+    );
+  }
+
+  if (restoring) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+        <LoadingState label="Restaurando sessão…" />
+      </div>
     );
   }
 

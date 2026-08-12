@@ -2,18 +2,20 @@
 
 # Daqui
 
-Rede social de bairro (estilo Nextdoor) para São Paulo. Monorepo com **backend FastAPI** (`backend/`) e **app Expo/React Native** universal (`frontend/`) que roda em web, Android e iOS a partir do mesmo código. Há ainda um **app de moderação separado** (`moderator/`, HTML estático) que consome o mesmo backend para moderar as avaliações do app, e um **painel de anunciantes** (`ads-admin/`) para planos, campanhas e pagamento de anúncios — consome o **mesmo backend**, sob rotas `/ads/*` e `/ads-admin/*` (ver seção própria abaixo; até meados de 2026 isso vivia num serviço `ads-backend/` inteiramente separado — fundido ao backend principal por não haver benefício real de deploy/escala independentes num app deste tamanho, mantendo só a fronteira de identidade entre `AdAdmin` e `User`). UI e textos são em **português**.
+Rede social de bairro (estilo Nextdoor) para o Brasil. Monorepo com **backend FastAPI** (`backend/`) e **app Expo/React Native** universal (`frontend/`) que roda em web, Android e iOS a partir do mesmo código. Há ainda um **app de moderação separado** (`moderator/`, HTML estático) que consome o mesmo backend para moderar as avaliações do app, e um **painel de anunciantes** (`ads-admin/`) para planos, campanhas e pagamento de anúncios — consome o **mesmo backend**, sob rotas `/ads/*` e `/ads-admin/*` (ver seção própria abaixo; até meados de 2026 isso vivia num serviço `ads-backend/` inteiramente separado — fundido ao backend principal por não haver benefício real de deploy/escala independentes num app deste tamanho, mantendo só a fronteira de identidade entre `AdAdmin` e `User`). UI e textos são em **português**.
 
 ## Subir o ambiente
 
 ```bash
-./dev.sh          # sobe backend (:8000) + frontend (expo web :8081) + moderação (:8090) + ads-admin (:8091) juntos
+./dev.sh          # sobe Postgres (docker compose) + backend (:8000) + frontend (expo web :8081) + moderação (:8090) + ads-admin (:8091) juntos
 ```
 
 Isolado:
+- Postgres: `docker compose up -d db` (container local, ver `docker-compose.yml` na raiz — mesmo Postgres de produção, só apontando local via `DATABASE_URL` no `.env`)
+- Migrations: `cd backend && .venv/bin/alembic upgrade head` (schema não nasce mais de `create_all`/boot — toda mudança de tabela é uma revision nova em `backend/alembic/versions/`, gerada com `alembic revision --autogenerate -m "..."` e revisada à mão antes de commitar, ver nota sobre FK circular abaixo)
 - Backend: `cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000`
 - Frontend: `cd frontend && npx expo start --web` (ou `--android` / `--ios`)
-- Seed do banco: `cd backend && .venv/bin/python -m app.seed` (não roda se já houver usuários)
+- Seed do banco: `cd backend && .venv/bin/python -m app.seed` (não roda se já houver usuários; requer schema já migrado)
 - Seed de grupos de teste: `cd backend && .venv/bin/python -m app.seed_groups` (idempotente — pula grupos já existentes; roda mesmo com banco populado)
 - Seed de moderador: `cd backend && .venv/bin/python -m app.seed_moderator` (idempotente — cria/garante `moderador@daqui.com` / `senha123` com `is_moderator`)
 - App de moderação: `cd moderator && python3 -m http.server 8090` (ou abrir `moderator/index.html`); loga com a conta de moderador. Consome `/admin/reviews`, `/admin/reports`, `/admin/support-tickets` e `/admin/audit-logs` (papel `is_moderator`, ver `core/deps.get_current_moderator`) — ver seção própria abaixo.
@@ -27,7 +29,7 @@ Usuário de teste seedado: `francisco@daqui.com` / `senha123`.
 
 ## Backend (`backend/app`)
 
-FastAPI + SQLAlchemy 2.0 (ORM tipado, `Mapped[...]`) + SQLite (`daqui.db`, gitignored). Auth por JWT (`python-jose`), senhas com `passlib`/bcrypt. Pydantic v2 para schemas.
+FastAPI + SQLAlchemy 2.0 (ORM tipado, `Mapped[...]`) + Postgres (local via `docker compose`, gerenciado em produção; schema versionado por Alembic, ver `backend/alembic/`). Auth por JWT (`python-jose`), senhas com `passlib`/bcrypt. Pydantic v2 para schemas.
 
 Arquitetura em camadas — uma feature toca um arquivo em cada pasta, sempre na mesma ordem de dependência:
 
@@ -44,7 +46,8 @@ Convenções:
 - Tudo é montado sob `/api/v1` (ver `main.py`). CORS liberado para `*` (dev).
 - Rotas com path estático e dinâmico no mesmo prefixo: **declare a estática antes** da `/{id}` (ex.: `/users/popular` vem antes de `/users/{user_id}`), senão o FastAPI captura como id.
 - `get_current_user` (em `core/deps.py`) é a dependência de auth; quase toda rota a usa.
-- SQLite não tem `greatest/least` — queries que precisariam disso são resolvidas em Python (ex.: `daos/message.get_last_per_conversation`).
+- `daos/message.get_last_per_conversation` resolve em Python o que hoje daria pra fazer com `GREATEST`/`LEAST` do Postgres — herdado de quando o banco era SQLite (que não tem essas funções) e nunca foi revisitado após a migração; não é mais uma limitação real do banco, só não foi reescrito.
+- `users`/`posts`/`comments` têm uma dependência circular real (`posts.quoted_comment_id → comments.id`, `comments.post_id → posts.id`) que `alembic revision --autogenerate` não ordena sozinho (avisa "unresolvable cycles" e ainda assim gera a ordem errada, incluindo `users` antes de tempo). A revision baseline (`backend/alembic/versions/eab1e98b4a75_baseline.py`) já resolve isso à mão (cria `users` → `posts` sem a FK de `quoted_comment_id` → `comments` → só then fecha o ciclo com `op.create_foreign_key`, com o espelho em `downgrade()`); qualquer autogenerate futuro que mexa nessas 3 tabelas juntas precisa do mesmo tratamento manual, autogenerate sozinho não é confiável aqui.
 - Lint: `ruff` (config em `ruff.toml`; aspas duplas, isort). `E501` ignorado.
 - **Parâmetros de comportamento** (limites, TTLs, timeouts, descontos, thresholds — qualquer constante que alguém possa razoavelmente querer ajustar depois, diferente de enum/URL de integração/regex) vão em `core/config.py`, agrupados por domínio com um comentário de seção, **não** soltos no arquivo que os usa. Ao adicionar uma feature nova com um valor desse tipo, declare a constante lá e importe de volta no service/model/schema que a usa — não crie uma constante de módulo local pro mesmo propósito.
 
@@ -78,7 +81,7 @@ UI tem toggle claro/escuro persistido e ícones SVG inline (não emoji, mesmo pa
 
 ## Anúncios (`backend/app` + `ads-admin/`)
 
-O domínio de anúncios vive **dentro do `backend/app`** (mesmo processo, mesmo banco `daqui.db`, mesma arquitetura em camadas de cima) — até meados de 2026 era um serviço `ads-backend/` inteiramente separado (banco/venv/porta/auth próprios); foi fundido porque nada ali usava de fato deploy ou escala independentes (ambos rodavam como processo único, SQLite local, mesmo time), e a separação só custava duplicação de boilerplate/auth sem contrapartida real. O que **continua** deliberadamente separado é a fronteira de identidade: `AdAdmin` (time interno que mexe com campanha/dinheiro) nunca vira só uma flag em `User` — ver bullet "Auth" abaixo. O painel `ads-admin/` (app estático próprio, Vite) é a única peça que ainda é um processo separado, e fala com este mesmo backend.
+O domínio de anúncios vive **dentro do `backend/app`** (mesmo processo, mesmo banco, mesma arquitetura em camadas de cima) — até meados de 2026 era um serviço `ads-backend/` inteiramente separado (banco/venv/porta/auth próprios); foi fundido porque nada ali usava de fato deploy ou escala independentes (ambos rodavam como processo único, SQLite local, mesmo time), e a separação só custava duplicação de boilerplate/auth sem contrapartida real. O que **continua** deliberadamente separado é a fronteira de identidade: `AdAdmin` (time interno que mexe com campanha/dinheiro) nunca vira só uma flag em `User` — ver bullet "Auth" abaixo. O painel `ads-admin/` (app estático próprio, Vite) é a única peça que ainda é um processo separado, e fala com este mesmo backend.
 
 - Domínio: `AdPlan` (planos predefinidos) e `AdCampaign` (contratada via checkout ou inserida manualmente como proposta) em `models/ad.py`. 4 formatos possíveis por campanha: `post` (feed + pin no mapa), `conversation` (linha na aba Mensagens), `notification` (aba Novidades), `search_poster` (poster na Busca).
 - **Auth separada de `User`**: `AdAdmin` (`models/ad_admin.py`) é o time interno que gerencia campanhas — nunca é o `User`/`is_moderator` do Daqui, mesmo estando no mesmo banco agora. Login em `/ads-admin/auth/login`, dependências próprias em `core/deps.py` (`get_current_ad_admin`/`get_current_ads_administrator`/`get_current_ads_owner`, paralelas a `get_current_user`/`get_current_admin`/`get_current_owner` mas keyed em `AdAdmin`/`AdAdminRole`). O isolamento é garantido no token, não só na dependência: todo token/ticket de `AdAdmin` carrega um `scope` JWT próprio e exclusivo (`"ads_admin"`, `"ads_2fa"`, `"ads_password_reset"`, `"ads_staff_invite"` — ver `core/security.py`), então um token de `AdAdmin` nunca autentica como `User` (e vice-versa) mesmo com `SECRET_KEY` compartilhado — sem isso, por exemplo, um convite de staff do Daqui (`scope="staff_invite"`) seria aceito pelo "aceitar convite" do painel de anúncios.
@@ -106,7 +109,7 @@ O `backend/` hoje roda como **um processo único** (`uvicorn`, sem réplicas) �
 - **Loop de expiração de campanhas** (`backend/app/main.py::_expire_ad_campaigns_loop`, ver bullet "Expiração de campanhas" na seção "Anúncios" acima): mesma classe de problema — inofensivo com múltiplas réplicas porque o `UPDATE` é idempotente, mas arquiteturalmente deveria ser um job externo (EventBridge + Lambda), não um loop dentro do processo da API.
 - **Uploads de mídia em disco local** (`backend/app/core/uploads.py`, servido via `StaticFiles` montado em `/uploads` — inclui criativos de anúncio, mesmo diretório desde a fusão): salva no filesystem local do processo (`UPLOAD_DIR`, ver `core/config.py`). Diferente dos itens acima, este quebra de forma **visível e permanente**: um upload feito na réplica A vira 404 se a leitura seguinte (ex.: renderizar a imagem no feed) cair na réplica B, sem volume compartilhado entre elas. Produção: S3 (ou equivalente) com upload direto do backend ou via presigned URL, servido depois por CDN/URL pública do bucket em vez do mount `StaticFiles` local.
 
-Nota lateral: `backend/app/database.py` usa SQLite (`check_same_thread=False`) — o polling do `/ws` já assume "um processo uvicorn" de propósito (ver comentário no topo de `routers/ws.py`). Antes de atacar os itens acima, vale confirmar qual banco roda em produção: múltiplas réplicas escrevendo no mesmo arquivo SQLite (ou pior, arquivos `.db` divergentes sem volume compartilhado) é uma classe de problema à parte que nenhum Redis resolve sozinho.
+Nota lateral: o banco já é Postgres (ver seção "Backend" acima) — o risco de múltiplas réplicas escrevendo em arquivos SQLite divergentes, que existia antes dessa migração, não se aplica mais. O polling do `/ws` continua assumindo "um processo uvicorn" de propósito (ver comentário no topo de `routers/ws.py`) — esse é o item que efetivamente segue pendente da lista acima, independente do banco.
 
 ## Frontend (`frontend/`)
 
@@ -181,7 +184,7 @@ Injeção do anúncio ativo — cada tela busca só o próprio formato via `adsA
 ## Verificação rápida
 
 - TS: `cd frontend && npx tsc --noEmit` (ignore os erros pré-existentes acima).
-- Backend smoke test sem subir servidor: `TestClient(app)` — logar com o usuário seed e bater nos endpoints. Ex.:
+- Backend smoke test sem subir servidor: `TestClient(app)` — logar com o usuário seed e bater nos endpoints. Requer `docker compose up -d db` + `alembic upgrade head` + `python -m app.seed` rodados antes pelo menos uma vez (o schema não nasce mais sozinho no boot, ver seção "Backend" acima). Ex.:
   ```python
   from fastapi.testclient import TestClient; from app.main import app
   c = TestClient(app)

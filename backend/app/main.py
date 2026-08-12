@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import EXPIRE_CAMPAIGNS_INTERVAL_SECONDS, UPLOAD_DIR
 from app.daos import ad as ad_dao
-from app.database import SessionLocal, create_tables
+from app.database import SessionLocal
 from app.routers import (
     ad_admin_auth,
     ad_audit_log,
@@ -58,7 +58,9 @@ async def _expire_ad_campaigns_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_tables()
+    # Schema é responsabilidade do `alembic upgrade head` (rodado antes de
+    # subir a API, ver dev.sh/deploy) — não mais criado/corrigido aqui no
+    # boot, até por não ser seguro repetir em múltiplas réplicas.
     # Garante a retenção mesmo que ninguém abra a tela da lixeira após o prazo.
     with SessionLocal() as db:
         trash_service.purge_expired(db)

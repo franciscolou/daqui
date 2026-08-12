@@ -9,12 +9,11 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.core.username import suggest_from_email
 from app.daos import ad_admin as admin_dao
-from app.database import SessionLocal, create_tables
+from app.database import SessionLocal
 from app.models.ad_admin import AdAdminRole
 
 
 def seed_admin():
-    create_tables()
     db = SessionLocal()
     try:
         existing = admin_dao.get_by_email(db, settings.ADS_ADMIN_EMAIL)

@@ -5,7 +5,7 @@ seedado por seed_moderator.py. Útil pra testar a hierarquia de cargos
 Execute: python -m app.seed_staff  (idempotente)
 """
 from app.core.security import hash_password
-from app.database import SessionLocal, create_tables
+from app.database import SessionLocal
 from app.models.user import StaffRole, User, UserBadge
 
 PASSWORD = "senha123"
@@ -16,7 +16,6 @@ ACCOUNTS = [
 
 
 def seed_staff():
-    create_tables()
     db = SessionLocal()
     try:
         for acc in ACCOUNTS:

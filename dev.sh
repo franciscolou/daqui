@@ -11,11 +11,20 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# Postgres local (ver docker-compose.yml na raiz) — mesmo banco usado em
+# produção, só apontando pro container local via DATABASE_URL no .env.
+echo "▶ Postgres   → localhost:5432 (docker compose)"
+docker compose -f "$ROOT/docker-compose.yml" up -d db
+until docker compose -f "$ROOT/docker-compose.yml" exec -T db pg_isready -U daqui >/dev/null 2>&1; do
+  sleep 1
+done
+
 # Inclui o domínio de anúncios (planos, campanhas, pagamento — rotas /ads/*
 # e /ads-admin/*). Seed inicial: cd backend && .venv/bin/python -m app.seed_ads_admin
 # && .venv/bin/python -m app.seed_ads_plans
 echo "▶ Backend    → http://localhost:8000"
 cd "$ROOT/backend"
+.venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 

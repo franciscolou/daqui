@@ -65,8 +65,13 @@ class Report(Base):
     __tablename__ = "reports"
     __table_args__ = (
         CheckConstraint(
-            "(post_id IS NOT NULL) + (comment_id IS NOT NULL) + (reported_user_id IS NOT NULL)"
-            " + (ad_campaign_id IS NOT NULL) = 1",
+            # CASE WHEN em vez de somar os IS NOT NULL direto: em Postgres
+            # booleano não converte implicitamente pra inteiro (funciona só
+            # em SQLite), essa forma roda igual nos dois.
+            "(CASE WHEN post_id IS NOT NULL THEN 1 ELSE 0 END)"
+            " + (CASE WHEN comment_id IS NOT NULL THEN 1 ELSE 0 END)"
+            " + (CASE WHEN reported_user_id IS NOT NULL THEN 1 ELSE 0 END)"
+            " + (CASE WHEN ad_campaign_id IS NOT NULL THEN 1 ELSE 0 END) = 1",
             name="report_single_target",
         ),
     )

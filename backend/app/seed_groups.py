@@ -14,7 +14,7 @@ Cenários montados em torno do francisco (bairro Leme):
 - há um grupo aberto ao público de Pinheiros ("Pinheiros Pet Lovers") que NÃO
   deve aparecer para o francisco — demonstra o isolamento por bairro.
 """
-from app.database import SessionLocal, create_tables
+from app.database import SessionLocal
 from app.models.group import (
     Group,
     GroupJoinRequest,
@@ -91,7 +91,6 @@ GROUPS = [
 
 
 def seed_groups():
-    create_tables()
     db = SessionLocal()
     try:
         users = {u.username: u for u in db.query(User).all()}

@@ -8,7 +8,7 @@ Execute: python -m app.seed_moderator  (idempotente)
 Login: moderador@daqui.com / senha123
 """
 from app.core.security import hash_password
-from app.database import SessionLocal, create_tables
+from app.database import SessionLocal
 from app.models.user import StaffRole, User, UserBadge
 
 EMAIL = "moderador@daqui.com"
@@ -17,7 +17,6 @@ PASSWORD = "senha123"
 
 
 def seed_moderator():
-    create_tables()
     db = SessionLocal()
     try:
         user = db.query(User).filter(User.email == EMAIL).first()

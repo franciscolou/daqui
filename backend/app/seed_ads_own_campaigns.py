@@ -9,7 +9,7 @@ Execute: python -m app.seed_ads_own_campaigns
 from datetime import datetime, timedelta, timezone
 
 from app.daos import ad as ad_dao
-from app.database import SessionLocal, create_tables
+from app.database import SessionLocal
 from app.models.ad import (
     AdCampaignStatus,
     AdFormat,
@@ -79,7 +79,6 @@ CAMPAIGNS = [
 
 
 def seed_own_campaigns():
-    create_tables()
     db = SessionLocal()
     try:
         existing = ad_dao.list_campaigns_by_email(db, OWNER_EMAIL)
