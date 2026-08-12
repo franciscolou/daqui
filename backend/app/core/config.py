@@ -176,7 +176,7 @@ class Settings(BaseSettings):
     # E-mail transacional (código de verificação, link de redefinição de senha).
     # Em development, core/email.py não chama o Resend: só loga no console.
     RESEND_API_KEY: str = ""
-    EMAIL_FROM: str = "Daqui <onboarding@resend.dev>"
+    EMAIL_FROM: str = "Daqui <team.daqui@gmail.com>"
     # Usado para montar o link de redefinição de senha enviado por e-mail.
     # Sem default de propósito: um FRONTEND_URL errado silenciosamente aponta
     # o link do e-mail pro ambiente errado, então preferimos falhar ao subir
