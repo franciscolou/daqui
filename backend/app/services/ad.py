@@ -312,13 +312,20 @@ def checkout(db: Session, payload: CheckoutRequest) -> CheckoutResponse:
         per_user_impression_cap=payload.per_user_impression_cap,
         starts_at=payload.starts_at,
         schedule=schedule.model_dump(),
-        payment_provider=PaymentProvider.STRIPE,
+        payment_provider=PaymentProvider.ASAAS,
         renewed_from_id=renewed_from_id,
         root_campaign_id=root_campaign_id,
     )
     title = campaign.creatives[0].title if campaign.creatives else "Anúncio"
     checkout_url = payments.create_checkout_session(
-        campaign.id, campaign.access_token, title, price_cents, campaign.currency
+        campaign.id,
+        campaign.access_token,
+        title,
+        price_cents,
+        advertiser_name=campaign.advertiser_name,
+        advertiser_email=campaign.advertiser_email,
+        advertiser_phone=campaign.advertiser_phone,
+        advertiser_document=campaign.advertiser_document,
     )
     return CheckoutResponse(campaign_id=campaign.id, checkout_url=checkout_url)
 
@@ -347,7 +354,7 @@ def _activate(
     """Ativa a campanha. `actor` só vem preenchido quando quem chamou é uma
     ação de admin com sessão própria (`admin_mark_campaign_paid` — esse já
     loga `CAMPAIGN_MARK_PAID` ali mesmo, então aqui não duplica). Sem `actor`
-    (webhook do Stripe, sem admin nenhum na jogada), registra
+    (webhook do Asaas, sem admin nenhum na jogada), registra
     `PROPOSAL_ACTIVATED` atribuído ao admin que criou a proposta, só quando a
     campanha vier de uma proposta manual — o checkout self-service não tem
     admin nenhum a quem atribuir."""
@@ -387,15 +394,20 @@ def _activate(
             )
 
 
-def handle_stripe_webhook(db: Session, payload: bytes, signature: str) -> None:
-    event = payments.verify_webhook(payload, signature)
-    if event["type"] != "checkout.session.completed":
+def handle_asaas_webhook(db: Session, payload: bytes, token: str) -> None:
+    """PAYMENT_CONFIRMED, não PAYMENT_RECEIVED: o segundo só dispara quando o
+    valor já está disponível na conta Asaas, o que pro cartão parcelado pode
+    demorar dias — ativar a campanha não deveria depender do calendário de
+    liquidação do Asaas, só de o pagamento ter sido aprovado (mesmo momento
+    em que o checkout.session.completed da Stripe disparava antes)."""
+    event = payments.verify_webhook(payload, token)
+    if event.get("event") != "PAYMENT_CONFIRMED":
         return
-    session = event["data"]["object"]
-    campaign_id = int(session["metadata"]["campaign_id"])
+    payment = event.get("payment") or {}
+    campaign_id = int(payment["externalReference"])
     campaign = ad_dao.get_campaign(db, campaign_id)
     if campaign and campaign.status == AdCampaignStatus.PENDING_PAYMENT:
-        _activate(db, campaign, session.get("id"))
+        _activate(db, campaign, payment.get("id"))
 
 
 def _is_publicly_visible(campaign: AdCampaign) -> bool:
@@ -720,7 +732,7 @@ def admin_create_manual_campaign(
         starts_at=payload.starts_at,
         schedule=schedule.model_dump(),
         created_by_admin_id=admin.id,
-        payment_provider=PaymentProvider.STRIPE,
+        payment_provider=PaymentProvider.ASAAS,
         renewed_from_id=renewed_from_id,
         root_campaign_id=root_campaign_id,
     )
@@ -740,7 +752,7 @@ def submit_my_campaign_content(
     `awaiting_content` — a config comercial já foi fixada pelo admin na
     criação (ver `admin_create_manual_campaign`). Salva os criativos, gera o
     link de pagamento real só agora (é o primeiro momento em que existe um
-    título pra dar nome ao produto no Stripe) e vira `pending_payment`."""
+    título pra dar nome ao produto no Asaas) e vira `pending_payment`."""
     campaign = ad_dao.get_campaign_by_token(db, token)
     if not campaign:
         raise HTTPException(status_code=404, detail="Anúncio não encontrado")
@@ -758,7 +770,14 @@ def submit_my_campaign_content(
     )
     title = campaign.creatives[0].title if campaign.creatives else "Anúncio"
     checkout_url = payments.create_checkout_session(
-        campaign.id, campaign.access_token, title, campaign.price_cents, campaign.currency
+        campaign.id,
+        campaign.access_token,
+        title,
+        campaign.price_cents,
+        advertiser_name=campaign.advertiser_name,
+        advertiser_email=campaign.advertiser_email,
+        advertiser_phone=campaign.advertiser_phone,
+        advertiser_document=campaign.advertiser_document,
     )
     campaign = ad_dao.update_campaign(
         db, campaign, status=AdCampaignStatus.PENDING_PAYMENT
@@ -783,7 +802,7 @@ def admin_mark_campaign_paid(
 ) -> CampaignAdminOut:
     """Confirma manualmente o pagamento de uma campanha `pending_payment` —
     pra pagamentos combinados por fora (PIX/transferência) ou pra testar o
-    fluxo sem depender de uma chave Stripe real (gap documentado no
+    fluxo sem depender de uma chave Asaas real (gap documentado no
     CLAUDE.md). Reaproveita `_activate`, o mesmo caminho do webhook, só
     marcando `payment_provider` como confirmação manual pra auditoria."""
     campaign = ad_dao.get_campaign(db, campaign_id)

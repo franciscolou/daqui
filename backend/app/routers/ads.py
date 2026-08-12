@@ -24,7 +24,7 @@ router.get("/plans", response_model=list[AdPlanOut])(ad.list_plans)
 router.post("/quote", response_model=QuoteResponse)(ad.quote)
 router.post("/checkout", response_model=CheckoutResponse)(ad.checkout)
 router.post("/media", response_model=MediaUploadOut, status_code=201)(ad.upload_media)
-router.post("/webhook/stripe")(ad.stripe_webhook)
+router.post("/webhook/asaas")(ad.asaas_webhook)
 router.get("/active/{format}", response_model=AdOut | None)(ad.get_active_ad)
 # Rolagem infinita da Busca (mais de um anúncio, repetindo o pool elegível
 # quando esgota) — rota estática "/list" depois do path param "format" não

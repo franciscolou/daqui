@@ -1,6 +1,6 @@
 """Envio de push notification via Expo Push Service, isolado atrás de uma
-função — mesmo padrão de `core/email.py` (Resend) e `ads-backend/app/core/
-payments.py` (Stripe).
+função — mesmo padrão de `core/email.py` (Resend) e `core/payments.py`
+(Asaas).
 
 Em `ENVIRONMENT=development`, não chama o Expo: loga no console, para dar pra
 testar o fluxo de ponta a ponta sem precisar de dispositivo/projeto EAS reais.

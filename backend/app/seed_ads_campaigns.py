@@ -337,7 +337,7 @@ def seed_campaigns():
                 starts_at=starts_at,
                 ends_at=ends_at,
                 paid_at=starts_at if data["status"] != AdCampaignStatus.PENDING_PAYMENT else None,
-                payment_provider=PaymentProvider.STRIPE if starts_at else None,
+                payment_provider=PaymentProvider.ASAAS if starts_at else None,
                 payment_reference=f"seed_{data['advertiser_email']}" if starts_at else None,
             )
             print(f"✅ campanha '{campaign.advertiser_name}' criada ({campaign.status}).")

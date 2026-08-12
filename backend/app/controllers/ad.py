@@ -69,10 +69,10 @@ def upload_media(request: Request, file: UploadFile = File(...)) -> MediaUploadO
     return ad_service.upload_media(str(request.base_url), file)
 
 
-async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dict:
+async def asaas_webhook(request: Request, db: Session = Depends(get_db)) -> dict:
     payload = await request.body()
-    signature = request.headers.get("stripe-signature", "")
-    ad_service.handle_stripe_webhook(db, payload, signature)
+    token = request.headers.get("asaas-access-token", "")
+    ad_service.handle_asaas_webhook(db, payload, token)
     return {"received": True}
 
 

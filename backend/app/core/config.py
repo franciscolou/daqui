@@ -97,6 +97,11 @@ OVERPASS_RATE_LIMIT_BACKOFF_SECONDS = 1.5
 # Loop de expiração de campanhas (ver main.py::_expire_campaigns_loop)
 EXPIRE_CAMPAIGNS_INTERVAL_SECONDS = 30
 
+# Máximo de parcelas oferecido no checkout (Asaas, ver core/payments.py) pra
+# quem paga no cartão — o anunciante escolhe à vista ou em quantas parcelas
+# quiser até esse teto, na própria tela do Asaas.
+ADS_CHECKOUT_MAX_INSTALLMENTS = 12
+
 # Desconto de pacote sobre o preço que a engine dinâmica cobraria pelos
 # mesmos parâmetros (ver seed_ads_plans.py::_plan_price) — mesma taxa do combo
 # post+mapa (POST_MAP_BUNDLE_DISCOUNT abaixo), reaproveitada aqui só por
@@ -227,17 +232,28 @@ class Settings(BaseSettings):
     R2_BUCKET_NAME: str = ""
     R2_PUBLIC_URL: str = ""
 
-    # Anúncios — Stripe Checkout (ver core/payments.py). Opcional: sem chave,
-    # tanto o checkout quanto a submissão de conteúdo de proposta manual
-    # levantam erro do Stripe em vez de devolver checkout_url — use
+    # Anúncios — Asaas Checkout (ver core/payments.py; PIX e cartão à vista ou
+    # parcelado, escolhidos pelo próprio anunciante na tela do Asaas — ver
+    # ADS_CHECKOUT_MAX_INSTALLMENTS acima). Opcional: sem chave, tanto o
+    # checkout quanto a submissão de conteúdo de proposta manual levantam erro
+    # do Asaas em vez de devolver checkout_url — use
     # POST /admin/ads/campaigns/{id}/mark-paid pra testar sem pagar de verdade.
-    STRIPE_SECRET_KEY: str = ""
-    STRIPE_WEBHOOK_SECRET: str = ""
+    # Cadastro/chaves: asaas.com (produção) ou sandbox.asaas.com (testes,
+    # chave começa com "$aact_hmlg_"). O ambiente é decidido por
+    # ENVIRONMENT acima (production -> api.asaas.com, resto -> sandbox).
+    ASAAS_API_KEY: str = ""
+    # Token que você mesmo escolhe ao configurar o Webhook no dashboard do
+    # Asaas (Configurações -> Integrações -> Webhooks) — Asaas ecoa esse valor
+    # de volta no header `asaas-access-token` de toda notificação, e é assim
+    # que verificamos que a chamada veio de fato de lá (não é assinatura
+    # criptográfica como no Stripe, é comparação direta — ver
+    # core/payments.py::verify_webhook).
+    ASAAS_WEBHOOK_TOKEN: str = ""
     # Sem default de propósito (mesmo espírito do FRONTEND_URL acima): apontar
     # silenciosamente pra localhost em produção manda o anunciante de volta
     # pro lugar errado depois de pagar. Ver .env/.env.example.
-    STRIPE_SUCCESS_URL: str
-    STRIPE_CANCEL_URL: str
+    ADS_CHECKOUT_SUCCESS_URL: str
+    ADS_CHECKOUT_CANCEL_URL: str
 
     ADS_ADMIN_EMAIL: str = "ads@daqui.com"
     ADS_ADMIN_PASSWORD: str = "senha123"

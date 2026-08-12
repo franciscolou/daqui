@@ -85,7 +85,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: '8. Anúncios e conteúdo patrocinado',
     blocks: [
-      p('O Daqui exibe anúncios de terceiros no feed, no mapa, nas Mensagens, em Novidades e na Busca, sempre identificados como "Anúncio" ou "Patrocinado". A contratação de anúncios é feita por um serviço separado, com pagamento processado por um provedor de pagamentos externo (Stripe).'),
+      p('O Daqui exibe anúncios de terceiros no feed, no mapa, nas Mensagens, em Novidades e na Busca, sempre identificados como "Anúncio" ou "Patrocinado". A contratação de anúncios é feita por um serviço separado, com pagamento processado por um provedor de pagamentos externo (Asaas).'),
       p('O Daqui não se responsabiliza pelos produtos, serviços ou informações veiculados por anunciantes — a relação comercial eventualmente originada por um anúncio é exclusivamente entre o usuário e o anunciante.'),
     ],
   },
@@ -205,7 +205,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       ul([
         'Provedores de infraestrutura de notificação (Expo Push Service), para entregar notificações no seu dispositivo;',
         'Serviços de geocodificação (OpenStreetMap/Nominatim), para converter coordenadas em nome de bairro/endereço, sem identificar você para esses serviços;',
-        'Processador de pagamentos (Stripe), somente quando você mesmo contrata um anúncio como anunciante — dados de pagamento não passam pelos servidores do Daqui;',
+        'Processador de pagamentos (Asaas), somente quando você mesmo contrata um anúncio como anunciante — dados de pagamento não passam pelos servidores do Daqui;',
         'Outros usuários, apenas o que é inerentemente público no app (nome, usuário, foto, bairro, posts e comentários visíveis) — e, se você vincular sua conta a um anúncio próprio, essas mesmas informações públicas passam a aparecer também no cartão do anúncio.',
       ]),
     ],

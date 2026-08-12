@@ -116,7 +116,7 @@ class AdPlanCategory(StrEnum):
 
 
 class PaymentProvider(StrEnum):
-    STRIPE = "stripe"
+    ASAAS = "asaas"
     MANUAL = "manual"
     MANUAL_CONFIRMATION = "manual_confirmation"
 
