@@ -36,6 +36,7 @@ from app.schemas.ad import (
     CampaignAnalyticsRow,
     CampaignContentSubmit,
     CampaignHistoryPeriod,
+    CampaignSeries,
     CampaignUpdate,
     CheckoutRequest,
     CheckoutResponse,
@@ -1105,6 +1106,8 @@ def _campaigns_analytics(
     clk_by_campaign: dict = defaultdict(int)
     imp_by_day: dict = defaultdict(int)
     clk_by_day: dict = defaultdict(int)
+    imp_by_campaign_day: dict = defaultdict(int)
+    clk_by_campaign_day: dict = defaultdict(int)
     imp_by_format: dict = defaultdict(int)
     clk_by_format: dict = defaultdict(int)
     imp_by_objective: dict = defaultdict(int)
@@ -1112,8 +1115,10 @@ def _campaigns_analytics(
     imp_by_hood: dict = defaultdict(int)
 
     for e in impressions:
+        day = e.occurred_at.date().isoformat()
         imp_by_campaign[e.campaign_id] += 1
-        imp_by_day[e.occurred_at.date().isoformat()] += 1
+        imp_by_day[day] += 1
+        imp_by_campaign_day[(e.campaign_id, day)] += 1
         imp_by_format[e.format or "—"] += 1
         camp = campaigns_by_id.get(e.campaign_id)
         if camp:
@@ -1121,8 +1126,10 @@ def _campaigns_analytics(
         if e.neighborhood:
             imp_by_hood[e.neighborhood] += 1
     for e in clicks:
+        day = e.occurred_at.date().isoformat()
         clk_by_campaign[e.campaign_id] += 1
-        clk_by_day[e.occurred_at.date().isoformat()] += 1
+        clk_by_day[day] += 1
+        clk_by_campaign_day[(e.campaign_id, day)] += 1
         clk_by_format[e.format or "—"] += 1
         camp = campaigns_by_id.get(e.campaign_id)
         if camp:
@@ -1142,6 +1149,33 @@ def _campaigns_analytics(
     days = sorted(set(imp_by_day) | set(clk_by_day))
     timeseries = bucket_list(imp_by_day, clk_by_day, days)
 
+    # Uma série por campanha, no mesmo eixo `days` acima — é o que permite um
+    # gráfico de linhas sobrepor várias campanhas pra comparação direta (ver
+    # `CampaignSeries`). Só entra campanha com pelo menos 1 evento; propostas
+    # nunca entregues (pending_payment/rejected/awaiting_content) não têm
+    # nada em `imp_by_campaign`, então ficam de fora sem checagem extra de status.
+    by_campaign_timeseries = [
+        CampaignSeries(
+            campaign_id=c.id,
+            title=c.creatives[0].title if c.creatives else "Anúncio",
+            buckets=[
+                AnalyticsBucket(
+                    key=d,
+                    impressions=imp_by_campaign_day.get((c.id, d), 0),
+                    clicks=clk_by_campaign_day.get((c.id, d), 0),
+                    ctr=(
+                        clk_by_campaign_day.get((c.id, d), 0) / imp_by_campaign_day[(c.id, d)]
+                        if imp_by_campaign_day.get((c.id, d))
+                        else 0.0
+                    ),
+                )
+                for d in days
+            ],
+        )
+        for c in campaigns
+        if imp_by_campaign.get(c.id)
+    ]
+
     formats = sorted(set(imp_by_format) | set(clk_by_format))
     by_format = bucket_list(imp_by_format, clk_by_format, formats)
 
@@ -1149,6 +1183,10 @@ def _campaigns_analytics(
     by_objective = bucket_list(imp_by_objective, clk_by_objective, objectives)
 
     plan_cache: dict = {}
+
+    def _thumbnail(c: AdCampaign) -> str | None:
+        creative = ad_dao.pick_creative(c, AdFormat.POST)
+        return creative.image_url if creative else None
 
     def category_of(c: AdCampaign) -> str:
         if not c.plan_id:
@@ -1187,6 +1225,7 @@ def _campaigns_analytics(
             objective=c.objective,
             category=category_of(c),
             formats=c.formats,
+            image_url=_thumbnail(c),
             price_cents=c.price_cents,
             impressions=imp_by_campaign.get(c.id, 0),
             clicks=clk_by_campaign.get(c.id, 0),
@@ -1242,6 +1281,7 @@ def _campaigns_analytics(
         date_to=date_to,
         summary=summary,
         timeseries=timeseries,
+        by_campaign_timeseries=by_campaign_timeseries,
         by_format=by_format,
         by_objective=by_objective,
         by_category=by_category,

@@ -676,7 +676,15 @@
       "overTime": "Over time",
       "byFormat": "By format",
       "stats": "{{impressions}} impressions · {{clicks}} clicks · {{ctr}}% CTR",
-      "viewPanel": "View campaign dashboard"
+      "viewPanel": "View campaign dashboard",
+      "headerSummary": "{{count}} campaigns · {{active}} active",
+      "insights": "Insights",
+      "costPerInteraction": "Cost per interaction",
+      "cpcLabel": "{{cpc}} per interaction",
+      "compareTitle": "Performance over time",
+      "compareTruncated": "Showing the {{count}} campaigns with the most impressions in the period — use the filters above to focus on others.",
+      "compareEmpty": "No events recorded yet for the selected campaigns.",
+      "ctrByCampaign": "CTR by campaign"
     },
     "landing": {
       "title": "Advertise on Daqui",

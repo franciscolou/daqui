@@ -175,7 +175,7 @@
     "forgotPassword": {
       "title": "Esqueceu a senha?",
       "subtitleSent": "Confira seu e-mail",
-      "subtitleIdle": "Enviamos um link pra você redefinir",
+      "subtitleIdle": "Enviamos um link para você redefinir",
       "intro": "Digite o e-mail da sua conta — vamos enviar um link para você escolher uma nova senha.",
       "email": "E-mail",
       "sentDescPrefix": "Se ",
@@ -676,7 +676,15 @@
       "overTime": "Ao longo do tempo",
       "byFormat": "Por formato",
       "stats": "{{impressions}} impressões · {{clicks}} cliques · {{ctr}}% CTR",
-      "viewPanel": "Ver painel da campanha"
+      "viewPanel": "Ver painel da campanha",
+      "headerSummary": "{{count}} campanhas · {{active}} ativas",
+      "insights": "Insights",
+      "costPerInteraction": "Custo por interação",
+      "cpcLabel": "{{cpc}} por interação",
+      "compareTitle": "Desempenho ao longo do tempo",
+      "compareTruncated": "Mostrando as {{count}} campanhas com mais impressões no período — use os filtros acima para focar em outras.",
+      "compareEmpty": "Nenhum evento registrado ainda para as campanhas selecionadas.",
+      "ctrByCampaign": "CTR por campanha"
     },
     "landing": {
       "title": "Anuncie no Daqui",
@@ -688,7 +696,7 @@
         "2": "Monte a campanha perfeita"
       },
       "chooseProfile": "Escolha o seu perfil",
-      "profileHint": "O perfil define quais planos fazem mais sentido pro seu anúncio.",
+      "profileHint": "O perfil define quais planos fazem mais sentido para o seu anúncio.",
       "categories": {
         "local_business": {
           "label": "Comércio local",
@@ -1359,7 +1367,7 @@
     },
     "neighborhoodMapPicker": {
       "headerTitle": "Escolher bairros no mapa",
-      "hint": "Toque num ponto do mapa, confira o bairro e confirme. Repita pra adicionar outros.",
+      "hint": "Toque num ponto do mapa, confira o bairro e confirme. Repita para adicionar outros.",
       "limitReached": "Limite de {{count}} bairro atingido.",
       "limitReachedPlural": "Limite de {{count}} bairros atingido.",
       "resolving": "Identificando o bairro…",
@@ -1371,13 +1379,13 @@
     },
     "cityPicker": {
       "placeholder": "Digite o nome de uma cidade...",
-      "limitSingle": "Toque no × acima pra trocar de cidade.",
+      "limitSingle": "Toque no × acima para trocar de cidade.",
       "limitPlural": "Limite de {{count}} cidades do plano atingido."
     },
     "cityMapPicker": {
       "headerTitle": "Escolher cidade no mapa",
       "hint": "Toque num ponto do mapa, confira a cidade e confirme.",
-      "hintRepeat": " Repita pra adicionar outras.",
+      "hintRepeat": " Repita para adicionar outras.",
       "limitReached": "Limite de {{count}} cidade atingido.",
       "limitReachedPlural": "Limite de {{count}} cidades atingido.",
       "resolving": "Identificando a cidade…",
@@ -1395,7 +1403,7 @@
     },
     "pickerModal": {
       "headerTitle": "Selecionar local no mapa",
-      "hint": "Toque no mapa pra marcar o local — dá pra arrastar o pin depois",
+      "hint": "Toque no mapa para marcar o local — você pode arrastar o pin depois",
       "resolving": "Identificando o endereço…",
       "outsideNeighborhood": "Esse ponto fica em {{neighborhood}}, fora do seu bairro ({{userNeighborhood}}).",
       "genericError": "Não foi possível identificar o endereço.",
@@ -1409,9 +1417,9 @@
       "label": "Escolher no mapa"
     },
     "startDate": {
-      "info": "Quando o anúncio começa a rodar. Deixe em \"imediatamente\" pra começar assim que o pagamento for confirmado — a duração escolhida acima passa a contar a partir da data marcada aqui.",
+      "info": "Quando o anúncio começa a rodar. Deixe em \"imediatamente\" para começar assim que o pagamento for confirmado — a duração escolhida acima passa a contar a partir da data marcada aqui.",
       "label": "Data de início",
-      "clearButton": "Voltar pra imediatamente",
+      "clearButton": "Voltar para imediatamente",
       "immediateNow": "Imediatamente, assim que o pagamento confirmar",
       "modalSubtitle": "Escolha quando o anúncio começa a rodar",
       "immediateButton": "Começar imediatamente"
@@ -1446,7 +1454,7 @@
     "mentionedYou": " mencionou você: ",
     "welcomeBefore": "Bem-vindo(a) ao Daqui! Antes de começar, confira a seção ",
     "welcomeHighlight": "Ajuda e suporte",
-    "welcomeAfter": " pra aprender a usar o app.",
+    "welcomeAfter": " para aprender a usar o app.",
     "postRemovedText": "Seu post foi removido pela moderação por não seguir as diretrizes da comunidade.",
     "commentRemovedText": "Seu comentário foi removido pela moderação por não seguir as diretrizes da comunidade.",
     "postRestoredText": "Após reanálise da moderação, seu post foi reanalisado e restaurado..",

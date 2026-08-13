@@ -575,6 +575,7 @@ export interface CampaignSummary {
   title: string;
   status: CampaignStatus;
   formats: AdFormat[];
+  imageUrl?: string;
   priceCents: number;
   impressions: number;
   clicks: number;
@@ -583,6 +584,16 @@ export interface CampaignSummary {
   startsAt?: string;
   endsAt?: string;
   createdAt: string;
+}
+
+// Série diária de UMA campanha, no mesmo eixo de dias de `timeseries` acima —
+// o que permite plotar várias campanhas lado a lado num gráfico de linhas
+// pra comparação direta (ver MultiLineChart). Só vêm campanhas com pelo
+// menos 1 evento (nunca uma linha zerada pra proposta ainda não entregue).
+export interface CampaignSeries {
+  campaignId: number;
+  title: string;
+  buckets: AnalyticsBucket[];
 }
 
 export interface MyCampaignsAnalytics {
@@ -597,6 +608,7 @@ export interface MyCampaignsAnalytics {
     cpmCents: number | null;
   };
   timeseries: AnalyticsBucket[];
+  byCampaignTimeseries: CampaignSeries[];
   byFormat: AnalyticsBucket[];
   campaigns: CampaignSummary[];
   insights: string[];
@@ -614,6 +626,7 @@ interface BackendMyCampaignsAnalytics {
     cpm_cents: number | null;
   };
   timeseries: AnalyticsBucket[];
+  by_campaign_timeseries: { campaign_id: number; title: string; buckets: AnalyticsBucket[] }[];
   by_format: AnalyticsBucket[];
   campaigns: {
     id: number;
@@ -621,6 +634,7 @@ interface BackendMyCampaignsAnalytics {
     title: string;
     status: CampaignStatus;
     formats: AdFormat[];
+    image_url: string | null;
     price_cents: number;
     impressions: number;
     clicks: number;
@@ -646,6 +660,11 @@ function mapMyCampaignsAnalytics(b: BackendMyCampaignsAnalytics): MyCampaignsAna
       cpmCents: b.summary.cpm_cents,
     },
     timeseries: b.timeseries,
+    byCampaignTimeseries: b.by_campaign_timeseries.map((s) => ({
+      campaignId: s.campaign_id,
+      title: s.title,
+      buckets: s.buckets,
+    })),
     byFormat: b.by_format,
     campaigns: b.campaigns.map((c) => ({
       id: c.id,
@@ -653,6 +672,7 @@ function mapMyCampaignsAnalytics(b: BackendMyCampaignsAnalytics): MyCampaignsAna
       title: c.title,
       status: c.status,
       formats: c.formats,
+      imageUrl: c.image_url ?? undefined,
       priceCents: c.price_cents,
       impressions: c.impressions,
       clicks: c.clicks,

@@ -639,6 +639,9 @@ class CampaignAnalyticsRow(BaseModel):
     objective: AdObjective
     category: str
     formats: list[AdFormat]
+    # Miniatura pro grid de "Meus anúncios" — sempre o criativo padrão (post),
+    # já que é o único garantido a ter imagem (ver `daos/ad.py::pick_creative`).
+    image_url: str | None
     price_cents: int
     impressions: int
     clicks: int
@@ -660,11 +663,25 @@ class GlobalAnalyticsSummary(BaseModel):
     cpm_cents: float | None
 
 
+class CampaignSeries(BaseModel):
+    """Série diária de uma campanha isolada, no mesmo eixo de dias das outras
+    campanhas do conjunto filtrado (`GlobalAnalyticsOut.timeseries`'s `days`)
+    — o que permite plotar várias campanhas na mesma linha do tempo pra
+    comparação direta. Só inclui campanhas com pelo menos um evento (ver
+    `services/ad.py::_campaigns_analytics`), senão a legenda enche de linhas
+    zeradas pra propostas que nunca chegaram a rodar."""
+
+    campaign_id: int
+    title: str
+    buckets: list[AnalyticsBucket]
+
+
 class GlobalAnalyticsOut(BaseModel):
     date_from: datetime | None
     date_to: datetime | None
     summary: GlobalAnalyticsSummary
     timeseries: list[AnalyticsBucket]
+    by_campaign_timeseries: list[CampaignSeries]
     by_format: list[AnalyticsBucket]
     by_objective: list[AnalyticsBucket]
     by_category: list[AnalyticsBucket]
